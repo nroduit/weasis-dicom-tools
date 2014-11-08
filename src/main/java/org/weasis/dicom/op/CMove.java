@@ -1,0 +1,162 @@
+/*******************************************************************************
+ * Copyright (c) 2014 Weasis Team.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *     Nicolas Roduit - initial API and implementation
+ *******************************************************************************/
+package org.weasis.dicom.op;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+
+import org.dcm4che3.data.Tag;
+import org.dcm4che3.net.Connection;
+import org.dcm4che3.net.QueryOption;
+import org.dcm4che3.net.Status;
+import org.dcm4che3.tool.movescu.MoveSCU;
+import org.dcm4che3.tool.movescu.MoveSCU.InformationModel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.weasis.dicom.param.AdvancedParams;
+import org.weasis.dicom.param.DicomNode;
+import org.weasis.dicom.param.DicomParam;
+import org.weasis.dicom.param.DicomProgress;
+import org.weasis.dicom.param.DicomState;
+import org.weasis.dicom.param.ProgressListener;
+import org.weasis.dicom.util.StringUtil;
+
+public class CMove {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(CMove.class);
+
+    private CMove() {
+    }
+
+    /**
+     * @param callingNode
+     *            the calling DICOM node configuration
+     * @param calledNode
+     *            the called DICOM node configuration
+     * @param destinationAet
+     *            the destination AET.
+     * @param progress
+     *            the progress handler.
+     * @param keys
+     *            the matching and returning keys. DicomParam with no value is a returning key.
+     * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error message and the
+     *         progression.
+     */
+    public static DicomState process(DicomNode callingNode, DicomNode calledNode, String destinationAet,
+        DicomProgress progress, DicomParam... keys) {
+        return CMove.process(null, callingNode, calledNode, destinationAet, progress, keys);
+    }
+
+    /**
+     * @param params
+     *            optional advanced parameters (proxy, authentication, connection and TLS)
+     * @param callingNode
+     *            the calling DICOM node configuration
+     * @param calledNode
+     *            the called DICOM node configuration
+     * @param destinationAet
+     *            the destination AET.
+     * @param progress
+     *            the progress handler.
+     * @param keys
+     *            the matching and returning keys. DicomParam with no value is a returning key.
+     * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error message and the
+     *         progression.
+     */
+    public static DicomState process(AdvancedParams params, DicomNode callingNode, DicomNode calledNode,
+        String destinationAet, DicomProgress progress, DicomParam... keys) {
+        if (callingNode == null || calledNode == null || destinationAet == null) {
+            throw new IllegalArgumentException("callingNode, calledNode or destinationAet cannot be null!");
+        }
+        MoveSCU moveSCU = null;
+        String message = null;
+        AdvancedParams options = params == null ? new AdvancedParams() : params;
+
+        try {
+            moveSCU = new MoveSCU(progress);
+            Connection remote = moveSCU.getRemoteConnection();
+            Connection conn = moveSCU.getConnection();
+            options.configureConnect(moveSCU.getAAssociateRQ(), remote, calledNode);
+            options.configureBind(moveSCU.getApplicationEntity(), conn, callingNode);
+
+            // configure
+            options.configure(conn);
+            options.configureTLS(conn, remote);
+
+            moveSCU.setInformationModel(getInformationModel(options), options.getTsuidOrder(), options
+                .getQueryOptions().contains(QueryOption.RELATIONAL));
+
+            for (DicomParam p : keys) {
+                moveSCU.addKey(p.getTag(), p.getValues());
+            }
+            moveSCU.setDestination(destinationAet);
+
+            ExecutorService executorService = Executors.newSingleThreadExecutor();
+            ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+            moveSCU.setExecutor(executorService);
+            moveSCU.setScheduledExecutor(scheduledExecutorService);
+            try {
+                moveSCU.open();
+                moveSCU.retrieve();
+            } finally {
+                moveSCU.close();
+                executorService.shutdown();
+                scheduledExecutorService.shutdown();
+            }
+        } catch (Exception e) {
+            message = "movescu: " + e.getMessage();
+            StringUtil.logError(LOGGER, e, message);
+            DicomState dcmState = moveSCU == null ? null : moveSCU.getState();
+            if (dcmState != null) {
+                dcmState.setStatus(Status.UnableToProcess);
+            }
+        }
+
+        DicomState dcmState = moveSCU == null ? null : moveSCU.getState();
+        if (dcmState == null) {
+            dcmState = new DicomState(Status.UnableToProcess, message, null);
+        }
+        return dcmState;
+    }
+
+    private static InformationModel getInformationModel(AdvancedParams options) {
+        Object model = options.getInformationModel();
+        if (model instanceof InformationModel) {
+            return (InformationModel) model;
+        }
+        return InformationModel.StudyRoot;
+    }
+
+    public static void main(String[] args) {
+        DicomParam[] params = { new DicomParam(Tag.PatientID, "Cerebral MPR") };
+
+        DicomProgress progress = new DicomProgress();
+        progress.addProgressListener(new ProgressListener() {
+
+            @Override
+            public void handleProgression(DicomProgress progress) {
+                System.out.println("Remaining operations:" + progress.getNumberOfRemainingSuboperations());
+                if (progress.getNumberOfRemainingSuboperations() == 1850) {
+                    progress.cancel();
+                }
+            }
+        });
+        DicomState state =
+            CMove.process(new DicomNode("OSIRIXWEB"), new DicomNode("DCM4CHEE", "localhost", 11112), "TEST", progress,
+                params);
+        System.out.println("Status:" + progress.getStatus());
+        System.out.println("NumberOfRemainingSuboperations:" + progress.getNumberOfRemainingSuboperations());
+        System.out.println("NumberOfCompletedSuboperations:" + progress.getNumberOfCompletedSuboperations());
+        System.out.println("NumberOfFailedSuboperations:" + progress.getNumberOfFailedSuboperations());
+        System.out.println("NumberOfWarningSuboperations:" + progress.getNumberOfWarningSuboperations());
+    }
+}

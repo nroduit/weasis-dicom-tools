@@ -41,20 +41,7 @@ package org.dcm4che3.tool.getscu;
 import java.io.File;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.text.MessageFormat;
-import java.util.List;
-import java.util.Map.Entry;
-import java.util.Properties;
-import java.util.ResourceBundle;
-import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.OptionBuilder;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.ElementDictionary;
 import org.dcm4che3.data.Tag;
@@ -77,9 +64,7 @@ import org.dcm4che3.net.pdu.RoleSelection;
 import org.dcm4che3.net.service.BasicCStoreSCP;
 import org.dcm4che3.net.service.DicomServiceException;
 import org.dcm4che3.net.service.DicomServiceRegistry;
-import org.dcm4che3.tool.common.CLIUtils;
 import org.dcm4che3.util.SafeClose;
-import org.dcm4che3.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.dicom.param.DicomProgress;
@@ -111,8 +96,6 @@ public class GetSCU {
             this.level = level;
         }
     }
-
-    private static ResourceBundle rb = ResourceBundle.getBundle("org.dcm4che3.tool.getscu.messages");
 
     private static final int[] DEF_IN_FILTER = { Tag.SOPInstanceUID, Tag.StudyInstanceUID, Tag.SeriesInstanceUID };
 
@@ -244,161 +227,11 @@ public class GetSCU {
         this.inFilter = inFilter;
     }
 
-    private static CommandLine parseComandLine(String[] args) throws ParseException {
-        Options opts = new Options();
-        addServiceClassOptions(opts);
-        addKeyOptions(opts);
-        addRetrieveLevelOption(opts);
-        addStorageDirectoryOptions(opts);
-        CLIUtils.addConnectOption(opts);
-        CLIUtils.addBindOption(opts, "GETSCU");
-        CLIUtils.addAEOptions(opts);
-        CLIUtils.addRetrieveTimeoutOption(opts);
-        CLIUtils.addPriorityOption(opts);
-        CLIUtils.addCommonOptions(opts);
-        return CLIUtils.parseComandLine(args, opts, rb, GetSCU.class);
-    }
-
-    @SuppressWarnings("static-access")
-    private static void addRetrieveLevelOption(Options opts) {
-        opts.addOption(OptionBuilder.hasArg().withArgName("PATIENT|STUDY|SERIES|IMAGE|FRAME")
-            .withDescription(rb.getString("level")).create("L"));
-    }
-
-    @SuppressWarnings("static-access")
-    private static void addStorageDirectoryOptions(Options opts) {
-        opts.addOption(null, "ignore", false, rb.getString("ignore"));
-        opts.addOption(OptionBuilder.hasArg().withArgName("path").withDescription(rb.getString("directory"))
-            .withLongOpt("directory").create(null));
-    }
-
-    @SuppressWarnings("static-access")
-    private static void addKeyOptions(Options opts) {
-        opts.addOption(OptionBuilder.hasArgs().withArgName("attr=value").withValueSeparator('=')
-            .withDescription(rb.getString("match")).create("m"));
-        opts.addOption(OptionBuilder.hasArgs().withArgName("attr").withDescription(rb.getString("in-attr")).create("i"));
-    }
-
-    @SuppressWarnings("static-access")
-    private static void addServiceClassOptions(Options opts) {
-        opts.addOption(OptionBuilder.hasArg().withArgName("name").withDescription(rb.getString("model")).create("M"));
-        opts.addOption(null, "relational", false, rb.getString("relational"));
-        CLIUtils.addTransferSyntaxOptions(opts);
-        opts.addOption(OptionBuilder.hasArg().withArgName("cuid:tsuid[(,|;)...]")
-            .withDescription(rb.getString("store-tc")).withLongOpt("store-tc").create());
-        opts.addOption(OptionBuilder.hasArg().withArgName("file|url").withDescription(rb.getString("store-tcs"))
-            .withLongOpt("store-tcs").create());
-    }
-
-    @SuppressWarnings("unchecked")
-    public static void main(String[] args) {
-        try {
-            CommandLine cl = parseComandLine(args);
-            GetSCU main = new GetSCU();
-            CLIUtils.configureConnect(main.remote, main.rq, cl);
-            CLIUtils.configureBind(main.conn, main.ae, cl);
-            CLIUtils.configure(main.conn, cl);
-            main.remote.setTlsProtocols(main.conn.getTlsProtocols());
-            main.remote.setTlsCipherSuites(main.conn.getTlsCipherSuites());
-            configureServiceClass(main, cl);
-            configureKeys(main, cl);
-            main.setPriority(CLIUtils.priorityOf(cl));
-            configureStorageDirectory(main, cl);
-            ExecutorService executorService = Executors.newSingleThreadExecutor();
-            ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
-            main.device.setExecutor(executorService);
-            main.device.setScheduledExecutor(scheduledExecutorService);
-            try {
-                main.open();
-                List<String> argList = cl.getArgList();
-                if (argList.isEmpty()) {
-                    main.retrieve();
-                } else {
-                    for (String arg : argList) {
-                        main.retrieve(new File(arg));
-                    }
-                }
-            } finally {
-                main.close();
-                executorService.shutdown();
-                scheduledExecutorService.shutdown();
-            }
-        } catch (ParseException e) {
-            System.err.println("getscu: " + e.getMessage());
-            System.err.println(rb.getString("try"));
-            System.exit(2);
-        } catch (Exception e) {
-            System.err.println("getscu: " + e.getMessage());
-            e.printStackTrace();
-            System.exit(2);
-        }
-    }
-
-    private static void configureServiceClass(GetSCU main, CommandLine cl) throws Exception {
-        main.setInformationModel(informationModelOf(cl), CLIUtils.transferSyntaxesOf(cl), cl.hasOption("relational"));
-        String[] pcs = cl.getOptionValues("store-tc");
-        if (pcs != null) {
-            for (String pc : pcs) {
-                String[] ss = StringUtils.split(pc, ':');
-                configureStorageSOPClass(main, ss[0], ss[1]);
-            }
-        }
-        String[] files = cl.getOptionValues("store-tcs");
-        if (pcs == null && files == null) {
-            files = new String[] { "resource:store-tcs.properties" };
-        }
-        if (files != null) {
-            for (String file : files) {
-                Properties p = CLIUtils.loadProperties(file, null);
-                Set<Entry<Object, Object>> entrySet = p.entrySet();
-                for (Entry<Object, Object> entry : entrySet) {
-                    configureStorageSOPClass(main, (String) entry.getKey(), (String) entry.getValue());
-                }
-            }
-        }
-    }
-
-    private static void configureStorageSOPClass(GetSCU main, String cuid, String tsuids0) {
-        String[] tsuids1 = StringUtils.split(tsuids0, ';');
-        for (String tsuids2 : tsuids1) {
-            main.addOfferedStorageSOPClass(CLIUtils.toUID(cuid), CLIUtils.toUID(tsuids2));
-        }
-    }
-
     public void addOfferedStorageSOPClass(String cuid, String... tsuids) {
         if (!rq.containsPresentationContextFor(cuid)) {
             rq.addRoleSelection(new RoleSelection(cuid, false, true));
         }
         rq.addPresentationContext(new PresentationContext(2 * rq.getNumberOfPresentationContexts() + 1, cuid, tsuids));
-    }
-
-    private static void configureStorageDirectory(GetSCU main, CommandLine cl) {
-        if (!cl.hasOption("ignore")) {
-            main.setStorageDirectory(new File(cl.getOptionValue("directory", ".")));
-        }
-    }
-
-    private static void configureKeys(GetSCU main, CommandLine cl) {
-        if (cl.hasOption("m")) {
-            String[] keys = cl.getOptionValues("m");
-            for (int i = 1; i < keys.length; i++, i++) {
-                main.addKey(CLIUtils.toTag(keys[i - 1]), StringUtils.split(keys[i], '/'));
-            }
-        }
-        if (cl.hasOption("L")) {
-            main.addLevel(cl.getOptionValue("L"));
-        }
-        if (cl.hasOption("i")) {
-            main.setInputFilter(CLIUtils.toTags(cl.getOptionValues("i")));
-        }
-    }
-
-    private static InformationModel informationModelOf(CommandLine cl) throws ParseException {
-        try {
-            return cl.hasOption("M") ? InformationModel.valueOf(cl.getOptionValue("M")) : InformationModel.StudyRoot;
-        } catch (IllegalArgumentException e) {
-            throw new ParseException(MessageFormat.format(rb.getString("invalid-model-name"), cl.getOptionValue("M")));
-        }
     }
 
     public void open() throws IOException, InterruptedException, IncompatibleConnectionException,

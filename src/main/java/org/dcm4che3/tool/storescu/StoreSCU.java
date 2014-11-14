@@ -43,32 +43,17 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.io.Writer;
 import java.security.GeneralSecurityException;
-import java.text.DateFormat;
-import java.text.DecimalFormat;
 import java.text.MessageFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Properties;
-import java.util.ResourceBundle;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 
 import javax.xml.parsers.ParserConfigurationException;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.OptionBuilder;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
@@ -81,7 +66,6 @@ import org.dcm4che3.net.ApplicationEntity;
 import org.dcm4che3.net.Association;
 import org.dcm4che3.net.Connection;
 import org.dcm4che3.net.DataWriterAdapter;
-import org.dcm4che3.net.Device;
 import org.dcm4che3.net.DimseRSPHandler;
 import org.dcm4che3.net.IncompatibleConnectionException;
 import org.dcm4che3.net.InputStreamDataWriter;
@@ -107,8 +91,6 @@ public class StoreSCU {
         DimseRSPHandler createDimseRSPHandler(File f);
     }
 
-    private static ResourceBundle rb = ResourceBundle.getBundle("org.dcm4che3.tool.storescu.messages");
-
     private final ApplicationEntity ae;
     private final Connection remote;
     private final AAssociateRQ rq = new AAssociateRQ();
@@ -123,9 +105,9 @@ public class StoreSCU {
     private File tmpFile;
     private Association as;
 
-    private long totalSize;
+    private long totalSize = 0;
     private int filesScanned;
-    private int filesSent;
+    private int filesSent = 0;
     private boolean generateUIDs = false;
     private HashMap<String, String> uidMap;
 
@@ -193,204 +175,6 @@ public class StoreSCU {
 
     public final void setTmpFileDirectory(File tmpDir) {
         this.tmpDir = tmpDir;
-    }
-
-    private static CommandLine parseComandLine(String[] args) throws ParseException {
-        Options opts = new Options();
-        CLIUtils.addConnectOption(opts);
-        CLIUtils.addBindOption(opts, "STORESCU");
-        CLIUtils.addAEOptions(opts);
-        CLIUtils.addResponseTimeoutOption(opts);
-        CLIUtils.addPriorityOption(opts);
-        CLIUtils.addCommonOptions(opts);
-        addUIDsOptions(opts);
-        addTmpFileOptions(opts);
-        addRelatedSOPClassOptions(opts);
-        addAttributesOption(opts);
-        addUIDSuffixOption(opts);
-        return CLIUtils.parseComandLine(args, opts, rb, StoreSCU.class);
-    }
-
-    @SuppressWarnings("static-access")
-    public static void addUIDsOptions(Options opts) {
-        opts.addOption(OptionBuilder.withLongOpt("gen-uids").withDescription("Regenerate Study/Series/Object UIDs")
-            .create());
-    }
-
-    @SuppressWarnings("static-access")
-    private static void addAttributesOption(Options opts) {
-        opts.addOption(OptionBuilder.hasArgs().withArgName("[seq/]attr=value").withValueSeparator('=')
-            .withDescription(rb.getString("set")).create("s"));
-    }
-
-    @SuppressWarnings("static-access")
-    public static void addUIDSuffixOption(Options opts) {
-        opts.addOption(OptionBuilder.hasArg().withArgName("suffix").withDescription(rb.getString("uid-suffix"))
-            .withLongOpt("uid-suffix").create(null));
-    }
-
-    @SuppressWarnings("static-access")
-    public static void addTmpFileOptions(Options opts) {
-        opts.addOption(OptionBuilder.hasArg().withArgName("directory").withDescription(rb.getString("tmp-file-dir"))
-            .withLongOpt("tmp-file-dir").create(null));
-        opts.addOption(OptionBuilder.hasArg().withArgName("prefix").withDescription(rb.getString("tmp-file-prefix"))
-            .withLongOpt("tmp-file-prefix").create(null));
-        opts.addOption(OptionBuilder.hasArg().withArgName("suffix").withDescription(rb.getString("tmp-file-suffix"))
-            .withLongOpt("tmp-file-suffix").create(null));
-    }
-
-    @SuppressWarnings("static-access")
-    private static void addRelatedSOPClassOptions(Options opts) {
-        opts.addOption(null, "rel-ext-neg", false, rb.getString("rel-ext-neg"));
-        opts.addOption(OptionBuilder.hasArg().withArgName("file|url").withDescription(rb.getString("rel-sop-classes"))
-            .withLongOpt("rel-sop-classes").create(null));
-    }
-
-    @SuppressWarnings("unchecked")
-    public static void main(String[] args) {
-        long t1, t2;
-        try {
-            CommandLine cl = parseComandLine(args);
-            Device device = new Device("storescu");
-            Connection conn = new Connection();
-            device.addConnection(conn);
-            ApplicationEntity ae = new ApplicationEntity("STORESCU");
-            device.addApplicationEntity(ae);
-            ae.addConnection(conn);
-            StoreSCU main = new StoreSCU(ae);
-            configureTmpFile(main, cl);
-            CLIUtils.configureConnect(main.remote, main.rq, cl);
-            CLIUtils.configureBind(conn, ae, cl);
-            CLIUtils.configure(conn, cl);
-            main.remote.setTlsProtocols(conn.getTlsProtocols());
-            main.remote.setTlsCipherSuites(conn.getTlsCipherSuites());
-            configureRelatedSOPClass(main, cl);
-            main.setAttributes(new Attributes());
-            CLIUtils.addAttributes(main.attrs, cl.getOptionValues("s"));
-            main.setUIDSuffix(cl.getOptionValue("uid-suffix"));
-            main.setPriority(CLIUtils.priorityOf(cl));
-            List<String> argList = cl.getArgList();
-            boolean echo = argList.isEmpty();
-            if (!echo) {
-                System.out.println(rb.getString("scanning"));
-                t1 = System.currentTimeMillis();
-                main.scanFiles(argList);
-                t2 = System.currentTimeMillis();
-                int n = main.filesScanned;
-                System.out.println();
-                if (n == 0) {
-                    return;
-                }
-                System.out.println(MessageFormat.format(rb.getString("scanned"), n, (t2 - t1) / 1000F, (t2 - t1) / n));
-            }
-            ExecutorService executorService = Executors.newSingleThreadExecutor();
-            ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
-            device.setExecutor(executorService);
-            device.setScheduledExecutor(scheduledExecutorService);
-            try {
-                t1 = System.currentTimeMillis();
-                main.open();
-                t2 = System.currentTimeMillis();
-                System.out.println(MessageFormat.format(rb.getString("connected"), main.as.getRemoteAET(), t2 - t1));
-                if (echo) {
-                    main.echo();
-                } else {
-                    main.generateUIDs = cl.hasOption("gen-uids");
-                    if (main.generateUIDs) {
-                        main.uidMap = new HashMap<String, String>();
-                    }
-                    t1 = System.currentTimeMillis();
-                    main.sendFiles();
-                    t2 = System.currentTimeMillis();
-                }
-            } finally {
-                main.close();
-                executorService.shutdown();
-                scheduledExecutorService.shutdown();
-            }
-            if (main.filesScanned > 0) {
-                float s = (t2 - t1) / 1000F;
-                float mb = main.totalSize / 1048576F;
-                System.out.println(MessageFormat.format(rb.getString("sent"), main.filesSent, mb, s, mb / s));
-                String filepath = cl.getOptionValue("log-file");
-                if (filepath != null) {
-                    File file = new File(filepath);
-                    Writer writer = null;
-                    try {
-                        writer = new BufferedWriter(new FileWriter(file, true));
-                        DateFormat timeFormat = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss.SSS");
-                        writer.write("\n");
-                        writer.write(timeFormat.format(new Date()));
-                        writer.write(" *INFO*");
-                        writer.write(" StoreSCU:dicom");
-                        writer.write(" nbFiles:");
-                        writer.write(String.valueOf(main.filesSent));
-                        writer.write(" size:");
-                        writer.write(String.valueOf(main.totalSize));
-                        writer.write(" time:");
-                        writer.write(String.valueOf((t2 - t1)));
-                        writer.write(" rate:");
-                        // rate in kB/s or B/ms
-                        DecimalFormat format = new DecimalFormat("#.##");
-                        writer.write(format.format(new Long(main.totalSize).doubleValue() / (t2 - t1)));
-                        writer.write(" config:");
-
-                        int startDirIndex = 0;
-                        for (int i = 0; i < args.length; i++) {
-                            if (args[i].contains("@")) {
-                                writer.write(args[i]);
-                                startDirIndex = i + 1;
-                                break;
-                            }
-                        }
-
-                        writer.write(" dirNames:");
-                        for (int i = startDirIndex; i < args.length; i++) {
-                            if (i > startDirIndex) {
-                                writer.write(',');
-                            }
-                            File f = new File(args[i]);
-                            writer.write(f.getName());
-                        }
-                    } finally {
-                        try {
-                            writer.close();
-                        } catch (Exception ex) {
-                        }
-                    }
-                }
-            }
-        } catch (ParseException e) {
-            System.err.println("storescu: " + e.getMessage());
-            System.err.println(rb.getString("try"));
-            System.exit(2);
-        } catch (Exception e) {
-            System.err.println("storescu: " + e.getMessage());
-            e.printStackTrace();
-            System.exit(2);
-        }
-    }
-
-    public static String uidSuffixOf(CommandLine cl) {
-        return cl.getOptionValue("uid-suffix");
-    }
-
-    private static void configureTmpFile(StoreSCU storescu, CommandLine cl) {
-        if (cl.hasOption("tmp-file-dir")) {
-            storescu.setTmpFileDirectory(new File(cl.getOptionValue("tmp-file-dir")));
-        }
-        storescu.setTmpFilePrefix(cl.getOptionValue("tmp-file-prefix", "storescu-"));
-        storescu.setTmpFileSuffix(cl.getOptionValue("tmp-file-suffix"));
-    }
-
-    public static void configureRelatedSOPClass(StoreSCU storescu, CommandLine cl) throws IOException {
-        if (cl.hasOption("rel-ext-neg")) {
-            storescu.enableSOPClassRelationshipExtNeg(true);
-            Properties p = new Properties();
-            CLIUtils.loadProperties(cl.hasOption("rel-sop-classes") ? cl.getOptionValue("rel-ext-neg")
-                : "resource:rel-sop-classes.properties", p);
-            storescu.relSOPClasses.init(p);
-        }
     }
 
     public final void enableSOPClassRelationshipExtNeg(boolean enable) {
@@ -595,12 +379,14 @@ public class StoreSCU {
             case Status.DataSetDoesNotMatchSOPClassWarning:
                 totalSize += f.length();
                 ++filesSent;
-                System.err.println(MessageFormat.format(rb.getString("warning"), TagUtils.shortToHexString(status), f));
+                System.err.println(MessageFormat.format("WARNING: Received C-STORE-RSP with Status {0}H for {1}",
+                    TagUtils.shortToHexString(status), f));
                 System.err.println(cmd);
                 break;
             default:
                 System.out.print('E');
-                System.err.println(MessageFormat.format(rb.getString("error"), TagUtils.shortToHexString(status), f));
+                System.err.println(MessageFormat.format("ERROR: Received C-STORE-RSP with Status {0}H for {1}",
+                    TagUtils.shortToHexString(status), f));
                 System.err.println(cmd);
         }
     }

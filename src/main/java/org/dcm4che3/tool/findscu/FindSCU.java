@@ -45,13 +45,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.security.GeneralSecurityException;
 import java.text.DecimalFormat;
-import java.text.MessageFormat;
 import java.util.EnumSet;
-import java.util.List;
-import java.util.ResourceBundle;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.xml.transform.OutputKeys;
@@ -62,10 +56,6 @@ import javax.xml.transform.sax.TransformerHandler;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.OptionBuilder;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
@@ -84,7 +74,6 @@ import org.dcm4che3.net.Status;
 import org.dcm4che3.net.pdu.AAssociateRQ;
 import org.dcm4che3.net.pdu.ExtendedNegotiation;
 import org.dcm4che3.net.pdu.PresentationContext;
-import org.dcm4che3.tool.common.CLIUtils;
 import org.dcm4che3.util.SafeClose;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
@@ -120,7 +109,6 @@ public class FindSCU {
         }
     }
 
-    private static ResourceBundle rb = ResourceBundle.getBundle("org.dcm4che3.tool.findscu.messages");
     private static SAXTransformerFactory saxtf;
 
     private final Device device = new Device("findscu");
@@ -220,68 +208,6 @@ public class FindSCU {
         this.inFilter = inFilter;
     }
 
-    private static CommandLine parseComandLine(String[] args) throws ParseException {
-        Options opts = new Options();
-        addServiceClassOptions(opts);
-        addKeyOptions(opts);
-        addOutputOptions(opts);
-        addQueryLevelOption(opts);
-        addCancelOption(opts);
-        CLIUtils.addConnectOption(opts);
-        CLIUtils.addBindOption(opts, "FINDSCU");
-        CLIUtils.addAEOptions(opts);
-        CLIUtils.addResponseTimeoutOption(opts);
-        CLIUtils.addPriorityOption(opts);
-        CLIUtils.addCommonOptions(opts);
-        return CLIUtils.parseComandLine(args, opts, rb, FindSCU.class);
-    }
-
-    @SuppressWarnings("static-access")
-    private static void addServiceClassOptions(Options opts) {
-        opts.addOption(OptionBuilder.hasArg().withArgName("name").withDescription(rb.getString("model")).create("M"));
-        CLIUtils.addTransferSyntaxOptions(opts);
-        opts.addOption(null, "relational", false, rb.getString("relational"));
-        opts.addOption(null, "datetime", false, rb.getString("datetime"));
-        opts.addOption(null, "fuzzy", false, rb.getString("fuzzy"));
-        opts.addOption(null, "timezone", false, rb.getString("timezone"));
-    }
-
-    @SuppressWarnings("static-access")
-    private static void addQueryLevelOption(Options opts) {
-        opts.addOption(OptionBuilder.hasArg().withArgName("PATIENT|STUDY|SERIES|IMAGE")
-            .withDescription(rb.getString("level")).create("L"));
-    }
-
-    @SuppressWarnings("static-access")
-    private static void addCancelOption(Options opts) {
-        opts.addOption(OptionBuilder.withLongOpt("cancel").hasArg().withArgName("num-matches")
-            .withDescription(rb.getString("cancel")).create());
-    }
-
-    @SuppressWarnings("static-access")
-    private static void addKeyOptions(Options opts) {
-        opts.addOption(OptionBuilder.hasArgs().withArgName("[seq/]attr=value").withValueSeparator('=')
-            .withDescription(rb.getString("match")).create("m"));
-        opts.addOption(OptionBuilder.hasArgs().withArgName("[seq/]attr").withDescription(rb.getString("return"))
-            .create("r"));
-        opts.addOption(OptionBuilder.hasArgs().withArgName("attr").withDescription(rb.getString("in-attr")).create("i"));
-    }
-
-    @SuppressWarnings("static-access")
-    private static void addOutputOptions(Options opts) {
-        opts.addOption(OptionBuilder.withLongOpt("out-dir").hasArg().withArgName("directory")
-            .withDescription(rb.getString("out-dir")).create());
-        opts.addOption(OptionBuilder.withLongOpt("out-file").hasArg().withArgName("name")
-            .withDescription(rb.getString("out-file")).create());
-        opts.addOption("X", "xml", false, rb.getString("xml"));
-        opts.addOption(OptionBuilder.withLongOpt("xsl").hasArg().withArgName("xsl-file")
-            .withDescription(rb.getString("xsl")).create("x"));
-        opts.addOption("I", "indent", false, rb.getString("indent"));
-        opts.addOption("K", "no-keyword", false, rb.getString("no-keyword"));
-        opts.addOption(null, "xmlns", false, rb.getString("xmlns"));
-        opts.addOption(null, "out-cat", false, rb.getString("out-cat"));
-    }
-
     public ApplicationEntity getApplicationEntity() {
         return ae;
     }
@@ -304,114 +230,6 @@ public class FindSCU {
 
     public Attributes getKeys() {
         return keys;
-    }
-
-    @SuppressWarnings("unchecked")
-    public static void main(String[] args) {
-        try {
-            CommandLine cl = parseComandLine(args);
-            FindSCU main = new FindSCU();
-            CLIUtils.configureConnect(main.remote, main.rq, cl);
-            CLIUtils.configureBind(main.conn, main.ae, cl);
-            CLIUtils.configure(main.conn, cl);
-            main.remote.setTlsProtocols(main.conn.getTlsProtocols());
-            main.remote.setTlsCipherSuites(main.conn.getTlsCipherSuites());
-            configureServiceClass(main, cl);
-            configureKeys(main, cl);
-            configureOutput(main, cl);
-            configureCancel(main, cl);
-            main.setPriority(CLIUtils.priorityOf(cl));
-            ExecutorService executorService = Executors.newSingleThreadExecutor();
-            ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
-            main.device.setExecutor(executorService);
-            main.device.setScheduledExecutor(scheduledExecutorService);
-            try {
-                main.open();
-
-                List<String> argList = cl.getArgList();
-                if (argList.isEmpty()) {
-                    main.query();
-                } else {
-                    for (String arg : argList) {
-                        main.query(new File(arg));
-                    }
-                }
-            } finally {
-                main.close();
-                executorService.shutdown();
-                scheduledExecutorService.shutdown();
-            }
-        } catch (ParseException e) {
-            System.err.println("findscu: " + e.getMessage());
-            System.err.println(rb.getString("try"));
-            System.exit(2);
-        } catch (Exception e) {
-            System.err.println("findscu: " + e.getMessage());
-            e.printStackTrace();
-            System.exit(2);
-        }
-    }
-
-    private static EnumSet<QueryOption> queryOptionsOf(FindSCU main, CommandLine cl) {
-        EnumSet<QueryOption> queryOptions = EnumSet.noneOf(QueryOption.class);
-        if (cl.hasOption("relational")) {
-            queryOptions.add(QueryOption.RELATIONAL);
-        }
-        if (cl.hasOption("datetime")) {
-            queryOptions.add(QueryOption.DATETIME);
-        }
-        if (cl.hasOption("fuzzy")) {
-            queryOptions.add(QueryOption.FUZZY);
-        }
-        if (cl.hasOption("timezone")) {
-            queryOptions.add(QueryOption.TIMEZONE);
-        }
-        return queryOptions;
-    }
-
-    private static void configureOutput(FindSCU main, CommandLine cl) {
-        if (cl.hasOption("out-dir")) {
-            main.setOutputDirectory(new File(cl.getOptionValue("out-dir")));
-        }
-        main.setOutputFileFormat(cl.getOptionValue("out-file", "000'.dcm'"));
-        main.setConcatenateOutputFiles(cl.hasOption("out-cat"));
-        main.setXML(cl.hasOption("X"));
-        if (cl.hasOption("x")) {
-            main.setXML(true);
-            main.setXSLT(new File(cl.getOptionValue("x")));
-        }
-        main.setXMLIndent(cl.hasOption("I"));
-        main.setXMLIncludeKeyword(!cl.hasOption("K"));
-        main.setXMLIncludeNamespaceDeclaration(cl.hasOption("xmlns"));
-    }
-
-    private static void configureCancel(FindSCU main, CommandLine cl) {
-        if (cl.hasOption("cancel")) {
-            main.setCancelAfter(Integer.parseInt(cl.getOptionValue("cancel")));
-        }
-    }
-
-    private static void configureKeys(FindSCU main, CommandLine cl) {
-        CLIUtils.addEmptyAttributes(main.keys, cl.getOptionValues("r"));
-        CLIUtils.addAttributes(main.keys, cl.getOptionValues("m"));
-        if (cl.hasOption("L")) {
-            main.addLevel(cl.getOptionValue("L"));
-        }
-        if (cl.hasOption("i")) {
-            main.setInputFilter(CLIUtils.toTags(cl.getOptionValues("i")));
-        }
-    }
-
-    private static void configureServiceClass(FindSCU main, CommandLine cl) throws ParseException {
-        main.setInformationModel(informationModelOf(cl), CLIUtils.transferSyntaxesOf(cl), queryOptionsOf(main, cl));
-    }
-
-    private static InformationModel informationModelOf(CommandLine cl) throws ParseException {
-        try {
-            return cl.hasOption("M") ? InformationModel.valueOf(cl.getOptionValue("M")) : InformationModel.StudyRoot;
-        } catch (IllegalArgumentException e) {
-            throw new ParseException(MessageFormat.format(rb.getString("invalid-model-name"), cl.getOptionValue("M")));
-        }
     }
 
     public void open() throws IOException, InterruptedException, IncompatibleConnectionException,
@@ -478,10 +296,10 @@ public class FindSCU {
         query(keys, rspHandler);
     }
 
-    public void query( DimseRSPHandler rspHandler) throws IOException, InterruptedException {
+    public void query(DimseRSPHandler rspHandler) throws IOException, InterruptedException {
         query(keys, rspHandler);
     }
-    
+
     private void query(Attributes keys, DimseRSPHandler rspHandler) throws IOException, InterruptedException {
         as.cfind(model.cuid, priority, keys, null, rspHandler);
     }

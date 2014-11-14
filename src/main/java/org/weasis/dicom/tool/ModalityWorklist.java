@@ -193,25 +193,4 @@ public class ModalityWorklist {
         return InformationModel.MWL;
     }
 
-    public static void main(String[] args) {
-        DicomParam[] SPS_RETURN_KEYS =
-            { CFind.Modality, RequestedContrastAgent, new DicomParam(Tag.ScheduledStationAETitle, "ADVT"),
-                ScheduledProcedureStepStartDate, ScheduledProcedureStepStartTime, ScheduledPerformingPhysicianName,
-                ScheduledProcedureStepDescription, ScheduledProcedureStepID, ScheduledStationName,
-                ScheduledProcedureStepLocation, PreMedication, ScheduledProcedureStepStatus };
-
-        DicomParam[] RETURN_KEYS =
-            { CFind.AccessionNumber, CFind.ReferringPhysicianName, CFind.PatientName, CFind.PatientID,
-                CFind.PatientBirthDate, CFind.PatientSex, PatientWeight, MedicalAlerts, Allergies, PregnancyStatus,
-                CFind.StudyInstanceUID, RequestingPhysician, RequestingService, RequestedProcedureDescription,
-                AdmissionID, SpecialNeeds, CurrentPatientLocation, PatientState, RequestedProcedureID,
-                RequestedProcedurePriority, PatientTransportArrangements, PlacerOrderNumberImagingServiceRequest,
-                FillerOrderNumberImagingServiceRequest, ConfidentialityConstraintOnPatientDataDescription, };
-
-        DicomNode calling = new DicomNode("WEASIS-SCU");
-        DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
-
-        DicomState state = process(null, calling, called, 0, SPS_RETURN_KEYS, RETURN_KEYS);
-        state.getStatus();
-    }
 }

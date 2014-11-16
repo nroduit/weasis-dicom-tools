@@ -39,6 +39,10 @@ public class CstoreNetTest {
         DicomState state = Cstore.process(calling, called, files);
         // Should never happen
         Assert.assertNotNull(state);
+
+        System.out.println("DICOM Status:" + state.getStatus());
+        System.out.println(state.getMessage());
+
         // see org.dcm4che3.net.Status
         // See server log at http://dicomserver.co.uk/logs/
         Assert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(Status.Success));

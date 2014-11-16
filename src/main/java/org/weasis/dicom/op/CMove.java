@@ -14,7 +14,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
-import org.dcm4che3.data.Tag;
 import org.dcm4che3.net.Connection;
 import org.dcm4che3.net.QueryOption;
 import org.dcm4che3.net.Status;
@@ -27,7 +26,6 @@ import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomParam;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
-import org.weasis.dicom.param.ProgressListener;
 import org.weasis.dicom.util.StringUtil;
 
 public class CMove {
@@ -136,27 +134,4 @@ public class CMove {
         return InformationModel.StudyRoot;
     }
 
-    public static void main(String[] args) {
-        DicomParam[] params = { new DicomParam(Tag.PatientID, "Cerebral MPR") };
-
-        DicomProgress progress = new DicomProgress();
-        progress.addProgressListener(new ProgressListener() {
-
-            @Override
-            public void handleProgression(DicomProgress progress) {
-                System.out.println("Remaining operations:" + progress.getNumberOfRemainingSuboperations());
-                if (progress.getNumberOfRemainingSuboperations() == 1850) {
-                    progress.cancel();
-                }
-            }
-        });
-        DicomState state =
-            CMove.process(new DicomNode("OSIRIXWEB"), new DicomNode("DCM4CHEE", "localhost", 11112), "TEST", progress,
-                params);
-        System.out.println("Status:" + progress.getStatus());
-        System.out.println("NumberOfRemainingSuboperations:" + progress.getNumberOfRemainingSuboperations());
-        System.out.println("NumberOfCompletedSuboperations:" + progress.getNumberOfCompletedSuboperations());
-        System.out.println("NumberOfFailedSuboperations:" + progress.getNumberOfFailedSuboperations());
-        System.out.println("NumberOfWarningSuboperations:" + progress.getNumberOfWarningSuboperations());
-    }
 }

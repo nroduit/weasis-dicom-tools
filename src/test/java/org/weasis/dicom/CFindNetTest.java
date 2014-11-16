@@ -10,6 +10,9 @@
  *******************************************************************************/
 package org.weasis.dicom;
 
+import java.util.List;
+
+import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.net.Status;
 import org.hamcrest.core.IsEqual;
@@ -25,12 +28,25 @@ public class CFindNetTest {
     @Test
     public void testProcess() {
         DicomParam[] params =
-            { new DicomParam(Tag.PatientID, "PAT001"), new DicomParam(Tag.NumberOfStudyRelatedSeries) };
+            { new DicomParam(Tag.PatientID, "PAT001"), new DicomParam(Tag.StudyInstanceUID),
+                new DicomParam(Tag.NumberOfStudyRelatedSeries) };
         DicomNode calling = new DicomNode("WEASIS-SCU");
         DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
         DicomState state = CFind.process(calling, called, params);
         // Should never happen
         Assert.assertNotNull(state);
+
+        List<Attributes> items = state.getDicomRSP();
+        if (items != null) {
+            for (int i = 0; i < items.size(); i++) {
+                Attributes item = items.get(i);
+                System.out.println("===========================================");
+                System.out.println("CFind Item " + (i + 1));
+                System.out.println("===========================================");
+                System.out.println(item.toString(100, 150));
+            }
+        }
+
         // see org.dcm4che3.net.Status
         // See server log at http://dicomserver.co.uk/logs/
         Assert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(Status.Success));

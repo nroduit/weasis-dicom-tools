@@ -112,7 +112,7 @@ public class Cstore {
                 storeSCU.sendFiles();
                 long t2 = System.currentTimeMillis();
                 String message =
-                    MessageFormat.format("Successful DICOM Store. Connected from {0} to {1} in {2}ms", storeSCU
+                    MessageFormat.format("Successful DICOM Store. Send files from {0} to {1} in {2}ms", storeSCU
                         .getAAssociateRQ().getCallingAET(), storeSCU.getAAssociateRQ().getCalledAET(), t2 - t1);
                 return new DicomState(Status.Success, message, null);
             } finally {

@@ -78,8 +78,11 @@ public class ModalityWorklist {
      *            the calling DICOM node configuration
      * @param calledNode
      *            the called DICOM node configuration
+     * @param spsKeys
+     *            the matching and returning ScheduledProcedureStepSequence keys. DicomParam with no value is a
+     *            returning key.
      * @param keys
-     *            the matching and returning keys. DicomParam with no value is a returning key.
+     *            the matching and returning root keys. DicomParam with no value is a returning key.
      * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error message and the
      *         progression.
      */
@@ -95,8 +98,11 @@ public class ModalityWorklist {
      *            the calling DICOM node configuration
      * @param calledNode
      *            the called DICOM node configuration
+     * @param spsKeys
+     *            the matching and returning ScheduledProcedureStepSequence keys. DicomParam with no value is a
+     *            returning key.
      * @param keys
-     *            the matching and returning keys. DicomParam with no value is a returning key.
+     *            the matching and returning root keys. DicomParam with no value is a returning key.
      * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error message and the
      *         progression.
      */
@@ -114,8 +120,11 @@ public class ModalityWorklist {
      *            the called DICOM node configuration
      * @param cancelAfter
      *            cancel the query request after the receive of the specified number of matches.
+     * @param spsKeys
+     *            the matching and returning ScheduledProcedureStepSequence keys. DicomParam with no value is a
+     *            returning key.
      * @param keys
-     *            the matching and returning keys. DicomParam with no value is a returning key.
+     *            the matching and returning root keys. DicomParam with no value is a returning key.
      * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error message and the
      *         progression.
      */

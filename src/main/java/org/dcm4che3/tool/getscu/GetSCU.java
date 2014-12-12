@@ -41,6 +41,7 @@ package org.dcm4che3.tool.getscu;
 import java.io.File;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.util.concurrent.ExecutorService;
 
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.ElementDictionary;
@@ -303,4 +304,13 @@ public class GetSCU {
         return state;
     }
 
+    public void stop() {
+        try {
+            close();
+        } catch (Exception e) {
+            // Do nothing
+        }
+        ((ExecutorService) device.getExecutor()).shutdown();
+        device.getScheduledExecutor().shutdown();
+    }
 }

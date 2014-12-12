@@ -601,4 +601,17 @@ public final class FileUtil {
         }
         return defaultValue;
     }
+
+    public static File getTemporaryDirectory(String folder) {
+        String tempDir = System.getProperty("java.io.tmpdir");
+        File tdir;
+        if (tempDir == null || tempDir.length() == 1) {
+            String dir = System.getProperty("user.home", "");
+            tdir = new File(dir);
+        } else {
+            tdir = new File(tempDir);
+        }
+
+        return new File(tdir, folder);
+    }
 }

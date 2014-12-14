@@ -39,6 +39,24 @@ public class StringUtil {
     private StringUtil() {
     }
 
+    public static boolean getNULLtoFalse(Object val) {
+        if (val instanceof Boolean) {
+            return ((Boolean) val).booleanValue();
+        } else if (val instanceof String) {
+            return ((String) val).equalsIgnoreCase("true");
+        }
+        return false;
+    }
+
+    public static boolean getNULLtoTrue(Object val) {
+        if (val instanceof Boolean) {
+            return ((Boolean) val).booleanValue();
+        } else if (val instanceof String) {
+            return ((String) val).equalsIgnoreCase("true");
+        }
+        return true;
+    }
+
     public static String getTruncatedString(String name, int limit, Suffix suffix) {
         if (name != null && name.length() > limit) {
             int sLength = suffix.getSuffix().length();

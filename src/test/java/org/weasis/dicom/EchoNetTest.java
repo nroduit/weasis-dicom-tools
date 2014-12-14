@@ -22,14 +22,23 @@ public class EchoNetTest {
 
     @Test
     public void testProcess() {
+        // DicomNode calling = new DicomNode("WEA-SCU");
+        // DicomNode called = new DicomNode("DCM4CHEE", "localhost", 11112);
+        // AdvancedParams params = new AdvancedParams();
+        // TlsOptions tls =
+        // new TlsOptions(true, "/home/dcm4chee/dcm4chee-2.18.0-mysql/server/default/conf/keystore.jks", "JKS",
+        // "keypwd", "keypwd", "/home/dcm4chee/dcm4chee-2.18.0-mysql/server/default/conf/trust.jks", "JKS",
+        // "trustpwd");
+        // params.setTlsOptions(tls);
+        // DicomState state = Echo.process(params, calling, called);
+
         DicomNode calling = new DicomNode("WEASIS-SCU");
         DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
-        DicomState state = Echo.process(calling, called);
+        DicomState state = Echo.process(null, calling, called);
         // Should never happen
         Assert.assertNotNull(state);
         // see org.dcm4che3.net.Status
         // See server log at http://dicomserver.co.uk/logs/
         Assert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(Status.Success));
     }
-
 }

@@ -15,6 +15,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
+import org.dcm4che3.data.UID;
 import org.dcm4che3.net.Connection;
 import org.dcm4che3.net.QueryOption;
 import org.dcm4che3.net.Status;
@@ -33,6 +34,17 @@ public class CGet {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CGet.class);
 
+    // Storage Transfer Capabilities for most common SOP Classes and Transfer Syntaxes
+    public static final String[] STORAGE_SOP = { UID.ComputedRadiographyImageStorage,
+        UID.DigitalXRayImageStorageForPresentation, UID.DigitalXRayImageStorageForProcessing,
+        UID.DigitalMammographyXRayImageStorageForPresentation, UID.DigitalMammographyXRayImageStorageForProcessing,
+        UID.CTImageStorage, UID.UltrasoundMultiFrameImageStorage, UID.MRImageStorage, UID.UltrasoundImageStorage,
+        UID.SecondaryCaptureImageStorage, UID.GrayscaleSoftcopyPresentationStateStorageSOPClass,
+        UID.XRayAngiographicImageStorage, UID.XRayRadiofluoroscopicImageStorage, UID.NuclearMedicineImageStorage,
+        UID.VLPhotographicImageStorage, UID.VideoPhotographicImageStorage, UID.BasicTextSRStorage,
+        UID.EnhancedSRStorage, UID.KeyObjectSelectionDocumentStorage, UID.XRayRadiationDoseSRStorage,
+        UID.EncapsulatedPDFStorage, UID.PositronEmissionTomographyImageStorage };
+
     private CGet() {
     }
 
@@ -48,9 +60,9 @@ public class CGet {
      * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error message and the
      *         progression.
      */
-    public static GetSCU build(DicomNode callingNode, DicomNode calledNode, DicomProgress progress, File outputDir,
-        DicomParam... keys) {
-        return CGet.build(null, callingNode, calledNode, progress, outputDir, keys);
+    public static DicomState process(DicomNode callingNode, DicomNode calledNode, DicomProgress progress,
+        File outputDir, DicomParam... keys) {
+        return process(null, callingNode, calledNode, progress, outputDir, keys);
     }
 
     /**
@@ -67,7 +79,7 @@ public class CGet {
      * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error message and the
      *         progression.
      */
-    public static GetSCU build(AdvancedParams params, DicomNode callingNode, DicomNode calledNode,
+    public static DicomState process(AdvancedParams params, DicomNode callingNode, DicomNode calledNode,
         DicomProgress progress, File outputDir, DicomParam... keys) {
         if (callingNode == null || calledNode == null || outputDir == null) {
             throw new IllegalArgumentException("callingNode, calledNode or outputDir cannot be null!");
@@ -92,7 +104,12 @@ public class CGet {
             getSCU.setInformationModel(getInformationModel(options), options.getTsuidOrder(), options.getQueryOptions()
                 .contains(QueryOption.RELATIONAL));
 
-            getSCU.addOfferedStorageSOPClass("1.2.840.10008.5.1.4.1.1.2", "1.2.840.10008.1.2", "1.2.840.10008.1.2.1");
+            for (String sop : STORAGE_SOP) {
+                getSCU.addOfferedStorageSOPClass(sop, UID.ImplicitVRLittleEndian, UID.ExplicitVRLittleEndian);
+                // getSCU.addOfferedStorageSOPClass(sop, UID.ImplicitVRLittleEndian, UID.ExplicitVRLittleEndian,
+                // UID.JPEGBaseline1, UID.JPEGExtended24, UID.JPEGLosslessNonHierarchical14, UID.JPEG2000LosslessOnly,
+                // UID.JPEG2000);
+            }
 
             for (DicomParam p : keys) {
                 getSCU.addKey(p.getTag(), p.getValues());
@@ -118,7 +135,12 @@ public class CGet {
                 dcmState.setStatus(Status.UnableToProcess);
             }
         }
-        return getSCU;
+
+        DicomState dcmState = getSCU == null ? null : getSCU.getState();
+        if (dcmState == null) {
+            dcmState = new DicomState(Status.UnableToProcess, message, null);
+        }
+        return dcmState;
     }
 
     private static InformationModel getInformationModel(AdvancedParams options) {

@@ -19,7 +19,7 @@ import org.dcm4che3.net.Status;
 import org.hamcrest.core.IsEqual;
 import org.junit.Assert;
 import org.junit.Test;
-import org.weasis.dicom.op.Cstore;
+import org.weasis.dicom.op.CStore;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomState;
 
@@ -36,7 +36,7 @@ public class CstoreNetTest {
         } catch (URISyntaxException e) {
             e.printStackTrace();
         }
-        DicomState state = Cstore.process(calling, called, files);
+        DicomState state = CStore.process(calling, called, files);
         // Should never happen
         Assert.assertNotNull(state);
 

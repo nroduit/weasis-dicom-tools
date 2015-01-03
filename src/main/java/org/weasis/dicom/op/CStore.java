@@ -32,11 +32,11 @@ import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomState;
 import org.weasis.dicom.util.StringUtil;
 
-public class Cstore {
+public class CStore {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(Cstore.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(CStore.class);
 
-    private Cstore() {
+    private CStore() {
     }
 
     /**

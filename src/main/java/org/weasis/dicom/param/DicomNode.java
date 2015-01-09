@@ -19,28 +19,21 @@ public class DicomNode {
     private final Integer port;
 
     public DicomNode(String aet) {
-        if (!StringUtil.hasText(aet)) {
-            throw new IllegalArgumentException("Missing AET");
-        }
-        if (aet.length() > 16) {
-            throw new IllegalArgumentException("AET has more than 16 characters");
-        }
-        this.aet = aet;
-        this.hostname = null;
-        this.port = null;
+        this(aet, null, null);
     }
 
-    public DicomNode(String aet, String hostname, int port) {
+    public DicomNode(String aet, Integer port) {
+        this(aet, null, port);
+    }
+
+    public DicomNode(String aet, String hostname, Integer port) {
         if (!StringUtil.hasText(aet)) {
             throw new IllegalArgumentException("Missing AET");
         }
         if (aet.length() > 16) {
             throw new IllegalArgumentException("AET has more than 16 characters");
         }
-        if (!StringUtil.hasText(hostname)) {
-            throw new IllegalArgumentException("Missing Hostname");
-        }
-        if (port < 1 || port > 65535) {
+        if (port != null && (port < 1 || port > 65535)) {
             throw new IllegalArgumentException("Port out of bound");
         }
         this.aet = aet;

@@ -38,6 +38,7 @@ public class CGet {
     public static final String[] STORAGE_SOP = { UID.ComputedRadiographyImageStorage,
         UID.DigitalXRayImageStorageForPresentation, UID.DigitalXRayImageStorageForProcessing,
         UID.DigitalMammographyXRayImageStorageForPresentation, UID.DigitalMammographyXRayImageStorageForProcessing,
+        UID.DigitalIntraOralXRayImageStorageForPresentation, UID.DigitalIntraOralXRayImageStorageForProcessing,
         UID.CTImageStorage, UID.UltrasoundMultiFrameImageStorage, UID.MRImageStorage, UID.UltrasoundImageStorage,
         UID.SecondaryCaptureImageStorage, UID.GrayscaleSoftcopyPresentationStateStorageSOPClass,
         UID.XRayAngiographicImageStorage, UID.XRayRadiofluoroscopicImageStorage, UID.NuclearMedicineImageStorage,
@@ -98,6 +99,8 @@ public class CGet {
             // configure
             options.configure(conn);
             options.configureTLS(conn, remote);
+
+            getSCU.setPriority(options.getPriority());
 
             getSCU.setStorageDirectory(outputDir);
 

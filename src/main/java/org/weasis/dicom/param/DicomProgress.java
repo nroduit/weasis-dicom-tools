@@ -73,9 +73,9 @@ public class DicomProgress {
     public int getStatus() {
         Attributes dcm = attributes;
         if (dcm == null) {
-            return 0;
+            return Status.Pending;
         }
-        return dcm.getInt(Tag.Status, Status.UnableToProcess);
+        return dcm.getInt(Tag.Status, Status.Pending);
     }
 
     public int getNumberOfRemainingSuboperations() {

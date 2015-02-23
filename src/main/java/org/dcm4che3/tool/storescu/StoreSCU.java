@@ -372,7 +372,7 @@ public class StoreSCU {
             case Status.Success:
                 totalSize += f.length();
                 ++filesSent;
-                System.out.print('.');
+                // System.out.print('.');
                 break;
             case Status.CoercionOfDataElements:
             case Status.ElementsDiscarded:

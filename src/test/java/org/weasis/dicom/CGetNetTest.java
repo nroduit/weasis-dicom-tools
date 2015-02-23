@@ -42,14 +42,11 @@ public class CGetNetTest {
         /**
          * The following parameters must be changed to get a successful test.
          */
-        DicomParam[] params = { new DicomParam(Tag.StudyInstanceUID, "2.16.840.1.113669.632.20.1211.10000235106") };
-        DicomNode calling = new DicomNode("COMTELIM");
-        DicomNode called = new DicomNode("DCM4CHEE", "znfulton.hcuge.ch", 11112);
 
-        // DicomParam[] params =
-        // { new DicomParam(Tag.StudyInstanceUID, "1.2.826.0.1.3680043.9.4113.1.2.1754115794.5304.1404814421.494") };
-        // DicomNode calling = new DicomNode("WEASIS-SCU");
-        // DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
+        DicomParam[] params =
+            { new DicomParam(Tag.StudyInstanceUID, "1.2.826.0.1.3680043.9.4113.1.2.1754115794.5304.1404814421.494") };
+        DicomNode calling = new DicomNode("WEASIS-SCU");
+        DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
 
         DicomState state =
             CGet.process(calling, called, progress, FileUtil.getTemporaryDirectory("dicom-cache"), params);

@@ -11,7 +11,7 @@
 	</properties>
 	<scm>
 		<connection>scm:git:git@github.com:nroduit/weasis-dicom-tools.git</connection>
-		<developerConnection>scm:git:https://nroduit@github.com/nroduit/weasis-dicom-tools.git</developerConnection>
+		<developerConnection>scm:git:https://github.com/nroduit/weasis-dicom-tools.git</developerConnection>
 		<url>https://github.com/nroduit/weasis-dicom-tools</url>
 	</scm>
 	<repositories>

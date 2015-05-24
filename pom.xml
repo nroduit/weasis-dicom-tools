@@ -104,29 +104,29 @@
 		<dependency>
 			<groupId>org.dcm4che</groupId>
 			<artifactId>dcm4che-net</artifactId>
-			<version>3.3.5</version>
+			<version>3.3.6</version>
 		</dependency>
 		<dependency>
 			<groupId>org.dcm4che</groupId>
 			<artifactId>dcm4che-core</artifactId>
-			<version>3.3.5</version>
+			<version>3.3.6-r1</version>
 		</dependency>
 
 		<!-- Only required by storeSCU for uncompressing data not supported by the destination. dcm4che-imageio is linked to native libraries not located in this package -->
 		<dependency>
 			<groupId>org.dcm4che</groupId>
 			<artifactId>dcm4che-imageio</artifactId>
-			<version>3.3.5</version>
+			<version>3.3.6</version>
 		</dependency>
 		<dependency>
 			<groupId>org.dcm4che</groupId>
 			<artifactId>dcm4che-imageio-rle</artifactId>
-			<version>3.3.5</version>
+			<version>3.3.6</version>
 		</dependency>
 		<dependency>
 			<groupId>org.dcm4che</groupId>
 			<artifactId>dcm4che-image</artifactId>
-			<version>3.3.5</version>
+			<version>3.3.6</version>
 		</dependency>
 		<!-- End of only required by storeSCU -->
 

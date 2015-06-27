@@ -90,8 +90,8 @@ public class CMove {
             options.configure(conn);
             options.configureTLS(conn, remote);
 
-            moveSCU.setInformationModel(getInformationModel(options), options.getTsuidOrder(), options
-                .getQueryOptions().contains(QueryOption.RELATIONAL));
+            moveSCU.setInformationModel(getInformationModel(options), options.getTsuidOrder(),
+                options.getQueryOptions().contains(QueryOption.RELATIONAL));
 
             for (DicomParam p : keys) {
                 moveSCU.addKey(p.getTag(), p.getValues());
@@ -100,8 +100,8 @@ public class CMove {
 
             ExecutorService executorService = Executors.newSingleThreadExecutor();
             ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
-            moveSCU.setExecutor(executorService);
-            moveSCU.setScheduledExecutor(scheduledExecutorService);
+            moveSCU.getDevice().setExecutor(executorService);
+            moveSCU.getDevice().setScheduledExecutor(scheduledExecutorService);
             try {
                 moveSCU.open();
                 moveSCU.retrieve();

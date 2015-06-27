@@ -41,6 +41,7 @@ package org.dcm4che3.tool.getscu;
 import java.io.File;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.util.EnumSet;
 import java.util.concurrent.ExecutorService;
 
 import org.dcm4che3.data.Attributes;
@@ -57,6 +58,7 @@ import org.dcm4che3.net.Device;
 import org.dcm4che3.net.DimseRSPHandler;
 import org.dcm4che3.net.IncompatibleConnectionException;
 import org.dcm4che3.net.PDVInputStream;
+import org.dcm4che3.net.QueryOption;
 import org.dcm4che3.net.Status;
 import org.dcm4che3.net.pdu.AAssociateRQ;
 import org.dcm4che3.net.pdu.ExtendedNegotiation;
@@ -81,20 +83,25 @@ public class GetSCU {
     private static final Logger LOG = LoggerFactory.getLogger(GetSCU.class);
 
     public static enum InformationModel {
+
         PatientRoot(UID.PatientRootQueryRetrieveInformationModelGET, "STUDY"),
         StudyRoot(UID.StudyRootQueryRetrieveInformationModelGET, "STUDY"),
         PatientStudyOnly(UID.PatientStudyOnlyQueryRetrieveInformationModelGETRetired, "STUDY"),
         CompositeInstanceRoot(UID.CompositeInstanceRootRetrieveGET, "IMAGE"),
-        WithoutBulkData(UID.CompositeInstanceRetrieveWithoutBulkDataGET, null),
+        WithoutBulkData(UID.CompositeInstanceRetrieveWithoutBulkDataGET, "IMAGE"),
         HangingProtocol(UID.HangingProtocolInformationModelGET, null),
         ColorPalette(UID.ColorPaletteInformationModelGET, null);
 
-        final String cuid;
+        private final String cuid;
         final String level;
 
         InformationModel(String cuid, String level) {
             this.cuid = cuid;
             this.level = level;
+        }
+
+        public String getCuid() {
+            return cuid;
         }
     }
 
@@ -173,7 +180,7 @@ public class GetSCU {
         return keys;
     }
 
-    private void storeTo(Association as, Attributes fmi, PDVInputStream data, File file) throws IOException {
+    public static void storeTo(Association as, Attributes fmi, PDVInputStream data, File file) throws IOException {
         LOG.info("{}: M-WRITE {}", as, file);
         file.getParentFile().mkdirs();
         DicomOutputStream out = new DicomOutputStream(file);
@@ -206,9 +213,10 @@ public class GetSCU {
 
     public final void setInformationModel(InformationModel model, String[] tss, boolean relational) {
         this.model = model;
-        rq.addPresentationContext(new PresentationContext(1, model.cuid, tss));
+        rq.addPresentationContext(new PresentationContext(1, model.getCuid(), tss));
         if (relational) {
-            rq.addExtendedNegotiation(new ExtendedNegotiation(model.cuid, new byte[] { 1 }));
+            rq.addExtendedNegotiation(new ExtendedNegotiation(model.getCuid(),
+                QueryOption.toExtendedNegotiationInformation(EnumSet.of(QueryOption.RELATIONAL))));
         }
         if (model.level != null) {
             addLevel(model.level);
@@ -235,8 +243,8 @@ public class GetSCU {
         rq.addPresentationContext(new PresentationContext(2 * rq.getNumberOfPresentationContexts() + 1, cuid, tsuids));
     }
 
-    public void open() throws IOException, InterruptedException, IncompatibleConnectionException,
-        GeneralSecurityException {
+    public void open()
+        throws IOException, InterruptedException, IncompatibleConnectionException, GeneralSecurityException {
         as = ae.connect(conn, remote, rq);
     }
 
@@ -293,7 +301,7 @@ public class GetSCU {
     }
 
     private void retrieve(Attributes keys, DimseRSPHandler rspHandler) throws IOException, InterruptedException {
-        as.cget(model.cuid, priority, keys, null, rspHandler);
+        as.cget(model.getCuid(), priority, keys, null, rspHandler);
     }
 
     public Connection getConnection() {

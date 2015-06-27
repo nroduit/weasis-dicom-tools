@@ -91,6 +91,17 @@ public class CLIUtils {
         }
     }
 
+    private static String[] IVR_LE_FIRST =
+        { UID.ImplicitVRLittleEndian, UID.ExplicitVRLittleEndian, UID.ExplicitVRBigEndianRetired };
+
+    private static String[] EVR_LE_FIRST =
+        { UID.ExplicitVRLittleEndian, UID.ExplicitVRBigEndianRetired, UID.ImplicitVRLittleEndian };
+
+    private static String[] EVR_BE_FIRST =
+        { UID.ExplicitVRBigEndianRetired, UID.ExplicitVRLittleEndian, UID.ImplicitVRLittleEndian };
+
+    private static String[] IVR_LE_ONLY = { UID.ImplicitVRLittleEndian };
+
     public static void addAttributes(Attributes attrs, int[] tags, String... ss) {
         Attributes item = attrs;
         for (int i = 0; i < tags.length - 1; i++) {
@@ -120,7 +131,8 @@ public class CLIUtils {
     public static void addAttributes(Attributes attrs, String[] optVals) {
         if (optVals != null) {
             for (int i = 1; i < optVals.length; i++, i++) {
-                addAttributes(attrs, toTags(StringUtils.split(optVals[i - 1], '/')), StringUtils.split(optVals[i], '/'));
+                addAttributes(attrs, toTags(StringUtils.split(optVals[i - 1], '/')),
+                    StringUtils.split(optVals[i], '/'));
             }
         }
     }

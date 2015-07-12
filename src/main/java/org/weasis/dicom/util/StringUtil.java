@@ -10,6 +10,9 @@
  *******************************************************************************/
 package org.weasis.dicom.util;
 
+import java.text.Normalizer;
+import java.util.regex.Pattern;
+
 import org.slf4j.Logger;
 
 public class StringUtil {
@@ -128,6 +131,18 @@ public class StringUtil {
 
     public static boolean hasText(String str) {
         return hasText((CharSequence) str);
+    }
+
+    /**
+     * Removing diacritical marks aka accents
+     * 
+     * @param str
+     * @return the input string without accents
+     */
+    public static String deAccent(String str) {
+        String nfdNormalizedString = Normalizer.normalize(str, Normalizer.Form.NFD);
+        Pattern pattern = Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
+        return pattern.matcher(nfdNormalizedString).replaceAll("");
     }
 
     public static void logError(Logger log, Throwable t, String message) {

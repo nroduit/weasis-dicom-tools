@@ -78,6 +78,11 @@ import org.dcm4che3.util.SafeClose;
 import org.dcm4che3.util.StringUtils;
 import org.dcm4che3.util.TagUtils;
 import org.dcm4che3.util.UIDUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.weasis.dicom.param.DicomProgress;
+import org.weasis.dicom.param.DicomState;
+import org.weasis.dicom.util.StringUtil;
 import org.xml.sax.SAXException;
 
 /**
@@ -85,6 +90,7 @@ import org.xml.sax.SAXException;
  * @author Michael Backhaus <michael.backhaus@agfa.com>
  */
 public class StoreSCU {
+    private static final Logger LOG = LoggerFactory.getLogger(StoreSCU.class);
 
     public interface RSPHandlerFactory {
 
@@ -110,6 +116,7 @@ public class StoreSCU {
     private int filesSent = 0;
     private boolean generateUIDs = false;
     private HashMap<String, String> uidMap;
+    private final DicomState state;
 
     private RSPHandlerFactory rspHandlerFactory = new RSPHandlerFactory() {
 
@@ -120,6 +127,20 @@ public class StoreSCU {
 
                 @Override
                 public void onDimseRSP(Association as, Attributes cmd, Attributes data) {
+                    DicomProgress p = state.getProgress();
+                    if (p != null) {
+                        if (cmd != null) {
+                            p.setAttributes(cmd);
+                        }
+                        if (p.isCancel()) {
+                            try {
+                                this.cancel(as);
+                            } catch (IOException e) {
+                                StringUtil.logError(LOG, e, "Cancel C-Store:");
+                            }
+                        }
+                    }
+
                     super.onDimseRSP(as, cmd, data);
                     StoreSCU.this.onCStoreRSP(cmd, f);
                 }
@@ -127,10 +148,11 @@ public class StoreSCU {
         }
     };
 
-    public StoreSCU(ApplicationEntity ae) throws IOException {
+    public StoreSCU(ApplicationEntity ae, DicomProgress progress) throws IOException {
         this.remote = new Connection();
         this.ae = ae;
         rq.addPresentationContext(new PresentationContext(1, UID.VerificationSOPClass, UID.ImplicitVRLittleEndian));
+        state = new DicomState(progress);
     }
 
     public void setRspHandlerFactory(RSPHandlerFactory rspHandlerFactory) {
@@ -274,8 +296,8 @@ public class StoreSCU {
         as.cecho().next();
     }
 
-    public void send(final File f, long fmiEndPos, String cuid, String iuid, String filets) throws IOException,
-        InterruptedException, ParserConfigurationException, SAXException {
+    public void send(final File f, long fmiEndPos, String cuid, String iuid, String filets)
+        throws IOException, InterruptedException, ParserConfigurationException, SAXException {
         String ts = selectTransferSyntax(cuid, filets);
 
         if (f.getName().endsWith(".xml")) {
@@ -361,8 +383,8 @@ public class StoreSCU {
         }
     }
 
-    public void open() throws IOException, InterruptedException, IncompatibleConnectionException,
-        GeneralSecurityException {
+    public void open()
+        throws IOException, InterruptedException, IncompatibleConnectionException, GeneralSecurityException {
         as = ae.connect(remote, rq);
     }
 
@@ -395,4 +417,7 @@ public class StoreSCU {
         return filesScanned;
     }
 
+    public DicomState getState() {
+        return state;
+    }
 }

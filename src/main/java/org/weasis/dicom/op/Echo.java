@@ -82,7 +82,7 @@ public class Echo {
             ApplicationEntity ae = new ApplicationEntity(callingNode.getAet());
             device.addApplicationEntity(ae);
             ae.addConnection(conn);
-            StoreSCU storeSCU = new StoreSCU(ae);
+            StoreSCU storeSCU = new StoreSCU(ae, null);
             Connection remote = storeSCU.getRemoteConnection();
 
             options.configureConnect(storeSCU.getAAssociateRQ(), remote, calledNode);
@@ -103,9 +103,8 @@ public class Echo {
                 storeSCU.open();
                 storeSCU.echo();
                 long t2 = System.currentTimeMillis();
-                String message =
-                    MessageFormat.format("Successful DICOM Echo. Connected from {0} to {1} in {2}ms", storeSCU
-                        .getAAssociateRQ().getCallingAET(), storeSCU.getAAssociateRQ().getCalledAET(), t2 - t1);
+                String message = MessageFormat.format("Successful DICOM Echo. Connected from {0} to {1} in {2}ms",
+                    storeSCU.getAAssociateRQ().getCallingAET(), storeSCU.getAAssociateRQ().getCalledAET(), t2 - t1);
                 return new DicomState(Status.Success, message, null);
             } finally {
                 storeSCU.close();

@@ -48,13 +48,13 @@ public class CGetNetTest {
         DicomNode calling = new DicomNode("WEASIS-SCU");
         DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
 
-        DicomState state =
-            CGet.process(calling, called, progress, FileUtil.getTemporaryDirectory("dicom-cache"), params);
+        DicomState state = CGet.process(calling, called, null, FileUtil.getTemporaryDirectory("dicom-cache"), params);
 
         // Should never happen
         Assert.assertNotNull(state);
 
-        System.out.println("DICOM Status:" + progress.getStatus());
+        System.out.println("DICOM Status:" + state.getStatus());
+        System.out.println(state.getMessage());
         System.out.println("NumberOfRemainingSuboperations:" + progress.getNumberOfRemainingSuboperations());
         System.out.println("NumberOfCompletedSuboperations:" + progress.getNumberOfCompletedSuboperations());
         System.out.println("NumberOfFailedSuboperations:" + progress.getNumberOfFailedSuboperations());

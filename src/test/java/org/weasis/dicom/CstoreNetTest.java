@@ -21,12 +21,23 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.weasis.dicom.op.CStore;
 import org.weasis.dicom.param.DicomNode;
+import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
+import org.weasis.dicom.param.ProgressListener;
 
 public class CstoreNetTest {
 
     @Test
     public void testProcess() {
+        DicomProgress progress = new DicomProgress();
+        progress.addProgressListener(new ProgressListener() {
+
+            @Override
+            public void handleProgression(DicomProgress progress) {
+                System.out.println("DICOM Status:" + progress.getStatus());
+            }
+        });
+
         DicomNode calling = new DicomNode("WEASIS-SCU");
         DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
         // DicomNode called = new DicomNode("DCM4CHEE", "localhost", 11112);
@@ -36,7 +47,7 @@ public class CstoreNetTest {
         } catch (URISyntaxException e) {
             e.printStackTrace();
         }
-        DicomState state = CStore.process(calling, called, files);
+        DicomState state = CStore.process(calling, called, files, progress);
         // Should never happen
         Assert.assertNotNull(state);
 

@@ -10,6 +10,7 @@
  *******************************************************************************/
 package org.weasis.dicom.op;
 
+import java.text.MessageFormat;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -145,8 +146,13 @@ public class CFind {
             findSCU.getDevice().setExecutor(executorService);
             findSCU.getDevice().setScheduledExecutor(scheduledExecutorService);
             try {
+                DicomState dcmState = findSCU.getState();
+                long t1 = System.currentTimeMillis();
                 findSCU.open();
                 findSCU.query();
+                long t2 = System.currentTimeMillis();
+                dcmState.setMessage(MessageFormat.format("C-Find from {0} to {1} in {2}ms",
+                    findSCU.getAAssociateRQ().getCallingAET(), findSCU.getAAssociateRQ().getCalledAET(), t2 - t1));
             } finally {
                 findSCU.close();
                 executorService.shutdown();

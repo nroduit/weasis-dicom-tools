@@ -10,6 +10,7 @@
  *******************************************************************************/
 package org.weasis.dicom.op;
 
+import java.text.MessageFormat;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -41,9 +42,9 @@ public class CMove {
      * @param calledNode
      *            the called DICOM node configuration
      * @param destinationAet
-     *            the destination AET.
+     *            the destination AET
      * @param progress
-     *            the progress handler.
+     *            the progress handler
      * @param keys
      *            the matching and returning keys. DicomParam with no value is a returning key.
      * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error message and the
@@ -62,9 +63,9 @@ public class CMove {
      * @param calledNode
      *            the called DICOM node configuration
      * @param destinationAet
-     *            the destination AET.
+     *            the destination AET
      * @param progress
-     *            the progress handler.
+     *            the progress handler
      * @param keys
      *            the matching and returning keys. DicomParam with no value is a returning key.
      * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error message and the
@@ -103,8 +104,14 @@ public class CMove {
             moveSCU.getDevice().setExecutor(executorService);
             moveSCU.getDevice().setScheduledExecutor(scheduledExecutorService);
             try {
+                DicomState dcmState = moveSCU.getState();
+                long t1 = System.currentTimeMillis();
                 moveSCU.open();
                 moveSCU.retrieve();
+                long t2 = System.currentTimeMillis();
+                dcmState.setMessage(MessageFormat.format("Move files from {0} to {1} in {2}ms",
+                    moveSCU.getAAssociateRQ().getCallingAET(), moveSCU.getAAssociateRQ().getCalledAET(), t2 - t1));
+                dcmState.setStatus(Status.Success);
             } finally {
                 moveSCU.close();
                 executorService.shutdown();

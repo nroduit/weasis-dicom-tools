@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.DicomNode;
+import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
 import org.weasis.dicom.util.StringUtil;
 
@@ -44,11 +45,31 @@ public class CStore {
      *            the calling DICOM node configuration
      * @param calledNode
      *            the called DICOM node configuration
+     * @param files
+     *            the list of file paths
      * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error message and the
      *         progression.
      */
     public static DicomState process(DicomNode callingNode, DicomNode calledNode, List<String> files) {
         return process(null, callingNode, calledNode, files);
+    }
+
+    /**
+     * @param callingNode
+     *            the calling DICOM node configuration
+     * @param calledNode
+     *            the called DICOM node configuration
+     * @param files
+     *            the list of file paths
+     * @param progress
+     *            the progress handler
+     * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error message and the
+     *         progression.
+     */
+
+    public static DicomState process(DicomNode callingNode, DicomNode calledNode, List<String> files,
+        DicomProgress progress) {
+        return process(null, callingNode, calledNode, files, progress);
     }
 
     /**
@@ -59,16 +80,38 @@ public class CStore {
      * @param calledNode
      *            the called DICOM node configuration
      * @param files
+     *            the list of file paths
      * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error message and the
      *         progression.
      */
     public static DicomState process(AdvancedParams params, DicomNode callingNode, DicomNode calledNode,
         List<String> files) {
+        return process(null, callingNode, calledNode, files, null);
+    }
+
+    /**
+     * @param params
+     *            optional advanced parameters (proxy, authentication, connection and TLS)
+     * @param callingNode
+     *            the calling DICOM node configuration
+     * @param calledNode
+     *            the called DICOM node configuration
+     * @param files
+     *            the list of file paths
+     * @param progress
+     *            the progress handler
+     * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error message and the
+     *         progression.
+     */
+    public static DicomState process(AdvancedParams params, DicomNode callingNode, DicomNode calledNode,
+        List<String> files, DicomProgress progress) {
         if (callingNode == null || calledNode == null) {
             throw new IllegalArgumentException("callingNode or calledNode cannot be null!");
         }
 
         AdvancedParams options = params == null ? new AdvancedParams() : params;
+        StoreSCU storeSCU = null;
+        String message = null;
 
         try {
             Device device = new Device("storescu");
@@ -77,7 +120,7 @@ public class CStore {
             ApplicationEntity ae = new ApplicationEntity(callingNode.getAet());
             device.addApplicationEntity(ae);
             ae.addConnection(conn);
-            StoreSCU storeSCU = new StoreSCU(ae);
+            storeSCU = new StoreSCU(ae, progress);
             Connection remote = storeSCU.getRemoteConnection();
 
             options.configureConnect(storeSCU.getAAssociateRQ(), remote, calledNode);
@@ -97,35 +140,46 @@ public class CStore {
 
             storeSCU.scanFiles(files, false);
 
+            DicomState dcmState = storeSCU.getState();
+
             int n = storeSCU.getFilesScanned();
             if (n == 0) {
-                return new DicomState(Status.UnableToProcess, "No DICOM file has been found!", null);
-            }
-
-            ExecutorService executorService = Executors.newSingleThreadExecutor();
-            ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
-            device.setExecutor(executorService);
-            device.setScheduledExecutor(scheduledExecutorService);
-            try {
-                long t1 = System.currentTimeMillis();
-                storeSCU.open();
-                storeSCU.sendFiles();
-                long t2 = System.currentTimeMillis();
-                String message =
-                    MessageFormat.format("Successful DICOM Store. Send files from {0} to {1} in {2}ms", storeSCU
-                        .getAAssociateRQ().getCallingAET(), storeSCU.getAAssociateRQ().getCalledAET(), t2 - t1);
-                return new DicomState(Status.Success, message, null);
-            } finally {
-                storeSCU.close();
-                executorService.shutdown();
-                scheduledExecutorService.shutdown();
+                dcmState.setMessage("No DICOM file has been found!");
+                dcmState.setStatus(Status.UnableToProcess);
+            } else {
+                ExecutorService executorService = Executors.newSingleThreadExecutor();
+                ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+                device.setExecutor(executorService);
+                device.setScheduledExecutor(scheduledExecutorService);
+                try {
+                    long t1 = System.currentTimeMillis();
+                    storeSCU.open();
+                    storeSCU.sendFiles();
+                    long t2 = System.currentTimeMillis();
+                    dcmState.setMessage(MessageFormat.format("Sent files from {0} to {1} in {2}ms",
+                        storeSCU.getAAssociateRQ().getCallingAET(), storeSCU.getAAssociateRQ().getCalledAET(),
+                        t2 - t1));
+                    dcmState.setStatus(Status.Success);
+                } finally {
+                    storeSCU.close();
+                    executorService.shutdown();
+                    scheduledExecutorService.shutdown();
+                }
             }
         } catch (Exception e) {
-            String message = "DICOM Store failed, storescu: " + e.getMessage();
+            message = "DICOM Store failed, storescu: " + e.getMessage();
             StringUtil.logError(LOGGER, e, message);
-            return new DicomState(Status.UnableToProcess, message, null);
+            DicomState dcmState = storeSCU == null ? null : storeSCU.getState();
+            if (dcmState != null) {
+                dcmState.setStatus(Status.UnableToProcess);
+            }
         }
 
+        DicomState dcmState = storeSCU == null ? null : storeSCU.getState();
+        if (dcmState == null) {
+            dcmState = new DicomState(Status.UnableToProcess, message, null);
+        }
+        return dcmState;
     }
 
     public static void configureRelatedSOPClass(StoreSCU storescu) throws IOException {

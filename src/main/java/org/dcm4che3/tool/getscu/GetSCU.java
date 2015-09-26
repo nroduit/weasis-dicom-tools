@@ -286,7 +286,7 @@ public class GetSCU {
                         try {
                             this.cancel(as);
                         } catch (IOException e) {
-                            StringUtil.logError(LOG, e, "Cancel get:");
+                            StringUtil.logError(LOG, e, "Cancel C-GET:");
                         }
                     }
                 }

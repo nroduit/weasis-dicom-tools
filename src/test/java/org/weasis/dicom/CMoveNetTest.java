@@ -50,7 +50,8 @@ public class CMoveNetTest {
         // Should never happen
         Assert.assertNotNull(state);
 
-        System.out.println("DICOM Status:" + progress.getStatus());
+        System.out.println("DICOM Status:" + state.getStatus());
+        System.out.println(state.getMessage());
         System.out.println("NumberOfRemainingSuboperations:" + progress.getNumberOfRemainingSuboperations());
         System.out.println("NumberOfCompletedSuboperations:" + progress.getNumberOfCompletedSuboperations());
         System.out.println("NumberOfFailedSuboperations:" + progress.getNumberOfFailedSuboperations());

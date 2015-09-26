@@ -245,7 +245,7 @@ public class GetSCU {
 
     public void open()
         throws IOException, InterruptedException, IncompatibleConnectionException, GeneralSecurityException {
-        as = ae.connect(conn, remote, rq);
+        as = ae.connect(remote, rq);
     }
 
     public void close() throws IOException, InterruptedException {

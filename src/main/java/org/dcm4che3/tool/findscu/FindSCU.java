@@ -79,8 +79,14 @@ import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
 
 /**
- * @author Gunter Zeilinger <gunterze@gmail.com>
+ * The findscu application implements a Service Class User (SCU) for the
+ * Query/Retrieve, the Modality Worklist Management, the Unified Worklist and
+ * Procedure Step, the Hanging Protocol Query/Retrieve and the Color Palette
+ * Query/Retrieve Service Class. findscu only supports query functionality using
+ * the C-FIND message. It sends query keys to an Service Class Provider (SCP)
+ * and waits for responses.
  * 
+ * @author Gunter Zeilinger <gunterze@gmail.com>
  */
 public class FindSCU {
 
@@ -88,9 +94,10 @@ public class FindSCU {
         PatientRoot(UID.PatientRootQueryRetrieveInformationModelFIND, "STUDY"),
         StudyRoot(UID.StudyRootQueryRetrieveInformationModelFIND, "STUDY"),
         PatientStudyOnly(UID.PatientStudyOnlyQueryRetrieveInformationModelFINDRetired, "STUDY"),
-        MWL(UID.ModalityWorklistInformationModelFIND, null), UPSPull(UID.UnifiedProcedureStepPullSOPClass, null),
-        UPSWatch(UID.UnifiedProcedureStepWatchSOPClass, null), HangingProtocol(UID.HangingProtocolInformationModelFIND,
-                                                                               null),
+        MWL(UID.ModalityWorklistInformationModelFIND, null),
+        UPSPull(UID.UnifiedProcedureStepPullSOPClass, null),
+        UPSWatch(UID.UnifiedProcedureStepWatchSOPClass, null),
+        HangingProtocol(UID.HangingProtocolInformationModelFIND, null),
         ColorPalette(UID.ColorPaletteInformationModelFIND, null);
 
         final String cuid;
@@ -106,6 +113,10 @@ public class FindSCU {
                 queryOptions.add(QueryOption.RELATIONAL);
                 queryOptions.add(QueryOption.DATETIME);
             }
+        }
+
+        public String getCuid() {
+            return cuid;
         }
     }
 
@@ -135,7 +146,7 @@ public class FindSCU {
     private OutputStream out;
 
     private Association as;
-    private AtomicInteger totNumMatches = new AtomicInteger();
+    private final AtomicInteger totNumMatches = new AtomicInteger();
 
     private final DicomState state;
 
@@ -234,7 +245,7 @@ public class FindSCU {
 
     public void open() throws IOException, InterruptedException, IncompatibleConnectionException,
         GeneralSecurityException {
-        as = ae.connect(conn, remote, rq);
+        as = ae.connect(remote, rq);
     }
 
     public void close() throws IOException, InterruptedException {
@@ -250,7 +261,8 @@ public class FindSCU {
         Attributes attrs;
         DicomInputStream dis = null;
         try {
-            attrs = new DicomInputStream(f).readDataset(-1, -1);
+            dis = new DicomInputStream(f);
+            attrs = dis.readDataset(-1, -1);
             if (inFilter != null) {
                 attrs = new Attributes(inFilter.length + 1);
                 attrs.addSelected(attrs, inFilter);

@@ -66,6 +66,7 @@ import org.dcm4che3.net.ApplicationEntity;
 import org.dcm4che3.net.Association;
 import org.dcm4che3.net.Connection;
 import org.dcm4che3.net.DataWriterAdapter;
+import org.dcm4che3.net.DimseRSP;
 import org.dcm4che3.net.DimseRSPHandler;
 import org.dcm4che3.net.IncompatibleConnectionException;
 import org.dcm4che3.net.InputStreamDataWriter;
@@ -82,7 +83,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
-import org.weasis.dicom.util.StringUtil;
 import org.xml.sax.SAXException;
 
 /**
@@ -127,22 +127,15 @@ public class StoreSCU {
 
                 @Override
                 public void onDimseRSP(Association as, Attributes cmd, Attributes data) {
+                    super.onDimseRSP(as, cmd, data);
+                    StoreSCU.this.onCStoreRSP(cmd, f);
+
                     DicomProgress p = state.getProgress();
                     if (p != null) {
                         if (cmd != null) {
                             p.setAttributes(cmd);
                         }
-                        if (p.isCancel()) {
-                            try {
-                                this.cancel(as);
-                            } catch (IOException e) {
-                                StringUtil.logError(LOG, e, "Cancel C-Store:");
-                            }
-                        }
                     }
-
-                    super.onDimseRSP(as, cmd, data);
-                    StoreSCU.this.onCStoreRSP(cmd, f);
                 }
             };
         }
@@ -234,6 +227,14 @@ public class StoreSCU {
         try {
             String line;
             while (as.isReadyForDataTransfer() && (line = fileInfos.readLine()) != null) {
+                DicomProgress p = state.getProgress();
+                if (p != null) {
+                    if (p.isCancel()) {
+                        LOG.info("Aborting C-Store: ");
+                        as.abort();
+                        break;
+                    }
+                }
                 String[] ss = StringUtils.split(line, '\t');
                 try {
                     send(new File(ss[4]), Long.parseLong(ss[3]), ss[1], ss[0], ss[2]);
@@ -292,8 +293,10 @@ public class StoreSCU {
         return true;
     }
 
-    public void echo() throws IOException, InterruptedException {
-        as.cecho().next();
+    public Attributes echo() throws IOException, InterruptedException {
+        DimseRSP response = as.cecho();
+        response.next();
+        return response.getCommand();
     }
 
     public void send(final File f, long fmiEndPos, String cuid, String iuid, String filets)

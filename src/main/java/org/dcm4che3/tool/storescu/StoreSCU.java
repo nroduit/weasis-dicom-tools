@@ -114,6 +114,7 @@ public class StoreSCU {
     private long totalSize = 0;
     private int filesScanned;
     private int filesSent = 0;
+    private int filesNotSent = 0;
     private boolean generateUIDs = false;
     private HashMap<String, String> uidMap;
     private final DicomState state;
@@ -409,11 +410,15 @@ public class StoreSCU {
                 System.err.println(cmd);
                 break;
             default:
-                System.out.print('E');
+                filesNotSent++;
+                // System.out.print('E');
                 System.err.println(MessageFormat.format("ERROR: Received C-STORE-RSP with Status {0}H for {1}",
                     TagUtils.shortToHexString(status), f));
                 System.err.println(cmd);
         }
+        cmd.setInt(Tag.NumberOfCompletedSuboperations, VR.US, filesSent);
+        cmd.setInt(Tag.NumberOfFailedSuboperations, VR.US, filesNotSent);
+        cmd.setInt(Tag.NumberOfRemainingSuboperations, VR.US, filesScanned - filesSent);
     }
 
     public int getFilesScanned() {

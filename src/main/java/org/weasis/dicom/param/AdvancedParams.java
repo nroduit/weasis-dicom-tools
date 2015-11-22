@@ -144,13 +144,7 @@ public class AdvancedParams {
 
     public void configure(Connection conn) throws IOException {
         if (connectOptions != null) {
-            conn.setReceivePDULength(connectOptions.getMaxPdulenRcv());
-            conn.setSendPDULength(connectOptions.getMaxPdulenSnd());
-
-            conn.setMaxOpsInvoked(connectOptions.getMaxOpsInvoked());
-            conn.setMaxOpsPerformed(connectOptions.getMaxOpsPerformed());
-
-            conn.setPackPDV(connectOptions.isPackPDV());
+            conn.setBacklog(connectOptions.getBacklog());
             conn.setConnectTimeout(connectOptions.getConnectTimeout());
             conn.setRequestTimeout(connectOptions.getRequestTimeout());
             conn.setAcceptTimeout(connectOptions.getAcceptTimeout());
@@ -159,8 +153,13 @@ public class AdvancedParams {
             conn.setRetrieveTimeout(connectOptions.getRetrieveTimeout());
             conn.setIdleTimeout(connectOptions.getIdleTimeout());
             conn.setSocketCloseDelay(connectOptions.getSocloseDelay());
-            conn.setSendBufferSize(connectOptions.getSosndBuffer());
             conn.setReceiveBufferSize(connectOptions.getSorcvBuffer());
+            conn.setSendBufferSize(connectOptions.getSosndBuffer());
+            conn.setReceivePDULength(connectOptions.getMaxPdulenRcv());
+            conn.setSendPDULength(connectOptions.getMaxPdulenSnd());
+            conn.setMaxOpsInvoked(connectOptions.getMaxOpsInvoked());
+            conn.setMaxOpsPerformed(connectOptions.getMaxOpsPerformed());
+            conn.setPackPDV(connectOptions.isPackPDV());
             conn.setTcpNoDelay(connectOptions.isTcpNoDelay());
         }
     }

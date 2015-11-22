@@ -14,23 +14,24 @@ import org.dcm4che3.net.Connection;
 
 public class ConnectOptions {
     /* Maximum number of operations this AE may perform asynchronously, unlimited is 0 and not asynchronously is 1 */
-    private int maxOpsInvoked = 0;
-    private int maxOpsPerformed = 0;
+    private int maxOpsInvoked = Connection.SYNCHRONOUS_MODE;
+    private int maxOpsPerformed = Connection.SYNCHRONOUS_MODE;
 
     private int maxPdulenRcv = Connection.DEF_MAX_PDU_LENGTH;
     private int maxPdulenSnd = Connection.DEF_MAX_PDU_LENGTH;
 
     private boolean packPDV = true;
-    private int connectTimeout = 0;
-    private int requestTimeout = 0;
-    private int acceptTimeout = 0;
-    private int releaseTimeout = 0;
-    private int responseTimeout = 0;
-    private int retrieveTimeout = 0;
-    private int idleTimeout = 0;
+    private int backlog = Connection.DEF_BACKLOG;
+    private int connectTimeout = Connection.NO_TIMEOUT;
+    private int requestTimeout = Connection.NO_TIMEOUT;
+    private int acceptTimeout = Connection.NO_TIMEOUT;
+    private int releaseTimeout = Connection.NO_TIMEOUT;
+    private int responseTimeout = Connection.NO_TIMEOUT;
+    private int retrieveTimeout = Connection.NO_TIMEOUT;
+    private int idleTimeout = Connection.NO_TIMEOUT;
     private int socloseDelay = Connection.DEF_SOCKETDELAY;
-    private int sosndBuffer = 0;
-    private int sorcvBuffer = 0;
+    private int sosndBuffer = Connection.DEF_BUFFERSIZE;
+    private int sorcvBuffer = Connection.DEF_BUFFERSIZE;
     private boolean tcpNoDelay = true;
 
     public ConnectOptions() {
@@ -162,6 +163,14 @@ public class ConnectOptions {
 
     public void setTcpNoDelay(boolean tcpNoDelay) {
         this.tcpNoDelay = tcpNoDelay;
+    }
+
+    public int getBacklog() {
+        return backlog;
+    }
+
+    public void setBacklog(int backlog) {
+        this.backlog = backlog;
     }
 
 }

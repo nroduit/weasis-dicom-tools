@@ -97,7 +97,7 @@ public class MoveSCU {
 
     private static final int[] DEF_IN_FILTER = { Tag.SOPInstanceUID, Tag.StudyInstanceUID, Tag.SeriesInstanceUID };
 
-    private final ApplicationEntity ae = new ApplicationEntity("MOVESCU");
+    private ApplicationEntity ae = new ApplicationEntity("MOVESCU");
     private final Connection conn = new Connection();
     private final Connection remote = new Connection();
     private final AAssociateRQ rq = new AAssociateRQ();
@@ -121,6 +121,13 @@ public class MoveSCU {
         ae.addConnection(conn);
         state = new DicomState(progress);
     }
+    
+    public MoveSCU(ApplicationEntity appEntity, DicomProgress progress) {
+        this.ae = appEntity;
+        this.device = this.ae.getDevice();
+        state = new DicomState(progress);
+    }
+
 
     public final void setPriority(int priority) {
         this.priority = priority;

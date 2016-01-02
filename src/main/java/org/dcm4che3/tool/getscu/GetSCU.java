@@ -107,7 +107,7 @@ public class GetSCU {
 
     private static final int[] DEF_IN_FILTER = { Tag.SOPInstanceUID, Tag.StudyInstanceUID, Tag.SeriesInstanceUID };
 
-    private final Device device = new Device("getscu");
+    private Device device = new Device("getscu");
     private final ApplicationEntity ae;
     private final Connection conn = new Connection();
     private final Connection remote = new Connection();
@@ -153,6 +153,12 @@ public class GetSCU {
         device.addApplicationEntity(ae);
         ae.addConnection(conn);
         device.setDimseRQHandler(createServiceRegistry());
+        state = new DicomState(progress);
+    }
+    
+    public GetSCU(ApplicationEntity appEntity, DicomProgress progress) {
+        this.ae = appEntity;
+        this.device = this.ae.getDevice();
         state = new DicomState(progress);
     }
 
@@ -259,7 +265,8 @@ public class GetSCU {
         Attributes attrs = new Attributes();
         DicomInputStream dis = null;
         try {
-            attrs.addSelected(new DicomInputStream(f).readDataset(-1, -1), inFilter);
+            dis = new DicomInputStream(f);
+            attrs.addSelected(dis.readDataset(-1, -1), inFilter);
         } finally {
             SafeClose.close(dis);
         }

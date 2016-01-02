@@ -105,6 +105,27 @@ public class CStore {
      */
     public static DicomState process(AdvancedParams params, DicomNode callingNode, DicomNode calledNode,
         List<String> files, DicomProgress progress) {
+        return process(params, callingNode, calledNode, files, progress, false);
+    }
+
+    /**
+     * @param params
+     *            optional advanced parameters (proxy, authentication, connection and TLS)
+     * @param callingNode
+     *            the calling DICOM node configuration
+     * @param calledNode
+     *            the called DICOM node configuration
+     * @param files
+     *            the list of file paths
+     * @param progress
+     *            the progress handler
+     * @param generateUIDs
+     *            generate new UIDS (Study/Series/Instance)
+     * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error message and the
+     *         progression.
+     */
+    public static DicomState process(AdvancedParams params, DicomNode callingNode, DicomNode calledNode,
+        List<String> files, DicomProgress progress, boolean generateUIDs) {
         if (callingNode == null || calledNode == null) {
             throw new IllegalArgumentException("callingNode or calledNode cannot be null!");
         }
@@ -130,6 +151,7 @@ public class CStore {
             options.configure(conn);
             options.configureTLS(conn, remote);
 
+            storeSCU.setGenerateUIDs(generateUIDs);
             storeSCU.setAttributes(new Attributes());
 
             // TODO implement

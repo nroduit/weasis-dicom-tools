@@ -134,7 +134,7 @@ public class FindSCU {
     private File outDir;
     private DecimalFormat outFileFormat;
     private int[] inFilter;
-    private Attributes keys = new Attributes();
+    private final Attributes keys = new Attributes();
 
     private boolean catOut = false;
     private boolean xml = false;

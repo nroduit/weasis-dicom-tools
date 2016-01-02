@@ -44,6 +44,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.security.GeneralSecurityException;
@@ -65,6 +66,7 @@ import org.dcm4che3.io.SAXReader;
 import org.dcm4che3.net.ApplicationEntity;
 import org.dcm4che3.net.Association;
 import org.dcm4che3.net.Connection;
+import org.dcm4che3.net.DataWriter;
 import org.dcm4che3.net.DataWriterAdapter;
 import org.dcm4che3.net.DimseRSP;
 import org.dcm4che3.net.DimseRSPHandler;
@@ -304,30 +306,25 @@ public class StoreSCU {
         throws IOException, InterruptedException, ParserConfigurationException, SAXException {
         String ts = selectTransferSyntax(cuid, filets);
 
-        if (f.getName().endsWith(".xml")) {
-            Attributes parsedDicomFile = SAXReader.parse(new FileInputStream(f));
-            if (CLIUtils.updateAttributes(parsedDicomFile, attrs, uidSuffix)) {
-                iuid = parsedDicomFile.getString(Tag.SOPInstanceUID);
-            }
-            if (!ts.equals(filets)) {
-                Decompressor.decompress(parsedDicomFile, filets);
-            }
-            as.cstore(cuid, iuid, priority, new DataWriterAdapter(parsedDicomFile), ts,
-                rspHandlerFactory.createDimseRSPHandler(f));
-        } else if (uidSuffix == null && attrs.isEmpty() && ts.equals(filets) && !generateUIDs) {
-            FileInputStream in = new FileInputStream(f);
-            try {
+        boolean noChange = uidSuffix == null && attrs.isEmpty() && ts.equals(filets) && !generateUIDs;
+        DataWriter dataWriter = null;
+        InputStream in = null;
+        Attributes data = null;
+        try {
+            if (f.getName().endsWith(".xml")) {
+                in = new FileInputStream(f);
+                data = SAXReader.parse(in);
+            } else if (noChange) {
+                in = new FileInputStream(f);
                 in.skip(fmiEndPos);
-                InputStreamDataWriter data = new InputStreamDataWriter(in);
-                as.cstore(cuid, iuid, priority, data, ts, rspHandlerFactory.createDimseRSPHandler(f));
-            } finally {
-                SafeClose.close(in);
+                dataWriter = new InputStreamDataWriter(in);
+            } else {
+                in = new DicomInputStream(f);
+                ((DicomInputStream) in).setIncludeBulkData(IncludeBulkData.URI);
+                data = ((DicomInputStream) in).readDataset(-1, -1);
             }
-        } else {
-            DicomInputStream in = new DicomInputStream(f);
-            try {
-                in.setIncludeBulkData(IncludeBulkData.URI);
-                Attributes data = in.readDataset(-1, -1);
+
+            if (!noChange) {
                 if (generateUIDs) {
                     // New Study UID
                     String oldStudyUID = data.getString(Tag.StudyInstanceUID);
@@ -357,11 +354,11 @@ public class StoreSCU {
                 if (!ts.equals(filets)) {
                     Decompressor.decompress(data, filets);
                 }
-                as.cstore(cuid, iuid, priority, new DataWriterAdapter(data), ts,
-                    rspHandlerFactory.createDimseRSPHandler(f));
-            } finally {
-                SafeClose.close(in);
+                dataWriter = new DataWriterAdapter(data);
             }
+            as.cstore(cuid, iuid, priority, dataWriter, ts, rspHandlerFactory.createDimseRSPHandler(f));
+        } finally {
+            SafeClose.close(in);
         }
     }
 
@@ -427,5 +424,13 @@ public class StoreSCU {
 
     public DicomState getState() {
         return state;
+    }
+
+    public boolean isGenerateUIDs() {
+        return generateUIDs;
+    }
+
+    public void setGenerateUIDs(boolean generateUIDs) {
+        this.generateUIDs = generateUIDs;
     }
 }

@@ -55,11 +55,11 @@ public class DicomNode {
 
     @Override
     public String toString() {
-        StringBuffer buf = new StringBuffer("Hostname:");
+        StringBuffer buf = new StringBuffer("Host=");
         buf.append(hostname);
-        buf.append(" AET:");
+        buf.append(" AET=");
         buf.append(aet);
-        buf.append(" Port:");
+        buf.append(" Port=");
         buf.append(port);
         return buf.toString();
     }

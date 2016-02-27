@@ -8,7 +8,7 @@
 	<name>Weasis DICOM API (based on dcm4che3)</name>
 	<version>1.0.0-SNAPSHOT</version>
 	<properties>
-		<dcm4che.version>3.3.8-SNAPSHOT</dcm4che.version>
+		<dcm4che.version>dcm4chee-arc-light-5.1.0</dcm4che.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 	<scm>
@@ -18,8 +18,12 @@
 	</scm>
 	<repositories>
 		<repository>
-			<id>weasis</id>
-			<url>http://dicom.vital-it.ch:8087/nexus/content/groups/public</url>
+			<id>mvn-repo-master</id>
+			<url>https://raw.github.com/nroduit/mvn-repo/master/</url>
+			<snapshots>
+				<enabled>true</enabled>
+				<updatePolicy>always</updatePolicy>
+			</snapshots>
 		</repository>
 		<repository>
 			<id>www.dcm4che.org</id>
@@ -27,18 +31,6 @@
 			<url>http://www.dcm4che.org/maven2</url>
 		</repository>
 	</repositories>
-	<!-- Maven server for deploying releases -->
-	<distributionManagement>
-		<repository>
-			<id>releases</id>
-			<url>http://dicom.vital-it.ch:8087/nexus/content/repositories/releases</url>
-		</repository>
-		<snapshotRepository>
-			<id>snapshots</id>
-			<uniqueVersion>false</uniqueVersion>
-			<url>http://dicom.vital-it.ch:8087/nexus/content/repositories/snapshots</url>
-		</snapshotRepository>
-	</distributionManagement>
 	<build>
 		<plugins>
 			<plugin>

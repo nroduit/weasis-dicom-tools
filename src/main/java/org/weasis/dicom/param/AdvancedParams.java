@@ -25,12 +25,12 @@ import org.dcm4che3.net.pdu.AAssociateRQ;
 import org.dcm4che3.net.pdu.UserIdentityRQ;
 
 public class AdvancedParams {
-    public static String[] IVR_LE_FIRST = { UID.ImplicitVRLittleEndian, UID.ExplicitVRLittleEndian,
-        UID.ExplicitVRBigEndianRetired };
-    public static String[] EVR_LE_FIRST = { UID.ExplicitVRLittleEndian, UID.ExplicitVRBigEndianRetired,
-        UID.ImplicitVRLittleEndian };
-    public static String[] EVR_BE_FIRST = { UID.ExplicitVRBigEndianRetired, UID.ExplicitVRLittleEndian,
-        UID.ImplicitVRLittleEndian };
+    public static String[] IVR_LE_FIRST =
+        { UID.ImplicitVRLittleEndian, UID.ExplicitVRLittleEndian, UID.ExplicitVRBigEndianRetired };
+    public static String[] EVR_LE_FIRST =
+        { UID.ExplicitVRLittleEndian, UID.ExplicitVRBigEndianRetired, UID.ImplicitVRLittleEndian };
+    public static String[] EVR_BE_FIRST =
+        { UID.ExplicitVRBigEndianRetired, UID.ExplicitVRLittleEndian, UID.ImplicitVRLittleEndian };
     public static String[] IVR_LE_ONLY = { UID.ImplicitVRLittleEndian };
 
     private Object informationModel;
@@ -51,6 +51,7 @@ public class AdvancedParams {
     private TlsOptions tlsOptions;
 
     public AdvancedParams() {
+        super();
     }
 
     public Object getInformationModel() {

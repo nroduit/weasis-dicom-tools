@@ -35,6 +35,7 @@ public class ConnectOptions {
     private boolean tcpNoDelay = true;
 
     public ConnectOptions() {
+        super();
     }
 
     public int getMaxOpsInvoked() {

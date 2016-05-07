@@ -55,7 +55,7 @@ public class DicomNode {
 
     @Override
     public String toString() {
-        StringBuffer buf = new StringBuffer("Host=");
+        StringBuilder buf = new StringBuilder("Host=");
         buf.append(hostname);
         buf.append(" AET=");
         buf.append(aet);

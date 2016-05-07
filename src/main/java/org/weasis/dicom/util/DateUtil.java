@@ -19,37 +19,62 @@ import org.slf4j.LoggerFactory;
 
 public class DateUtil {
 
-    private static Logger LOGGER = LoggerFactory.getLogger(DateUtil.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(DateUtil.class);
 
-    public static String DATE_FORMAT = "yyyyMMdd";
-    public static String TIME_FORMAT = "HHmmss";
-
-    public static SimpleDateFormat DicomTimeFormat = new SimpleDateFormat(TIME_FORMAT);
-    public static SimpleDateFormat DicomDateFormat = new SimpleDateFormat(DATE_FORMAT);
+    // To be thread safe the SimpleDateFormat instance is never modified, only use internally.
+    private static final SimpleDateFormat dicomDate = new SimpleDateFormat("yyyyMMdd"); //$NON-NLS-1$
+    private static final SimpleDateFormat dicomTime = new SimpleDateFormat("HHmmss"); //$NON-NLS-1$
 
     private DateUtil() {
     }
 
-    public static java.util.Date getDate(String dateInput) {
-        if (dateInput != null) {
+    public static Date getDicomDate(String date) {
+        if (date != null) {
             try {
-                return DicomDateFormat.parse(dateInput);
+                if (date.length() > 8) {
+                    char c = date.charAt(4);
+                    if (!Character.isDigit(date.charAt(4))) {
+                        // Format yyyy.mm.dd (prior DICOM3.0)
+                        StringBuilder buf = new StringBuilder(10);
+                        buf.append("yyyy"); //$NON-NLS-1$
+                        buf.append(c);
+                        buf.append("MM"); //$NON-NLS-1$
+                        buf.append(c);
+                        buf.append("dd"); //$NON-NLS-1$
+                        return new SimpleDateFormat(buf.toString()).parse(date);
+                    }
+                }
+                return dicomDate.parse(date);
             } catch (Exception e) {
-                LOGGER.error("Cannot parse date {}", dateInput);
+                LOGGER.error("Parse DICOM date", e);
             }
         }
         return null;
     }
 
-    public static java.util.Date getTime(String dateInput) {
-        if (dateInput != null) {
+    public static Date getDicomTime(String dateTime) {
+        if (dateTime != null) {
             try {
-                return DicomTimeFormat.parse(dateInput);
+                return dicomTime.parse(dateTime);
             } catch (Exception e) {
-                LOGGER.error("Cannot parse time {}", dateInput);
+                LOGGER.error("Parse DICOM datetime", e);
             }
         }
         return null;
+    }
+
+    public static String formatDicomDate(Date date) {
+        if (date != null) {
+            return dicomDate.format(date);
+        }
+        return ""; //$NON-NLS-1$
+    }
+
+    public static String formatDicomTime(Date date) {
+        if (date != null) {
+            return dicomTime.format(date);
+        }
+        return ""; //$NON-NLS-1$
     }
 
     public static Date dateTime(Date date, Date time) {

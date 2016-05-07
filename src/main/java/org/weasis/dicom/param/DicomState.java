@@ -34,7 +34,7 @@ public class DicomState {
         this.status = status;
         this.message = message;
         this.progress = progress;
-        this.dicomRSP = new ArrayList<Attributes>();
+        this.dicomRSP = new ArrayList<>();
     }
 
     /**

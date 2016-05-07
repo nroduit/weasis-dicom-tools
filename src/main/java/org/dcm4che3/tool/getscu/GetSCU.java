@@ -41,7 +41,6 @@ package org.dcm4che3.tool.getscu;
 import java.io.File;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.util.EnumSet;
 import java.util.concurrent.ExecutorService;
 
 import org.dcm4che3.data.Attributes;
@@ -58,7 +57,6 @@ import org.dcm4che3.net.Device;
 import org.dcm4che3.net.DimseRSPHandler;
 import org.dcm4che3.net.IncompatibleConnectionException;
 import org.dcm4che3.net.PDVInputStream;
-import org.dcm4che3.net.QueryOption;
 import org.dcm4che3.net.Status;
 import org.dcm4che3.net.pdu.AAssociateRQ;
 import org.dcm4che3.net.pdu.ExtendedNegotiation;
@@ -88,7 +86,7 @@ public class GetSCU {
         StudyRoot(UID.StudyRootQueryRetrieveInformationModelGET, "STUDY"),
         PatientStudyOnly(UID.PatientStudyOnlyQueryRetrieveInformationModelGETRetired, "STUDY"),
         CompositeInstanceRoot(UID.CompositeInstanceRootRetrieveGET, "IMAGE"),
-        WithoutBulkData(UID.CompositeInstanceRetrieveWithoutBulkDataGET, "IMAGE"),
+        WithoutBulkData(UID.CompositeInstanceRetrieveWithoutBulkDataGET, null),
         HangingProtocol(UID.HangingProtocolInformationModelGET, null),
         ColorPalette(UID.ColorPaletteInformationModelGET, null);
 
@@ -107,7 +105,7 @@ public class GetSCU {
 
     private static final int[] DEF_IN_FILTER = { Tag.SOPInstanceUID, Tag.StudyInstanceUID, Tag.SeriesInstanceUID };
 
-    private Device device = new Device("getscu");
+    private final Device device = new Device("getscu");
     private final ApplicationEntity ae;
     private final Connection conn = new Connection();
     private final Connection remote = new Connection();
@@ -153,12 +151,6 @@ public class GetSCU {
         device.addApplicationEntity(ae);
         ae.addConnection(conn);
         device.setDimseRQHandler(createServiceRegistry());
-        state = new DicomState(progress);
-    }
-    
-    public GetSCU(ApplicationEntity appEntity, DicomProgress progress) {
-        this.ae = appEntity;
-        this.device = this.ae.getDevice();
         state = new DicomState(progress);
     }
 
@@ -219,10 +211,9 @@ public class GetSCU {
 
     public final void setInformationModel(InformationModel model, String[] tss, boolean relational) {
         this.model = model;
-        rq.addPresentationContext(new PresentationContext(1, model.getCuid(), tss));
+        rq.addPresentationContext(new PresentationContext(1, model.cuid, tss));
         if (relational) {
-            rq.addExtendedNegotiation(new ExtendedNegotiation(model.getCuid(),
-                QueryOption.toExtendedNegotiationInformation(EnumSet.of(QueryOption.RELATIONAL))));
+            rq.addExtendedNegotiation(new ExtendedNegotiation(model.cuid, new byte[] { 1 }));
         }
         if (model.level != null) {
             addLevel(model.level);
@@ -251,7 +242,7 @@ public class GetSCU {
 
     public void open()
         throws IOException, InterruptedException, IncompatibleConnectionException, GeneralSecurityException {
-        as = ae.connect(remote, rq);
+        as = ae.connect(conn, remote, rq);
     }
 
     public void close() throws IOException, InterruptedException {

@@ -101,8 +101,8 @@ public class CMove {
 
             ExecutorService executorService = Executors.newSingleThreadExecutor();
             ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
-            moveSCU.getDevice().setExecutor(executorService);
-            moveSCU.getDevice().setScheduledExecutor(scheduledExecutorService);
+            moveSCU.setExecutor(executorService);
+            moveSCU.setScheduledExecutor(scheduledExecutorService);
             try {
                 DicomState dcmState = moveSCU.getState();
                 long t1 = System.currentTimeMillis();

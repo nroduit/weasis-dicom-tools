@@ -12,17 +12,17 @@ package org.weasis.dicom.param;
 
 public class TlsOptions {
     // cipherSuites
-    public static String[] TLS = { "SSL_RSA_WITH_NULL_SHA", "TLS_RSA_WITH_AES_128_CBC_SHA",
-        "SSL_RSA_WITH_3DES_EDE_CBC_SHA" };
-    public static String[] TLS_NULL = { "SSL_RSA_WITH_NULL_SHA" };
-    public static String[] TLS_3DES = { "SSL_RSA_WITH_3DES_EDE_CBC_SHA" };
-    public static String[] TLS_AES = { "TLS_RSA_WITH_AES_128_CBC_SHA", "SSL_RSA_WITH_3DES_EDE_CBC_SHA" };
+    public static final String[] TLS =
+        { "SSL_RSA_WITH_NULL_SHA", "TLS_RSA_WITH_AES_128_CBC_SHA", "SSL_RSA_WITH_3DES_EDE_CBC_SHA" };
+    public static final String[] TLS_NULL = { "SSL_RSA_WITH_NULL_SHA" };
+    public static final String[] TLS_3DES = { "SSL_RSA_WITH_3DES_EDE_CBC_SHA" };
+    public static final String[] TLS_AES = { "TLS_RSA_WITH_AES_128_CBC_SHA", "SSL_RSA_WITH_3DES_EDE_CBC_SHA" };
 
     // tlsProtocols
-    public static String[] defaultProtocols = { "TLSv1", "SSLv3" };
-    public static String[] tls1 = { "TLSv1" };
-    public static String[] ssl3 = { "SSLv3" };
-    public static String[] ssl2Hello = { "SSLv2Hello", "SSLv3", "TLSv1" };
+    public static final String[] defaultProtocols = { "TLSv1", "SSLv3" };
+    public static final String[] tls1 = { "TLSv1" };
+    public static final String[] ssl3 = { "SSLv3" };
+    public static final String[] ssl2Hello = { "SSLv2Hello", "SSLv3", "TLSv1" };
 
     private final String[] cipherSuites;
     private final String[] tlsProtocols;

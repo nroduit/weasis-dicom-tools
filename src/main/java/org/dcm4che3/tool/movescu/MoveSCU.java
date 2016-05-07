@@ -70,7 +70,7 @@ import org.weasis.dicom.util.StringUtil;
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * 
  */
-public class MoveSCU {
+public class MoveSCU extends Device {
     private static final Logger LOGGER = LoggerFactory.getLogger(MoveSCU.class);
 
     public static enum InformationModel {
@@ -97,11 +97,10 @@ public class MoveSCU {
 
     private static final int[] DEF_IN_FILTER = { Tag.SOPInstanceUID, Tag.StudyInstanceUID, Tag.SeriesInstanceUID };
 
-    private ApplicationEntity ae = new ApplicationEntity("MOVESCU");
+    private final ApplicationEntity ae = new ApplicationEntity("MOVESCU");
     private final Connection conn = new Connection();
     private final Connection remote = new Connection();
     private final AAssociateRQ rq = new AAssociateRQ();
-    private Device device;
     private int priority;
     private String destination;
     private InformationModel model;
@@ -115,19 +114,12 @@ public class MoveSCU {
     }
 
     public MoveSCU(DicomProgress progress) throws IOException {
-        this.device = new Device("movescu");
-        this.device.addConnection(conn);
-        this.device.addApplicationEntity(ae);
+        super("movescu");
+        addConnection(conn);
+        addApplicationEntity(ae);
         ae.addConnection(conn);
         state = new DicomState(progress);
     }
-    
-    public MoveSCU(ApplicationEntity appEntity, DicomProgress progress) {
-        this.ae = appEntity;
-        this.device = this.ae.getDevice();
-        state = new DicomState(progress);
-    }
-
 
     public final void setPriority(int priority) {
         this.priority = priority;
@@ -137,8 +129,7 @@ public class MoveSCU {
         this.model = model;
         rq.addPresentationContext(new PresentationContext(1, model.cuid, tss));
         if (relational) {
-            rq.addExtendedNegotiation(new ExtendedNegotiation(model.cuid,
-                QueryOption.toExtendedNegotiationInformation(EnumSet.of(QueryOption.RELATIONAL))));
+            rq.addExtendedNegotiation(new ExtendedNegotiation(model.cuid, new byte[] { 1 }));
         }
         if (model.level != null) {
             addLevel(model.level);
@@ -159,10 +150,6 @@ public class MoveSCU {
 
     public Association getAssociation() {
         return as;
-    }
-
-    public Device getDevice() {
-        return device;
     }
 
     public Attributes getKeys() {
@@ -188,7 +175,7 @@ public class MoveSCU {
 
     public void open()
         throws IOException, InterruptedException, IncompatibleConnectionException, GeneralSecurityException {
-        as = ae.connect(remote, rq);
+        as = ae.connect(conn, remote, rq);
     }
 
     public void close() throws IOException, InterruptedException {
@@ -238,16 +225,6 @@ public class MoveSCU {
         as.cmove(model.cuid, priority, keys, null, destination, rspHandler);
     }
 
-    public void retrieve(Attributes keys, DimseRSPHandler handler) throws IOException, InterruptedException {
-        as.cmove(model.cuid, priority, keys, null, destination, handler);
-    }
-
-    public void setLevel(InformationModel mdl) {
-        this.model = mdl;
-        if (mdl.level.equalsIgnoreCase("IMAGE")) {
-            this.rq.addExtendedNegotiation(new ExtendedNegotiation(model.cuid, new byte[] { 1 }));
-        }
-    }
 
     public Connection getConnection() {
         return conn;

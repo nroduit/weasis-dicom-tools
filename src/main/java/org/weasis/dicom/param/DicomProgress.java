@@ -24,7 +24,7 @@ public class DicomProgress {
 
     public DicomProgress() {
         this.cancel = false;
-        this.listenerList = new ArrayList<ProgressListener>();
+        this.listenerList = new ArrayList<>();
     }
 
     public synchronized Attributes getAttributes() {

@@ -194,6 +194,7 @@ public class CStore {
             DicomState dcmState = storeSCU == null ? null : storeSCU.getState();
             if (dcmState != null) {
                 dcmState.setStatus(Status.UnableToProcess);
+                dcmState.setMessage(e.getMessage());
             }
         }
 

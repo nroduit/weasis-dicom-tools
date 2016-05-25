@@ -395,7 +395,6 @@ public class StoreSCU {
             case Status.Success:
                 totalSize += f.length();
                 ++filesSent;
-                // System.out.print('.');
                 break;
             case Status.CoercionOfDataElements:
             case Status.ElementsDiscarded:
@@ -408,7 +407,6 @@ public class StoreSCU {
                 break;
             default:
                 filesNotSent++;
-                // System.out.print('E');
                 System.err.println(MessageFormat.format("ERROR: Received C-STORE-RSP with Status {0}H for {1}",
                     TagUtils.shortToHexString(status), f));
                 System.err.println(cmd);

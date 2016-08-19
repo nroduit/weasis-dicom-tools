@@ -6,7 +6,7 @@ This project replaces [weasis-dicom-operations](https://github.com/nroduit/weasi
 
 ## Build weasis-dicom-tools ##
 
-Prerequisites: JDK 6 and Maven
+Prerequisites: JDK 7 and Maven
 
 Execute the maven command `mvn clean install` in the root directory of the project.
 

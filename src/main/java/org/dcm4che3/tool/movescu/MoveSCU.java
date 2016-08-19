@@ -41,7 +41,6 @@ package org.dcm4che3.tool.movescu;
 import java.io.File;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.util.EnumSet;
 
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.ElementDictionary;
@@ -55,11 +54,9 @@ import org.dcm4che3.net.Connection;
 import org.dcm4che3.net.Device;
 import org.dcm4che3.net.DimseRSPHandler;
 import org.dcm4che3.net.IncompatibleConnectionException;
-import org.dcm4che3.net.QueryOption;
 import org.dcm4che3.net.pdu.AAssociateRQ;
 import org.dcm4che3.net.pdu.ExtendedNegotiation;
 import org.dcm4che3.net.pdu.PresentationContext;
-import org.dcm4che3.util.SafeClose;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.dicom.param.DicomProgress;
@@ -73,7 +70,7 @@ import org.weasis.dicom.util.StringUtil;
 public class MoveSCU extends Device {
     private static final Logger LOGGER = LoggerFactory.getLogger(MoveSCU.class);
 
-    public static enum InformationModel {
+    public enum InformationModel {
         PatientRoot(UID.PatientRootQueryRetrieveInformationModelMOVE, "STUDY"),
         StudyRoot(UID.StudyRootQueryRetrieveInformationModelMOVE, "STUDY"),
         PatientStudyOnly(UID.PatientStudyOnlyQueryRetrieveInformationModelMOVERetired, "STUDY"),
@@ -100,14 +97,14 @@ public class MoveSCU extends Device {
     private final ApplicationEntity ae = new ApplicationEntity("MOVESCU");
     private final Connection conn = new Connection();
     private final Connection remote = new Connection();
-    private final AAssociateRQ rq = new AAssociateRQ();
+    private final transient AAssociateRQ rq = new AAssociateRQ();
     private int priority;
     private String destination;
     private InformationModel model;
     private Attributes keys = new Attributes();
     private int[] inFilter = DEF_IN_FILTER;
-    private Association as;
-    private final DicomState state;
+    private transient Association as;
+    private final transient  DicomState state;
 
     public MoveSCU() throws IOException {
         this(null);
@@ -187,11 +184,8 @@ public class MoveSCU extends Device {
 
     public void retrieve(File f) throws IOException, InterruptedException {
         Attributes attrs = new Attributes();
-        DicomInputStream dis = null;
-        try {
-            attrs.addSelected(new DicomInputStream(f).readDataset(-1, -1), inFilter);
-        } finally {
-            SafeClose.close(dis);
+        try (DicomInputStream dis = new DicomInputStream(f)){
+            attrs.addSelected(dis.readDataset(-1, -1), inFilter);
         }
         attrs.addAll(keys);
         retrieve(attrs);

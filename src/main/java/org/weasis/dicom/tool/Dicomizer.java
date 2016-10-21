@@ -139,7 +139,8 @@ public class Dicomizer {
     }
 
     private static void readHeader(Attributes attrs, DataInputStream jpgInput, Header h) throws IOException {
-        if (jpgInput.read() != 0xff || jpgInput.read() != JPEG.SOI) {
+        // Read the three first bytes
+        if (jpgInput.read() != 0xff || jpgInput.read() != JPEG.SOI || jpgInput.read() != 0xff) {
             throw new IOException("JPEG stream does not start with FF D8 FF");
         }
         int marker = jpgInput.read();

@@ -86,7 +86,7 @@ public class CStore {
      */
     public static DicomState process(AdvancedParams params, DicomNode callingNode, DicomNode calledNode,
         List<String> files) {
-        return process(null, callingNode, calledNode, files, null);
+        return process(params, callingNode, calledNode, files, null);
     }
 
     /**
@@ -105,7 +105,7 @@ public class CStore {
      */
     public static DicomState process(AdvancedParams params, DicomNode callingNode, DicomNode calledNode,
         List<String> files, DicomProgress progress) {
-        return process(params, callingNode, calledNode, files, progress, false);
+        return process(params, callingNode, calledNode, files, progress, false, null);
     }
 
     /**
@@ -121,11 +121,13 @@ public class CStore {
      *            the progress handler
      * @param generateUIDs
      *            generate new UIDS (Study/Series/Instance)
+     * @param tagToOverride
+     *            list of DICOM attributes to override
      * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error message and the
      *         progression.
      */
     public static DicomState process(AdvancedParams params, DicomNode callingNode, DicomNode calledNode,
-        List<String> files, DicomProgress progress, boolean generateUIDs) {
+        List<String> files, DicomProgress progress, boolean generateUIDs, Attributes tagToOverride) {
         if (callingNode == null || calledNode == null) {
             throw new IllegalArgumentException("callingNode or calledNode cannot be null!");
         }
@@ -152,7 +154,7 @@ public class CStore {
             options.configureTLS(conn, remote);
 
             storeSCU.setGenerateUIDs(generateUIDs);
-            storeSCU.setAttributes(new Attributes());
+            storeSCU.setAttributes(tagToOverride == null ? new Attributes() : tagToOverride);
 
             // TODO implement
             // configureRelatedSOPClass(storeSCU);

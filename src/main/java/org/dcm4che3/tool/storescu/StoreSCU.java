@@ -149,6 +149,7 @@ public class StoreSCU {
         this.ae = ae;
         rq.addPresentationContext(new PresentationContext(1, UID.VerificationSOPClass, UID.ImplicitVRLittleEndian));
         state = new DicomState(progress);
+        uidMap = new HashMap<>();
     }
 
     public void setRspHandlerFactory(RSPHandlerFactory rspHandlerFactory) {

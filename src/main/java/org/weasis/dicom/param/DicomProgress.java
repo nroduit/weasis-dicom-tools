@@ -10,6 +10,7 @@
  *******************************************************************************/
 package org.weasis.dicom.param;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,6 +22,7 @@ public class DicomProgress {
     private final List<ProgressListener> listenerList;
     private Attributes attributes;
     private boolean cancel;
+    private File processedFile;
 
     public DicomProgress() {
         this.cancel = false;
@@ -34,6 +36,14 @@ public class DicomProgress {
     public synchronized void setAttributes(Attributes attributes) {
         this.attributes = attributes;
         fireProgress();
+    }
+
+    public synchronized File getProcessedFile() {
+        return processedFile;
+    }
+
+    public synchronized void setProcessedFile(File processedFile) {
+        this.processedFile = processedFile;
     }
 
     public void addProgressListener(ProgressListener listener) {

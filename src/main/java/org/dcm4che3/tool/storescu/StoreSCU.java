@@ -124,19 +124,20 @@ public class StoreSCU {
     private RSPHandlerFactory rspHandlerFactory = new RSPHandlerFactory() {
 
         @Override
-        public DimseRSPHandler createDimseRSPHandler(final File f) {
+        public DimseRSPHandler createDimseRSPHandler(final File file) {
 
             return new DimseRSPHandler(as.nextMessageID()) {
 
                 @Override
                 public void onDimseRSP(Association as, Attributes cmd, Attributes data) {
                     super.onDimseRSP(as, cmd, data);
-                    StoreSCU.this.onCStoreRSP(cmd, f);
+                    StoreSCU.this.onCStoreRSP(cmd, file);
 
-                    DicomProgress p = state.getProgress();
-                    if (p != null) {
+                    DicomProgress progress = state.getProgress();
+                    if (progress != null) {
+                        progress.setProcessedFile(file);
                         if (cmd != null) {
-                            p.setAttributes(cmd);
+                            progress.setAttributes(cmd);
                         }
                     }
                 }

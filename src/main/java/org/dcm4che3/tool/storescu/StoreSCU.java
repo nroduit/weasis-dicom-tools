@@ -393,6 +393,7 @@ public class StoreSCU {
 
     private void onCStoreRSP(Attributes cmd, File f) {
         int status = cmd.getInt(Tag.Status, -1);
+        state.setStatus(status);
         switch (status) {
             case Status.Success:
                 totalSize += f.length();

@@ -23,6 +23,7 @@ public class DicomProgress {
     private Attributes attributes;
     private boolean cancel;
     private File processedFile;
+    private boolean lastFailed = false;
 
     public DicomProgress() {
         this.cancel = false;
@@ -34,8 +35,16 @@ public class DicomProgress {
     }
 
     public synchronized void setAttributes(Attributes attributes) {
+        int failed = getNumberOfFailedSuboperations();
+        failed = failed < 0 ? 0 : failed;
         this.attributes = attributes;
+        lastFailed = failed != getNumberOfFailedSuboperations();
+        
         fireProgress();
+    }
+
+    public boolean isLastFailed() {
+        return lastFailed;
     }
 
     public synchronized File getProcessedFile() {

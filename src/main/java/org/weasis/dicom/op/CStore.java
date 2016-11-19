@@ -183,7 +183,6 @@ public class CStore {
                     dcmState.setMessage(MessageFormat.format("Sent files from {0} to {1} in {2}ms",
                         storeSCU.getAAssociateRQ().getCallingAET(), storeSCU.getAAssociateRQ().getCalledAET(),
                         t2 - t1));
-                    dcmState.setStatus(Status.Success);
                 } finally {
                     storeSCU.close();
                     executorService.shutdown();

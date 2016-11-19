@@ -35,6 +35,9 @@ public class CstoreNetTest {
             @Override
             public void handleProgression(DicomProgress progress) {
                 System.out.println("DICOM Status:" + progress.getStatus());
+                if (progress.isLastFailed()) {
+                    System.out.println("Last file has failed:" + progress.getProcessedFile());
+                }
             }
         });
 

@@ -58,7 +58,7 @@ public class Dicomizer {
             ensureUS(attrs, Tag.BitsAllocated, 8);
             ensureUS(attrs, Tag.BitsStored,
                 attrs.getInt(Tag.BitsAllocated, (h.buffer[h.headerLength] & 0xff) > 8 ? 16 : 8));
-            ensureUS(attrs, Tag.HighBit, attrs.getInt(Tag.BitsStored, (h.buffer[h.headerLength] & 0xff)) - 1);
+            ensureUS(attrs, Tag.HighBit, attrs.getInt(Tag.BitsStored, h.buffer[h.headerLength] & 0xff) - 1);
             ensureUS(attrs, Tag.PixelRepresentation, 0);
             ensureUID(attrs, Tag.StudyInstanceUID);
             ensureUID(attrs, Tag.SeriesInstanceUID);

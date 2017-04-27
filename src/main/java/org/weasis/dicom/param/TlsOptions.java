@@ -21,8 +21,10 @@ public class TlsOptions {
     // tlsProtocols
     public static final String[] defaultProtocols = { "TLSv1", "SSLv3" };
     public static final String[] tls1 = { "TLSv1" };
-    public static final String[] ssl3 = { "SSLv3" };
-    public static final String[] ssl2Hello = { "SSLv2Hello", "SSLv3", "TLSv1" };
+    public static final String[] tls11 = { "TLSv1.1" };
+    public static final String[] tls12 = { "TLSv1.2" };
+    public static final String[] ssl3 = { "SSLv3" }; // deprecated
+    public static final String[] ssl2Hello = { "SSLv2Hello", "SSLv3", "TLSv1","TLSv1.1", "TLSv1.2" };
 
     private final String[] cipherSuites;
     private final String[] tlsProtocols;

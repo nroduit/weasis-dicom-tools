@@ -25,6 +25,7 @@ import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.Deque;
 import java.util.Enumeration;
@@ -47,6 +48,11 @@ public final class FileUtil {
     private static final Logger LOGGER = LoggerFactory.getLogger(FileUtil.class);
 
     public static final int FILE_BUFFER = 4096;
+    private static final double BASE = 1024;
+    private static final double KB = BASE;
+    private static final double MB = KB * BASE;
+    private static final double GB = MB * BASE;
+    private static final DecimalFormat DEC_FORMAT = new DecimalFormat("#.##"); //$NON-NLS-1$
     private static final int[] ILLEGAL_CHARS = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
         20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 34, 42, 47, 58, 60, 62, 63, 92, 124 };
 
@@ -491,4 +497,27 @@ public final class FileUtil {
             copy(in, out);
         }
     }
+
+    public static String formatSize(double size) {
+        StringBuilder buf = new StringBuilder();
+        if (size >= GB) {
+            buf.append(DEC_FORMAT.format(size / GB));
+            buf.append(' ');
+            buf.append("GB");
+        } else if (size >= MB) {
+            buf.append(DEC_FORMAT.format(size / MB));
+            buf.append(' ');
+            buf.append("MB");
+        } else if (size >= KB) {
+            buf.append(DEC_FORMAT.format(size / KB));
+            buf.append(' ');
+            buf.append("kB");
+        } else {
+            buf.append((int) size);
+            buf.append(' ');
+            buf.append("Bytes");
+        }
+        return buf.toString();
+    }
+
 }

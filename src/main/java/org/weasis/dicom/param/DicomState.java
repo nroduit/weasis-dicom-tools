@@ -15,10 +15,11 @@ import java.util.List;
 
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.net.Status;
+import org.weasis.dicom.util.StringUtil;
 
 public class DicomState {
-    private int status;
-    private String message;
+    private volatile int status;
+    private volatile String message;
     private final List<Attributes> dicomRSP;
     private final DicomProgress progress;
 
@@ -83,6 +84,69 @@ public class DicomState {
         if (dicomRSP != null) {
             this.dicomRSP.add(dicomRSP);
         }
+    }
+
+    public static DicomState buildMessage(DicomState dcmState, String timeMessage, Exception e) {
+        DicomState state = dcmState;
+        if (state == null) {
+            state = new DicomState(Status.UnableToProcess, null, null);
+        }
+
+        DicomProgress p = state.getProgress();
+        int s = state.getStatus();
+
+        StringBuilder msg = new StringBuilder();
+
+        boolean hasFailed = false;
+        if (p != null) {
+            int failed = p.getNumberOfFailedSuboperations();
+            if (failed > 0) {
+                hasFailed = true;
+                msg.append(String.format("%d/%d operations has failed.", failed,
+                    failed + p.getNumberOfCompletedSuboperations()));
+            }
+        }
+        if (e != null) {
+            hasFailed = true;
+            if (msg.length() > 0) {
+                msg.append(" ");
+            }
+            msg.append(e.getLocalizedMessage());
+        }
+
+        if (p != null && p.getAttributes() != null) {
+            String error = p.getErrorComment();
+            if (StringUtil.hasText(error)) {
+                hasFailed = true;
+                if (msg.length() > 0) {
+                    msg.append("\n");
+                }
+                msg.append("DICOM error");
+                msg.append(StringUtil.COLON_AND_SPACE);
+                msg.append(error);
+            }
+            
+            if (!Status.isPending(s) && s != -1 && s != Status.Success && s != Status.Cancel) {
+                if (msg.length() > 0) {
+                    msg.append("\n");
+                }
+                msg.append("DICOM status");
+                msg.append(StringUtil.COLON_AND_SPACE);
+                msg.append(s);
+            }
+        }
+        state.setMessage(msg.toString());
+
+        if (!hasFailed) {
+            if (timeMessage != null) {
+                msg.append(timeMessage);
+            }
+        } else {
+            if (Status.isPending(s) || s == -1) {
+                state.setStatus(Status.UnableToProcess);
+            }
+        }
+        return state;
     }
 
 }

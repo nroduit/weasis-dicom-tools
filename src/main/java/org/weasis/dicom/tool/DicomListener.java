@@ -1,0 +1,93 @@
+package org.weasis.dicom.tool;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
+import java.security.GeneralSecurityException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+
+import org.dcm4che3.net.Connection;
+import org.dcm4che3.net.Device;
+import org.dcm4che3.net.TransferCapability;
+import org.dcm4che3.tool.storescp.StoreSCP;
+import org.weasis.dicom.param.AdvancedParams;
+import org.weasis.dicom.param.DicomNode;
+
+public class DicomListener {
+    private final StoreSCP storeSCP;
+    private AdvancedParams params;
+    private URL transferCapabilityFile;
+
+    public DicomListener(File storageDir) throws IOException {
+        this.storeSCP = new StoreSCP(storageDir);
+    }
+
+    public AdvancedParams getParams() {
+        return params;
+    }
+
+    public void setParams(AdvancedParams params) {
+        this.params = params;
+    }
+
+    public URL getTransferCapabilityFile() {
+        return transferCapabilityFile;
+    }
+
+    public void setTransferCapabilityFile(URL url) {
+        this.transferCapabilityFile = url;
+    }
+
+    public boolean isRunning() {
+        return storeSCP.getConnection().isListening();
+    }
+
+    public void start(DicomNode scpNode) throws IOException, GeneralSecurityException {
+        start(scpNode, false, true);
+    }
+
+    public void start(DicomNode scpNode, boolean bindOnlyHostnameFromDicomNode, boolean acceptAllSopClasses)
+        throws IOException, GeneralSecurityException {
+        AdvancedParams options = params == null ? new AdvancedParams() : params;
+        Connection conn = storeSCP.getConnection();
+        Device device = storeSCP.getDevice();
+        DicomNode node = bindOnlyHostnameFromDicomNode ? scpNode : new DicomNode(scpNode.getAet(), scpNode.getPort());
+        options.configureBind(storeSCP.getApplicationEntity(), conn, node);
+        // configure
+        options.configure(conn);
+        // Allow more than 1 operations
+        conn.setMaxOpsInvoked(0);
+        conn.setMaxOpsPerformed(0);
+        options.configureTLS(conn, null);
+        if (acceptAllSopClasses) {
+            storeSCP.getApplicationEntity()
+                .addTransferCapability(new TransferCapability(null, "*", TransferCapability.Role.SCP, "*"));
+        } else {
+            storeSCP.loadDefaultTransferCapability(transferCapabilityFile);
+        }
+
+        // SCP requires a cache thread pool
+        ExecutorService executorService = Executors.newCachedThreadPool();
+        ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+        device.setExecutor(executorService);
+        device.setScheduledExecutor(scheduledExecutorService);
+        device.bindConnections();
+    }
+
+    public void stop() {
+        storeSCP.getDevice().unbindConnections();
+
+        Executor executorService = storeSCP.getDevice().getExecutor();
+        if (executorService instanceof ExecutorService) {
+            ((ExecutorService) executorService).shutdown();
+        }
+
+        ScheduledExecutorService scheduledExecutorService = storeSCP.getDevice().getScheduledExecutor();
+        if (scheduledExecutorService != null) {
+            scheduledExecutorService.shutdown();
+        }
+    }
+}

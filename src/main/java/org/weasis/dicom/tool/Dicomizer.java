@@ -69,6 +69,9 @@ public class Dicomizer {
             Attributes fmi = attrs.createFileMetaInformation(transferSyntax);
             DicomOutputStream dos = new DicomOutputStream(dcmFile);
             try {
+                dos.writeHeader(Tag.SequenceDelimitationItem, null, 0);
+                dos.writeHeader(Tag.AcquisitionContextSequence, VR.SQ, -1);
+                dos.writeHeader(Tag.SequenceDelimitationItem, null, 0);
                 dos.writeDataset(fmi, attrs);
                 dos.writeHeader(Tag.PixelData, VR.OB, -1);
                 dos.writeHeader(Tag.Item, null, 0);
@@ -100,6 +103,7 @@ public class Dicomizer {
         h.fileLength = (int) jpgFile.length();
         DataInputStream jpgInput = new DataInputStream(new BufferedInputStream(new FileInputStream(jpgFile)));
         try {
+            attrs.setString(Tag.SOPClassUID, VR.UI, UID.VideoPhotographicImageStorage);
             attrs.setString(Tag.SpecificCharacterSet, VR.CS, "ISO_IR 192"); // UTF-8
             if (noAPPn || missingRowsColumnsSamplesPMI(attrs)) {
                 readHeader(attrs, jpgInput, h);
@@ -118,6 +122,9 @@ public class Dicomizer {
             Attributes fmi = attrs.createFileMetaInformation(transferSyntax);
             DicomOutputStream dos = new DicomOutputStream(dcmFile);
             try {
+                dos.writeHeader(Tag.SequenceDelimitationItem, null, 0);
+                dos.writeHeader(Tag.AcquisitionContextSequence, VR.SQ, -1);
+                dos.writeHeader(Tag.SequenceDelimitationItem, null, 0);
                 dos.writeDataset(fmi, attrs);
                 dos.writeHeader(Tag.PixelData, VR.OB, -1);
                 int r;

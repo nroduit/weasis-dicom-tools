@@ -88,7 +88,7 @@ public class GetSCU {
         CompositeInstanceRoot(UID.CompositeInstanceRootRetrieveGET, "IMAGE"),
         WithoutBulkData(UID.CompositeInstanceRetrieveWithoutBulkDataGET, null),
         HangingProtocol(UID.HangingProtocolInformationModelGET, null),
-        ColorPalette(UID.ColorPaletteInformationModelGET, null);
+        ColorPalette(UID.ColorPaletteQueryRetrieveInformationModelGET, null);
 
         private final String cuid;
         final String level;
@@ -104,6 +104,7 @@ public class GetSCU {
     }
 
     private static final int[] DEF_IN_FILTER = { Tag.SOPInstanceUID, Tag.StudyInstanceUID, Tag.SeriesInstanceUID };
+    private static final String TMP_DIR = "tmp";
 
     private final Device device = new Device("getscu");
     private final ApplicationEntity ae;
@@ -117,6 +118,7 @@ public class GetSCU {
     private int[] inFilter = DEF_IN_FILTER;
     private Association as;
     private final DicomState state;
+    private DimseRSPHandler rspHandler;
 
     private BasicCStoreSCP storageSCP = new BasicCStoreSCP("*") {
 
@@ -130,13 +132,14 @@ public class GetSCU {
             String iuid = rq.getString(Tag.AffectedSOPInstanceUID);
             String cuid = rq.getString(Tag.AffectedSOPClassUID);
             String tsuid = pc.getTransferSyntax();
-            File file = new File(storageDir, iuid);
+            File file = new File(storageDir, TMP_DIR + File.separator + iuid);
             try {
                 storeTo(as, as.createFileMetaInformation(iuid, cuid, tsuid), data, file);
+                renameTo(as, file, new File(storageDir, iuid));
             } catch (Exception e) {
                 throw new DicomServiceException(Status.ProcessingFailure, e);
             }
-
+            updateProgress(as, null);
         }
 
     };
@@ -179,7 +182,7 @@ public class GetSCU {
     }
 
     public static void storeTo(Association as, Attributes fmi, PDVInputStream data, File file) throws IOException {
-        LOG.info("{}: M-WRITE {}", as, file);
+        LOG.debug("{}: M-WRITE {}", as, file);
         file.getParentFile().mkdirs();
         DicomOutputStream out = new DicomOutputStream(file);
         try {
@@ -188,6 +191,14 @@ public class GetSCU {
         } finally {
             SafeClose.close(out);
         }
+    }
+
+    private static void renameTo(Association as, File from, File dest) throws IOException {
+        LOG.info("{}: M-RENAME {} to {}", as, from, dest);
+        if (!dest.getParentFile().mkdirs())
+            dest.delete();
+        if (!from.renameTo(dest))
+            throw new IOException("Failed to rename " + from + " to " + dest);
     }
 
     private DicomServiceRegistry createServiceRegistry() {
@@ -275,19 +286,7 @@ public class GetSCU {
             @Override
             public void onDimseRSP(Association as, Attributes cmd, Attributes data) {
                 super.onDimseRSP(as, cmd, data);
-                DicomProgress p = state.getProgress();
-                if (p != null) {
-                    if (cmd != null) {
-                        p.setAttributes(cmd);
-                    }
-                    if (p.isCancel()) {
-                        try {
-                            this.cancel(as);
-                        } catch (IOException e) {
-                            StringUtil.logError(LOG, e, "Cancel C-GET:");
-                        }
-                    }
-                }
+                updateProgress(as, cmd);
             }
         };
 
@@ -299,6 +298,7 @@ public class GetSCU {
     }
 
     private void retrieve(Attributes keys, DimseRSPHandler rspHandler) throws IOException, InterruptedException {
+        this.rspHandler = rspHandler;
         as.cget(model.getCuid(), priority, keys, null, rspHandler);
     }
 
@@ -318,5 +318,21 @@ public class GetSCU {
         }
         ((ExecutorService) device.getExecutor()).shutdown();
         device.getScheduledExecutor().shutdown();
+    }
+    
+    private void updateProgress(Association as, Attributes cmd) {
+        DicomProgress p = state.getProgress();
+        if (p != null) {
+            if (cmd != null) {
+                p.setAttributes(cmd);
+            }
+            if (p.isCancel() && rspHandler != null) {
+                try {
+                    rspHandler.cancel(as);
+                } catch (IOException e) {
+                    StringUtil.logError(LOG, e, "Cancel C-GET");
+                }
+            }
+        }
     }
 }

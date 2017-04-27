@@ -76,7 +76,7 @@ public class MoveSCU extends Device {
         PatientStudyOnly(UID.PatientStudyOnlyQueryRetrieveInformationModelMOVERetired, "STUDY"),
         CompositeInstanceRoot(UID.CompositeInstanceRootRetrieveMOVE, "IMAGE"),
         HangingProtocol(UID.HangingProtocolInformationModelMOVE, null),
-        ColorPalette(UID.ColorPaletteInformationModelMOVE, null);
+        ColorPalette(UID.ColorPaletteQueryRetrieveInformationModelMOVE, null);
 
         final String cuid;
         final String level;
@@ -210,7 +210,7 @@ public class MoveSCU extends Device {
                         try {
                             this.cancel(as);
                         } catch (IOException e) {
-                            StringUtil.logError(LOGGER, e, "Cancel move:");
+                            StringUtil.logError(LOGGER, e, "Cancel C-MOVE");
                         }
                     }
                 }

@@ -11,6 +11,7 @@
 package org.weasis.dicom.op;
 
 import java.io.IOException;
+import java.net.URL;
 import java.text.MessageFormat;
 import java.util.List;
 import java.util.Properties;
@@ -23,14 +24,15 @@ import org.dcm4che3.net.ApplicationEntity;
 import org.dcm4che3.net.Connection;
 import org.dcm4che3.net.Device;
 import org.dcm4che3.net.Status;
-import org.dcm4che3.tool.common.CLIUtils;
 import org.dcm4che3.tool.storescu.StoreSCU;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.dicom.param.AdvancedParams;
+import org.weasis.dicom.param.CstoreParams;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
+import org.weasis.dicom.util.FileUtil;
 import org.weasis.dicom.util.StringUtil;
 
 public class CStore {
@@ -105,7 +107,7 @@ public class CStore {
      */
     public static DicomState process(AdvancedParams params, DicomNode callingNode, DicomNode calledNode,
         List<String> files, DicomProgress progress) {
-        return process(params, callingNode, calledNode, files, progress, false, null);
+        return process(params, callingNode, calledNode, files, progress, null);
     }
 
     /**
@@ -119,22 +121,21 @@ public class CStore {
      *            the list of file paths
      * @param progress
      *            the progress handler
-     * @param generateUIDs
-     *            generate new UIDS (Study/Series/Instance)
-     * @param tagToOverride
-     *            list of DICOM attributes to override
+     * @param cstoreParams
+     *            c-store options, see CstoreParams
      * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error message and the
      *         progression.
      */
     public static DicomState process(AdvancedParams params, DicomNode callingNode, DicomNode calledNode,
-        List<String> files, DicomProgress progress, boolean generateUIDs, Attributes tagToOverride) {
+        List<String> files, DicomProgress progress, CstoreParams cstoreParams) {
         if (callingNode == null || calledNode == null) {
             throw new IllegalArgumentException("callingNode or calledNode cannot be null!");
         }
 
         AdvancedParams options = params == null ? new AdvancedParams() : params;
+        CstoreParams storeOptions = cstoreParams == null ? new CstoreParams(false, null, false, null) : cstoreParams;
+
         StoreSCU storeSCU = null;
-        String message = null;
 
         try {
             Device device = new Device("storescu");
@@ -153,12 +154,13 @@ public class CStore {
             options.configure(conn);
             options.configureTLS(conn, remote);
 
-            storeSCU.setGenerateUIDs(generateUIDs);
-            storeSCU.setAttributes(tagToOverride == null ? new Attributes() : tagToOverride);
+            storeSCU.setGenerateUIDs(storeOptions.isGenerateUIDs());
+            storeSCU.setAttributes(
+                storeOptions.getTagToOverride() == null ? new Attributes() : storeOptions.getTagToOverride());
 
-            // TODO implement
-            // configureRelatedSOPClass(storeSCU);
-            // CLIUtils.addAttributes(main.attrs, cl.getOptionValues("s"));
+            if (storeOptions.isExtendNegociation()) {
+                configureRelatedSOPClass(storeSCU, storeOptions.getExtendSopClassesURL());
+            }
             // storeSCU.setUIDSuffix(cl.getOptionValue("uid-suffix"));
             storeSCU.setPriority(options.getPriority());
 
@@ -168,8 +170,7 @@ public class CStore {
 
             int n = storeSCU.getFilesScanned();
             if (n == 0) {
-                dcmState.setMessage("No DICOM file has been found!");
-                dcmState.setStatus(Status.UnableToProcess);
+                return new DicomState(Status.UnableToProcess, "No DICOM file has been found!", null);
             } else {
                 ExecutorService executorService = Executors.newSingleThreadExecutor();
                 ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
@@ -180,9 +181,14 @@ public class CStore {
                     storeSCU.open();
                     storeSCU.sendFiles();
                     long t2 = System.currentTimeMillis();
-                    dcmState.setMessage(MessageFormat.format("Sent files from {0} to {1} in {2}ms",
-                        storeSCU.getAAssociateRQ().getCallingAET(), storeSCU.getAAssociateRQ().getCalledAET(),
-                        t2 - t1));
+                    String timeMsg = MessageFormat.format("Sent files from {0} to {1} in {2}ms. Total size {3}",
+                        storeSCU.getAAssociateRQ().getCallingAET(), storeSCU.getAAssociateRQ().getCalledAET(), t2 - t1, FileUtil.formatSize(storeSCU.getTotalSize()));
+                    forceGettingAttributes(storeSCU);
+                    return DicomState.buildMessage(dcmState, timeMsg, null);
+                } catch (Exception e) {
+                    LOGGER.error("storescu", e);
+                    forceGettingAttributes(storeSCU);
+                    return DicomState.buildMessage(storeSCU.getState(), null, e);
                 } finally {
                     storeSCU.close();
                     executorService.shutdown();
@@ -190,28 +196,35 @@ public class CStore {
                 }
             }
         } catch (Exception e) {
-            message = "DICOM Store failed, storescu: " + e.getMessage();
-            StringUtil.logError(LOGGER, e, message);
-            DicomState dcmState = storeSCU == null ? null : storeSCU.getState();
-            if (dcmState != null) {
-                dcmState.setStatus(Status.UnableToProcess);
-                dcmState.setMessage(e.getMessage());
-            }
+            LOGGER.error("storescu", e);
+            return new DicomState(Status.UnableToProcess,
+                "DICOM Store failed" + StringUtil.COLON_AND_SPACE + e.getMessage(), null);
         }
-
-        DicomState dcmState = storeSCU == null ? null : storeSCU.getState();
-        if (dcmState == null) {
-            dcmState = new DicomState(Status.UnableToProcess, message, null);
-        }
-        return dcmState;
     }
 
-    public static void configureRelatedSOPClass(StoreSCU storescu) throws IOException {
+    private static void forceGettingAttributes(StoreSCU storeSCU) {
+        DicomProgress p = storeSCU.getState().getProgress();
+        if (p != null) {
+            try {
+                storeSCU.close();
+            } catch (Exception e) {
+                // Do nothing
+            }
+        }
+    }
+
+    private static void configureRelatedSOPClass(StoreSCU storescu, URL url) throws IOException {
         storescu.enableSOPClassRelationshipExtNeg(true);
         Properties p = new Properties();
-        CLIUtils.loadProperties("resource:rel-sop-classes.properties", p);
-        // CLIUtils.loadProperties(cl.hasOption("rel-sop-classes") ? cl.getOptionValue("rel-ext-neg")
-        // : "resource:rel-sop-classes.properties", p);
+        try {
+            if (url == null) {
+                p.load(storescu.getClass().getResourceAsStream("rel-sop-classes.properties"));
+            } else {
+                p.load(url.openStream());
+            }
+        } catch (Exception e) {
+            LOGGER.error("Read sop classes", e);
+        }
         storescu.relSOPClasses.init(p);
     }
 }

@@ -18,28 +18,31 @@ import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.net.Status;
 
-public class DicomProgress {
+public class DicomProgress implements CancelListener {
+
     private final List<ProgressListener> listenerList;
-    private Attributes attributes;
-    private boolean cancel;
-    private File processedFile;
-    private boolean lastFailed = false;
+    private volatile Attributes attributes;
+    private volatile boolean cancel;
+    private volatile File processedFile;
+    private volatile boolean lastFailed = false;
 
     public DicomProgress() {
         this.cancel = false;
         this.listenerList = new ArrayList<>();
     }
 
-    public synchronized Attributes getAttributes() {
+    public Attributes getAttributes() {
         return attributes;
     }
 
-    public synchronized void setAttributes(Attributes attributes) {
-        int failed = getNumberOfFailedSuboperations();
-        failed = failed < 0 ? 0 : failed;
-        this.attributes = attributes;
-        lastFailed = failed != getNumberOfFailedSuboperations();
-        
+    public void setAttributes(Attributes attributes) {
+        synchronized (this) {
+            int failed = getNumberOfFailedSuboperations();
+            failed = failed < 0 ? 0 : failed;
+            this.attributes = attributes;
+            lastFailed = failed != getNumberOfFailedSuboperations();
+        }
+
         fireProgress();
     }
 
@@ -73,6 +76,7 @@ public class DicomProgress {
         }
     }
 
+    @Override
     public void cancel() {
         this.cancel = true;
     }
@@ -90,11 +94,22 @@ public class DicomProgress {
     }
 
     public int getStatus() {
+        if (isCancel()) {
+            return Status.Cancel;
+        }
         Attributes dcm = attributes;
         if (dcm == null) {
             return Status.Pending;
         }
         return dcm.getInt(Tag.Status, Status.Pending);
+    }
+
+    public String getErrorComment() {
+        Attributes dcm = attributes;
+        if (dcm == null) {
+            return null;
+        }
+        return dcm.getString(Tag.ErrorComment);
     }
 
     public int getNumberOfRemainingSuboperations() {

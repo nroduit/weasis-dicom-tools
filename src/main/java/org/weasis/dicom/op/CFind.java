@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomParam;
+import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
 import org.weasis.dicom.util.StringUtil;
 
@@ -115,7 +116,6 @@ public class CFind {
         }
 
         FindSCU findSCU = null;
-        String message = null;
         AdvancedParams options = params == null ? new AdvancedParams() : params;
 
         try {
@@ -151,27 +151,35 @@ public class CFind {
                 findSCU.open();
                 findSCU.query();
                 long t2 = System.currentTimeMillis();
-                dcmState.setMessage(MessageFormat.format("C-Find from {0} to {1} in {2}ms",
-                    findSCU.getAAssociateRQ().getCallingAET(), findSCU.getAAssociateRQ().getCalledAET(), t2 - t1));
+                String timeMsg = MessageFormat.format("C-Find from {0} to {1} in {2}ms",
+                    findSCU.getAAssociateRQ().getCallingAET(), findSCU.getAAssociateRQ().getCalledAET(), t2 - t1);
+                forceGettingAttributes(findSCU);
+                return  DicomState.buildMessage(dcmState, timeMsg, null);
+            } catch (Exception e) {
+                LOGGER.error("findscu", e);
+                forceGettingAttributes(findSCU);
+                return DicomState.buildMessage(findSCU.getState(), null, e);
             } finally {
                 findSCU.close();
                 executorService.shutdown();
                 scheduledExecutorService.shutdown();
             }
         } catch (Exception e) {
-            message = "findscu: " + e.getMessage();
-            StringUtil.logError(LOGGER, e, message);
-            DicomState dcmState = findSCU == null ? null : findSCU.getState();
-            if (dcmState != null) {
-                dcmState.setStatus(Status.UnableToProcess);
+            LOGGER.error("findscu", e);
+            return new DicomState(Status.UnableToProcess,
+                "DICOM Find failed" + StringUtil.COLON_AND_SPACE + e.getMessage(), null);
+        }
+    }
+    
+    private static void forceGettingAttributes(FindSCU findSCU) {
+        DicomProgress p = findSCU.getState().getProgress();
+        if (p != null) {
+            try {
+                findSCU.close();
+            } catch (Exception e) {
+                // Do nothing
             }
         }
-
-        DicomState dcmState = findSCU == null ? null : findSCU.getState();
-        if (dcmState == null) {
-            dcmState = new DicomState(Status.UnableToProcess, message, null);
-        }
-        return dcmState;
     }
 
     private static InformationModel getInformationModel(AdvancedParams options) {

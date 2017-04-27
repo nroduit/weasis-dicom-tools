@@ -244,13 +244,13 @@ public class StoreSCU {
                 try {
                     send(new File(ss[4]), Long.parseLong(ss[3]), ss[1], ss[0], ss[2]);
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    LOG.error("Cannot send file", e);
                 }
             }
             try {
                 as.waitForOutstandingRSP();
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                LOG.error("Waiting for RSP", e);
             }
         } finally {
             SafeClose.close(fileInfos);
@@ -328,11 +328,14 @@ public class StoreSCU {
 
             if (!noChange) {
                 if (generateUIDs) {
+                    if("2.25".equals(UIDUtils.getRoot())){
+                        UIDUtils.setRoot("2.25.35");
+                    }
                     // New Study UID
                     String oldStudyUID = data.getString(Tag.StudyInstanceUID);
                     String studyUID = uidMap.get(oldStudyUID);
                     if (studyUID == null) {
-                        studyUID = UIDUtils.createUID("2.25.35");
+                        studyUID = UIDUtils.createUID();
                         uidMap.put(oldStudyUID, studyUID);
                     }
                     data.setString(Tag.StudyInstanceUID, VR.UI, studyUID);
@@ -341,13 +344,13 @@ public class StoreSCU {
                     String oldSeriesUID = data.getString(Tag.SeriesInstanceUID);
                     String seriesUID = uidMap.get(oldSeriesUID);
                     if (seriesUID == null) {
-                        seriesUID = UIDUtils.createUID("2.25.35");
+                        seriesUID = UIDUtils.createUID();
                         uidMap.put(oldSeriesUID, seriesUID);
                     }
                     data.setString(Tag.SeriesInstanceUID, VR.UI, seriesUID);
 
                     // New Sop UID
-                    iuid = UIDUtils.createUID("2.25.35");
+                    iuid = UIDUtils.createUID();
                     data.setString(Tag.SOPInstanceUID, VR.UI, iuid);
                 }
                 if (CLIUtils.updateAttributes(data, attrs, uidSuffix)) {
@@ -421,6 +424,10 @@ public class StoreSCU {
 
     public int getFilesScanned() {
         return filesScanned;
+    }
+
+    public long getTotalSize() {
+        return totalSize;
     }
 
     public DicomState getState() {

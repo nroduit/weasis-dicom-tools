@@ -77,7 +77,6 @@ public class CMove {
             throw new IllegalArgumentException("callingNode, calledNode or destinationAet cannot be null!");
         }
         MoveSCU moveSCU = null;
-        String message = null;
         AdvancedParams options = params == null ? new AdvancedParams() : params;
 
         try {
@@ -109,28 +108,35 @@ public class CMove {
                 moveSCU.open();
                 moveSCU.retrieve();
                 long t2 = System.currentTimeMillis();
-                dcmState.setMessage(MessageFormat.format("Move files from {0} to {1} in {2}ms",
-                    moveSCU.getAAssociateRQ().getCallingAET(), moveSCU.getAAssociateRQ().getCalledAET(), t2 - t1));
-                dcmState.setStatus(Status.Success);
+                String timeMsg = MessageFormat.format("Move files from {0} to {1} in {2}ms",
+                    moveSCU.getAAssociateRQ().getCallingAET(), moveSCU.getAAssociateRQ().getCalledAET(), t2 - t1);
+                forceGettingAttributes(moveSCU);
+                return DicomState.buildMessage(dcmState, timeMsg, null);
+            } catch (Exception e) {
+                LOGGER.error("movescu", e);
+                forceGettingAttributes(moveSCU);
+                return DicomState.buildMessage(moveSCU.getState(), null, e);
             } finally {
                 moveSCU.close();
                 executorService.shutdown();
                 scheduledExecutorService.shutdown();
             }
         } catch (Exception e) {
-            message = "movescu: " + e.getMessage();
-            StringUtil.logError(LOGGER, e, message);
-            DicomState dcmState = moveSCU == null ? null : moveSCU.getState();
-            if (dcmState != null) {
-                dcmState.setStatus(Status.UnableToProcess);
+            LOGGER.error("movescu", e);
+            return new DicomState(Status.UnableToProcess,
+                "DICOM Move failed" + StringUtil.COLON_AND_SPACE + e.getMessage(), null);
+        }
+    }
+    
+    private static void forceGettingAttributes(MoveSCU moveSCU) {
+        DicomProgress p = moveSCU.getState().getProgress();
+        if (p != null) {
+            try {
+                moveSCU.close();
+            } catch (Exception e) {
+                // Do nothing
             }
         }
-
-        DicomState dcmState = moveSCU == null ? null : moveSCU.getState();
-        if (dcmState == null) {
-            dcmState = new DicomState(Status.UnableToProcess, message, null);
-        }
-        return dcmState;
     }
 
     private static InformationModel getInformationModel(AdvancedParams options) {

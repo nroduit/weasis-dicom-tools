@@ -177,9 +177,10 @@ public class AdvancedParams {
                     tlsOptions.getKeystoreURL(), tlsOptions.getKeystorePass(), tlsOptions.getKeyPass()));
                 device.setTrustManager(SSLManagerFactory.createTrustManager(tlsOptions.getTruststoreType(),
                     tlsOptions.getTruststoreURL(), tlsOptions.getTruststorePass()));
-
-                remote.setTlsProtocols(conn.getTlsProtocols());
-                remote.setTlsCipherSuites(conn.getTlsCipherSuites());
+                if (remote != null) {
+                    remote.setTlsProtocols(conn.getTlsProtocols());
+                    remote.setTlsCipherSuites(conn.getTlsCipherSuites());
+                }
             } catch (GeneralSecurityException e) {
                 throw new IOException(e);
             }

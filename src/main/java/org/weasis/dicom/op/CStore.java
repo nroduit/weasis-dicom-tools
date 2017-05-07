@@ -190,9 +190,9 @@ public class CStore {
                     forceGettingAttributes(storeSCU);
                     return DicomState.buildMessage(storeSCU.getState(), null, e);
                 } finally {
-                    storeSCU.close();
-                    executorService.shutdown();
-                    scheduledExecutorService.shutdown();
+                    Echo.closeProcess(storeSCU);
+                    Echo.shutdownService(executorService);
+                    Echo.shutdownService(scheduledExecutorService);
                 }
             }
         } catch (Exception e) {

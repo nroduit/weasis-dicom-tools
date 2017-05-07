@@ -10,6 +10,7 @@
  *******************************************************************************/
 package org.weasis.dicom.op;
 
+import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -117,9 +118,9 @@ public class CMove {
                 forceGettingAttributes(moveSCU);
                 return DicomState.buildMessage(moveSCU.getState(), null, e);
             } finally {
-                moveSCU.close();
-                executorService.shutdown();
-                scheduledExecutorService.shutdown();
+                closeProcess(moveSCU);
+                Echo.shutdownService(executorService);
+                Echo.shutdownService(scheduledExecutorService);
             }
         } catch (Exception e) {
             LOGGER.error("movescu", e);
@@ -128,6 +129,16 @@ public class CMove {
         }
     }
     
+    private static void closeProcess(MoveSCU moveSCU) {
+        try {
+            moveSCU.close();
+        } catch (IOException e) {
+            LOGGER.error("Closing MoveSCU", e);
+        } catch (InterruptedException e) {
+            LOGGER.warn("Closing MoveSCU Interruption"); //$NON-NLS-1$
+        }
+    }
+
     private static void forceGettingAttributes(MoveSCU moveSCU) {
         DicomProgress p = moveSCU.getState().getProgress();
         if (p != null) {

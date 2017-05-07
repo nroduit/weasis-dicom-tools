@@ -6,7 +6,7 @@
 	<artifactId>weasis-dicom-tools</artifactId>
 	<packaging>jar</packaging>
 	<name>Weasis DICOM API (based on dcm4che3)</name>
-	<version>1.0.3</version>
+	<version>1.0.4-SNAPSHOT</version>
 	<properties>
 		<dcm4che.version>dcm4chee-arc-light-5.10.1</dcm4che.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

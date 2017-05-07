@@ -10,6 +10,7 @@
  *******************************************************************************/
 package org.weasis.dicom.op;
 
+import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -107,16 +108,33 @@ public class Echo {
                     storeSCU.getAAssociateRQ().getCallingAET(), storeSCU.getAAssociateRQ().getCalledAET(), t2 - t1);
                 return new DicomState(Status.Success, message, null);
             } finally {
-                storeSCU.close();
-                executorService.shutdown();
-                scheduledExecutorService.shutdown();
+                closeProcess(storeSCU);
+                shutdownService(executorService);
+                shutdownService(scheduledExecutorService);
             }
         } catch (Exception e) {
             String message = "DICOM Echo failed, storescu: " + e.getMessage();
             StringUtil.logError(LOGGER, e, message);
             return new DicomState(Status.UnableToProcess, message, null);
         }
+    }
 
+    static void closeProcess(StoreSCU storeSCU) {
+        try {
+            storeSCU.close();
+        } catch (IOException e) {
+            LOGGER.error("Closing StoreSCU", e);
+        } catch (InterruptedException e) {
+            LOGGER.warn("Closing StoreSCU Interruption"); //$NON-NLS-1$
+        }
+    }
+
+    static void shutdownService(ExecutorService executorService) {
+        try {
+            executorService.shutdown();
+        } catch (Exception e) {
+            LOGGER.error("ExecutorService shutdown", e);
+        }
     }
 
 }

@@ -144,16 +144,25 @@ public class CGet {
                 forceGettingAttributes(getSCU);
                 return DicomState.buildMessage(getSCU.getState(), null, e);
             } finally {
-                getSCU.close();
-                executorService.shutdown();
-                scheduledExecutorService.shutdown();
+                closeProcess(getSCU);
+                Echo.shutdownService(executorService);
+                Echo.shutdownService(scheduledExecutorService);
             }
         } catch (Exception e) {
             LOGGER.error("getscu", e);
             return new DicomState(Status.UnableToProcess,
                 "DICOM Get failed" + StringUtil.COLON_AND_SPACE + e.getMessage(), null);
         }
-
+    }
+    
+    private static void closeProcess(GetSCU getSCU) {
+        try {
+            getSCU.close();
+        } catch (IOException e) {
+            LOGGER.error("Closing GetSCU", e);
+        } catch (InterruptedException e) {
+            LOGGER.warn("Closing GetSCU Interruption"); //$NON-NLS-1$
+        }
     }
 
     private static void forceGettingAttributes(GetSCU getSCU) {

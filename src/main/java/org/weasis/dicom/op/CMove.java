@@ -28,7 +28,7 @@ import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomParam;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
-import org.weasis.dicom.util.StringUtil;
+import org.weasis.core.api.util.StringUtil;
 
 public class CMove {
 

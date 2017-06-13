@@ -70,7 +70,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
-import org.weasis.dicom.util.StringUtil;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
@@ -78,7 +77,7 @@ import org.weasis.dicom.util.StringUtil;
  */
 public class GetSCU {
 
-    private static final Logger LOG = LoggerFactory.getLogger(GetSCU.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(GetSCU.class);
 
     public static enum InformationModel {
 
@@ -182,7 +181,7 @@ public class GetSCU {
     }
 
     public static void storeTo(Association as, Attributes fmi, PDVInputStream data, File file) throws IOException {
-        LOG.debug("{}: M-WRITE {}", as, file);
+        LOGGER.debug("{}: M-WRITE {}", as, file);
         file.getParentFile().mkdirs();
         DicomOutputStream out = new DicomOutputStream(file);
         try {
@@ -194,7 +193,7 @@ public class GetSCU {
     }
 
     private static void renameTo(Association as, File from, File dest) throws IOException {
-        LOG.info("{}: M-RENAME {} to {}", as, from, dest);
+        LOGGER.info("{}: M-RENAME {} to {}", as, from, dest);
         if (!dest.getParentFile().mkdirs())
             dest.delete();
         if (!from.renameTo(dest))
@@ -330,7 +329,7 @@ public class GetSCU {
                 try {
                     rspHandler.cancel(as);
                 } catch (IOException e) {
-                    StringUtil.logError(LOG, e, "Cancel C-GET");
+                    LOGGER.error("Cancel C-GET", e);
                 }
             }
         }

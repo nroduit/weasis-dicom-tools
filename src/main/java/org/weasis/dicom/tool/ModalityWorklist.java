@@ -27,7 +27,6 @@ import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomParam;
 import org.weasis.dicom.param.DicomState;
-import org.weasis.dicom.util.StringUtil;
 
 public class ModalityWorklist {
 
@@ -180,7 +179,7 @@ public class ModalityWorklist {
             }
         } catch (Exception e) {
             message = "findscu: " + e.getMessage();
-            StringUtil.logError(LOGGER, e, message);
+            LOGGER.error(message, e);
             DicomState dcmState = findSCU == null ? null : findSCU.getState();
             if (dcmState != null) {
                 dcmState.setStatus(Status.UnableToProcess);

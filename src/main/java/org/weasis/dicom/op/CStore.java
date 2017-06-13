@@ -32,8 +32,8 @@ import org.weasis.dicom.param.CstoreParams;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
-import org.weasis.dicom.util.FileUtil;
-import org.weasis.dicom.util.StringUtil;
+import org.weasis.core.api.util.FileUtil;
+import org.weasis.core.api.util.StringUtil;
 
 public class CStore {
 

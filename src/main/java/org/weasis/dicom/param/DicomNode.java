@@ -10,7 +10,7 @@
  *******************************************************************************/
 package org.weasis.dicom.param;
 
-import org.weasis.dicom.util.StringUtil;
+import org.weasis.core.api.util.StringUtil;
 
 public class DicomNode {
 

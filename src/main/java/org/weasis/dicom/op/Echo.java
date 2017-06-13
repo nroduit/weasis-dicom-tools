@@ -26,7 +26,6 @@ import org.slf4j.LoggerFactory;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomState;
-import org.weasis.dicom.util.StringUtil;
 
 public class Echo {
 
@@ -114,7 +113,7 @@ public class Echo {
             }
         } catch (Exception e) {
             String message = "DICOM Echo failed, storescu: " + e.getMessage();
-            StringUtil.logError(LOGGER, e, message);
+            LOGGER.error(message, e);
             return new DicomState(Status.UnableToProcess, message, null);
         }
     }

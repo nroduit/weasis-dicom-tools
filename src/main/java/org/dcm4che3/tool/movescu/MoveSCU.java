@@ -61,7 +61,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
-import org.weasis.dicom.util.StringUtil;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
@@ -210,7 +209,7 @@ public class MoveSCU extends Device {
                         try {
                             this.cancel(as);
                         } catch (IOException e) {
-                            StringUtil.logError(LOGGER, e, "Cancel C-MOVE");
+                            LOGGER.error("Cancel C-MOVE", e);
                         }
                     }
                 }

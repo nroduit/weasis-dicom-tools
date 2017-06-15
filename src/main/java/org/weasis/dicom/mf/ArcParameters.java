@@ -2,6 +2,9 @@ package org.weasis.dicom.mf;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+
+import org.weasis.core.api.util.StringUtil;
 
 public class ArcParameters {
 
@@ -12,6 +15,8 @@ public class ArcParameters {
     public static final String TAG_ARC_QUERY = "arcQuery";
     public static final String ARCHIVE_ID = "arcId";
     public static final String BASE_URL = "baseUrl";
+    public static final String TAG_PR_ROOT = "presentations"; //$NON-NLS-1$
+    public static final String TAG_PR = "presentation"; //$NON-NLS-1$
 
     // Manifest 1
     public static final String TAG_HTTP_TAG = "httpTag";
@@ -46,13 +51,10 @@ public class ArcParameters {
 
     public ArcParameters(String archiveID, String baseURL, String additionnalParameters, String overrideDicomTagsList,
         String webLogin) {
-        if (archiveID == null || baseURL == null) {
-            throw new IllegalArgumentException("archiveID and wadoURL cannot be null");
-        }
-        this.archiveID = archiveID;
-        this.baseURL = baseURL;
+        this.archiveID = Objects.requireNonNull(archiveID);
+        this.baseURL = Objects.requireNonNull(baseURL);
         this.webLogin = webLogin == null ? null : webLogin.trim();
-        this.additionnalParameters = additionnalParameters == null ? "" : additionnalParameters;
+        this.additionnalParameters = StringUtil.hasText(additionnalParameters) ? additionnalParameters : "";
         this.overrideDicomTagsList = overrideDicomTagsList;
         this.httpTaglist = new ArrayList<>(2);
     }

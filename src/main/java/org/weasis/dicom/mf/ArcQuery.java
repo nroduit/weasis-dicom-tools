@@ -11,8 +11,8 @@
 package org.weasis.dicom.mf;
 
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 public class ArcQuery implements XmlManifest {
 
@@ -22,13 +22,16 @@ public class ArcQuery implements XmlManifest {
     public static final String MSG_ATTRIBUTE_LEVEL = "severity";
 
     private final List<QueryResult> archiveList;
+    private final List<String> presentationList;
     private final StringBuilder manifest;
 
-    public ArcQuery(List<QueryResult> list) {
-        if (list == null) {
-            throw new IllegalArgumentException();
-        }
-        this.archiveList = list;
+    public ArcQuery(List<QueryResult> resultList) {
+        this(resultList, null);
+    }
+
+    public ArcQuery(List<QueryResult> resultList, List<String> presentationList) {
+        this.archiveList = Objects.requireNonNull(resultList);
+        this.presentationList = presentationList;
         this.manifest = new StringBuilder();
     }
 
@@ -39,7 +42,9 @@ public class ArcQuery implements XmlManifest {
 
     @Override
     public String xmlManifest(String version) {
-        manifest.append("<?xml version=\"1.0\" encoding=\"" + getCharsetEncoding() + "\" ?>");
+        manifest.append("<?xml version=\"1.0\" encoding=\"");
+        manifest.append(getCharsetEncoding());
+        manifest.append("\" ?>");
 
         if (version != null && "1".equals(version.trim())) {
             return xmlManifest1();
@@ -76,6 +81,21 @@ public class ArcQuery implements XmlManifest {
 
             manifest.append("\n</");
             manifest.append(ArcParameters.TAG_ARC_QUERY);
+            manifest.append(">");
+        }
+
+        if (presentationList != null && !presentationList.isEmpty()) {
+            manifest.append("\n<");
+            manifest.append(ArcParameters.TAG_PR_ROOT);
+            manifest.append(">\n");
+
+            for (String pr : presentationList) {
+                manifest.append(pr);
+                manifest.append("\n");
+            }
+
+            manifest.append("\n</");
+            manifest.append(ArcParameters.TAG_PR_ROOT);
             manifest.append(">");
         }
 
@@ -128,13 +148,7 @@ public class ArcQuery implements XmlManifest {
     private void buildPatient(QueryResult archive) {
         List<Patient> patientList = archive.getPatients();
         if (patientList != null) {
-            Collections.sort(patientList, new Comparator<Patient>() {
-
-                @Override
-                public int compare(Patient o1, Patient o2) {
-                    return o1.getPatientName().compareTo(o2.getPatientName());
-                }
-            });
+            Collections.sort(patientList, (o1, o2) -> o1.getPatientName().compareTo(o2.getPatientName()));
 
             for (Patient patient : patientList) {
                 manifest.append(patient.toXml());

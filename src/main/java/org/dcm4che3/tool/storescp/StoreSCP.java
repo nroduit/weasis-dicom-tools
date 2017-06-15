@@ -74,7 +74,7 @@ import org.slf4j.LoggerFactory;
  */
 public class StoreSCP {
 
-    private static final Logger LOG = LoggerFactory.getLogger(StoreSCP.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(StoreSCP.class);
 
     private static final String TMP_DIR = "tmp";
 
@@ -117,7 +117,7 @@ public class StoreSCP {
     }
 
     private void storeTo(Association as, Attributes fmi, PDVInputStream data, File file) throws IOException {
-        LOG.debug("{}: M-WRITE {}", as, file);
+        LOGGER.debug("{}: M-WRITE {}", as, file);
         file.getParentFile().mkdirs();
         DicomOutputStream out = new DicomOutputStream(file);
         try {
@@ -129,7 +129,7 @@ public class StoreSCP {
     }
 
     private static void renameTo(Association as, File from, File dest) throws IOException {
-        LOG.info("{}: M-RENAME {} to {}", as, from, dest);
+        LOGGER.info("{}: M-RENAME {} to {}", as, from, dest);
         if (!dest.getParentFile().mkdirs())
             dest.delete();
         if (!from.renameTo(dest))
@@ -148,9 +148,9 @@ public class StoreSCP {
 
     private static void deleteFile(Association as, File file) {
         if (file.delete())
-            LOG.info("{}: M-DELETE {}", as, file);
+            LOGGER.info("{}: M-DELETE {}", as, file);
         else
-            LOG.warn("{}: M-DELETE {} failed!", as, file);
+            LOGGER.warn("{}: M-DELETE {} failed!", as, file);
     }
 
     private DicomServiceRegistry createServiceRegistry() {
@@ -178,7 +178,7 @@ public class StoreSCP {
                 p.load(this.getClass().getResourceAsStream("sop-classes.properties"));
             }
         } catch (IOException e) {
-            LOG.error("Cannot read sop-classes", e);
+            LOGGER.error("Cannot read sop-classes", e);
         }
 
         for (String cuid : p.stringPropertyNames()) {

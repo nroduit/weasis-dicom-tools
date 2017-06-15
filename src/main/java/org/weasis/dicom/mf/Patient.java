@@ -17,6 +17,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 import org.dcm4che3.data.Tag;
 import org.slf4j.Logger;
@@ -40,22 +41,13 @@ public class Patient implements Xml {
     }
 
     public Patient(String patientID, String issuerOfPatientID) {
-        if (patientID == null) {
-            throw new IllegalArgumentException("PaientID cannot be null!");
-        }
-        this.patientID = patientID;
+        this.patientID = Objects.requireNonNull(patientID, "PaientID cannot be null!") ;
         this.issuerOfPatientID = issuerOfPatientID;
         studiesList = new ArrayList<>();
     }
 
     public boolean hasSameUniqueID(String patientID, String issuerOfPatientID) {
-        if (this.patientID.equals(patientID)) {
-            if ((this.issuerOfPatientID == null && issuerOfPatientID == null)
-                || (this.issuerOfPatientID != null && this.issuerOfPatientID.equals(issuerOfPatientID))) {
-                return true;
-            }
-        }
-        return false;
+        return this.patientID.equals(patientID) && Objects.equals(this.issuerOfPatientID, issuerOfPatientID);
     }
 
     public String getPatientID() {
@@ -153,38 +145,34 @@ public class Patient implements Xml {
     }
 
     private static Comparator<Study> getStudyComparator() {
-        return new Comparator<Study>() {
-
-            @Override
-            public int compare(Study o1, Study o2) {
-                LocalDate date1 = DateUtil.getDicomDate(o1.getStudyDate());
-                LocalDate date2 = DateUtil.getDicomDate(o2.getStudyDate());
-                if (date1 != null && date2 != null) {
-                    // inverse time
-                    int rep = date2.compareTo(date1);
-                    if (rep == 0) {
-                        LocalTime time1 = DateUtil.getDicomTime(o1.getStudyTime());
-                        LocalTime time2 = DateUtil.getDicomTime(o2.getStudyTime());
-                        if (time1 != null && time2 != null) {
-                            // inverse time
-                            return time2.compareTo(time1);
-                        }
-                    } else {
-                        return rep;
+        return (o1, o2) -> {
+            LocalDate date1 = DateUtil.getDicomDate(o1.getStudyDate());
+            LocalDate date2 = DateUtil.getDicomDate(o2.getStudyDate());
+            if (date1 != null && date2 != null) {
+                // inverse time
+                int rep = date2.compareTo(date1);
+                if (rep == 0) {
+                    LocalTime time1 = DateUtil.getDicomTime(o1.getStudyTime());
+                    LocalTime time2 = DateUtil.getDicomTime(o2.getStudyTime());
+                    if (time1 != null && time2 != null) {
+                        // inverse time
+                        return time2.compareTo(time1);
                     }
-                }
-                if (date1 == null && date2 == null) {
-                    return o1.getStudyInstanceUID().compareTo(o2.getStudyInstanceUID());
                 } else {
-                    if (date1 == null) {
-                        return 1;
-                    }
-                    if (date2 == null) {
-                        return -1;
-                    }
+                    return rep;
                 }
-                return 0;
             }
+            if (date1 == null && date2 == null) {
+                return o1.getStudyInstanceUID().compareTo(o2.getStudyInstanceUID());
+            } else {
+                if (date1 == null) {
+                    return 1;
+                }
+                if (date2 == null) {
+                    return -1;
+                }
+            }
+            return 0;
         };
     }
 

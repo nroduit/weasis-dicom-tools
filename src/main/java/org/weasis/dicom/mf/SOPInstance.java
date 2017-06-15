@@ -10,6 +10,8 @@
  *******************************************************************************/
 package org.weasis.dicom.mf;
 
+import java.util.Objects;
+
 import org.dcm4che3.data.Tag;
 import org.weasis.core.api.media.data.TagW;
 import org.weasis.core.api.util.StringUtil;
@@ -22,10 +24,7 @@ public class SOPInstance implements Xml {
     private String directDownloadFile = null;
 
     public SOPInstance(String sopInstanceUID) {
-        if (sopInstanceUID == null) {
-            throw new IllegalArgumentException("sopInstanceIUID is null");
-        }
-        this.sopInstanceUID = sopInstanceUID;
+        this.sopInstanceUID = Objects.requireNonNull(sopInstanceUID, "sopInstanceIUID is null") ;
     }
 
     public String getTransferSyntaxUID() {

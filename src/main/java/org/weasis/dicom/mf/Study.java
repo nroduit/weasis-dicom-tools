@@ -12,8 +12,8 @@ package org.weasis.dicom.mf;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 import org.dcm4che3.data.Tag;
 import org.weasis.core.api.util.StringUtil;
@@ -30,11 +30,8 @@ public class Study implements Xml {
     private final List<Series> seriesList;
 
     public Study(String studyInstanceUID) {
-        if (studyInstanceUID == null) {
-            throw new IllegalArgumentException("studyInstanceUID cannot be null!");
-        }
-        this.studyInstanceUID = studyInstanceUID;
-        seriesList = new ArrayList<>();
+        this.studyInstanceUID = Objects.requireNonNull(studyInstanceUID, "studyInstanceUID cannot be null!");
+        this.seriesList = new ArrayList<>();
     }
 
     public String getStudyInstanceUID() {
@@ -110,28 +107,24 @@ public class Study implements Xml {
             Xml.addXmlAttribute(Tag.StudyID, studyID, result);
             Xml.addXmlAttribute(Tag.ReferringPhysicianName, referringPhysicianName, result);
             result.append(">");
-            Collections.sort(seriesList, new Comparator<Series>() {
-
-                @Override
-                public int compare(Series o1, Series o2) {
-                    int nubmer1 = 0;
-                    int nubmer2 = 0;
-                    try {
-                        if (StringUtil.hasText(o1.getSeriesNumber())) {
-                            nubmer1 = Integer.parseInt(o1.getSeriesNumber());
-                        }
-                        if (StringUtil.hasText(o2.getSeriesNumber())) {
-                            nubmer2 = Integer.parseInt(o2.getSeriesNumber());
-                        }
-                    } catch (NumberFormatException e) {
-                        // Do nothing
+            Collections.sort(seriesList, (o1, o2) -> {
+                int nubmer1 = 0;
+                int nubmer2 = 0;
+                try {
+                    if (StringUtil.hasText(o1.getSeriesNumber())) {
+                        nubmer1 = Integer.parseInt(o1.getSeriesNumber());
                     }
-                    int rep = nubmer1 < nubmer2 ? -1 : (nubmer1 == nubmer2 ? 0 : 1);
-                    if (rep != 0) {
-                        return rep;
+                    if (StringUtil.hasText(o2.getSeriesNumber())) {
+                        nubmer2 = Integer.parseInt(o2.getSeriesNumber());
                     }
-                    return o1.getSeriesInstanceUID().compareTo(o2.getSeriesInstanceUID());
+                } catch (NumberFormatException e) {
+                    // Do nothing
                 }
+                int rep = Integer.compare(nubmer1, nubmer2);
+                if (rep != 0) {
+                    return rep;
+                }
+                return o1.getSeriesInstanceUID().compareTo(o2.getSeriesInstanceUID());
             });
             for (Series s : seriesList) {
                 result.append(s.toXml());

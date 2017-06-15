@@ -12,13 +12,14 @@ package org.weasis.dicom.mf;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 import org.dcm4che3.data.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.api.media.data.TagW;
+import org.weasis.core.api.util.StringUtil;
 
 public class Series implements Xml {
     private static final Logger LOGGER = LoggerFactory.getLogger(Series.class);
@@ -34,10 +35,7 @@ public class Series implements Xml {
     private String thumbnail = null;
 
     public Series(String seriesInstanceUID) {
-        if (seriesInstanceUID == null) {
-            throw new IllegalArgumentException("seriesInstanceUID is null");
-        }
-        this.seriesInstanceUID = seriesInstanceUID;
+        this.seriesInstanceUID = Objects.requireNonNull(seriesInstanceUID, "seriesInstanceUID is null");
         sopInstancesList = new ArrayList<>();
     }
 
@@ -54,7 +52,7 @@ public class Series implements Xml {
     }
 
     public void setSeriesNumber(String seriesNumber) {
-        this.seriesNumber = seriesNumber == null ? null : seriesNumber.trim();
+        this.seriesNumber = StringUtil.hasText(seriesNumber) ? seriesNumber.trim() : null;
     }
 
     public String getWadoTransferSyntaxUID() {
@@ -112,21 +110,17 @@ public class Series implements Xml {
     }
 
     public void sortByInstanceNumber() {
-        Collections.sort(sopInstancesList, new Comparator<SOPInstance>() {
-
-            @Override
-            public int compare(SOPInstance o1, SOPInstance o2) {
-                int nubmer1 = 0;
-                int nubmer2 = 0;
-                try {
-                    nubmer1 = Integer.parseInt(o1.getInstanceNumber());
-                    nubmer2 = Integer.parseInt(o2.getInstanceNumber());
-                } catch (NumberFormatException e) {
-                    // Do nothing
-                }
-
-                return nubmer1 < nubmer2 ? -1 : (nubmer1 == nubmer2 ? 0 : 1);
+        Collections.sort(sopInstancesList, (o1, o2) -> {
+            int nubmer1 = 0;
+            int nubmer2 = 0;
+            try {
+                nubmer1 = Integer.parseInt(o1.getInstanceNumber());
+                nubmer2 = Integer.parseInt(o2.getInstanceNumber());
+            } catch (NumberFormatException e) {
+                // Do nothing
             }
+
+            return Integer.compare(nubmer1, nubmer2);
         });
     }
 

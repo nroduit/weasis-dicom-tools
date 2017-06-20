@@ -49,8 +49,7 @@ public class StoreScpForward {
     private final BasicCStoreSCP cstoreSCP = new BasicCStoreSCP("*") {
 
         @Override
-        protected void store(Association as, PresentationContext pc, Attributes rq, PDVInputStream data, Attributes rsp)
-            throws IOException {
+        protected void store(Association as, PresentationContext pc, Attributes rq, PDVInputStream data, Attributes rsp) throws IOException {
             rsp.setInt(Tag.Status, VR.US, status);
 
             try {
@@ -65,6 +64,9 @@ public class StoreScpForward {
                     storeDevice.setExecutor(Executors.newSingleThreadExecutor());
                     storeDevice.setScheduledExecutor(Executors.newSingleThreadScheduledExecutor());
                     streamSCU.open();
+                } else if (!streamSCU.getAssociation().isReadyForDataTransfer()) {
+                    // If connection has been closed just reopen
+                    streamSCU.open();
                 }
 
                 if (streamSCU.getAssociation().isReadyForDataTransfer()) {
@@ -76,8 +78,7 @@ public class StoreScpForward {
                         attributesEditor.apply(attributes);
                         DataWriter dataWriter = new DataWriterAdapter(attributes);
 
-                        streamSCU.getAssociation().cstore(cuid, iuid, priority, dataWriter, tsuid,
-                            streamSCU.rspHandlerFactory.createDimseRSPHandler());
+                        streamSCU.getAssociation().cstore(cuid, iuid, priority, dataWriter, tsuid, streamSCU.rspHandlerFactory.createDimseRSPHandler());
                     } catch (Exception e) {
                         LOGGER.error("Error when forwarding to the final destination", e);
                     } finally {
@@ -99,8 +100,7 @@ public class StoreScpForward {
         }
     };
 
-    public StoreScpForward(DicomNode callingNode, DicomNode destinationNode, AttributeEditor attributesEditor)
-        throws IOException {
+    public StoreScpForward(DicomNode callingNode, DicomNode destinationNode, AttributeEditor attributesEditor) throws IOException {
         this.attributesEditor = attributesEditor;
         device.setDimseRQHandler(createServiceRegistry());
         device.addConnection(conn);
@@ -141,8 +141,7 @@ public class StoreScpForward {
 
         for (String cuid : p.stringPropertyNames()) {
             String ts = p.getProperty(cuid);
-            TransferCapability tc =
-                new TransferCapability(null, CLIUtils.toUID(cuid), TransferCapability.Role.SCP, CLIUtils.toUIDs(ts));
+            TransferCapability tc = new TransferCapability(null, CLIUtils.toUID(cuid), TransferCapability.Role.SCP, CLIUtils.toUIDs(ts));
             ae.addTransferCapability(tc);
         }
     }

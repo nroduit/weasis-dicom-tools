@@ -44,21 +44,13 @@ public class StoreFromStreamSCU {
     private int lastStatusCode = Integer.MIN_VALUE;
     private int nbStatusLog = 0;
 
-    protected RSPHandlerFactory rspHandlerFactory = new RSPHandlerFactory() {
+    protected RSPHandlerFactory rspHandlerFactory = () -> new DimseRSPHandler(as.nextMessageID()) {
 
         @Override
-        public DimseRSPHandler createDimseRSPHandler() {
-
-            return new DimseRSPHandler(as.nextMessageID()) {
-
-                @Override
-                public void onDimseRSP(Association as, Attributes cmd, Attributes data) {
-                    super.onDimseRSP(as, cmd, data);
-                    StoreFromStreamSCU.this.onCStoreRSP(cmd);
-                }
-            };
+        public void onDimseRSP(Association as, Attributes cmd, Attributes data) {
+            super.onDimseRSP(as, cmd, data);
+            StoreFromStreamSCU.this.onCStoreRSP(cmd);
         }
-
     };
 
     public StoreFromStreamSCU(AdvancedParams params, DicomNode callingNode, DicomNode calledNode) throws IOException {

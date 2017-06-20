@@ -16,12 +16,12 @@ import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.AttributeEditor;
 import org.weasis.dicom.param.DicomNode;
 
-public class DicomListenerForward {
+public class DicomGateway {
     private final StoreScpForward storeSCP;
     private AdvancedParams params;
     private URL transferCapabilityFile;
 
-    public DicomListenerForward(DicomNode callingNode, DicomNode destinationNode, AttributeEditor attributesEditor)
+    public DicomGateway(DicomNode callingNode, DicomNode destinationNode, AttributeEditor attributesEditor)
         throws IOException {
         this.storeSCP = new StoreScpForward(callingNode, destinationNode, attributesEditor);
     }

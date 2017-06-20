@@ -10,13 +10,16 @@
  *******************************************************************************/
 package org.weasis.dicom.mf;
 
+import java.text.Collator;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 
 import org.dcm4che3.data.Tag;
-import org.weasis.core.api.util.StringUtil;
+import org.weasis.dicom.tool.DateUtil;
 
 public class Study implements Xml {
 
@@ -107,25 +110,8 @@ public class Study implements Xml {
             Xml.addXmlAttribute(Tag.StudyID, studyID, result);
             Xml.addXmlAttribute(Tag.ReferringPhysicianName, referringPhysicianName, result);
             result.append(">");
-            Collections.sort(seriesList, (o1, o2) -> {
-                int nubmer1 = 0;
-                int nubmer2 = 0;
-                try {
-                    if (StringUtil.hasText(o1.getSeriesNumber())) {
-                        nubmer1 = Integer.parseInt(o1.getSeriesNumber());
-                    }
-                    if (StringUtil.hasText(o2.getSeriesNumber())) {
-                        nubmer2 = Integer.parseInt(o2.getSeriesNumber());
-                    }
-                } catch (NumberFormatException e) {
-                    // Do nothing
-                }
-                int rep = Integer.compare(nubmer1, nubmer2);
-                if (rep != 0) {
-                    return rep;
-                }
-                return o1.getSeriesInstanceUID().compareTo(o2.getSeriesInstanceUID());
-            });
+
+            Collections.sort(seriesList, Series::compareSeries);
             for (Series s : seriesList) {
                 result.append(s.toXml());
             }
@@ -157,6 +143,48 @@ public class Study implements Xml {
 
     public List<Series> getSeriesList() {
         return seriesList;
+    }
+
+    public static int compareStudy(Study o1, Study o2) {
+        LocalDateTime date1 =
+            DateUtil.dateTime(DateUtil.getDicomDate(o1.getStudyDate()), DateUtil.getDicomTime(o1.getStudyTime()));
+        LocalDateTime date2 =
+            DateUtil.dateTime(DateUtil.getDicomDate(o2.getStudyDate()), DateUtil.getDicomTime(o2.getStudyTime()));
+
+        int c = -1;
+        if (date1 != null && date2 != null) {
+            // inverse time
+            c = date2.compareTo(date1);
+            if (c != 0) {
+                return c;
+            }
+        }
+
+        if (c == 0 || (date1 == null && date2 == null)) {
+            String d1 = o1.getStudyDescription();
+            String d2 = o2.getStudyDescription();
+            if (d1 != null && d2 != null) {
+                c = Collator.getInstance(Locale.getDefault()).compare(d1, d2);
+                if (c != 0) {
+                    return c;
+                }
+            }
+            if (d1 == null) {
+                // Add o1 after o2
+                return d2 == null ? 0 : 1;
+            }
+            // Add o2 after o1
+            return -1;
+        } else {
+            if (date1 == null) {
+                // Add o1 after o2
+                return 1;
+            }
+            if (date2 == null) {
+                return -1;
+            }
+        }
+        return o1.getStudyInstanceUID().compareTo(o2.getStudyInstanceUID());
     }
 
 }

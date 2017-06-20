@@ -8,6 +8,7 @@ import static java.time.temporal.ChronoField.SECOND_OF_MINUTE;
 import static java.time.temporal.ChronoField.YEAR;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
@@ -69,6 +70,17 @@ public class DateUtil {
         }
         return null;
     }
+    
+    public static LocalDateTime dateTime(LocalDate date, LocalTime time) {
+        if (date == null) {
+            return null;
+        }
+        if (time == null) {
+            return date.atStartOfDay();
+        }
+        return LocalDateTime.of(date, time);
+    }
+
 
     public static String formatDicomDate(LocalDate date) {
         if (date != null) {

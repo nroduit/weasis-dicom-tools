@@ -24,7 +24,7 @@ public class SOPInstance implements Xml {
     private String directDownloadFile = null;
 
     public SOPInstance(String sopInstanceUID) {
-        this.sopInstanceUID = Objects.requireNonNull(sopInstanceUID, "sopInstanceIUID is null") ;
+        this.sopInstanceUID = Objects.requireNonNull(sopInstanceUID, "sopInstanceIUID is null");
     }
 
     public String getTransferSyntaxUID() {
@@ -71,4 +71,30 @@ public class SOPInstance implements Xml {
         return result.toString();
     }
 
+    public static int compareInstanceNumber(SOPInstance o1, SOPInstance o2) {
+        Integer val1 = StringUtil.getInteger(o1.getInstanceNumber());
+        Integer val2 = StringUtil.getInteger(o2.getInstanceNumber());
+
+        int c = -1;
+        if (val1 != null && val2 != null) {
+            c = val1.compareTo(val2);
+            if (c != 0) {
+                return c;
+            }
+        }
+
+        if (c == 0 || (val1 == null && val2 == null)) {
+            return o1.getSOPInstanceIUID().compareTo(o2.getSOPInstanceIUID());
+        } else {
+            if (val1 == null) {
+                // Add o1 after o2
+                return 1;
+            }
+            if (val2 == null) {
+                return -1;
+            }
+        }
+
+        return o1.getSOPInstanceIUID().compareTo(o2.getSOPInstanceIUID());
+    }
 }

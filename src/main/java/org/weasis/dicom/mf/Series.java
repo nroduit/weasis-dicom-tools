@@ -109,20 +109,7 @@ public class Series implements Xml {
         return sopInstancesList;
     }
 
-    public void sortByInstanceNumber() {
-        Collections.sort(sopInstancesList, (o1, o2) -> {
-            int nubmer1 = 0;
-            int nubmer2 = 0;
-            try {
-                nubmer1 = Integer.parseInt(o1.getInstanceNumber());
-                nubmer2 = Integer.parseInt(o2.getInstanceNumber());
-            } catch (NumberFormatException e) {
-                // Do nothing
-            }
 
-            return Integer.compare(nubmer1, nubmer2);
-        });
-    }
 
     @Override
     public String toXml() {
@@ -140,7 +127,8 @@ public class Series implements Xml {
             Xml.addXmlAttribute(TagW.WadoCompressionRate,
                 wadoCompression < 1 ? null : Integer.toString(wadoCompression), result);
             result.append(">");
-            sortByInstanceNumber();
+            
+            Collections.sort(sopInstancesList, SOPInstance::compareInstanceNumber);
             for (SOPInstance s : sopInstancesList) {
                 result.append(s.toXml());
             }
@@ -153,5 +141,32 @@ public class Series implements Xml {
 
     public boolean isEmpty() {
         return sopInstancesList.isEmpty();
+    }
+    
+    public static int compareSeries(Series o1, Series o2) {
+        Integer val1 = StringUtil.getInteger(o1.getSeriesNumber());
+        Integer val2 = StringUtil.getInteger(o2.getSeriesNumber());
+
+        int c = -1;
+        if (val1 != null && val2 != null) {
+            c = val1.compareTo(val2);
+            if (c != 0) {
+                return c;
+            }
+        }
+
+        if (c == 0 || (val1 == null && val2 == null)) {
+            return o1.getSeriesInstanceUID().compareTo(o2.getSeriesInstanceUID());
+        } else {
+            if (val1 == null) {
+                // Add o1 after o2
+                return 1;
+            }
+            if (val2 == null) {
+                return -1;
+            }
+        }
+
+        return o1.getSeriesInstanceUID().compareTo(o2.getSeriesInstanceUID());
     }
 }

@@ -8,6 +8,7 @@ import java.text.MessageFormat;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -53,7 +54,7 @@ public class CGetForward {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CGetForward.class);
 
-    public static enum InformationModel {
+    public enum InformationModel {
         PatientRoot(UID.PatientRootQueryRetrieveInformationModelGET, "STUDY"),
         StudyRoot(UID.StudyRootQueryRetrieveInformationModelGET, "STUDY"),
         PatientStudyOnly(UID.PatientStudyOnlyQueryRetrieveInformationModelGETRetired, "STUDY"),
@@ -320,27 +321,34 @@ public class CGetForward {
         } catch (Exception e) {
             // Do nothing
         }
-        ((ExecutorService) device.getExecutor()).shutdown();
-        device.getScheduledExecutor().shutdown();
+
+        Executor executorService = device.getExecutor();
+        if (executorService instanceof ExecutorService) {
+            ((ExecutorService) executorService).shutdown();
+        }
+
+        ScheduledExecutorService scheduledExecutorService = device.getScheduledExecutor();
+        if (scheduledExecutorService != null) {
+            scheduledExecutorService.shutdown();
+        }
     }
 
     public static DicomState processStudy(AdvancedParams params, DicomNode callingNode, DicomNode calledNode,
-        DicomNode destinationNode, DicomProgress progress, String studyUID, boolean uncompressed,
-        Map<Integer, String> attributesToOverride) {
-        return process(params, callingNode, calledNode, destinationNode, progress, "STUDY", studyUID, uncompressed,
+        DicomNode destinationNode, DicomProgress progress, String studyUID, Map<Integer, String> attributesToOverride) {
+        return process(params, callingNode, calledNode, destinationNode, progress, "STUDY", studyUID,
             attributesToOverride);
     }
 
     public static DicomState processSeries(AdvancedParams params, DicomNode callingNode, DicomNode calledNode,
-        DicomNode destinationNode, DicomProgress progress, String seriesUID, boolean uncompressed,
+        DicomNode destinationNode, DicomProgress progress, String seriesUID,
         Map<Integer, String> attributesToOverride) {
-        return process(params, callingNode, calledNode, destinationNode, progress, "SERIES", seriesUID, uncompressed,
+        return process(params, callingNode, calledNode, destinationNode, progress, "SERIES", seriesUID,
             attributesToOverride);
     }
 
     private static DicomState process(AdvancedParams params, DicomNode callingNode, DicomNode calledNode,
         DicomNode destinationNode, DicomProgress progress, String queryRetrieveLevel, String queryUID,
-        boolean uncompressed, Map<Integer, String> attributesToOverride) {
+        Map<Integer, String> attributesToOverride) {
         if (callingNode == null || calledNode == null || destinationNode == null) {
             throw new IllegalArgumentException("callingNode, calledNode or destinationNode cannot be null!");
         }

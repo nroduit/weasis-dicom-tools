@@ -65,11 +65,11 @@ public class StoreScpForward {
                     storeDevice.setExecutor(Executors.newSingleThreadExecutor());
                     storeDevice.setScheduledExecutor(Executors.newSingleThreadScheduledExecutor());
                     streamSCU.open();
-                }
-                else if (!streamSCU.getAssociation().isReadyForDataTransfer()) {
+                } else if (!streamSCU.getAssociation().isReadyForDataTransfer()) {
+                    // If connection has been closed just reopen
                     streamSCU.open();
                 }
-                
+
                 if (streamSCU.getAssociation().isReadyForDataTransfer()) {
                     DicomInputStream in = null;
                     try {

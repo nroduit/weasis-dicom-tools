@@ -40,6 +40,7 @@ import org.dcm4che3.net.service.BasicCStoreSCP;
 import org.dcm4che3.net.service.DicomServiceException;
 import org.dcm4che3.net.service.DicomServiceRegistry;
 import org.dcm4che3.tool.common.CLIUtils;
+import org.dcm4che3.tool.getscu.GetSCU;
 import org.dcm4che3.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -438,7 +439,7 @@ public class CGetForward {
         Properties p = new Properties();
         try {
             if (url == null) {
-                p.load(getSCU.getClass().getResourceAsStream("store-tcs.properties"));
+                p.load(GetSCU.class.getResourceAsStream("store-tcs.properties"));
             } else {
                 p.load(url.openStream());
             }

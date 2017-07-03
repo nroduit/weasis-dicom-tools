@@ -1,19 +1,18 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>org.weasis</groupId>
 	<artifactId>weasis-dicom-tools</artifactId>
 	<packaging>jar</packaging>
 	<name>Weasis DICOM API (based on dcm4che3)</name>
-	<version>1.1.0-SNAPSHOT</version>
+	<version>1.1.0-rc1</version>
 	<prerequisites>
 		<maven>3.0</maven>
 	</prerequisites>
 
 	<properties>
 		<dcm4che.version>dcm4chee-arc-light-5.10.1</dcm4che.version>
-		<weasis.version>2.5.4-SNAPSHOT</weasis.version>
+		<weasis.version>2.5.4-rc1</weasis.version><!-- commit 8bb7d236e11b217ebabaf399d10ab48d36586777 -->
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 	<scm>
@@ -117,9 +116,7 @@
 		</dependency>
 
 
-		<!-- Only required by storeSCU for uncompressing data not supported by 
-			the destination. dcm4che-imageio is linked to native libraries not located 
-			in this package -->
+		<!-- Only required by storeSCU for uncompressing data not supported by the destination. dcm4che-imageio is linked to native libraries not located in this package -->
 		<dependency>
 			<groupId>org.dcm4che</groupId>
 			<artifactId>dcm4che-imageio</artifactId>

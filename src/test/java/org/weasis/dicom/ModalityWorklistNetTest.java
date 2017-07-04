@@ -28,31 +28,33 @@ public class ModalityWorklistNetTest {
 
     @Test
     public void testProcess() {
+        final int[] sps = { Tag.ScheduledProcedureStepSequence };
+        DicomParam stationAet = new DicomParam(sps, Tag.ScheduledStationAETitle, "ADVT");
 
-        DicomParam stationAet = new DicomParam(Tag.ScheduledStationAETitle, "ADVT");
-
-        DicomParam[] SPS_RETURN_KEYS = { CFind.Modality, ModalityWorklist.RequestedContrastAgent, stationAet,
-            ModalityWorklist.ScheduledProcedureStepStartDate, ModalityWorklist.ScheduledProcedureStepStartTime,
-            ModalityWorklist.ScheduledPerformingPhysicianName, ModalityWorklist.ScheduledProcedureStepDescription,
-            ModalityWorklist.ScheduledProcedureStepID, ModalityWorklist.ScheduledStationName,
-            ModalityWorklist.ScheduledProcedureStepLocation, ModalityWorklist.PreMedication,
-            ModalityWorklist.ScheduledProcedureStepStatus };
-
-        DicomParam[] RETURN_KEYS = { CFind.AccessionNumber, CFind.ReferringPhysicianName, CFind.PatientName,
-            CFind.PatientID, CFind.PatientBirthDate, CFind.PatientSex, ModalityWorklist.PatientWeight,
-            ModalityWorklist.MedicalAlerts, ModalityWorklist.Allergies, ModalityWorklist.PregnancyStatus,
-            CFind.StudyInstanceUID, ModalityWorklist.RequestingPhysician, ModalityWorklist.RequestingService,
-            ModalityWorklist.RequestedProcedureDescription, ModalityWorklist.AdmissionID, ModalityWorklist.SpecialNeeds,
+        DicomParam[] RETURN_KEYS = { CFind.AccessionNumber, CFind.IssuerOfAccessionNumberSequence,
+            CFind.ReferringPhysicianName, CFind.PatientName, CFind.PatientID, CFind.IssuerOfPatientID,
+            CFind.PatientBirthDate, CFind.PatientSex, ModalityWorklist.PatientWeight, ModalityWorklist.MedicalAlerts,
+            ModalityWorklist.Allergies, ModalityWorklist.PregnancyStatus, CFind.StudyInstanceUID,
+            ModalityWorklist.RequestingPhysician, ModalityWorklist.RequestingService,
+            ModalityWorklist.RequestedProcedureDescription, ModalityWorklist.RequestedProcedureCodeSequence,
+            ModalityWorklist.AdmissionID, ModalityWorklist.IssuerOfAdmissionIDSequence, ModalityWorklist.SpecialNeeds,
             ModalityWorklist.CurrentPatientLocation, ModalityWorklist.PatientState,
             ModalityWorklist.RequestedProcedureID, ModalityWorklist.RequestedProcedurePriority,
             ModalityWorklist.PatientTransportArrangements, ModalityWorklist.PlacerOrderNumberImagingServiceRequest,
             ModalityWorklist.FillerOrderNumberImagingServiceRequest,
-            ModalityWorklist.ConfidentialityConstraintOnPatientDataDescription };
+            ModalityWorklist.ConfidentialityConstraintOnPatientDataDescription,
+            // Scheduled Procedure Step Sequence
+            ModalityWorklist.Modality, ModalityWorklist.RequestedContrastAgent, stationAet,
+            ModalityWorklist.ScheduledProcedureStepStartDate, ModalityWorklist.ScheduledProcedureStepStartTime,
+            ModalityWorklist.ScheduledPerformingPhysicianName, ModalityWorklist.ScheduledProcedureStepDescription,
+            ModalityWorklist.ScheduledProcedureStepID, ModalityWorklist.ScheduledStationName,
+            ModalityWorklist.ScheduledProcedureStepLocation, ModalityWorklist.PreMedication,
+            ModalityWorklist.ScheduledProcedureStepStatus, ModalityWorklist.ScheduledProtocolCodeSequence };
 
         DicomNode calling = new DicomNode("WEASIS-SCU");
         DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
 
-        DicomState state = ModalityWorklist.process(null, calling, called, 0, SPS_RETURN_KEYS, RETURN_KEYS);
+        DicomState state = ModalityWorklist.process(null, calling, called, 0, RETURN_KEYS);
 
         // Should never happen
         Assert.assertNotNull(state);

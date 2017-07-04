@@ -29,12 +29,14 @@ import org.dcm4che3.tool.getscu.GetSCU.InformationModel;
 import org.dcm4che3.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.weasis.core.api.util.FileUtil;
+import org.weasis.core.api.util.StringUtil;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomParam;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
-import org.weasis.core.api.util.StringUtil;
+import org.weasis.dicom.tool.ServiceUtil;
 
 public class CGet {
 
@@ -137,42 +139,21 @@ public class CGet {
                 long t2 = System.currentTimeMillis();
                 String timeMsg = MessageFormat.format("Get files from {0} to {1} in {2}ms",
                     getSCU.getAAssociateRQ().getCallingAET(), getSCU.getAAssociateRQ().getCalledAET(), t2 - t1);
-                forceGettingAttributes(getSCU);
+                ServiceUtil.forceGettingAttributes(dcmState, getSCU);
                 return DicomState.buildMessage(dcmState, timeMsg, null);
             } catch (Exception e) {
                 LOGGER.error("getscu", e);
-                forceGettingAttributes(getSCU);
+                ServiceUtil.forceGettingAttributes(getSCU.getState(), getSCU);
                 return DicomState.buildMessage(getSCU.getState(), null, e);
             } finally {
-                closeProcess(getSCU);
-                Echo.shutdownService(executorService);
-                Echo.shutdownService(scheduledExecutorService);
+                FileUtil.safeClose(getSCU);
+                ServiceUtil.shutdownService(executorService);
+                ServiceUtil.shutdownService(scheduledExecutorService);
             }
         } catch (Exception e) {
             LOGGER.error("getscu", e);
             return new DicomState(Status.UnableToProcess,
                 "DICOM Get failed" + StringUtil.COLON_AND_SPACE + e.getMessage(), null);
-        }
-    }
-    
-    private static void closeProcess(GetSCU getSCU) {
-        try {
-            getSCU.close();
-        } catch (IOException e) {
-            LOGGER.error("Closing GetSCU", e);
-        } catch (InterruptedException e) {
-            LOGGER.warn("Closing GetSCU Interruption"); //$NON-NLS-1$
-        }
-    }
-
-    private static void forceGettingAttributes(GetSCU getSCU) {
-        DicomProgress p = getSCU.getState().getProgress();
-        if (p != null) {
-            try {
-                getSCU.close();
-            } catch (Exception e) {
-                // Do nothing
-            }
         }
     }
 

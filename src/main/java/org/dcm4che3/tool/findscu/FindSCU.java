@@ -79,23 +79,20 @@ import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
 
 /**
- * The findscu application implements a Service Class User (SCU) for the
- * Query/Retrieve, the Modality Worklist Management, the Unified Worklist and
- * Procedure Step, the Hanging Protocol Query/Retrieve and the Color Palette
- * Query/Retrieve Service Class. findscu only supports query functionality using
- * the C-FIND message. It sends query keys to an Service Class Provider (SCP)
- * and waits for responses.
+ * The findscu application implements a Service Class User (SCU) for the Query/Retrieve, the Modality Worklist
+ * Management, the Unified Worklist and Procedure Step, the Hanging Protocol Query/Retrieve and the Color Palette
+ * Query/Retrieve Service Class. findscu only supports query functionality using the C-FIND message. It sends query keys
+ * to an Service Class Provider (SCP) and waits for responses.
  * 
  * @author Gunter Zeilinger <gunterze@gmail.com>
  */
-public class FindSCU {
+public class FindSCU implements AutoCloseable {
 
     public static enum InformationModel {
         PatientRoot(UID.PatientRootQueryRetrieveInformationModelFIND, "STUDY"),
         StudyRoot(UID.StudyRootQueryRetrieveInformationModelFIND, "STUDY"),
         PatientStudyOnly(UID.PatientStudyOnlyQueryRetrieveInformationModelFINDRetired, "STUDY"),
-        MWL(UID.ModalityWorklistInformationModelFIND, null),
-        UPSPull(UID.UnifiedProcedureStepPullSOPClass, null),
+        MWL(UID.ModalityWorklistInformationModelFIND, null), UPSPull(UID.UnifiedProcedureStepPullSOPClass, null),
         UPSWatch(UID.UnifiedProcedureStepWatchSOPClass, null),
         HangingProtocol(UID.HangingProtocolInformationModelFIND, null),
         ColorPalette(UID.ColorPaletteQueryRetrieveInformationModelFIND, null);
@@ -166,8 +163,8 @@ public class FindSCU {
         rq.addPresentationContext(new PresentationContext(1, model.cuid, tss));
         if (!queryOptions.isEmpty()) {
             model.adjustQueryOptions(queryOptions);
-            rq.addExtendedNegotiation(new ExtendedNegotiation(model.cuid, QueryOption
-                .toExtendedNegotiationInformation(queryOptions)));
+            rq.addExtendedNegotiation(
+                new ExtendedNegotiation(model.cuid, QueryOption.toExtendedNegotiationInformation(queryOptions)));
         }
         if (model.level != null) {
             addLevel(model.level);
@@ -243,11 +240,12 @@ public class FindSCU {
         return keys;
     }
 
-    public void open() throws IOException, InterruptedException, IncompatibleConnectionException,
-        GeneralSecurityException {
+    public void open()
+        throws IOException, InterruptedException, IncompatibleConnectionException, GeneralSecurityException {
         as = ae.connect(remote, rq);
     }
 
+    @Override
     public void close() throws IOException, InterruptedException {
         if (as != null && as.isReadyForDataTransfer()) {
             as.waitForOutstandingRSP();

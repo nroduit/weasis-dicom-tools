@@ -10,7 +10,6 @@
  *******************************************************************************/
 package org.weasis.dicom.op;
 
-import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -27,12 +26,13 @@ import org.dcm4che3.tool.findscu.FindSCU;
 import org.dcm4che3.tool.findscu.FindSCU.InformationModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.weasis.core.api.util.FileUtil;
+import org.weasis.core.api.util.StringUtil;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomParam;
-import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
-import org.weasis.core.api.util.StringUtil;
+import org.weasis.dicom.tool.ServiceUtil;
 
 public class CFind {
 
@@ -46,6 +46,8 @@ public class CFind {
 
     public static final DicomParam StudyInstanceUID = new DicomParam(Tag.StudyInstanceUID);
     public static final DicomParam AccessionNumber = new DicomParam(Tag.AccessionNumber);
+    public static final DicomParam IssuerOfAccessionNumberSequence =
+        new DicomParam(Tag.IssuerOfAccessionNumberSequence);
     public static final DicomParam StudyID = new DicomParam(Tag.StudyID);
     public static final DicomParam ReferringPhysicianName = new DicomParam(Tag.ReferringPhysicianName);
     public static final DicomParam StudyDescription = new DicomParam(Tag.StudyDescription);
@@ -154,42 +156,21 @@ public class CFind {
                 long t2 = System.currentTimeMillis();
                 String timeMsg = MessageFormat.format("C-Find from {0} to {1} in {2}ms",
                     findSCU.getAAssociateRQ().getCallingAET(), findSCU.getAAssociateRQ().getCalledAET(), t2 - t1);
-                forceGettingAttributes(findSCU);
+                ServiceUtil.forceGettingAttributes(dcmState, findSCU);
                 return DicomState.buildMessage(dcmState, timeMsg, null);
             } catch (Exception e) {
                 LOGGER.error("findscu", e);
-                forceGettingAttributes(findSCU);
+                ServiceUtil.forceGettingAttributes(findSCU.getState(), findSCU);
                 return DicomState.buildMessage(findSCU.getState(), null, e);
             } finally {
-                closeProcess(findSCU);
-                Echo.shutdownService(executorService);
-                Echo.shutdownService(scheduledExecutorService);
+                FileUtil.safeClose(findSCU);
+                ServiceUtil.shutdownService(executorService);
+                ServiceUtil.shutdownService(scheduledExecutorService);
             }
         } catch (Exception e) {
             LOGGER.error("findscu", e);
             return new DicomState(Status.UnableToProcess,
                 "DICOM Find failed" + StringUtil.COLON_AND_SPACE + e.getMessage(), null);
-        }
-    }
-
-    private static void closeProcess(FindSCU findSCU) {
-        try {
-            findSCU.close();
-        } catch (IOException e) {
-            LOGGER.error("Closing FindSCU", e);
-        } catch (InterruptedException e) {
-            LOGGER.warn("Closing FindSCU Interruption"); //$NON-NLS-1$
-        }
-    }
-
-    private static void forceGettingAttributes(FindSCU findSCU) {
-        DicomProgress p = findSCU.getState().getProgress();
-        if (p != null) {
-            try {
-                findSCU.close();
-            } catch (Exception e) {
-                // Do nothing
-            }
         }
     }
 

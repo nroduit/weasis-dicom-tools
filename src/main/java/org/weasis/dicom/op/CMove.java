@@ -10,7 +10,6 @@
  *******************************************************************************/
 package org.weasis.dicom.op;
 
-import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -23,12 +22,14 @@ import org.dcm4che3.tool.movescu.MoveSCU;
 import org.dcm4che3.tool.movescu.MoveSCU.InformationModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.weasis.core.api.util.FileUtil;
+import org.weasis.core.api.util.StringUtil;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomParam;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
-import org.weasis.core.api.util.StringUtil;
+import org.weasis.dicom.tool.ServiceUtil;
 
 public class CMove {
 
@@ -111,42 +112,21 @@ public class CMove {
                 long t2 = System.currentTimeMillis();
                 String timeMsg = MessageFormat.format("Move files from {0} to {1} in {2}ms",
                     moveSCU.getAAssociateRQ().getCallingAET(), moveSCU.getAAssociateRQ().getCalledAET(), t2 - t1);
-                forceGettingAttributes(moveSCU);
+                ServiceUtil.forceGettingAttributes(dcmState, moveSCU);
                 return DicomState.buildMessage(dcmState, timeMsg, null);
             } catch (Exception e) {
                 LOGGER.error("movescu", e);
-                forceGettingAttributes(moveSCU);
+                ServiceUtil.forceGettingAttributes(moveSCU.getState(), moveSCU);
                 return DicomState.buildMessage(moveSCU.getState(), null, e);
             } finally {
-                closeProcess(moveSCU);
-                Echo.shutdownService(executorService);
-                Echo.shutdownService(scheduledExecutorService);
+                FileUtil.safeClose(moveSCU);
+                ServiceUtil.shutdownService(executorService);
+                ServiceUtil.shutdownService(scheduledExecutorService);
             }
         } catch (Exception e) {
             LOGGER.error("movescu", e);
             return new DicomState(Status.UnableToProcess,
                 "DICOM Move failed" + StringUtil.COLON_AND_SPACE + e.getMessage(), null);
-        }
-    }
-    
-    private static void closeProcess(MoveSCU moveSCU) {
-        try {
-            moveSCU.close();
-        } catch (IOException e) {
-            LOGGER.error("Closing MoveSCU", e);
-        } catch (InterruptedException e) {
-            LOGGER.warn("Closing MoveSCU Interruption"); //$NON-NLS-1$
-        }
-    }
-
-    private static void forceGettingAttributes(MoveSCU moveSCU) {
-        DicomProgress p = moveSCU.getState().getProgress();
-        if (p != null) {
-            try {
-                moveSCU.close();
-            } catch (Exception e) {
-                // Do nothing
-            }
         }
     }
 

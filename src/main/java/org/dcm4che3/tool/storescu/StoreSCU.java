@@ -91,7 +91,7 @@ import org.xml.sax.SAXException;
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @author Michael Backhaus <michael.backhaus@agfa.com>
  */
-public class StoreSCU {
+public class StoreSCU implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(StoreSCU.class);
 
     public interface RSPHandlerFactory {
@@ -380,6 +380,7 @@ public class StoreSCU {
         return UID.ImplicitVRLittleEndian;
     }
 
+    @Override
     public void close() throws IOException, InterruptedException {
         if (as != null) {
             if (as.isReadyForDataTransfer()) {

@@ -75,7 +75,7 @@ import org.weasis.dicom.param.DicomState;
  * @author Gunter Zeilinger <gunterze@gmail.com>
  *
  */
-public class GetSCU {
+public class GetSCU implements AutoCloseable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GetSCU.class);
 
@@ -255,6 +255,7 @@ public class GetSCU {
         as = ae.connect(conn, remote, rq);
     }
 
+    @Override
     public void close() throws IOException, InterruptedException {
         if (as != null && as.isReadyForDataTransfer()) {
             as.waitForOutstandingRSP();

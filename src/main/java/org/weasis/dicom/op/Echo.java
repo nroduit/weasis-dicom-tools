@@ -10,7 +10,6 @@
  *******************************************************************************/
 package org.weasis.dicom.op;
 
-import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -23,9 +22,11 @@ import org.dcm4che3.net.Status;
 import org.dcm4che3.tool.storescu.StoreSCU;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.weasis.core.api.util.FileUtil;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomState;
+import org.weasis.dicom.tool.ServiceUtil;
 
 public class Echo {
 
@@ -107,32 +108,14 @@ public class Echo {
                     storeSCU.getAAssociateRQ().getCallingAET(), storeSCU.getAAssociateRQ().getCalledAET(), t2 - t1);
                 return new DicomState(Status.Success, message, null);
             } finally {
-                closeProcess(storeSCU);
-                shutdownService(executorService);
-                shutdownService(scheduledExecutorService);
+                FileUtil.safeClose(storeSCU);
+                ServiceUtil.shutdownService(executorService);
+                ServiceUtil.shutdownService(scheduledExecutorService);
             }
         } catch (Exception e) {
             String message = "DICOM Echo failed, storescu: " + e.getMessage();
             LOGGER.error(message, e);
             return new DicomState(Status.UnableToProcess, message, null);
-        }
-    }
-
-    static void closeProcess(StoreSCU storeSCU) {
-        try {
-            storeSCU.close();
-        } catch (IOException e) {
-            LOGGER.error("Closing StoreSCU", e);
-        } catch (InterruptedException e) {
-            LOGGER.warn("Closing StoreSCU Interruption"); //$NON-NLS-1$
-        }
-    }
-
-    static void shutdownService(ExecutorService executorService) {
-        try {
-            executorService.shutdown();
-        } catch (Exception e) {
-            LOGGER.error("ExecutorService shutdown", e);
         }
     }
 

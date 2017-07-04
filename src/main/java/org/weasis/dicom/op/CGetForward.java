@@ -50,8 +50,9 @@ import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
+import org.weasis.dicom.tool.ServiceUtil;
 
-public class CGetForward {
+public class CGetForward implements AutoCloseable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CGetForward.class);
 
@@ -258,6 +259,7 @@ public class CGetForward {
         as = ae.connect(conn, remote, rq);
     }
 
+    @Override
     public void close() throws IOException, InterruptedException {
         if (as != null && as.isReadyForDataTransfer()) {
             as.waitForOutstandingRSP();
@@ -396,42 +398,21 @@ public class CGetForward {
                 long t2 = System.currentTimeMillis();
                 String timeMsg = MessageFormat.format("Get files from {0} to {1} in {2}ms",
                     forward.getAAssociateRQ().getCallingAET(), forward.getAAssociateRQ().getCalledAET(), t2 - t1);
-                forceGettingAttributes(forward);
+                ServiceUtil.forceGettingAttributes(dcmState, forward);
                 return DicomState.buildMessage(dcmState, timeMsg, null);
             } catch (Exception e) {
                 LOGGER.error("getscu", e);
-                forceGettingAttributes(forward);
+                ServiceUtil.forceGettingAttributes(forward.getState(), forward);
                 return DicomState.buildMessage(forward.getState(), null, e);
             } finally {
-                closeProcess(forward);
-                Echo.shutdownService(executorService);
-                Echo.shutdownService(scheduledExecutorService);
+                FileUtil.safeClose(forward);
+                ServiceUtil.shutdownService(executorService);
+                ServiceUtil.shutdownService(scheduledExecutorService);
             }
         } catch (Exception e) {
             LOGGER.error("getscu", e);
             return new DicomState(Status.UnableToProcess,
                 "DICOM Get failed" + StringUtil.COLON_AND_SPACE + e.getMessage(), null);
-        }
-    }
-
-    private static void closeProcess(CGetForward getSCU) {
-        try {
-            getSCU.close();
-        } catch (IOException e) {
-            LOGGER.error("Closing CGetForward", e);
-        } catch (InterruptedException e) {
-            LOGGER.warn("Closing GetSCU Interruption"); //$NON-NLS-1$
-        }
-    }
-
-    private static void forceGettingAttributes(CGetForward getSCU) {
-        DicomProgress p = getSCU.getState().getProgress();
-        if (p != null) {
-            try {
-                getSCU.close();
-            } catch (Exception e) {
-                // Do nothing
-            }
         }
     }
 

@@ -27,13 +27,14 @@ import org.dcm4che3.net.Status;
 import org.dcm4che3.tool.storescu.StoreSCU;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.weasis.core.api.util.FileUtil;
+import org.weasis.core.api.util.StringUtil;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.CstoreParams;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
-import org.weasis.core.api.util.FileUtil;
-import org.weasis.core.api.util.StringUtil;
+import org.weasis.dicom.tool.ServiceUtil;
 
 public class CStore {
 
@@ -182,34 +183,24 @@ public class CStore {
                     storeSCU.sendFiles();
                     long t2 = System.currentTimeMillis();
                     String timeMsg = MessageFormat.format("Sent files from {0} to {1} in {2}ms. Total size {3}",
-                        storeSCU.getAAssociateRQ().getCallingAET(), storeSCU.getAAssociateRQ().getCalledAET(), t2 - t1, FileUtil.formatSize(storeSCU.getTotalSize()));
-                    forceGettingAttributes(storeSCU);
+                        storeSCU.getAAssociateRQ().getCallingAET(), storeSCU.getAAssociateRQ().getCalledAET(), t2 - t1,
+                        FileUtil.formatSize(storeSCU.getTotalSize()));
+                    ServiceUtil.forceGettingAttributes(dcmState, storeSCU);
                     return DicomState.buildMessage(dcmState, timeMsg, null);
                 } catch (Exception e) {
                     LOGGER.error("storescu", e);
-                    forceGettingAttributes(storeSCU);
+                    ServiceUtil.forceGettingAttributes(storeSCU.getState(), storeSCU);
                     return DicomState.buildMessage(storeSCU.getState(), null, e);
                 } finally {
-                    Echo.closeProcess(storeSCU);
-                    Echo.shutdownService(executorService);
-                    Echo.shutdownService(scheduledExecutorService);
+                    FileUtil.safeClose(storeSCU);
+                    ServiceUtil.shutdownService(executorService);
+                    ServiceUtil.shutdownService(scheduledExecutorService);
                 }
             }
         } catch (Exception e) {
             LOGGER.error("storescu", e);
             return new DicomState(Status.UnableToProcess,
                 "DICOM Store failed" + StringUtil.COLON_AND_SPACE + e.getMessage(), null);
-        }
-    }
-
-    private static void forceGettingAttributes(StoreSCU storeSCU) {
-        DicomProgress p = storeSCU.getState().getProgress();
-        if (p != null) {
-            try {
-                storeSCU.close();
-            } catch (Exception e) {
-                // Do nothing
-            }
         }
     }
 

@@ -66,7 +66,7 @@ import org.weasis.dicom.param.DicomState;
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * 
  */
-public class MoveSCU extends Device {
+public class MoveSCU extends Device implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(MoveSCU.class);
 
     public enum InformationModel {
@@ -174,6 +174,7 @@ public class MoveSCU extends Device {
         as = ae.connect(conn, remote, rq);
     }
 
+    @Override
     public void close() throws IOException, InterruptedException {
         if (as != null && as.isReadyForDataTransfer()) {
             as.waitForOutstandingRSP();

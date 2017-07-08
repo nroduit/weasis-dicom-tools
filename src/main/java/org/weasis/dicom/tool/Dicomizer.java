@@ -83,14 +83,14 @@ public class Dicomizer {
 
             if (noAPPn && p.jpegHeader != null) {
                 int off = p.jpegHeader.offsetAfterAPP();
-                dos.writeHeader(Tag.Item, null, p.fileLength - off + 3);
+                dos.writeHeader(Tag.Item, null, (p.fileLength - off + 4) & ~1);
                 dos.write((byte) -1);
                 dos.write((byte) JPEG.SOI);
                 dos.write((byte) -1);
-                dos.write(p.buffer, off, p.buffer.length -off);
+                dos.write(p.buffer, off, p.realBufferLength - off);
             } else {
                 dos.writeHeader(Tag.Item, null, (p.fileLength + 1) & ~1);
-                dos.write(p.buffer, 0, p.buffer.length);
+                dos.write(p.buffer, 0, p.realBufferLength);
             }
 
             byte[] buf = new byte[FileUtil.FILE_BUFFER];
@@ -114,7 +114,10 @@ public class Dicomizer {
         throws IOException {
 
         int bLength = p.buffer.length;
-        StreamUtils.readAvailable(jpgInput, p.buffer, 0, bLength);
+        int streamLength = StreamUtils.readAvailable(jpgInput, p.buffer, 0, bLength);
+        if(streamLength < p.realBufferLength) {
+            p.realBufferLength = streamLength;
+        }
         if (mpeg) {
             MPEGHeader mpegHeader = new MPEGHeader(p.buffer);
             mpegHeader.toAttributes(metadata, p.fileLength);
@@ -143,6 +146,7 @@ public class Dicomizer {
     }
 
     private static class Parameters {
+        int realBufferLength = 16384;
         byte[] buffer = new byte[16384];
         int fileLength = 0;
         JPEGHeader jpegHeader;

@@ -103,7 +103,7 @@ public class MoveSCU extends Device implements AutoCloseable {
     private Attributes keys = new Attributes();
     private int[] inFilter = DEF_IN_FILTER;
     private transient Association as;
-    private final transient  DicomState state;
+    private final transient DicomState state;
 
     public MoveSCU() throws IOException {
         this(null);
@@ -184,7 +184,7 @@ public class MoveSCU extends Device implements AutoCloseable {
 
     public void retrieve(File f) throws IOException, InterruptedException {
         Attributes attrs = new Attributes();
-        try (DicomInputStream dis = new DicomInputStream(f)){
+        try (DicomInputStream dis = new DicomInputStream(f)) {
             attrs.addSelected(dis.readDataset(-1, -1), inFilter);
         }
         attrs.addAll(keys);
@@ -203,9 +203,7 @@ public class MoveSCU extends Device implements AutoCloseable {
                 super.onDimseRSP(as, cmd, data);
                 DicomProgress p = state.getProgress();
                 if (p != null) {
-                    if (cmd != null) {
-                        p.setAttributes(cmd);
-                    }
+                    p.setAttributes(cmd);
                     if (p.isCancel()) {
                         try {
                             this.cancel(as);
@@ -218,7 +216,6 @@ public class MoveSCU extends Device implements AutoCloseable {
         };
         as.cmove(model.cuid, priority, keys, null, destination, rspHandler);
     }
-
 
     public Connection getConnection() {
         return conn;

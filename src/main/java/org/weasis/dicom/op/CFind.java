@@ -11,9 +11,6 @@
 package org.weasis.dicom.op;
 
 import java.text.MessageFormat;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.ElementDictionary;
@@ -29,10 +26,11 @@ import org.slf4j.LoggerFactory;
 import org.weasis.core.api.util.FileUtil;
 import org.weasis.core.api.util.StringUtil;
 import org.weasis.dicom.param.AdvancedParams;
+import org.weasis.dicom.param.DeviceOpService;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomParam;
 import org.weasis.dicom.param.DicomState;
-import org.weasis.dicom.tool.ServiceUtil;
+import org.weasis.dicom.util.ServiceUtil;
 
 public class CFind {
 
@@ -127,6 +125,7 @@ public class CFind {
             Connection conn = findSCU.getConnection();
             options.configureConnect(findSCU.getAAssociateRQ(), remote, calledNode);
             options.configureBind(findSCU.getApplicationEntity(), conn, callingNode);
+            DeviceOpService service = new DeviceOpService(findSCU.getDevice());
 
             // configure
             options.configure(conn);
@@ -144,10 +143,7 @@ public class CFind {
             findSCU.setCancelAfter(cancelAfter);
             findSCU.setPriority(options.getPriority());
 
-            ExecutorService executorService = Executors.newSingleThreadExecutor();
-            ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
-            findSCU.getDevice().setExecutor(executorService);
-            findSCU.getDevice().setScheduledExecutor(scheduledExecutorService);
+            service.start();
             try {
                 DicomState dcmState = findSCU.getState();
                 long t1 = System.currentTimeMillis();
@@ -164,8 +160,7 @@ public class CFind {
                 return DicomState.buildMessage(findSCU.getState(), null, e);
             } finally {
                 FileUtil.safeClose(findSCU);
-                ServiceUtil.shutdownService(executorService);
-                ServiceUtil.shutdownService(scheduledExecutorService);
+                service.stop();
             }
         } catch (Exception e) {
             LOGGER.error("findscu", e);

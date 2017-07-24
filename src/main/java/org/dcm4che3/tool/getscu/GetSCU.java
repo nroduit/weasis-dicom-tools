@@ -70,6 +70,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
+import org.weasis.dicom.util.ServiceUtil;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
@@ -316,16 +317,14 @@ public class GetSCU implements AutoCloseable {
         } catch (Exception e) {
             // Do nothing
         }
-        ((ExecutorService) device.getExecutor()).shutdown();
-        device.getScheduledExecutor().shutdown();
+        ServiceUtil.shutdownService((ExecutorService) device.getExecutor());
+        ServiceUtil.shutdownService(device.getScheduledExecutor());
     }
     
     private void updateProgress(Association as, Attributes cmd) {
         DicomProgress p = state.getProgress();
         if (p != null) {
-            if (cmd != null) {
-                p.setAttributes(cmd);
-            }
+            p.setAttributes(cmd);
             if (p.isCancel() && rspHandler != null) {
                 try {
                     rspHandler.cancel(as);

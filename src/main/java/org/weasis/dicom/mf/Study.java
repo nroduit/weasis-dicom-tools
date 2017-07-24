@@ -19,7 +19,7 @@ import java.util.Locale;
 import java.util.Objects;
 
 import org.dcm4che3.data.Tag;
-import org.weasis.dicom.tool.DateUtil;
+import org.weasis.dicom.util.DateUtil;
 
 public class Study implements Xml {
 

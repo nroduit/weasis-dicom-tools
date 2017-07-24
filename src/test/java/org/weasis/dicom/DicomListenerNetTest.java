@@ -11,39 +11,55 @@
 package org.weasis.dicom;
 
 import java.io.File;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.List;
 
 import org.apache.log4j.BasicConfigurator;
-import org.dcm4che3.data.Attributes;
-import org.dcm4che3.data.Tag;
-import org.dcm4che3.data.VR;
 import org.dcm4che3.net.Status;
 import org.hamcrest.core.IsEqual;
 import org.junit.Assert;
 import org.junit.Test;
-import org.weasis.dicom.op.CStore;
+import org.weasis.core.api.util.FileUtil;
+import org.weasis.dicom.op.CGetForward;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.ConnectOptions;
-import org.weasis.dicom.param.CstoreParams;
-import org.weasis.dicom.param.DefaultAttributeEditor;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
+import org.weasis.dicom.param.ListenerParams;
 import org.weasis.dicom.param.ProgressListener;
+import org.weasis.dicom.tool.DicomListener;
 
-public class CstoreNetTest {
+public class DicomListenerNetTest {
 
     @Test
     public void testProcess() {
         BasicConfigurator.configure();
-        
+
         AdvancedParams params = new AdvancedParams();
         ConnectOptions connectOptions = new ConnectOptions();
         connectOptions.setConnectTimeout(3000);
         connectOptions.setAcceptTimeout(5000);
+        // Concurrent DICOM operations
+        connectOptions.setMaxOpsInvoked(15);
+        connectOptions.setMaxOpsPerformed(15);
         params.setConnectOptions(connectOptions);
+
+        DicomNode calling = new DicomNode("WEASIS-SCU");
+        DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
+        DicomNode scpNode = new DicomNode("DICOMLISTENER", "localhost", 11113);
+
+        // String TEST_PATTERN =
+        // "{00080020,date,yyyy/MM/dd}/{00080030,time,HH}/{0020000D,hash}/{0020000E,hash}/{00080008[1]}/{00080018}.dcm";
+        String TEST_PATTERN = "{00020016}/{00020003}.dcm";
+        ListenerParams lparams = new ListenerParams(params, false, TEST_PATTERN, null, calling.getAet());
+
+        File tempDir = new File(System.getProperty("java.io.tmpdir"), "tmp-dcm-listener");
+        DicomListener listener;
+        try {
+            listener = new DicomListener(tempDir);
+            listener.start(scpNode, lparams);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
         DicomProgress progress = new DicomProgress();
         progress.addProgressListener(new ProgressListener() {
@@ -51,29 +67,22 @@ public class CstoreNetTest {
             @Override
             public void handleProgression(DicomProgress progress) {
                 System.out.println("DICOM Status:" + progress.getStatus());
+                System.out.println("NumberOfRemainingSuboperations:" + progress.getNumberOfRemainingSuboperations());
+                System.out.println("NumberOfCompletedSuboperations:" + progress.getNumberOfCompletedSuboperations());
+                System.out.println("NumberOfFailedSuboperations:" + progress.getNumberOfFailedSuboperations());
+                System.out.println("NumberOfWarningSuboperations:" + progress.getNumberOfWarningSuboperations());
                 if (progress.isLastFailed()) {
                     System.out.println("Last file has failed:" + progress.getProcessedFile());
                 }
             }
         });
 
-        DicomNode calling = new DicomNode("WEASIS-SCU");
-        DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
-        // DicomNode called = new DicomNode("DCM4CHEE", "localhost", 11112);
-        List<String> files = new ArrayList<>();
-        try {
-            files.add(new File(getClass().getResource("mr.dcm").toURI()).getPath());
-        } catch (URISyntaxException e) {
-            e.printStackTrace();
-        }
+        String studyUID = "1.2.840.113619.6.374.254041414921518201393113960545126839710";
 
-        Attributes attrs = new Attributes();
-        attrs.setString(Tag.PatientName, VR.PN, "Override^Patient^Name");
-        attrs.setString(Tag.PatientID, VR.LO, "ModifiedPatientID");
-        DefaultAttributeEditor editor = new DefaultAttributeEditor(true, attrs);
-        CstoreParams  cstoreParams = new CstoreParams(editor, false, null);
+        DicomState state = CGetForward.processStudy(params, params, calling, called, scpNode, progress, studyUID);
 
-        DicomState state = CStore.process(params, calling, called, files, progress, cstoreParams);
+        FileUtil.recursiveDelete(tempDir);
+
         // Should never happen
         Assert.assertNotNull(state);
 

@@ -1,7 +1,8 @@
-package org.weasis.dicom.op;
+package org.weasis.dicom.util;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.util.Objects;
 
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
@@ -21,13 +22,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.DicomNode;
+import org.weasis.dicom.param.DicomProgress;
+import org.weasis.dicom.param.DicomState;
+import org.weasis.dicom.util.ServiceUtil.ProgressStatus;
 
 public class StoreFromStreamSCU {
 
     private static Logger LOGGER = LoggerFactory.getLogger(StoreFromStreamSCU.class);
 
+    @FunctionalInterface
     public interface RSPHandlerFactory {
-
         DimseRSPHandler createDimseRSPHandler();
     }
 
@@ -40,21 +44,39 @@ public class StoreFromStreamSCU {
     private Association as;
 
     private final Device device;
-    private int filesSent = 0;
     private int lastStatusCode = Integer.MIN_VALUE;
     private int nbStatusLog = 0;
+    private int numberOfSuboperations = 0;
+    private final DicomState state;
 
-    protected RSPHandlerFactory rspHandlerFactory = () -> new DimseRSPHandler(as.nextMessageID()) {
+    private final RSPHandlerFactory rspHandlerFactory = () -> new DimseRSPHandler(as.nextMessageID()) {
 
         @Override
         public void onDimseRSP(Association as, Attributes cmd, Attributes data) {
             super.onDimseRSP(as, cmd, data);
             StoreFromStreamSCU.this.onCStoreRSP(cmd);
+
+            DicomProgress progress = state.getProgress();
+            if (progress != null) {
+                progress.setAttributes(cmd);
+            }
         }
     };
 
+    public StoreFromStreamSCU(DicomNode callingNode, DicomNode calledNode) throws IOException {
+        this(null, callingNode, calledNode, null);
+    }
+
     public StoreFromStreamSCU(AdvancedParams params, DicomNode callingNode, DicomNode calledNode) throws IOException {
+        this(params, callingNode, calledNode, null);
+    }
+
+    public StoreFromStreamSCU(AdvancedParams params, DicomNode callingNode, DicomNode calledNode,
+        DicomProgress progress) throws IOException {
+        Objects.requireNonNull(callingNode);
+        Objects.requireNonNull(calledNode);
         AdvancedParams options = params == null ? new AdvancedParams() : params;
+        this.state = new DicomState(progress);
         this.device = new Device("storescu");
         Connection conn = new Connection();
         device.addConnection(conn);
@@ -74,10 +96,6 @@ public class StoreFromStreamSCU {
         options.configureTLS(conn, remote);
 
         setAttributes(new Attributes());
-    }
-
-    public void setRspHandlerFactory(RSPHandlerFactory rspHandlerFactory) {
-        this.rspHandlerFactory = rspHandlerFactory;
     }
 
     public Device getDevice() {
@@ -104,8 +122,8 @@ public class StoreFromStreamSCU {
         relExtNeg = enable;
     }
 
-    public boolean addData(String cuid, String iuid, String tsuid) throws IOException {
-        if (cuid == null || iuid == null || tsuid == null) {
+    public boolean addData(String cuid, String tsuid) throws IOException {
+        if (cuid == null || tsuid == null) {
             return false;
         }
 
@@ -154,17 +172,18 @@ public class StoreFromStreamSCU {
      */
     private void onCStoreRSP(Attributes cmd) {
         int status = cmd.getInt(Tag.Status, -1);
+        state.setStatus(status);
+        ProgressStatus ps;
 
         switch (status) {
             case Status.Success:
-                ++filesSent;
+                ps = ProgressStatus.COMPLETED;
                 break;
             case Status.CoercionOfDataElements:
             case Status.ElementsDiscarded:
 
             case Status.DataSetDoesNotMatchSOPClassWarning:
-                ++filesSent;
-
+                ps = ProgressStatus.WARNING;
                 if (lastStatusCode != status && nbStatusLog < 3) {
                     nbStatusLog++;
                     lastStatusCode = status;
@@ -178,6 +197,7 @@ public class StoreFromStreamSCU {
                 break;
 
             default:
+                ps = ProgressStatus.FAILED;
                 if (lastStatusCode != status && nbStatusLog < 3) {
                     nbStatusLog++;
                     lastStatusCode = status;
@@ -189,10 +209,22 @@ public class StoreFromStreamSCU {
                     }
                 }
         }
+        ServiceUtil.notifyProgession(state.getProgress(), cmd, ps, numberOfSuboperations);
     }
 
-    public int getFilesSent() {
-        return filesSent;
+    public int getNumberOfSuboperations() {
+        return numberOfSuboperations;
     }
 
+    public void setNumberOfSuboperations(int numberOfSuboperations) {
+        this.numberOfSuboperations = numberOfSuboperations;
+    }
+
+    public DicomState getState() {
+        return state;
+    }
+
+    public RSPHandlerFactory getRspHandlerFactory() {
+        return rspHandlerFactory;
+    }
 }

@@ -1,4 +1,4 @@
-package org.weasis.dicom.tool;
+package org.weasis.dicom.util;
 
 import static java.time.temporal.ChronoField.DAY_OF_MONTH;
 import static java.time.temporal.ChronoField.HOUR_OF_DAY;

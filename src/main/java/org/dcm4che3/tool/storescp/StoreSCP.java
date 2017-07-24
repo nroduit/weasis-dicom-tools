@@ -43,6 +43,8 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
@@ -84,6 +86,7 @@ public class StoreSCP {
     private final File storageDir;
     private AttributesFormat filePathFormat;
     private int status = 0;
+
     private final BasicCStoreSCP cstoreSCP = new BasicCStoreSCP("*") {
 
         @Override
@@ -94,11 +97,27 @@ public class StoreSCP {
             String cuid = rq.getString(Tag.AffectedSOPClassUID);
             String iuid = rq.getString(Tag.AffectedSOPInstanceUID);
             String tsuid = pc.getTransferSyntax();
-            File file = new File(storageDir, TMP_DIR + File.separator + iuid);
+            File file = new File(storageDir, TMP_DIR + File.separator + iuid + ".part");
             try {
-                storeTo(as, as.createFileMetaInformation(iuid, cuid, tsuid), data, file);
-                renameTo(as, file,
-                    new File(storageDir, filePathFormat == null ? iuid : filePathFormat.format(parse(file))));
+                Attributes fmi = as.createFileMetaInformation(iuid, cuid, tsuid);
+                storeTo(as, fmi, data, file);
+                String filename;
+                if (filePathFormat == null) {
+                    filename = iuid;
+                } else {
+                    Attributes a = fmi;
+                    Pattern regex = Pattern.compile("\\{(.*?)\\}");
+                    Matcher regexMatcher = regex.matcher(filePathFormat.toString());
+                    while (regexMatcher.find()) {
+                        if(!regexMatcher.group(1).startsWith("0002")) {
+                            a = parse(file);
+                            a.addAll(fmi);
+                            break;
+                        }
+                    }
+                    filename = filePathFormat.format(a);
+                }
+                renameTo(as, file, new File(storageDir, filename));
             } catch (Exception e) {
                 deleteFile(as, file);
                 throw new DicomServiceException(Status.ProcessingFailure, e);

@@ -49,7 +49,6 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.security.GeneralSecurityException;
 import java.text.MessageFormat;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 
@@ -58,7 +57,6 @@ import javax.xml.parsers.ParserConfigurationException;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
-import org.dcm4che3.data.VR;
 import org.dcm4che3.imageio.codec.Decompressor;
 import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.io.DicomInputStream.IncludeBulkData;
@@ -80,11 +78,14 @@ import org.dcm4che3.tool.common.DicomFiles;
 import org.dcm4che3.util.SafeClose;
 import org.dcm4che3.util.StringUtils;
 import org.dcm4che3.util.TagUtils;
-import org.dcm4che3.util.UIDUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.weasis.dicom.param.AttributeEditor;
+import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
+import org.weasis.dicom.util.ServiceUtil;
+import org.weasis.dicom.util.ServiceUtil.ProgressStatus;
 import org.xml.sax.SAXException;
 
 /**
@@ -112,13 +113,10 @@ public class StoreSCU implements AutoCloseable {
     private File tmpDir;
     private File tmpFile;
     private Association as;
-
     private long totalSize = 0;
     private int filesScanned;
-    private int filesSent = 0;
-    private int filesNotSent = 0;
-    private boolean generateUIDs = false;
-    private HashMap<String, String> uidMap;
+
+    private final AttributeEditor attributesEditor;
     private final DicomState state;
 
     private RSPHandlerFactory rspHandlerFactory = new RSPHandlerFactory() {
@@ -136,9 +134,7 @@ public class StoreSCU implements AutoCloseable {
                     DicomProgress progress = state.getProgress();
                     if (progress != null) {
                         progress.setProcessedFile(file);
-                        if (cmd != null) {
-                            progress.setAttributes(cmd);
-                        }
+                        progress.setAttributes(cmd);
                     }
                 }
             };
@@ -146,11 +142,15 @@ public class StoreSCU implements AutoCloseable {
     };
 
     public StoreSCU(ApplicationEntity ae, DicomProgress progress) throws IOException {
+        this(ae, progress, null);
+    }
+
+    public StoreSCU(ApplicationEntity ae, DicomProgress progress, AttributeEditor attributesEditor) throws IOException {
         this.remote = new Connection();
         this.ae = ae;
         rq.addPresentationContext(new PresentationContext(1, UID.VerificationSOPClass, UID.ImplicitVRLittleEndian));
-        state = new DicomState(progress);
-        uidMap = new HashMap<>();
+        this.state = new DicomState(progress);
+        this.attributesEditor = attributesEditor;
     }
 
     public void setRspHandlerFactory(RSPHandlerFactory rspHandlerFactory) {
@@ -308,7 +308,7 @@ public class StoreSCU implements AutoCloseable {
         throws IOException, InterruptedException, ParserConfigurationException, SAXException {
         String ts = selectTransferSyntax(cuid, filets);
 
-        boolean noChange = uidSuffix == null && attrs.isEmpty() && ts.equals(filets) && !generateUIDs;
+        boolean noChange = uidSuffix == null && attrs.isEmpty() && ts.equals(filets) && attributesEditor == null;
         DataWriter dataWriter = null;
         InputStream in = null;
         Attributes data = null;
@@ -327,31 +327,9 @@ public class StoreSCU implements AutoCloseable {
             }
 
             if (!noChange) {
-                if (generateUIDs) {
-                    if("2.25".equals(UIDUtils.getRoot())){
-                        UIDUtils.setRoot("2.25.35");
-                    }
-                    // New Study UID
-                    String oldStudyUID = data.getString(Tag.StudyInstanceUID);
-                    String studyUID = uidMap.get(oldStudyUID);
-                    if (studyUID == null) {
-                        studyUID = UIDUtils.createUID();
-                        uidMap.put(oldStudyUID, studyUID);
-                    }
-                    data.setString(Tag.StudyInstanceUID, VR.UI, studyUID);
-
-                    // New Series UID
-                    String oldSeriesUID = data.getString(Tag.SeriesInstanceUID);
-                    String seriesUID = uidMap.get(oldSeriesUID);
-                    if (seriesUID == null) {
-                        seriesUID = UIDUtils.createUID();
-                        uidMap.put(oldSeriesUID, seriesUID);
-                    }
-                    data.setString(Tag.SeriesInstanceUID, VR.UI, seriesUID);
-
-                    // New Sop UID
-                    iuid = UIDUtils.createUID();
-                    data.setString(Tag.SOPInstanceUID, VR.UI, iuid);
+                if (attributesEditor != null && attributesEditor.apply(data, ts, DicomNode.buildLocalDicomNode(as),
+                    DicomNode.buildRemoteDicomNode(as))) {
+                    iuid = data.getString(Tag.SOPInstanceUID);
                 }
                 if (CLIUtils.updateAttributes(data, attrs, uidSuffix)) {
                     iuid = data.getString(Tag.SOPInstanceUID);
@@ -398,29 +376,29 @@ public class StoreSCU implements AutoCloseable {
     private void onCStoreRSP(Attributes cmd, File f) {
         int status = cmd.getInt(Tag.Status, -1);
         state.setStatus(status);
+        ProgressStatus ps;
+
         switch (status) {
             case Status.Success:
                 totalSize += f.length();
-                ++filesSent;
+                ps = ProgressStatus.COMPLETED;
                 break;
             case Status.CoercionOfDataElements:
             case Status.ElementsDiscarded:
             case Status.DataSetDoesNotMatchSOPClassWarning:
                 totalSize += f.length();
-                ++filesSent;
+                ps = ProgressStatus.WARNING;
                 System.err.println(MessageFormat.format("WARNING: Received C-STORE-RSP with Status {0}H for {1}",
                     TagUtils.shortToHexString(status), f));
                 System.err.println(cmd);
                 break;
             default:
-                filesNotSent++;
+                ps = ProgressStatus.FAILED;
                 System.err.println(MessageFormat.format("ERROR: Received C-STORE-RSP with Status {0}H for {1}",
                     TagUtils.shortToHexString(status), f));
                 System.err.println(cmd);
         }
-        cmd.setInt(Tag.NumberOfCompletedSuboperations, VR.US, filesSent);
-        cmd.setInt(Tag.NumberOfFailedSuboperations, VR.US, filesNotSent);
-        cmd.setInt(Tag.NumberOfRemainingSuboperations, VR.US, filesScanned - filesSent);
+        ServiceUtil.notifyProgession(state.getProgress(), cmd, ps, filesScanned);
     }
 
     public int getFilesScanned() {
@@ -433,13 +411,5 @@ public class StoreSCU implements AutoCloseable {
 
     public DicomState getState() {
         return state;
-    }
-
-    public boolean isGenerateUIDs() {
-        return generateUIDs;
-    }
-
-    public void setGenerateUIDs(boolean generateUIDs) {
-        this.generateUIDs = generateUIDs;
     }
 }

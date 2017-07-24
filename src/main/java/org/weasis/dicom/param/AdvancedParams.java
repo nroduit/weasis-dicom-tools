@@ -133,6 +133,28 @@ public class AdvancedParams {
         remote.setPort(calledNode.getPort());
     }
 
+    /**
+     * Bind the connection with the callingNode 
+     * 
+     * @param connection
+     * @param callingNode
+     */
+    public void configureBind(Connection connection, DicomNode callingNode) {
+        if (callingNode.getHostname() != null) {
+            connection.setHostname(callingNode.getHostname());
+        }
+        if (callingNode.getPort() != null) {
+            connection.setPort(callingNode.getPort());
+        }
+    }
+    
+    /**
+     * Bind the connection and applicationEntity with the callingNode 
+     * 
+     * @param applicationEntity
+     * @param connection
+     * @param callingNode
+     */
     public void configureBind(ApplicationEntity applicationEntity, Connection connection, DicomNode callingNode) {
         applicationEntity.setAETitle(callingNode.getAet());
         if (callingNode.getHostname() != null) {

@@ -15,9 +15,6 @@ import java.net.URL;
 import java.text.MessageFormat;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.net.ApplicationEntity;
@@ -31,10 +28,11 @@ import org.weasis.core.api.util.FileUtil;
 import org.weasis.core.api.util.StringUtil;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.CstoreParams;
+import org.weasis.dicom.param.DeviceOpService;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
-import org.weasis.dicom.tool.ServiceUtil;
+import org.weasis.dicom.util.ServiceUtil;
 
 public class CStore {
 
@@ -94,7 +92,7 @@ public class CStore {
 
     /**
      * @param params
-     *            optional advanced parameters (proxy, authentication, connection and TLS)
+     *            the optional advanced parameters (proxy, authentication, connection and TLS)
      * @param callingNode
      *            the calling DICOM node configuration
      * @param calledNode
@@ -113,7 +111,7 @@ public class CStore {
 
     /**
      * @param params
-     *            optional advanced parameters (proxy, authentication, connection and TLS)
+     *            the optional advanced parameters (proxy, authentication, connection and TLS)
      * @param callingNode
      *            the calling DICOM node configuration
      * @param calledNode
@@ -134,7 +132,7 @@ public class CStore {
         }
 
         AdvancedParams options = params == null ? new AdvancedParams() : params;
-        CstoreParams storeOptions = cstoreParams == null ? new CstoreParams(false, null, false, null) : cstoreParams;
+        CstoreParams storeOptions = cstoreParams == null ? new CstoreParams(null, false, null) : cstoreParams;
 
         StoreSCU storeSCU = null;
 
@@ -145,8 +143,9 @@ public class CStore {
             ApplicationEntity ae = new ApplicationEntity(callingNode.getAet());
             device.addApplicationEntity(ae);
             ae.addConnection(conn);
-            storeSCU = new StoreSCU(ae, progress);
+            storeSCU = new StoreSCU(ae, progress, storeOptions.getAttributeEditor());
             Connection remote = storeSCU.getRemoteConnection();
+            DeviceOpService service = new DeviceOpService(device);
 
             options.configureConnect(storeSCU.getAAssociateRQ(), remote, calledNode);
             options.configureBind(ae, conn, callingNode);
@@ -155,9 +154,7 @@ public class CStore {
             options.configure(conn);
             options.configureTLS(conn, remote);
 
-            storeSCU.setGenerateUIDs(storeOptions.isGenerateUIDs());
-            storeSCU.setAttributes(
-                storeOptions.getTagToOverride() == null ? new Attributes() : storeOptions.getTagToOverride());
+            storeSCU.setAttributes(new Attributes());
 
             if (storeOptions.isExtendNegociation()) {
                 configureRelatedSOPClass(storeSCU, storeOptions.getExtendSopClassesURL());
@@ -173,10 +170,7 @@ public class CStore {
             if (n == 0) {
                 return new DicomState(Status.UnableToProcess, "No DICOM file has been found!", null);
             } else {
-                ExecutorService executorService = Executors.newSingleThreadExecutor();
-                ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
-                device.setExecutor(executorService);
-                device.setScheduledExecutor(scheduledExecutorService);
+                service.start();
                 try {
                     long t1 = System.currentTimeMillis();
                     storeSCU.open();
@@ -193,8 +187,7 @@ public class CStore {
                     return DicomState.buildMessage(storeSCU.getState(), null, e);
                 } finally {
                     FileUtil.safeClose(storeSCU);
-                    ServiceUtil.shutdownService(executorService);
-                    ServiceUtil.shutdownService(scheduledExecutorService);
+                    service.stop();
                 }
             }
         } catch (Exception e) {

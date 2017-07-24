@@ -2,93 +2,113 @@ package org.weasis.dicom.tool;
 
 import java.io.IOException;
 import java.net.URL;
-import java.security.GeneralSecurityException;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.Map;
+import java.util.Objects;
 
 import org.dcm4che3.net.Connection;
-import org.dcm4che3.net.Device;
 import org.dcm4che3.net.TransferCapability;
-import org.weasis.dicom.op.StoreScpForward;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.AttributeEditor;
+import org.weasis.dicom.param.DeviceListenerService;
 import org.weasis.dicom.param.DicomNode;
+import org.weasis.dicom.param.ForwardDestination;
+import org.weasis.dicom.param.GatewayParams;
+import org.weasis.dicom.util.StoreScpForward;
 
 public class DicomGateway {
     private final StoreScpForward storeSCP;
-    private AdvancedParams params;
-    private URL transferCapabilityFile;
+    private final DeviceListenerService deviceService;
 
-    public DicomGateway(DicomNode callingNode, DicomNode destinationNode, AttributeEditor attributesEditor)
+    public DicomGateway(DicomNode callingNode) throws IOException {
+        this(null, callingNode, null, null);
+    }
+
+    /**
+     * Build a DICOM Gateway with one final destination
+     * 
+     * @param forwardParams
+     *            the optional advanced parameters (proxy, authentication, connection and TLS) for the final destination
+     * @param callingNode
+     *            the calling DICOM node configuration
+     * @param destinationNode
+     *            the final DICOM node configuration
+     * @throws IOException
+     */
+    public DicomGateway(AdvancedParams forwardParams, DicomNode callingNode, DicomNode destinationNode)
         throws IOException {
-        this.storeSCP = new StoreScpForward(callingNode, destinationNode, attributesEditor);
+        this(forwardParams, callingNode, destinationNode, null);
     }
 
-    public AdvancedParams getParams() {
-        return params;
+    /**
+     * Build a DICOM Gateway with one final destination
+     * 
+     * @param forwardParams
+     *            the optional advanced parameters (proxy, authentication, connection and TLS) for the final destination
+     * @param callingNode
+     *            the calling DICOM node configuration
+     * @param destinationNode
+     *            the final DICOM node configuration
+     * @param attributesEditor
+     *            the editor for modifying attributes on the fly (can be Null)
+     * @throws IOException
+     */
+    public DicomGateway(AdvancedParams forwardParams, DicomNode callingNode, DicomNode destinationNode,
+        AttributeEditor attributesEditor) throws IOException {
+        this.storeSCP = new StoreScpForward(forwardParams, callingNode, destinationNode, attributesEditor);
+        this.deviceService = new DeviceListenerService(storeSCP.getDevice());
+    }
+    
+    public DicomGateway(Map<DicomNode, ForwardDestination> destinations) throws IOException {
+        this.storeSCP = new StoreScpForward(destinations);
+        this.deviceService = new DeviceListenerService(storeSCP.getDevice());
     }
 
-    public void setParams(AdvancedParams params) {
-        this.params = params;
-    }
-
-    public URL getTransferCapabilityFile() {
-        return transferCapabilityFile;
-    }
-
-    public void setTransferCapabilityFile(URL url) {
-        this.transferCapabilityFile = url;
-    }
 
     public boolean isRunning() {
         return storeSCP.getConnection().isListening();
     }
 
-    public void start(DicomNode scpNode) throws IOException, GeneralSecurityException {
-        start(scpNode, false, true);
+    public StoreScpForward getStoreScpForward() {
+        return storeSCP;
     }
 
-    public void start(DicomNode scpNode, boolean bindOnlyHostnameFromDicomNode, boolean acceptAllSopClasses)
-        throws IOException, GeneralSecurityException {
-        AdvancedParams options = params == null ? new AdvancedParams() : params;
+    public void start(DicomNode scpNode) throws Exception {
+        start(scpNode, new GatewayParams(false));
+    }
+
+    public synchronized void start(DicomNode scpNode, GatewayParams params) throws Exception {
+        if (isRunning()) {
+            throw new IOException("Cannot start a DICOM Gateway because it is already running.");
+        }
+        storeSCP.setStatus(0);
+
+        AdvancedParams options = Objects.requireNonNull(params).getParams();
         Connection conn = storeSCP.getConnection();
-        Device device = storeSCP.getDevice();
-        DicomNode node = bindOnlyHostnameFromDicomNode ? scpNode : new DicomNode(scpNode.getAet(), scpNode.getPort());
-        options.configureBind(storeSCP.getApplicationEntity(), conn, node);
+        if (params.isBindCallingAet()) {
+            options.configureBind(storeSCP.getApplicationEntity(), conn, scpNode);
+        } else {
+            options.configureBind(conn, scpNode);
+        }
         // configure
         options.configure(conn);
-        // Allow more than 1 operations
-        conn.setMaxOpsInvoked(0);
-        conn.setMaxOpsPerformed(0);
         options.configureTLS(conn, null);
-        if (acceptAllSopClasses) {
+
+        // Limit the calling AETs
+        storeSCP.getApplicationEntity().setAcceptedCallingAETitles(params.getAcceptedCallingAETitles());
+
+        URL transferCapabilityFile = params.getTransferCapabilityFile();
+        if (transferCapabilityFile != null) {
+            storeSCP.loadDefaultTransferCapability(transferCapabilityFile);
+        } else {
             storeSCP.getApplicationEntity()
                 .addTransferCapability(new TransferCapability(null, "*", TransferCapability.Role.SCP, "*"));
-        } else {
-            storeSCP.loadDefaultTransferCapability(transferCapabilityFile);
         }
 
-        // SCP requires a cache thread pool
-        ExecutorService executorService = Executors.newCachedThreadPool();
-        ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
-        device.setExecutor(executorService);
-        device.setScheduledExecutor(scheduledExecutorService);
-        device.bindConnections();
+        deviceService.start();
     }
 
-    public void stop() {
-        storeSCP.getDevice().unbindConnections();
-
-        Executor executorService = storeSCP.getDevice().getExecutor();
-        if (executorService instanceof ExecutorService) {
-            ((ExecutorService) executorService).shutdown();
-        }
-
-        ScheduledExecutorService scheduledExecutorService = storeSCP.getDevice().getScheduledExecutor();
-        if (scheduledExecutorService != null) {
-            scheduledExecutorService.shutdown();
-        }
+    public synchronized void stop() {
+        deviceService.stop();
+        storeSCP.stop();
     }
 }

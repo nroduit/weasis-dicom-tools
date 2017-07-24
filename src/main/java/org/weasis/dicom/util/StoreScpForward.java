@@ -1,10 +1,10 @@
-package org.weasis.dicom.op;
+package org.weasis.dicom.util;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
-import java.util.concurrent.Executors;
 
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
@@ -17,6 +17,7 @@ import org.dcm4che3.net.Connection;
 import org.dcm4che3.net.DataWriter;
 import org.dcm4che3.net.DataWriterAdapter;
 import org.dcm4che3.net.Device;
+import org.dcm4che3.net.InputStreamDataWriter;
 import org.dcm4che3.net.PDVInputStream;
 import org.dcm4che3.net.Status;
 import org.dcm4che3.net.TransferCapability;
@@ -29,8 +30,10 @@ import org.dcm4che3.tool.common.CLIUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.api.util.FileUtil;
+import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.AttributeEditor;
 import org.weasis.dicom.param.DicomNode;
+import org.weasis.dicom.param.ForwardDestination;
 
 public class StoreScpForward {
 
@@ -39,13 +42,12 @@ public class StoreScpForward {
     private final Device device = new Device("storescp");
     private final ApplicationEntity ae = new ApplicationEntity("*");
     private final Connection conn = new Connection();
+    private volatile int priority;
+    private volatile int status = 0;
 
-    private int priority;
+    private final Map<DicomNode, ForwardDestination> destinations;
+    private final ForwardDestination uniqueDestination;
 
-    private final StoreFromStreamSCU streamSCU;
-    private final AttributeEditor attributesEditor;
-
-    private int status = 0;
     private final BasicCStoreSCP cstoreSCP = new BasicCStoreSCP("*") {
 
         @Override
@@ -53,17 +55,27 @@ public class StoreScpForward {
             throws IOException {
             rsp.setInt(Tag.Status, VR.US, status);
 
+            // TODO check inactivity of 30 sec and call stop()
             try {
                 String cuid = rq.getString(Tag.AffectedSOPClassUID);
                 String iuid = rq.getString(Tag.AffectedSOPInstanceUID);
                 String tsuid = pc.getTransferSyntax();
+
+                DicomNode sourceNode = DicomNode.buildRemoteDicomNode(as);
+                ForwardDestination destination = uniqueDestination;
+                if (destination == null) {
+                    destination = destinations.get(new DicomNode(sourceNode.getAet(), sourceNode.getHostname(), null));
+                    if (destination == null) {
+                        throw new IllegalStateException("Cannot find the DICOM destination from " + sourceNode.toString());
+                    }
+                }
+                StoreFromStreamSCU streamSCU = destination.getStreamSCU();
+
                 // Add Presentation Context for the association
-                streamSCU.addData(cuid, iuid, tsuid);
+                streamSCU.addData(cuid, tsuid);
 
                 if (streamSCU.getAssociation() == null) {
-                    Device storeDevice = streamSCU.getDevice();
-                    storeDevice.setExecutor(Executors.newSingleThreadExecutor());
-                    storeDevice.setScheduledExecutor(Executors.newSingleThreadScheduledExecutor());
+                    destination.getStreamSCUService().start();
                     streamSCU.open();
                 } else if (!streamSCU.getAssociation().isReadyForDataTransfer()) {
                     // If connection has been closed just reopen
@@ -73,27 +85,28 @@ public class StoreScpForward {
                 if (streamSCU.getAssociation().isReadyForDataTransfer()) {
                     DicomInputStream in = null;
                     try {
-                        in = new DicomInputStream(data);
-                        in.setIncludeBulkData(IncludeBulkData.URI);
-                        Attributes attributes = in.readDataset(-1, -1);
-                        attributesEditor.apply(attributes);
-                        DataWriter dataWriter = new DataWriterAdapter(attributes);
+                        DataWriter dataWriter;
+                        if (destination.getAttributesEditor() == null) {
+                            dataWriter = new InputStreamDataWriter(data);
+                        } else {
+                            in = new DicomInputStream(data);
+                            in.setIncludeBulkData(IncludeBulkData.URI);
+                            Attributes attributes = in.readDataset(-1, -1);
+                            if (destination.getAttributesEditor().apply(attributes, tsuid, sourceNode,
+                                DicomNode.buildRemoteDicomNode(streamSCU.getAssociation()))) {
+                                iuid = attributes.getString(Tag.SOPInstanceUID);
+                            }
+                            dataWriter = new DataWriterAdapter(attributes);
+                        }
 
                         streamSCU.getAssociation().cstore(cuid, iuid, priority, dataWriter, tsuid,
-                            streamSCU.rspHandlerFactory.createDimseRSPHandler());
+                            streamSCU.getRspHandlerFactory().createDimseRSPHandler());
                     } catch (Exception e) {
                         LOGGER.error("Error when forwarding to the final destination", e);
                     } finally {
                         FileUtil.safeClose(in);
                         // Force to clean if tmp bulk files
-                        for (File file : in.getBulkDataFiles()) {
-                            try {
-                                file.delete();
-                            } catch (Exception e) {
-                                LOGGER.warn("Cannot delete: {}", file.getPath());
-                            }
-
-                        }
+                        ServiceUtil.safeClose(in);
                     }
                 }
             } catch (Exception e) {
@@ -102,16 +115,47 @@ public class StoreScpForward {
         }
     };
 
-    public StoreScpForward(DicomNode callingNode, DicomNode destinationNode, AttributeEditor attributesEditor)
+    public StoreScpForward(DicomNode callingNode, DicomNode destinationNode) throws IOException {
+        this(null, callingNode, destinationNode, null);
+    }
+
+    public StoreScpForward(AdvancedParams forwardParams, DicomNode callingNode, DicomNode destinationNode)
         throws IOException {
-        this.attributesEditor = attributesEditor;
+        this(forwardParams, callingNode, destinationNode, null);
+    }
+
+    /**
+     * @param forwardParams
+     *            the optional advanced parameters (proxy, authentication, connection and TLS) for the final destination
+     * @param callingNode
+     *            the calling DICOM node configuration
+     * @param destinationNode
+     *            the final DICOM node configuration
+     * @param attributesEditor
+     *            the editor for modifying attributes on the fly (can be Null)
+     * @throws IOException
+     */
+    public StoreScpForward(AdvancedParams forwardParams, DicomNode callingNode, DicomNode destinationNode,
+        AttributeEditor attributesEditor) throws IOException {
         device.setDimseRQHandler(createServiceRegistry());
         device.addConnection(conn);
         device.addApplicationEntity(ae);
         ae.setAssociationAcceptor(true);
         ae.addConnection(conn);
 
-        streamSCU = new StoreFromStreamSCU(null, callingNode, destinationNode);
+        this.uniqueDestination = new ForwardDestination(forwardParams, callingNode, destinationNode, attributesEditor);
+        this.destinations = null;
+    }
+
+    public StoreScpForward(Map<DicomNode, ForwardDestination> destinations) throws IOException {
+        device.setDimseRQHandler(createServiceRegistry());
+        device.addConnection(conn);
+        device.addApplicationEntity(ae);
+        ae.setAssociationAcceptor(true);
+        ae.addConnection(conn);
+
+        this.uniqueDestination = null;
+        this.destinations = Objects.requireNonNull(destinations);
     }
 
     public final void setPriority(int priority) {
@@ -160,6 +204,15 @@ public class StoreScpForward {
 
     public Device getDevice() {
         return device;
+    }
+
+    public void stop() {
+        if (uniqueDestination != null) {
+            uniqueDestination.getStreamSCUService().stop();
+        }
+        else {
+            destinations.values().forEach(d -> d.getStreamSCUService().stop());
+        }
     }
 
 }

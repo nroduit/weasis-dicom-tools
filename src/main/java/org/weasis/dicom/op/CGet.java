@@ -16,9 +16,6 @@ import java.net.URL;
 import java.text.MessageFormat;
 import java.util.Map.Entry;
 import java.util.Properties;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 
 import org.dcm4che3.net.Connection;
 import org.dcm4che3.net.QueryOption;
@@ -32,11 +29,12 @@ import org.slf4j.LoggerFactory;
 import org.weasis.core.api.util.FileUtil;
 import org.weasis.core.api.util.StringUtil;
 import org.weasis.dicom.param.AdvancedParams;
+import org.weasis.dicom.param.DeviceOpService;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomParam;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
-import org.weasis.dicom.tool.ServiceUtil;
+import org.weasis.dicom.util.ServiceUtil;
 
 public class CGet {
 
@@ -64,7 +62,7 @@ public class CGet {
 
     /**
      * @param params
-     *            optional advanced parameters (proxy, authentication, connection and TLS)
+     *            the optional advanced parameters (proxy, authentication, connection and TLS)
      * @param callingNode
      *            the calling DICOM node configuration
      * @param calledNode
@@ -83,7 +81,7 @@ public class CGet {
 
     /**
      * @param params
-     *            optional advanced parameters (proxy, authentication, connection and TLS)
+     *            the optional advanced parameters (proxy, authentication, connection and TLS)
      * @param callingNode
      *            the calling DICOM node configuration
      * @param calledNode
@@ -109,6 +107,7 @@ public class CGet {
             Connection conn = getSCU.getConnection();
             options.configureConnect(getSCU.getAAssociateRQ(), remote, calledNode);
             options.configureBind(getSCU.getApplicationEntity(), conn, callingNode);
+            DeviceOpService service = new DeviceOpService(getSCU.getDevice());
 
             // configure
             options.configure(conn);
@@ -127,10 +126,7 @@ public class CGet {
                 getSCU.addKey(p.getTag(), p.getValues());
             }
 
-            ExecutorService executorService = Executors.newSingleThreadExecutor();
-            ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
-            getSCU.getDevice().setExecutor(executorService);
-            getSCU.getDevice().setScheduledExecutor(scheduledExecutorService);
+            service.start();
             try {
                 DicomState dcmState = getSCU.getState();
                 long t1 = System.currentTimeMillis();
@@ -147,8 +143,7 @@ public class CGet {
                 return DicomState.buildMessage(getSCU.getState(), null, e);
             } finally {
                 FileUtil.safeClose(getSCU);
-                ServiceUtil.shutdownService(executorService);
-                ServiceUtil.shutdownService(scheduledExecutorService);
+                service.stop();
             }
         } catch (Exception e) {
             LOGGER.error("getscu", e);

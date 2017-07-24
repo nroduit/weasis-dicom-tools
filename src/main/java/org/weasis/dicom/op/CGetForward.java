@@ -1,17 +1,11 @@
 package org.weasis.dicom.op;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.security.GeneralSecurityException;
 import java.text.MessageFormat;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.ElementDictionary;
@@ -47,10 +41,13 @@ import org.slf4j.LoggerFactory;
 import org.weasis.core.api.util.FileUtil;
 import org.weasis.core.api.util.StringUtil;
 import org.weasis.dicom.param.AdvancedParams;
+import org.weasis.dicom.param.AttributeEditor;
+import org.weasis.dicom.param.DeviceOpService;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
-import org.weasis.dicom.tool.ServiceUtil;
+import org.weasis.dicom.util.ServiceUtil;
+import org.weasis.dicom.util.StoreFromStreamSCU;
 
 public class CGetForward implements AutoCloseable {
 
@@ -85,10 +82,9 @@ public class CGetForward implements AutoCloseable {
     private Attributes keys = new Attributes();
     private Association as;
 
-    private final DicomState state;
-
     private final StoreFromStreamSCU streamSCU;
-    private final Map<Integer, String> attributesToOverride;
+    private final DeviceOpService streamSCUService;
+    private final AttributeEditor attributesEditor;
 
     private final BasicCStoreSCP storageSCP = new BasicCStoreSCP("*") {
 
@@ -96,7 +92,7 @@ public class CGetForward implements AutoCloseable {
         protected void store(Association as, PresentationContext pc, Attributes rq, PDVInputStream data, Attributes rsp)
             throws IOException {
 
-            DicomProgress p = state.getProgress();
+            DicomProgress p = streamSCU.getState().getProgress();
             if (p != null) {
                 if (p.isCancel()) {
                     stop();
@@ -109,12 +105,13 @@ public class CGetForward implements AutoCloseable {
                 String iuid = rq.getString(Tag.AffectedSOPInstanceUID);
                 String tsuid = pc.getTransferSyntax();
                 // Add Presentation Context for the association
-                streamSCU.addData(cuid, iuid, tsuid);
+                streamSCU.addData(cuid, tsuid);
 
                 if (streamSCU.getAssociation() == null) {
-                    Device storeDevice = streamSCU.getDevice();
-                    storeDevice.setExecutor(Executors.newSingleThreadExecutor());
-                    storeDevice.setScheduledExecutor(Executors.newSingleThreadScheduledExecutor());
+                    streamSCUService.start();
+                    streamSCU.open();
+                } else if (!streamSCU.getAssociation().isReadyForDataTransfer()) {
+                    // If connection has been closed just reopen
                     streamSCU.open();
                 }
 
@@ -122,75 +119,68 @@ public class CGetForward implements AutoCloseable {
                     DicomInputStream in = null;
                     try {
                         DataWriter dataWriter;
-                        if (attributesToOverride == null || attributesToOverride.isEmpty()) {
+                        if (attributesEditor == null) {
                             dataWriter = new InputStreamDataWriter(data);
                         } else {
                             in = new DicomInputStream(data);
                             in.setIncludeBulkData(IncludeBulkData.URI);
                             Attributes attributes = in.readDataset(-1, -1);
-                            for (Entry<Integer, String> entry : attributesToOverride.entrySet()) {
-                                int tag = entry.getKey();
-                                VR vr = ElementDictionary.vrOf(tag, keys.getPrivateCreator(tag));
-                                attributes.setString(tag, vr, entry.getValue());
+                            if (attributesEditor.apply(attributes, tsuid, DicomNode.buildRemoteDicomNode(as),
+                                DicomNode.buildRemoteDicomNode(streamSCU.getAssociation()))) {
+                                iuid = attributes.getString(Tag.SOPInstanceUID);
                             }
                             dataWriter = new DataWriterAdapter(attributes);
                         }
 
                         streamSCU.getAssociation().cstore(cuid, iuid, priority, dataWriter, tsuid,
-                            streamSCU.rspHandlerFactory.createDimseRSPHandler());
-                        notify(true);
+                            streamSCU.getRspHandlerFactory().createDimseRSPHandler());
                     } catch (Exception e) {
                         LOGGER.error("Error when forwarding to the final destination", e);
-                        notify(false);
                     } finally {
                         FileUtil.safeClose(in);
-                        for (File file : in.getBulkDataFiles()) {
-                            try {
-                                file.delete();
-                            } catch (Exception e) {
-                                LOGGER.warn("Cannot delete: {}", file.getPath());
-                            }
-
-                        }
+                        // Force to clean if tmp bulk files
+                        ServiceUtil.safeClose(in);
                     }
                 }
             } catch (Exception e) {
-                notify(false);
                 throw new DicomServiceException(Status.ProcessingFailure, e);
-            }
-        }
-
-        private void notify(boolean success) {
-            DicomProgress p = state.getProgress();
-            if (p != null) {
-                Attributes cmd = p.getAttributes();
-                if (cmd != null) {
-                    int c = p.getNumberOfCompletedSuboperations();
-                    int f = p.getNumberOfFailedSuboperations();
-                    int r = p.getNumberOfRemainingSuboperations();
-
-                    if (success) {
-                        cmd.setInt(Tag.NumberOfCompletedSuboperations, VR.US, c + 1);
-                    } else {
-                        cmd.setInt(Tag.NumberOfFailedSuboperations, VR.US, f + 1);
-                    }
-                    cmd.setInt(Tag.NumberOfRemainingSuboperations, VR.US, r - 1);
-                }
             }
         }
     };
 
+    public CGetForward(DicomNode callingNode, DicomNode destinationNode, DicomProgress progress) throws IOException {
+        this(callingNode, destinationNode, progress, null);
+    }
+
     public CGetForward(DicomNode callingNode, DicomNode destinationNode, DicomProgress progress,
-        Map<Integer, String> attributesToOverride) throws IOException {
-        this.attributesToOverride = attributesToOverride;
-        ae = new ApplicationEntity("GETSCU");
+        AttributeEditor attributesEditor) throws IOException {
+        this(null, callingNode, destinationNode, progress, attributesEditor);
+    }
+
+    /**
+     * @param forwardParams
+     *            the optional advanced parameters (proxy, authentication, connection and TLS) for the final destination
+     * @param callingNode
+     *            the calling DICOM node configuration
+     * @param destinationNode
+     *            the final DICOM node configuration
+     * @param progress
+     *            the progress handler
+     * @param attributesEditor
+     *            the editor for modifying attributes on the fly (can be Null)
+     * @throws IOException
+     */
+    public CGetForward(AdvancedParams forwardParams, DicomNode callingNode, DicomNode destinationNode,
+        DicomProgress progress, AttributeEditor attributesEditor) throws IOException {
+        this.attributesEditor = attributesEditor;
+        this.ae = new ApplicationEntity("GETSCU");
         device.addConnection(conn);
         device.addApplicationEntity(ae);
         ae.addConnection(conn);
         device.setDimseRQHandler(createServiceRegistry());
-        state = new DicomState(progress);
 
-        streamSCU = new StoreFromStreamSCU(null, callingNode, destinationNode);
+        this.streamSCU = new StoreFromStreamSCU(forwardParams, callingNode, destinationNode, progress);
+        this.streamSCUService = new DeviceOpService(streamSCU.getDevice());
     }
 
     public ApplicationEntity getApplicationEntity() {
@@ -266,15 +256,6 @@ public class CGetForward implements AutoCloseable {
             as.release();
         }
         streamSCU.close();
-        Device storeDevice = streamSCU.getDevice();
-        if (storeDevice != null) {
-            if (storeDevice.getExecutor() instanceof ExecutorService) {
-                ((ExecutorService) storeDevice.getExecutor()).shutdown();
-            }
-            if (storeDevice.getScheduledExecutor() instanceof ScheduledExecutorService) {
-                storeDevice.getScheduledExecutor().shutdown();
-            }
-        }
     }
 
     public void retrieve() throws IOException, InterruptedException {
@@ -287,11 +268,12 @@ public class CGetForward implements AutoCloseable {
             @Override
             public void onDimseRSP(Association as, Attributes cmd, Attributes data) {
                 super.onDimseRSP(as, cmd, data);
-                DicomProgress p = state.getProgress();
+                DicomProgress p = streamSCU.getState().getProgress();
                 if (p != null) {
-                    // if (cmd != null) {
-                    // p.setAttributes(cmd);
-                    // }
+                    // Set only the initial state
+                    if (streamSCU.getNumberOfSuboperations() == 0) {
+                        streamSCU.setNumberOfSuboperations(ServiceUtil.getTotalOfSuboperations(cmd));
+                    }
                     if (p.isCancel()) {
                         try {
                             this.cancel(as);
@@ -314,8 +296,16 @@ public class CGetForward implements AutoCloseable {
         return conn;
     }
 
+    public DeviceOpService getStreamSCUService() {
+        return streamSCUService;
+    }
+
+    public StoreFromStreamSCU getStreamSCU() {
+        return streamSCU;
+    }
+
     public DicomState getState() {
-        return state;
+        return streamSCU.getState();
     }
 
     public void stop() {
@@ -324,46 +314,165 @@ public class CGetForward implements AutoCloseable {
         } catch (Exception e) {
             // Do nothing
         }
-
-        Executor executorService = device.getExecutor();
-        if (executorService instanceof ExecutorService) {
-            ((ExecutorService) executorService).shutdown();
-        }
-
-        ScheduledExecutorService scheduledExecutorService = device.getScheduledExecutor();
-        if (scheduledExecutorService != null) {
-            scheduledExecutorService.shutdown();
-        }
     }
 
-    public static DicomState processStudy(AdvancedParams params, DicomNode callingNode, DicomNode calledNode,
-        DicomNode destinationNode, DicomProgress progress, String studyUID, Map<Integer, String> attributesToOverride) {
-        return process(params, callingNode, calledNode, destinationNode, progress, "STUDY", studyUID,
-            attributesToOverride);
+    /**
+     * @param callingNode
+     *            the calling DICOM node configuration
+     * @param calledNode
+     *            the called DICOM node configuration
+     * @param destinationNode
+     *            the final destination DICOM node configuration
+     * @param progress
+     *            the progress handler
+     * @param studyUID
+     *            the study instance UID to retrieve
+     * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error message and the
+     *         progression.
+     */
+    public static DicomState processStudy(DicomNode callingNode, DicomNode calledNode, DicomNode destinationNode,
+        DicomProgress progress, String studyUID) {
+        return process(null, null, callingNode, calledNode, destinationNode, progress, "STUDY", studyUID, null);
     }
 
-    public static DicomState processSeries(AdvancedParams params, DicomNode callingNode, DicomNode calledNode,
-        DicomNode destinationNode, DicomProgress progress, String seriesUID,
-        Map<Integer, String> attributesToOverride) {
-        return process(params, callingNode, calledNode, destinationNode, progress, "SERIES", seriesUID,
-            attributesToOverride);
+    /**
+     * @param getParams
+     *            the C-GET optional advanced parameters (proxy, authentication, connection and TLS)
+     * @param forwardParams
+     *            the C-Store optional advanced parameters (proxy, authentication, connection and TLS)
+     * @param callingNode
+     *            the calling DICOM node configuration
+     * @param calledNode
+     *            the called DICOM node configuration
+     * @param destinationNode
+     *            the final destination DICOM node configuration
+     * @param progress
+     *            the progress handler
+     * @param studyUID
+     *            the study instance UID to retrieve
+     * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error message and the
+     *         progression.
+     */
+    public static DicomState processStudy(AdvancedParams getParams, AdvancedParams forwardParams, DicomNode callingNode,
+        DicomNode calledNode, DicomNode destinationNode, DicomProgress progress, String studyUID) {
+        return process(getParams, forwardParams, callingNode, calledNode, destinationNode, progress, "STUDY", studyUID,
+            null);
     }
 
-    private static DicomState process(AdvancedParams params, DicomNode callingNode, DicomNode calledNode,
-        DicomNode destinationNode, DicomProgress progress, String queryRetrieveLevel, String queryUID,
-        Map<Integer, String> attributesToOverride) {
+    /**
+     * @param getParams
+     *            the C-GET optional advanced parameters (proxy, authentication, connection and TLS)
+     * @param forwardParams
+     *            the C-Store optional advanced parameters (proxy, authentication, connection and TLS)
+     * @param callingNode
+     *            the calling DICOM node configuration
+     * @param calledNode
+     *            the called DICOM node configuration
+     * @param destinationNode
+     *            the final destination DICOM node configuration
+     * @param progress
+     *            the progress handler
+     * @param studyUID
+     *            the study instance UID to retrieve
+     * @param attributesEditor
+     *            the editor for modifying attributes on the fly. IT can be null.
+     * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error message and the
+     *         progression.
+     */
+    public static DicomState processStudy(AdvancedParams getParams, AdvancedParams forwardParams, DicomNode callingNode,
+        DicomNode calledNode, DicomNode destinationNode, DicomProgress progress, String studyUID,
+        AttributeEditor attributesEditor) {
+        return process(getParams, forwardParams, callingNode, calledNode, destinationNode, progress, "STUDY", studyUID,
+            attributesEditor);
+    }
+
+    /**
+     * @param callingNode
+     *            the calling DICOM node configuration
+     * @param calledNode
+     *            the called DICOM node configuration
+     * @param destinationNode
+     *            the final destination DICOM node configuration
+     * @param progress
+     *            the progress handler
+     * @param seriesUID
+     *            the series instance UID to retrieve
+     * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error message and the
+     *         progression.
+     */
+    public static DicomState processSeries(DicomNode callingNode, DicomNode calledNode, DicomNode destinationNode,
+        DicomProgress progress, String seriesUID) {
+        return process(null, null, callingNode, calledNode, destinationNode, progress, "SERIES", seriesUID, null);
+    }
+
+    /**
+     * @param getParams
+     *            the C-GET optional advanced parameters (proxy, authentication, connection and TLS)
+     * @param forwardParams
+     *            the C-Store optional advanced parameters (proxy, authentication, connection and TLS)
+     * @param callingNode
+     *            the calling DICOM node configuration
+     * @param calledNode
+     *            the called DICOM node configuration
+     * @param destinationNode
+     *            the final destination DICOM node configuration
+     * @param progress
+     *            the progress handler
+     * @param seriesUID
+     *            the series instance UID to retrieve
+     * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error message and the
+     *         progression.
+     */
+    public static DicomState processSeries(AdvancedParams getParams, AdvancedParams forwardParams,
+        DicomNode callingNode, DicomNode calledNode, DicomNode destinationNode, DicomProgress progress,
+        String seriesUID) {
+        return process(getParams, forwardParams, callingNode, calledNode, destinationNode, progress, "SERIES",
+            seriesUID, null);
+    }
+
+    /**
+     * @param getParams
+     *            the C-GET optional advanced parameters (proxy, authentication, connection and TLS)
+     * @param forwardParams
+     *            the C-Store optional advanced parameters (proxy, authentication, connection and TLS)
+     * @param callingNode
+     *            the calling DICOM node configuration
+     * @param calledNode
+     *            the called DICOM node configuration
+     * @param destinationNode
+     *            the final destination DICOM node configuration
+     * @param progress
+     *            the progress handler
+     * @param seriesUID
+     *            the series instance UID to retrieve
+     * @param attributesEditor
+     *            the editor for modifying attributes on the fly (can be Null)
+     * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error message and the
+     *         progression.
+     */
+    public static DicomState processSeries(AdvancedParams getParams, AdvancedParams forwardParams,
+        DicomNode callingNode, DicomNode calledNode, DicomNode destinationNode, DicomProgress progress,
+        String seriesUID, AttributeEditor attributesEditor) {
+        return process(getParams, forwardParams, callingNode, calledNode, destinationNode, progress, "SERIES",
+            seriesUID, attributesEditor);
+    }
+
+    private static DicomState process(AdvancedParams getParams, AdvancedParams forwardParams, DicomNode callingNode,
+        DicomNode calledNode, DicomNode destinationNode, DicomProgress progress, String queryRetrieveLevel,
+        String queryUID, AttributeEditor attributesEditor) {
         if (callingNode == null || calledNode == null || destinationNode == null) {
             throw new IllegalArgumentException("callingNode, calledNode or destinationNode cannot be null!");
         }
         CGetForward forward = null;
-        AdvancedParams options = params == null ? new AdvancedParams() : params;
+        AdvancedParams options = getParams == null ? new AdvancedParams() : getParams;
 
         try {
-            forward = new CGetForward(callingNode, destinationNode, progress, attributesToOverride);
+            forward = new CGetForward(forwardParams, callingNode, destinationNode, progress, attributesEditor);
             Connection remote = forward.getRemoteConnection();
             Connection conn = forward.getConnection();
             options.configureConnect(forward.getAAssociateRQ(), remote, calledNode);
             options.configureBind(forward.getApplicationEntity(), conn, callingNode);
+            DeviceOpService service = new DeviceOpService(forward.getDevice());
 
             // configure
             options.configure(conn);
@@ -386,10 +495,7 @@ public class CGetForward implements AutoCloseable {
                 throw new IllegalArgumentException(queryRetrieveLevel + " is not supported as query retrieve level!");
             }
 
-            ExecutorService executorService = Executors.newSingleThreadExecutor();
-            ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
-            forward.getDevice().setExecutor(executorService);
-            forward.getDevice().setScheduledExecutor(scheduledExecutorService);
+            service.start();
             try {
                 DicomState dcmState = forward.getState();
                 long t1 = System.currentTimeMillis();
@@ -406,8 +512,8 @@ public class CGetForward implements AutoCloseable {
                 return DicomState.buildMessage(forward.getState(), null, e);
             } finally {
                 FileUtil.safeClose(forward);
-                ServiceUtil.shutdownService(executorService);
-                ServiceUtil.shutdownService(scheduledExecutorService);
+                service.stop();
+                forward.getStreamSCUService().stop();
             }
         } catch (Exception e) {
             LOGGER.error("getscu", e);

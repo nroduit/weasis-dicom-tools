@@ -11,9 +11,6 @@
 package org.weasis.dicom.op;
 
 import java.text.MessageFormat;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 
 import org.dcm4che3.net.Connection;
 import org.dcm4che3.net.QueryOption;
@@ -25,11 +22,12 @@ import org.slf4j.LoggerFactory;
 import org.weasis.core.api.util.FileUtil;
 import org.weasis.core.api.util.StringUtil;
 import org.weasis.dicom.param.AdvancedParams;
+import org.weasis.dicom.param.DeviceOpService;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomParam;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
-import org.weasis.dicom.tool.ServiceUtil;
+import org.weasis.dicom.util.ServiceUtil;
 
 public class CMove {
 
@@ -59,7 +57,7 @@ public class CMove {
 
     /**
      * @param params
-     *            optional advanced parameters (proxy, authentication, connection and TLS)
+     *            the optional advanced parameters (proxy, authentication, connection and TLS)
      * @param callingNode
      *            the calling DICOM node configuration
      * @param calledNode
@@ -87,6 +85,7 @@ public class CMove {
             Connection conn = moveSCU.getConnection();
             options.configureConnect(moveSCU.getAAssociateRQ(), remote, calledNode);
             options.configureBind(moveSCU.getApplicationEntity(), conn, callingNode);
+            DeviceOpService service = new DeviceOpService(moveSCU);
 
             // configure
             options.configure(conn);
@@ -100,10 +99,7 @@ public class CMove {
             }
             moveSCU.setDestination(destinationAet);
 
-            ExecutorService executorService = Executors.newSingleThreadExecutor();
-            ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
-            moveSCU.setExecutor(executorService);
-            moveSCU.setScheduledExecutor(scheduledExecutorService);
+            service.start();
             try {
                 DicomState dcmState = moveSCU.getState();
                 long t1 = System.currentTimeMillis();
@@ -120,8 +116,7 @@ public class CMove {
                 return DicomState.buildMessage(moveSCU.getState(), null, e);
             } finally {
                 FileUtil.safeClose(moveSCU);
-                ServiceUtil.shutdownService(executorService);
-                ServiceUtil.shutdownService(scheduledExecutorService);
+                service.stop();
             }
         } catch (Exception e) {
             LOGGER.error("movescu", e);

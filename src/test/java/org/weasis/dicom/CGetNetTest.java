@@ -12,6 +12,7 @@ package org.weasis.dicom;
 
 import java.io.IOException;
 
+import org.apache.log4j.BasicConfigurator;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.net.Status;
 import org.hamcrest.core.IsEqual;
@@ -32,6 +33,8 @@ public class CGetNetTest {
 
     @Test
     public void testProcess() throws IOException {
+        BasicConfigurator.configure();
+        
         DicomProgress progress = new DicomProgress();
         progress.addProgressListener(new ProgressListener() {
 
@@ -49,7 +52,7 @@ public class CGetNetTest {
          */
 
         DicomParam[] params =
-            { new DicomParam(Tag.StudyInstanceUID, "1.2.826.0.1.3680043.9.4113.1.2.1754115794.5304.1404814421.494") };
+            { new DicomParam(Tag.StudyInstanceUID, "1.2.840.113619.6.374.254041414921518201393113960545126839710") };
         DicomNode calling = new DicomNode("WEASIS-SCU");
         DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
 

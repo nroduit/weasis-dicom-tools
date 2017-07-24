@@ -11,9 +11,6 @@
 package org.weasis.dicom.op;
 
 import java.text.MessageFormat;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 
 import org.dcm4che3.net.ApplicationEntity;
 import org.dcm4che3.net.Connection;
@@ -24,9 +21,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.api.util.FileUtil;
 import org.weasis.dicom.param.AdvancedParams;
+import org.weasis.dicom.param.DeviceOpService;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomState;
-import org.weasis.dicom.tool.ServiceUtil;
 
 public class Echo {
 
@@ -61,7 +58,7 @@ public class Echo {
 
     /**
      * @param params
-     *            optional advanced parameters (proxy, authentication, connection and TLS)
+     *            the optional advanced parameters (proxy, authentication, connection and TLS)
      * @param callingNode
      *            the calling DICOM node configuration
      * @param calledNode
@@ -85,6 +82,7 @@ public class Echo {
             ae.addConnection(conn);
             StoreSCU storeSCU = new StoreSCU(ae, null);
             Connection remote = storeSCU.getRemoteConnection();
+            DeviceOpService service = new DeviceOpService(device);
 
             options.configureConnect(storeSCU.getAAssociateRQ(), remote, calledNode);
             options.configureBind(ae, conn, callingNode);
@@ -95,10 +93,7 @@ public class Echo {
 
             storeSCU.setPriority(options.getPriority());
 
-            ExecutorService executorService = Executors.newSingleThreadExecutor();
-            ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
-            device.setExecutor(executorService);
-            device.setScheduledExecutor(scheduledExecutorService);
+            service.start();
             try {
                 long t1 = System.currentTimeMillis();
                 storeSCU.open();
@@ -109,8 +104,7 @@ public class Echo {
                 return new DicomState(Status.Success, message, null);
             } finally {
                 FileUtil.safeClose(storeSCU);
-                ServiceUtil.shutdownService(executorService);
-                ServiceUtil.shutdownService(scheduledExecutorService);
+                service.stop();
             }
         } catch (Exception e) {
             String message = "DICOM Echo failed, storescu: " + e.getMessage();

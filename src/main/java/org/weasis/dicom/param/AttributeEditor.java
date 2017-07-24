@@ -5,6 +5,6 @@ import org.dcm4che3.data.Attributes;
 @FunctionalInterface
 public interface AttributeEditor {
 
-    void apply(Attributes attributes);
+    boolean apply(Attributes attributes, String tsuid, DicomNode sourceNode, DicomNode destinationNode);
 
 }

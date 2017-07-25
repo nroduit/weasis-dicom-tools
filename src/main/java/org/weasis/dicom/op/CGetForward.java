@@ -42,6 +42,7 @@ import org.weasis.core.api.util.FileUtil;
 import org.weasis.core.api.util.StringUtil;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.AttributeEditor;
+import org.weasis.dicom.param.AttributeEditorContext;
 import org.weasis.dicom.param.DeviceOpService;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomProgress;
@@ -122,11 +123,12 @@ public class CGetForward implements AutoCloseable {
                         if (attributesEditor == null) {
                             dataWriter = new InputStreamDataWriter(data);
                         } else {
+                            AttributeEditorContext context = new AttributeEditorContext(tsuid, DicomNode.buildRemoteDicomNode(as),
+                                DicomNode.buildRemoteDicomNode(streamSCU.getAssociation()));
                             in = new DicomInputStream(data);
                             in.setIncludeBulkData(IncludeBulkData.URI);
                             Attributes attributes = in.readDataset(-1, -1);
-                            if (attributesEditor.apply(attributes, tsuid, DicomNode.buildRemoteDicomNode(as),
-                                DicomNode.buildRemoteDicomNode(streamSCU.getAssociation()))) {
+                            if (attributesEditor.apply(attributes, context)) {
                                 iuid = attributes.getString(Tag.SOPInstanceUID);
                             }
                             dataWriter = new DataWriterAdapter(attributes);

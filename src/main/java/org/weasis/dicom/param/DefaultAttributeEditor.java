@@ -30,7 +30,7 @@ public class DefaultAttributeEditor implements AttributeEditor {
     }
 
     @Override
-    public boolean apply(Attributes data, String tsuid, DicomNode sourceNode, DicomNode destinationNode) {
+    public boolean apply(Attributes data, AttributeEditorContext context) {
         if (data != null) {
             boolean update = false;
             if (generateUIDs) {

@@ -81,6 +81,7 @@ import org.dcm4che3.util.TagUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.dicom.param.AttributeEditor;
+import org.weasis.dicom.param.AttributeEditorContext;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
@@ -327,9 +328,12 @@ public class StoreSCU implements AutoCloseable {
             }
 
             if (!noChange) {
-                if (attributesEditor != null && attributesEditor.apply(data, ts, DicomNode.buildLocalDicomNode(as),
-                    DicomNode.buildRemoteDicomNode(as))) {
-                    iuid = data.getString(Tag.SOPInstanceUID);
+                if (attributesEditor != null) {
+                    AttributeEditorContext context = new AttributeEditorContext(ts, DicomNode.buildLocalDicomNode(as),
+                        DicomNode.buildRemoteDicomNode(as));
+                    if (attributesEditor.apply(data, context)) {
+                        iuid = data.getString(Tag.SOPInstanceUID);
+                    }
                 }
                 if (CLIUtils.updateAttributes(data, attrs, uidSuffix)) {
                     iuid = data.getString(Tag.SOPInstanceUID);

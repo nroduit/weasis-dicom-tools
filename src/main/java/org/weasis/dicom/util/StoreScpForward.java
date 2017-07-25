@@ -5,6 +5,7 @@ import java.net.URL;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.Set;
 
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
@@ -32,6 +33,8 @@ import org.slf4j.LoggerFactory;
 import org.weasis.core.api.util.FileUtil;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.AttributeEditor;
+import org.weasis.dicom.param.AttributeEditorContext;
+import org.weasis.dicom.param.AttributeEditorContext.Abort;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.ForwardDestination;
 
@@ -66,18 +69,27 @@ public class StoreScpForward {
                 if (destination == null) {
                     destination = destinations.get(new DicomNode(sourceNode.getAet(), sourceNode.getHostname(), null));
                     if (destination == null) {
-                        throw new IllegalStateException("Cannot find the DICOM destination from " + sourceNode.toString());
+                        throw new IllegalStateException(
+                            "Cannot find the DICOM destination from " + sourceNode.toString());
                     }
                 }
+
                 StoreFromStreamSCU streamSCU = destination.getStreamSCU();
-
-                // Add Presentation Context for the association
-                streamSCU.addData(cuid, tsuid);
-
                 if (streamSCU.getAssociation() == null) {
                     destination.getStreamSCUService().start();
                     streamSCU.open();
-                } else if (!streamSCU.getAssociation().isReadyForDataTransfer()) {
+                } else {
+                    // Handle dynamically new SOPClassUID
+                    Set<String> tss = streamSCU.getAssociation().getTransferSyntaxesFor(cuid);
+                    if (!tss.contains(tsuid)) {
+                        streamSCU.close();
+                    }
+                }
+                
+                // Add Presentation Context for the association
+                streamSCU.addData(cuid, tsuid);
+
+                if (!streamSCU.getAssociation().isReadyForDataTransfer()) {
                     // If connection has been closed just reopen
                     streamSCU.open();
                 }
@@ -91,10 +103,28 @@ public class StoreScpForward {
                         } else {
                             in = new DicomInputStream(data);
                             in.setIncludeBulkData(IncludeBulkData.URI);
-                            Attributes attributes = in.readDataset(-1, -1);
-                            if (destination.getAttributesEditor().apply(attributes, tsuid, sourceNode,
-                                DicomNode.buildRemoteDicomNode(streamSCU.getAssociation()))) {
+                            Attributes attributes = in.readDataset(-1, Tag.PixelData);
+                            AttributeEditorContext context = new AttributeEditorContext(tsuid, sourceNode,
+                                DicomNode.buildRemoteDicomNode(streamSCU.getAssociation()));
+                            if (destination.getAttributesEditor().apply(attributes, context)) {
                                 iuid = attributes.getString(Tag.SOPInstanceUID);
+                            }
+
+                            if (context.getAbort() == Abort.SKIP_FILE) {
+                                LOGGER.warn("File not forward to the final destination. {}", context.getAbortMessage());
+                                data.skipAll();
+                                return;
+                            } else if (context.getAbort() == Abort.FILE_EXCEPTION) {
+                                data.skipAll();
+                                throw new IllegalStateException(context.getAbortMessage());
+                            } else if (context.getAbort() == Abort.CONNECTION_EXCEPTION) {
+                                as.abort();
+                                LOGGER.error("DICOM associtation abort. {}", context.getAbortMessage());
+                                return;
+                            }
+                            if (in.tag() == Tag.PixelData) {
+                                in.readValue(in, attributes);
+                                in.readAttributes(attributes, -1, -1);
                             }
                             dataWriter = new DataWriterAdapter(attributes);
                         }
@@ -208,10 +238,9 @@ public class StoreScpForward {
 
     public void stop() {
         if (uniqueDestination != null) {
-            uniqueDestination.getStreamSCUService().stop();
-        }
-        else {
-            destinations.values().forEach(d -> d.getStreamSCUService().stop());
+            uniqueDestination.stop();
+        } else {
+            destinations.values().forEach(ForwardDestination::stop);
         }
     }
 

@@ -6,6 +6,7 @@ import java.security.GeneralSecurityException;
 import java.text.MessageFormat;
 import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.Set;
 
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.ElementDictionary;
@@ -47,8 +48,10 @@ import org.weasis.dicom.param.DeviceOpService;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
+import org.weasis.dicom.param.AttributeEditorContext.Abort;
 import org.weasis.dicom.util.ServiceUtil;
 import org.weasis.dicom.util.StoreFromStreamSCU;
+import org.weasis.dicom.util.ServiceUtil.ProgressStatus;
 
 public class CGetForward implements AutoCloseable {
 
@@ -88,6 +91,13 @@ public class CGetForward implements AutoCloseable {
     private final AttributeEditor attributesEditor;
 
     private final BasicCStoreSCP storageSCP = new BasicCStoreSCP("*") {
+        class AbortException extends IllegalStateException {
+            private static final long serialVersionUID = -1153741718853819887L;
+
+            public AbortException(String s) {
+                super(s);
+            }
+        }
 
         @Override
         protected void store(Association as, PresentationContext pc, Attributes rq, PDVInputStream data, Attributes rsp)
@@ -96,7 +106,7 @@ public class CGetForward implements AutoCloseable {
             DicomProgress p = streamSCU.getState().getProgress();
             if (p != null) {
                 if (p.isCancel()) {
-                    stop();
+                    FileUtil.safeClose(CGetForward.this);
                     return;
                 }
             }
@@ -105,45 +115,77 @@ public class CGetForward implements AutoCloseable {
                 String cuid = rq.getString(Tag.AffectedSOPClassUID);
                 String iuid = rq.getString(Tag.AffectedSOPInstanceUID);
                 String tsuid = pc.getTransferSyntax();
-                // Add Presentation Context for the association
-                streamSCU.addData(cuid, tsuid);
 
                 if (streamSCU.getAssociation() == null) {
                     streamSCUService.start();
+                    // Add Presentation Context for the association
+                    streamSCU.addData(cuid, tsuid);
                     streamSCU.open();
-                } else if (!streamSCU.getAssociation().isReadyForDataTransfer()) {
-                    // If connection has been closed just reopen
-                    streamSCU.open();
-                }
+                } else {
+                    // Handle dynamically new SOPClassUID
+                    Set<String> tss = streamSCU.getAssociation().getTransferSyntaxesFor(cuid);
+                    if (!tss.contains(tsuid)) {
+                        streamSCU.close();
+                    }
 
-                if (streamSCU.getAssociation().isReadyForDataTransfer()) {
-                    DicomInputStream in = null;
-                    try {
-                        DataWriter dataWriter;
-                        if (attributesEditor == null) {
-                            dataWriter = new InputStreamDataWriter(data);
-                        } else {
-                            AttributeEditorContext context = new AttributeEditorContext(tsuid, DicomNode.buildRemoteDicomNode(as),
-                                DicomNode.buildRemoteDicomNode(streamSCU.getAssociation()));
-                            in = new DicomInputStream(data);
-                            in.setIncludeBulkData(IncludeBulkData.URI);
-                            Attributes attributes = in.readDataset(-1, -1);
-                            if (attributesEditor.apply(attributes, context)) {
-                                iuid = attributes.getString(Tag.SOPInstanceUID);
-                            }
-                            dataWriter = new DataWriterAdapter(attributes);
-                        }
+                    // Add Presentation Context for the association
+                    streamSCU.addData(cuid, tsuid);
 
-                        streamSCU.getAssociation().cstore(cuid, iuid, priority, dataWriter, tsuid,
-                            streamSCU.getRspHandlerFactory().createDimseRSPHandler());
-                    } catch (Exception e) {
-                        LOGGER.error("Error when forwarding to the final destination", e);
-                    } finally {
-                        FileUtil.safeClose(in);
-                        // Force to clean if tmp bulk files
-                        ServiceUtil.safeClose(in);
+                    if (!streamSCU.getAssociation().isReadyForDataTransfer()) {
+                        // If connection has been closed just reopen
+                        streamSCU.open();
                     }
                 }
+
+                DicomInputStream in = null;
+                try {
+                    if (!streamSCU.getAssociation().isReadyForDataTransfer()) {
+                        throw new IllegalStateException("Association not ready for transfer.");
+                    }
+                    DataWriter dataWriter;
+                    if (attributesEditor == null) {
+                        dataWriter = new InputStreamDataWriter(data);
+                    } else {
+                        AttributeEditorContext context =
+                            new AttributeEditorContext(tsuid, DicomNode.buildRemoteDicomNode(as),
+                                DicomNode.buildRemoteDicomNode(streamSCU.getAssociation()));
+                        in = new DicomInputStream(data);
+                        in.setIncludeBulkData(IncludeBulkData.URI);
+                        Attributes attributes = in.readDataset(-1, Tag.PixelData);
+                        if (attributesEditor.apply(attributes, context)) {
+                            iuid = attributes.getString(Tag.SOPInstanceUID);
+                        }
+
+                        if (context.getAbort() == Abort.FILE_EXCEPTION) {
+                            data.skipAll();
+                            throw new IllegalStateException(context.getAbortMessage());
+                        } else if (context.getAbort() == Abort.CONNECTION_EXCEPTION) {
+                            as.abort();
+                            throw new AbortException("DICOM associtation abort. " + context.getAbortMessage());
+                        }
+                        if (in.tag() == Tag.PixelData) {
+                            in.readValue(in, attributes);
+                            in.readAttributes(attributes, -1, -1);
+                        }
+                        dataWriter = new DataWriterAdapter(attributes);
+                    }
+
+                    streamSCU.getAssociation().cstore(cuid, iuid, priority, dataWriter, tsuid,
+                        streamSCU.getRspHandlerFactory().createDimseRSPHandler());
+                } catch (AbortException e) {
+                    ServiceUtil.notifyProgession(streamSCU.getState(), Status.ProcessingFailure, ProgressStatus.FAILED,
+                        streamSCU.getNumberOfSuboperations());
+                    throw e;
+                } catch (Exception e) {
+                    LOGGER.error("Error when forwarding to the final destination", e);
+                    ServiceUtil.notifyProgession(streamSCU.getState(), Status.ProcessingFailure, ProgressStatus.FAILED,
+                        streamSCU.getNumberOfSuboperations());
+                } finally {
+                    FileUtil.safeClose(in);
+                    // Force to clean if tmp bulk files
+                    ServiceUtil.safeClose(in);
+                }
+
             } catch (Exception e) {
                 throw new DicomServiceException(Status.ProcessingFailure, e);
             }
@@ -308,14 +350,6 @@ public class CGetForward implements AutoCloseable {
 
     public DicomState getState() {
         return streamSCU.getState();
-    }
-
-    public void stop() {
-        try {
-            close();
-        } catch (Exception e) {
-            // Do nothing
-        }
     }
 
     /**

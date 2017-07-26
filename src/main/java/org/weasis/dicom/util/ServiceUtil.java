@@ -1,6 +1,7 @@
 package org.weasis.dicom.util;
 
 import java.io.File;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 
 import org.dcm4che3.data.Attributes;
@@ -45,6 +46,17 @@ public class ServiceUtil {
             for (File file : in.getBulkDataFiles()) {
                 FileUtil.delete(file);
             }
+        }
+    }
+
+    public static void notifyProgession(DicomState state, int status, ProgressStatus ps, int numberOfSuboperations) {
+        state.setStatus(status);
+        DicomProgress p = state.getProgress();
+        if (p != null) {
+            Attributes cmd = Optional.ofNullable(p.getAttributes()).orElseGet(Attributes::new);
+            cmd.setInt(Tag.Status, VR.US, status);
+            notifyProgession(p, cmd, ps, numberOfSuboperations);
+            p.setAttributes(cmd);
         }
     }
 

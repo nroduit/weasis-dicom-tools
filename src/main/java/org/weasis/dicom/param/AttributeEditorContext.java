@@ -2,7 +2,7 @@ package org.weasis.dicom.param;
 
 public class AttributeEditorContext {
     public enum Abort {
-        NONE, SKIP_FILE, FILE_EXCEPTION, CONNECTION_EXCEPTION
+        NONE, FILE_EXCEPTION, CONNECTION_EXCEPTION
     }
 
     private final String tsuid;

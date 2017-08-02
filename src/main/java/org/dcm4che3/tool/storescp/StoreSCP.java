@@ -41,6 +41,7 @@ package org.dcm4che3.tool.storescp;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.regex.Matcher;
@@ -69,6 +70,7 @@ import org.dcm4che3.util.AttributesFormat;
 import org.dcm4che3.util.SafeClose;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.weasis.dicom.param.DicomNode;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
@@ -85,13 +87,26 @@ public class StoreSCP {
     private final Connection conn = new Connection();
     private final File storageDir;
     private AttributesFormat filePathFormat;
-    private int status = 0;
+    private int status = Status.Success;
+    private List<DicomNode> authorizedCallingNodes;
 
     private final BasicCStoreSCP cstoreSCP = new BasicCStoreSCP("*") {
 
         @Override
         protected void store(Association as, PresentationContext pc, Attributes rq, PDVInputStream data, Attributes rsp)
             throws IOException {
+            if (authorizedCallingNodes != null && !authorizedCallingNodes.isEmpty()) {
+                DicomNode sourceNode = DicomNode.buildRemoteDicomNode(as);
+                boolean valid = authorizedCallingNodes.stream()
+                    .filter(n -> n.getAet().equals(sourceNode.getAet())
+                        && (!n.isValidateHostname() || n.equalsHostname(sourceNode.getHostname())))
+                    .findFirst().isPresent();
+                if (!valid) {
+                    rsp.setInt(Tag.Status, VR.US, Status.NotAuthorized);
+                    return;
+                }
+            }
+
             rsp.setInt(Tag.Status, VR.US, status);
 
             String cuid = rq.getString(Tag.AffectedSOPClassUID);
@@ -109,7 +124,7 @@ public class StoreSCP {
                     Pattern regex = Pattern.compile("\\{(.*?)\\}");
                     Matcher regexMatcher = regex.matcher(filePathFormat.toString());
                     while (regexMatcher.find()) {
-                        if(!regexMatcher.group(1).startsWith("0002")) {
+                        if (!regexMatcher.group(1).startsWith("0002")) {
                             a = parse(file);
                             a.addAll(fmi);
                             break;
@@ -133,6 +148,7 @@ public class StoreSCP {
         device.addApplicationEntity(ae);
         ae.setAssociationAcceptor(true);
         ae.addConnection(conn);
+        this.authorizedCallingNodes = null;
     }
 
     private void storeTo(Association as, Attributes fmi, PDVInputStream data, File file) throws IOException {

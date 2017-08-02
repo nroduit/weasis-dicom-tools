@@ -2,6 +2,7 @@ package org.weasis.dicom.tool;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -18,10 +19,6 @@ import org.weasis.dicom.util.StoreScpForward;
 public class DicomGateway {
     private final StoreScpForward storeSCP;
     private final DeviceListenerService deviceService;
-
-    public DicomGateway(DicomNode callingNode) throws IOException {
-        this(null, callingNode, null, null);
-    }
 
     /**
      * Build a DICOM Gateway with one final destination
@@ -58,11 +55,10 @@ public class DicomGateway {
         this.deviceService = new DeviceListenerService(storeSCP.getDevice());
     }
     
-    public DicomGateway(Map<DicomNode, ForwardDestination> destinations) throws IOException {
+    public DicomGateway(Map<DicomNode, List<ForwardDestination>> destinations) throws IOException {
         this.storeSCP = new StoreScpForward(destinations);
         this.deviceService = new DeviceListenerService(storeSCP.getDevice());
     }
-
 
     public boolean isRunning() {
         return storeSCP.getConnection().isListening();

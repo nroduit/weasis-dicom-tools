@@ -1,8 +1,17 @@
 package org.weasis.dicom.param;
 
 public class AttributeEditorContext {
+    /**
+     * Abort status allows to skip the file transfer or abort the DICOM association
+     *
+     */
     public enum Abort {
-        NONE, FILE_EXCEPTION, CONNECTION_EXCEPTION
+        // Do nothing
+        NONE,
+        // Allows to skip the bulk data transfer to go to the next file
+        FILE_EXCEPTION,
+        // Stop the DICOM connection. Attention, this will abort other transfers when there are several destinations for one source.
+        CONNECTION_EXCEPTION
     }
 
     private final String tsuid;

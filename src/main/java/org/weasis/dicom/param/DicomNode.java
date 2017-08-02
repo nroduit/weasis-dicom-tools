@@ -25,6 +25,7 @@ public class DicomNode {
     private final String aet;
     private final String hostname;
     private final Integer port;
+    private final boolean validateHostname;
 
     public DicomNode(String aet) {
         this(aet, null, null);
@@ -35,6 +36,10 @@ public class DicomNode {
     }
 
     public DicomNode(String aet, String hostname, Integer port) {
+        this(aet, hostname, port, false);
+    }
+
+    public DicomNode(String aet, String hostname, Integer port, boolean validateHostname) {
         if (!StringUtil.hasText(aet)) {
             throw new IllegalArgumentException("Missing AET");
         }
@@ -47,6 +52,7 @@ public class DicomNode {
         this.aet = aet;
         this.hostname = hostname;
         this.port = port;
+        this.validateHostname = validateHostname;
     }
 
     public String getAet() {
@@ -61,7 +67,11 @@ public class DicomNode {
         return port;
     }
 
-    private boolean equalsHostname(String anotherHostname) {
+    public boolean isValidateHostname() {
+        return validateHostname;
+    }
+
+    public boolean equalsHostname(String anotherHostname) {
         if (Objects.equals(hostname, anotherHostname)) {
             return true;
         }

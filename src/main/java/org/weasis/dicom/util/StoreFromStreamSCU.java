@@ -160,6 +160,7 @@ public class StoreFromStreamSCU {
     public void open()
         throws IOException, InterruptedException, IncompatibleConnectionException, GeneralSecurityException {
         as = ae.connect(remote, rq);
+        // TODO check inactivity of 30 sec and close
     }
 
     public Association getAssociation() {

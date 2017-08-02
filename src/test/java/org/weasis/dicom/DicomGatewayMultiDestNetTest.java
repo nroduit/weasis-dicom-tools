@@ -11,7 +11,9 @@
 package org.weasis.dicom;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.BasicConfigurator;
@@ -54,13 +56,15 @@ public class DicomGatewayMultiDestNetTest {
         DicomNode destination = new DicomNode("DCM4CHEE", "localhost", 11112);
         DicomNode scpNode = new DicomNode("DICOMLISTENER", "localhost", 11113);
 
-        Map<DicomNode, ForwardDestination> destinations = new HashMap<>();
+        Map<DicomNode, List<ForwardDestination>> destinations = new HashMap<>();
         Attributes attrs = new Attributes();
         attrs.setString(Tag.PatientName, VR.PN, "Override^Patient^Name");
         attrs.setString(Tag.PatientID, VR.LO, "ModifiedPatientID");
         DefaultAttributeEditor editor = new DefaultAttributeEditor(true, attrs);
         try {
-            destinations.put(calling, new ForwardDestination(params, calling, destination, editor));
+            List<ForwardDestination> list = new ArrayList<>();
+            list.add(new ForwardDestination(params, calling, destination, editor));
+            destinations.put(new DicomNode("WEASIS-SCU", "localhost", null, true), list);
         } catch (IOException e1) {
             e1.printStackTrace();
         }

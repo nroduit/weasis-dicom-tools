@@ -12,6 +12,9 @@ public class ForwardDestination {
     private final AttributeEditor attributesEditor;
     private final boolean useDestinationAetForKeyMap;
 
+    private final DicomNode callingNode;
+    private final DicomNode destinationNode;
+
     public ForwardDestination(DicomNode callingNode, DicomNode destinationNode) throws IOException {
         this(null, callingNode, destinationNode, null);
     }
@@ -28,6 +31,8 @@ public class ForwardDestination {
 
     public ForwardDestination(AdvancedParams forwardParams, DicomNode callingNode, DicomNode destinationNode,
         boolean useDestinationAetForKeyMap, AttributeEditor attributesEditor) throws IOException {
+        this.callingNode = callingNode;
+        this.destinationNode = destinationNode;
         this.streamSCU = new StoreFromStreamSCU(forwardParams, callingNode, destinationNode);
         this.streamSCUService = new DeviceOpService(streamSCU.getDevice());
         this.attributesEditor = attributesEditor;
@@ -48,6 +53,14 @@ public class ForwardDestination {
 
     public boolean isUseDestinationAetForKeyMap() {
         return useDestinationAetForKeyMap;
+    }
+
+    public DicomNode getCallingNode() {
+        return callingNode;
+    }
+
+    public DicomNode getDestinationNode() {
+        return destinationNode;
     }
 
     public void stop() {

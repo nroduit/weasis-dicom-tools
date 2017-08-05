@@ -44,6 +44,7 @@ public class StoreFromStreamSCU {
     private Association as;
 
     private final Device device;
+    private final Connection conn ;
     private int lastStatusCode = Integer.MIN_VALUE;
     private int nbStatusLog = 0;
     private int numberOfSuboperations = 0;
@@ -78,7 +79,7 @@ public class StoreFromStreamSCU {
         AdvancedParams options = params == null ? new AdvancedParams() : params;
         this.state = new DicomState(progress);
         this.device = new Device("storescu");
-        Connection conn = new Connection();
+        this.conn = new Connection();
         device.addConnection(conn);
         this.ae = new ApplicationEntity(callingNode.getAet());
         device.addApplicationEntity(ae);
@@ -97,7 +98,15 @@ public class StoreFromStreamSCU {
 
         setAttributes(new Attributes());
     }
-
+    
+    public DicomNode getCallingNode() {
+        return new DicomNode(ae.getAETitle(), conn.getHostname(), conn.getPort());
+    }
+    
+    public DicomNode getCalledNode() {
+        return new DicomNode(rq.getCalledAET(), remote.getHostname(), remote.getPort());
+    }
+    
     public Device getDevice() {
         return device;
     }

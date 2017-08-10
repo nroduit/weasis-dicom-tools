@@ -2,10 +2,6 @@ package org.weasis.dicom.mf;
 
 import java.util.List;
 
-import org.weasis.dicom.mf.Patient;
-import org.weasis.dicom.mf.WadoParameters;
-import org.weasis.dicom.mf.ArcQuery.ViewerMessage;
-
 public interface QueryResult {
 
     WadoParameters getWadoParameters();

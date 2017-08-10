@@ -37,7 +37,7 @@ public class DateUtil {
     }
     
     public static LocalDate getDicomDate(String date) {
-        if (Objects.nonNull(date)) {
+        if (StringUtil.hasText(date)) {
             try {
                 if (date.length() > 8) {
                     StringBuilder buf = new StringBuilder(8);
@@ -54,7 +54,7 @@ public class DateUtil {
     }
 
     public static LocalTime getDicomTime(String time) {
-        if (Objects.nonNull(time)) {
+        if (StringUtil.hasText(time)) {
             try {
                 return LocalTime.parse(time.trim(), DICOM_TIME);
             } catch (Exception e) {

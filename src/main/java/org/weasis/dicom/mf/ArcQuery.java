@@ -16,13 +16,9 @@ import java.util.Objects;
 
 public class ArcQuery implements XmlManifest {
 
-    public static final String TAG_DOCUMENT_MSG = "Message";
-    public static final String MSG_ATTRIBUTE_TITLE = "title";
-    public static final String MSG_ATTRIBUTE_DESC = "description";
-    public static final String MSG_ATTRIBUTE_LEVEL = "severity";
-
     private final List<QueryResult> archiveList;
     private final List<String> presentationList;
+    private final List<String> selectionList;
     private final StringBuilder manifest;
 
     public ArcQuery(List<QueryResult> resultList) {
@@ -30,8 +26,13 @@ public class ArcQuery implements XmlManifest {
     }
 
     public ArcQuery(List<QueryResult> resultList, List<String> presentationList) {
+        this(resultList, presentationList, null);
+    }
+
+    public ArcQuery(List<QueryResult> resultList, List<String> presentationList, List<String> selectionList) {
         this.archiveList = Objects.requireNonNull(resultList);
         this.presentationList = presentationList;
+        this.selectionList = selectionList;
         this.manifest = new StringBuilder();
     }
 
@@ -75,9 +76,9 @@ public class ArcQuery implements XmlManifest {
             Xml.addXmlAttribute(ArcParameters.OVERRIDE_TAGS, wadoParameters.getOverrideDicomTagsList(), manifest);
             manifest.append(">");
 
-            buildHttpTags(wadoParameters.getHttpTaglist());
-            buildViewerMessage(archive.getViewerMessage());
-            buildPatient(archive);
+            buildHttpTags(manifest, wadoParameters.getHttpTaglist());
+            buildViewerMessage(manifest, archive.getViewerMessage());
+            buildPatient(manifest, archive.getPatients());
 
             manifest.append("\n</");
             manifest.append(ArcParameters.TAG_ARC_QUERY);
@@ -132,9 +133,9 @@ public class ArcQuery implements XmlManifest {
             Xml.addXmlAttribute(ArcParameters.OVERRIDE_TAGS, wadoParameters.getOverrideDicomTagsList(), manifest);
             manifest.append(">");
 
-            buildHttpTags(wadoParameters.getHttpTaglist());
-            buildViewerMessage(archive.getViewerMessage());
-            buildPatient(archive);
+            buildHttpTags(manifest, wadoParameters.getHttpTaglist());
+            buildViewerMessage(manifest, archive.getViewerMessage());
+            buildPatient(manifest, archive.getPatients());
 
             manifest.append("\n</");
             manifest.append(WadoParameters.TAG_WADO_QUERY);
@@ -145,69 +146,39 @@ public class ArcQuery implements XmlManifest {
         return manifest.toString();
     }
 
-    private void buildPatient(QueryResult archive) {
-        List<Patient> patientList = archive.getPatients();
+    public static void buildPatient(StringBuilder mf, List<Patient> patientList) {
         if (patientList != null) {
             Collections.sort(patientList, (o1, o2) -> o1.getPatientName().compareTo(o2.getPatientName()));
 
             for (Patient patient : patientList) {
-                manifest.append(patient.toXml());
+                mf.append(patient.toXml());
             }
         }
     }
 
-    private void buildHttpTags(List<ArcParameters.HttpTag> list) {
+    public static void buildHttpTags(StringBuilder mf, List<HttpTag> list) {
         if (list != null) {
-            for (WadoParameters.HttpTag tag : list) {
-                manifest.append("\n<");
-                manifest.append(ArcParameters.TAG_HTTP_TAG);
-                manifest.append(" key=\"");
-                manifest.append(tag.getKey());
-                manifest.append("\" value=\"");
-                manifest.append(tag.getValue());
-                manifest.append("\" />");
+            for (HttpTag tag : list) {
+                mf.append("\n<");
+                mf.append(ArcParameters.TAG_HTTP_TAG);
+                mf.append(" key=\"");
+                mf.append(tag.getKey());
+                mf.append("\" value=\"");
+                mf.append(tag.getValue());
+                mf.append("\" />");
             }
         }
     }
 
-    private void buildViewerMessage(ViewerMessage message) {
+    public static void buildViewerMessage(StringBuilder mf, ViewerMessage message) {
         if (message != null) {
-            manifest.append("\n<");
-            manifest.append(TAG_DOCUMENT_MSG);
-            manifest.append(" ");
-            Xml.addXmlAttribute(MSG_ATTRIBUTE_TITLE, message.title, manifest);
-            Xml.addXmlAttribute(MSG_ATTRIBUTE_DESC, message.message, manifest);
-            Xml.addXmlAttribute(MSG_ATTRIBUTE_LEVEL, message.level.name(), manifest);
-            manifest.append("/>");
+            mf.append("\n<");
+            mf.append(ViewerMessage.TAG_DOCUMENT_MSG);
+            mf.append(" ");
+            Xml.addXmlAttribute(ViewerMessage.MSG_ATTRIBUTE_TITLE, message.getTitle(), mf);
+            Xml.addXmlAttribute(ViewerMessage.MSG_ATTRIBUTE_DESC, message.getMessage(), mf);
+            Xml.addXmlAttribute(ViewerMessage.MSG_ATTRIBUTE_LEVEL, message.getLevel().name(), mf);
+            mf.append("/>");
         }
     }
-
-    public static class ViewerMessage {
-        public enum eLevel {
-            INFO, WARN, ERROR;
-        }
-
-        private final String message;
-        private final String title;
-        private final eLevel level;
-
-        public ViewerMessage(String title, String message, eLevel level) {
-            this.title = title;
-            this.message = message;
-            this.level = level;
-        }
-
-        public String getMessage() {
-            return message;
-        }
-
-        public String getTitle() {
-            return title;
-        }
-
-        public eLevel getLevel() {
-            return level;
-        }
-    }
-
 }

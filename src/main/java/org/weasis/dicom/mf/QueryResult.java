@@ -13,7 +13,9 @@ public interface QueryResult {
     void removeAccessionNumber(List<String> accessionNumberList);
 
     void removeSeriesUid(List<String> seriesUidList);
-
+    
+    void removeItemsWithoutElements();
+    
     List<Patient> getPatients();
 
     ViewerMessage getViewerMessage();

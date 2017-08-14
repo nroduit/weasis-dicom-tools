@@ -80,7 +80,7 @@ public class Series implements Xml {
     }
 
     public void setSeriesDescription(String s) {
-        seriesDescription = s == null ? "" : s;
+        seriesDescription = s;
     }
 
     public void addSOPInstance(SOPInstance s) {

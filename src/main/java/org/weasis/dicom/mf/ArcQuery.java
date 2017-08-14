@@ -17,22 +17,10 @@ import java.util.Objects;
 public class ArcQuery implements XmlManifest {
 
     private final List<QueryResult> archiveList;
-    private final List<String> presentationList;
-    private final List<String> selectionList;
     private final StringBuilder manifest;
 
     public ArcQuery(List<QueryResult> resultList) {
-        this(resultList, null);
-    }
-
-    public ArcQuery(List<QueryResult> resultList, List<String> presentationList) {
-        this(resultList, presentationList, null);
-    }
-
-    public ArcQuery(List<QueryResult> resultList, List<String> presentationList, List<String> selectionList) {
         this.archiveList = Objects.requireNonNull(resultList);
-        this.presentationList = presentationList;
-        this.selectionList = selectionList;
         this.manifest = new StringBuilder();
     }
 
@@ -43,66 +31,13 @@ public class ArcQuery implements XmlManifest {
 
     @Override
     public String xmlManifest(String version) {
-        manifest.append("<?xml version=\"1.0\" encoding=\"");
-        manifest.append(getCharsetEncoding());
-        manifest.append("\" ?>");
-
+        writeHeader(manifest);
         if (version != null && "1".equals(version.trim())) {
-            return xmlManifest1();
+            writeWadoQuery(manifest);
+            return manifest.toString();
         }
-
-        manifest.append("\n<");
-        manifest.append(ArcParameters.TAG_DOCUMENT_ROOT);
-        manifest.append(" ");
-        manifest.append(ArcParameters.SCHEMA);
-        manifest.append(">");
-
-        for (QueryResult archive : archiveList) {
-            if (archive.getPatients().isEmpty() && archive.getViewerMessage() == null) {
-                continue;
-            }
-            WadoParameters wadoParameters = archive.getWadoParameters();
-            manifest.append("\n<");
-            manifest.append(ArcParameters.TAG_ARC_QUERY);
-            manifest.append(" ");
-
-            Xml.addXmlAttribute(ArcParameters.ARCHIVE_ID, wadoParameters.getArchiveID(), manifest);
-            Xml.addXmlAttribute(ArcParameters.BASE_URL, wadoParameters.getBaseURL(), manifest);
-            Xml.addXmlAttribute(ArcParameters.WEB_LOGIN, wadoParameters.getWebLogin(), manifest);
-            Xml.addXmlAttribute(WadoParameters.WADO_ONLY_SOP_UID, wadoParameters.isRequireOnlySOPInstanceUID(),
-                manifest);
-            Xml.addXmlAttribute(ArcParameters.ADDITIONNAL_PARAMETERS, wadoParameters.getAdditionnalParameters(),
-                manifest);
-            Xml.addXmlAttribute(ArcParameters.OVERRIDE_TAGS, wadoParameters.getOverrideDicomTagsList(), manifest);
-            manifest.append(">");
-
-            buildHttpTags(manifest, wadoParameters.getHttpTaglist());
-            buildViewerMessage(manifest, archive.getViewerMessage());
-            buildPatient(manifest, archive.getPatients());
-
-            manifest.append("\n</");
-            manifest.append(ArcParameters.TAG_ARC_QUERY);
-            manifest.append(">");
-        }
-
-        if (presentationList != null && !presentationList.isEmpty()) {
-            manifest.append("\n<");
-            manifest.append(ArcParameters.TAG_PR_ROOT);
-            manifest.append(">\n");
-
-            for (String pr : presentationList) {
-                manifest.append(pr);
-                manifest.append("\n");
-            }
-
-            manifest.append("\n</");
-            manifest.append(ArcParameters.TAG_PR_ROOT);
-            manifest.append(">");
-        }
-
-        manifest.append("\n</");
-        manifest.append(ArcParameters.TAG_DOCUMENT_ROOT);
-        manifest.append(">\n"); // Requires end of line
+        writeArcQueries(manifest);
+        writeEndOfDocument(manifest);
 
         return manifest.toString();
     }
@@ -114,36 +49,84 @@ public class ArcQuery implements XmlManifest {
      */
     @Deprecated
     public String xmlManifest1() {
+        writeWadoQuery(manifest);
+        return manifest.toString();
+    }
+
+    public void writeHeader(StringBuilder mf) {
+        mf.setLength(0);
+        mf.append("<?xml version=\"1.0\" encoding=\"");
+        mf.append(getCharsetEncoding());
+        mf.append("\" ?>");
+    }
+
+    public void writeEndOfDocument(StringBuilder mf) {
+        mf.append("\n</");
+        mf.append(ArcParameters.TAG_DOCUMENT_ROOT);
+        mf.append(">\n"); // Requires end of line
+    }
+
+    public void writeArcQueries(StringBuilder mf) {
+        mf.append("\n<");
+        mf.append(ArcParameters.TAG_DOCUMENT_ROOT);
+        mf.append(" ");
+        mf.append(ArcParameters.SCHEMA);
+        mf.append(">");
+
         for (QueryResult archive : archiveList) {
             if (archive.getPatients().isEmpty() && archive.getViewerMessage() == null) {
                 continue;
             }
             WadoParameters wadoParameters = archive.getWadoParameters();
-            manifest.append("\n<");
-            manifest.append(WadoParameters.TAG_WADO_QUERY);
-            manifest.append(
-                " xmlns=\"http://www.weasis.org/xsd\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" ");
+            mf.append("\n<");
+            mf.append(ArcParameters.TAG_ARC_QUERY);
+            mf.append(" ");
 
-            Xml.addXmlAttribute(WadoParameters.WADO_URL, wadoParameters.getBaseURL(), manifest);
-            Xml.addXmlAttribute(ArcParameters.WEB_LOGIN, wadoParameters.getWebLogin(), manifest);
-            Xml.addXmlAttribute(WadoParameters.WADO_ONLY_SOP_UID, wadoParameters.isRequireOnlySOPInstanceUID(),
-                manifest);
-            Xml.addXmlAttribute(ArcParameters.ADDITIONNAL_PARAMETERS, wadoParameters.getAdditionnalParameters(),
-                manifest);
-            Xml.addXmlAttribute(ArcParameters.OVERRIDE_TAGS, wadoParameters.getOverrideDicomTagsList(), manifest);
-            manifest.append(">");
+            Xml.addXmlAttribute(ArcParameters.ARCHIVE_ID, wadoParameters.getArchiveID(), mf);
+            Xml.addXmlAttribute(ArcParameters.BASE_URL, wadoParameters.getBaseURL(), mf);
+            Xml.addXmlAttribute(ArcParameters.WEB_LOGIN, wadoParameters.getWebLogin(), mf);
+            Xml.addXmlAttribute(WadoParameters.WADO_ONLY_SOP_UID, wadoParameters.isRequireOnlySOPInstanceUID(), mf);
+            Xml.addXmlAttribute(ArcParameters.ADDITIONNAL_PARAMETERS, wadoParameters.getAdditionnalParameters(), mf);
+            Xml.addXmlAttribute(ArcParameters.OVERRIDE_TAGS, wadoParameters.getOverrideDicomTagsList(), mf);
+            mf.append(">");
 
-            buildHttpTags(manifest, wadoParameters.getHttpTaglist());
-            buildViewerMessage(manifest, archive.getViewerMessage());
-            buildPatient(manifest, archive.getPatients());
+            buildHttpTags(mf, wadoParameters.getHttpTaglist());
+            buildViewerMessage(mf, archive.getViewerMessage());
+            buildPatient(mf, archive.getPatients());
 
-            manifest.append("\n</");
-            manifest.append(WadoParameters.TAG_WADO_QUERY);
-            manifest.append(">\n"); // Requires end of line
+            mf.append("\n</");
+            mf.append(ArcParameters.TAG_ARC_QUERY);
+            mf.append(">");
+        }
+    }
+
+    private void writeWadoQuery(StringBuilder mf) {
+        for (QueryResult archive : archiveList) {
+            if (archive.getPatients().isEmpty() && archive.getViewerMessage() == null) {
+                continue;
+            }
+            WadoParameters wadoParameters = archive.getWadoParameters();
+            mf.append("\n<");
+            mf.append(WadoParameters.TAG_WADO_QUERY);
+            mf.append(" xmlns=\"http://www.weasis.org/xsd\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" ");
+
+            Xml.addXmlAttribute(WadoParameters.WADO_URL, wadoParameters.getBaseURL(), mf);
+            Xml.addXmlAttribute(ArcParameters.WEB_LOGIN, wadoParameters.getWebLogin(), mf);
+            Xml.addXmlAttribute(WadoParameters.WADO_ONLY_SOP_UID, wadoParameters.isRequireOnlySOPInstanceUID(), mf);
+            Xml.addXmlAttribute(ArcParameters.ADDITIONNAL_PARAMETERS, wadoParameters.getAdditionnalParameters(), mf);
+            Xml.addXmlAttribute(ArcParameters.OVERRIDE_TAGS, wadoParameters.getOverrideDicomTagsList(), mf);
+            mf.append(">");
+
+            buildHttpTags(mf, wadoParameters.getHttpTaglist());
+            buildViewerMessage(mf, archive.getViewerMessage());
+            buildPatient(mf, archive.getPatients());
+
+            mf.append("\n</");
+            mf.append(WadoParameters.TAG_WADO_QUERY);
+            mf.append(">\n"); // Requires end of line
 
             break; // accept only one element
         }
-        return manifest.toString();
     }
 
     public static void buildPatient(StringBuilder mf, List<Patient> patientList) {

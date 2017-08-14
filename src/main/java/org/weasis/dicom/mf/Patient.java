@@ -19,6 +19,7 @@ import java.util.Objects;
 import org.dcm4che3.data.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.weasis.core.api.util.StringUtil;
 
 public class Patient implements Xml {
 
@@ -97,7 +98,7 @@ public class Patient implements Xml {
     }
 
     public void setPatientName(String patientName) {
-        this.patientName = patientName == null ? "" : patientName.replace("^", " ").trim();
+        this.patientName = StringUtil.getEmptyStringIfNull(patientName);
     }
 
     public void addStudy(Study study) {

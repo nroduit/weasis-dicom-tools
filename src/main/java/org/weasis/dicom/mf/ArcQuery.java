@@ -10,18 +10,27 @@
  *******************************************************************************/
 package org.weasis.dicom.mf;
 
+import java.io.IOException;
+import java.io.StringWriter;
+import java.io.Writer;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-public class ArcQuery implements XmlManifest {
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-    private final List<QueryResult> archiveList;
-    private final StringBuilder manifest;
+public class ArcQuery implements XmlManifest {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ArcQuery.class);
+
+    private final List<QueryResult> queryList;
 
     public ArcQuery(List<QueryResult> resultList) {
-        this.archiveList = Objects.requireNonNull(resultList);
-        this.manifest = new StringBuilder();
+        this.queryList = Objects.requireNonNull(resultList);
+    }
+
+    public List<QueryResult> getQueryList() {
+        return queryList;
     }
 
     @Override
@@ -31,49 +40,46 @@ public class ArcQuery implements XmlManifest {
 
     @Override
     public String xmlManifest(String version) {
+        try {
+            Writer manifest = new StringWriter();
+            writeManifest(manifest, version);
+            return manifest.toString();
+        } catch (Exception e) {
+            LOGGER.error("Cann write manifest", e);
+        }
+        return null;
+    }
+
+    public void writeManifest(Writer manifest, String version) throws IOException {
         writeHeader(manifest);
         if (version != null && "1".equals(version.trim())) {
             writeWadoQuery(manifest);
-            return manifest.toString();
+            return;
         }
         writeArcQueries(manifest);
         writeEndOfDocument(manifest);
-
-        return manifest.toString();
     }
 
-    /**
-     * Use instead xmlManifest(String version)
-     * 
-     * @return
-     */
-    @Deprecated
-    public String xmlManifest1() {
-        writeWadoQuery(manifest);
-        return manifest.toString();
-    }
-
-    public void writeHeader(StringBuilder mf) {
-        mf.setLength(0);
+    public void writeHeader(Writer mf) throws IOException {
         mf.append("<?xml version=\"1.0\" encoding=\"");
         mf.append(getCharsetEncoding());
         mf.append("\" ?>");
     }
 
-    public void writeEndOfDocument(StringBuilder mf) {
+    public void writeEndOfDocument(Writer mf) throws IOException {
         mf.append("\n</");
         mf.append(ArcParameters.TAG_DOCUMENT_ROOT);
         mf.append(">\n"); // Requires end of line
     }
 
-    public void writeArcQueries(StringBuilder mf) {
+    public void writeArcQueries(Writer mf) throws IOException {
         mf.append("\n<");
         mf.append(ArcParameters.TAG_DOCUMENT_ROOT);
         mf.append(" ");
         mf.append(ArcParameters.SCHEMA);
         mf.append(">");
 
-        for (QueryResult archive : archiveList) {
+        for (QueryResult archive : queryList) {
             if (archive.getPatients().isEmpty() && archive.getViewerMessage() == null) {
                 continue;
             }
@@ -100,8 +106,8 @@ public class ArcQuery implements XmlManifest {
         }
     }
 
-    private void writeWadoQuery(StringBuilder mf) {
-        for (QueryResult archive : archiveList) {
+    private void writeWadoQuery(Writer mf) throws IOException {
+        for (QueryResult archive : queryList) {
             if (archive.getPatients().isEmpty() && archive.getViewerMessage() == null) {
                 continue;
             }
@@ -129,17 +135,17 @@ public class ArcQuery implements XmlManifest {
         }
     }
 
-    public static void buildPatient(StringBuilder mf, List<Patient> patientList) {
+    public static void buildPatient(Writer mf, List<Patient> patientList) throws IOException {
         if (patientList != null) {
             Collections.sort(patientList, (o1, o2) -> o1.getPatientName().compareTo(o2.getPatientName()));
 
             for (Patient patient : patientList) {
-                mf.append(patient.toXml());
+                patient.toXml(mf);
             }
         }
     }
 
-    public static void buildHttpTags(StringBuilder mf, List<HttpTag> list) {
+    public static void buildHttpTags(Writer mf, List<HttpTag> list) throws IOException {
         if (list != null) {
             for (HttpTag tag : list) {
                 mf.append("\n<");
@@ -153,7 +159,7 @@ public class ArcQuery implements XmlManifest {
         }
     }
 
-    public static void buildViewerMessage(StringBuilder mf, ViewerMessage message) {
+    public static void buildViewerMessage(Writer mf, ViewerMessage message) throws IOException {
         if (message != null) {
             mf.append("\n<");
             mf.append(ViewerMessage.TAG_DOCUMENT_MSG);

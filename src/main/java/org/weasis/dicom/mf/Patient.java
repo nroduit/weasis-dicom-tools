@@ -10,6 +10,8 @@
  *******************************************************************************/
 package org.weasis.dicom.mf;
 
+import java.io.IOException;
+import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -107,16 +109,11 @@ public class Patient implements Xml {
         }
     }
 
-    /**
-     *
-     * @return
-     */
     @Override
-    public String toXml() {
-        StringBuilder result = new StringBuilder();
+    public void toXml(Writer result) throws IOException {
         if (patientID != null && patientName != null) {
             result.append("\n<");
-            result.append(Xml.Level.PATIENT);
+            result.append(Xml.Level.PATIENT.getTagName());
             result.append(" ");
 
             Xml.addXmlAttribute(Tag.PatientID, patientID, result);
@@ -129,16 +126,12 @@ public class Patient implements Xml {
 
             Collections.sort(studiesList, Study::compareStudy);
             for (Study s : studiesList) {
-                result.append(s.toXml());
+                s.toXml(result);
             }
             result.append("\n</");
-            result.append(Xml.Level.PATIENT);
+            result.append(Xml.Level.PATIENT.getTagName());
             result.append(">");
         }
-
-        String ptXml = result.toString();
-        LOGGER.debug("Patient toXml [{}]", ptXml);
-        return ptXml;
     }
 
     public Study getStudy(String uid) {

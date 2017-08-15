@@ -10,6 +10,8 @@
  *******************************************************************************/
 package org.weasis.dicom.mf;
 
+import java.io.IOException;
+import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -112,11 +114,10 @@ public class Series implements Xml {
 
 
     @Override
-    public String toXml() {
-        StringBuilder result = new StringBuilder();
+    public void toXml(Writer result) throws IOException {
         if (seriesInstanceUID != null) {
             result.append("\n<");
-            result.append(Xml.Level.SERIES);
+            result.append(Xml.Level.SERIES.getTagName());
             result.append(" ");
             Xml.addXmlAttribute(Tag.SeriesInstanceUID, seriesInstanceUID, result);
             Xml.addXmlAttribute(Tag.SeriesDescription, seriesDescription, result);
@@ -130,13 +131,12 @@ public class Series implements Xml {
             
             Collections.sort(sopInstancesList, SOPInstance::compareInstanceNumber);
             for (SOPInstance s : sopInstancesList) {
-                result.append(s.toXml());
+                s.toXml(result);
             }
             result.append("\n</");
-            result.append(Xml.Level.SERIES);
+            result.append(Xml.Level.SERIES.getTagName());
             result.append(">");
         }
-        return result.toString();
     }
 
     public boolean isEmpty() {

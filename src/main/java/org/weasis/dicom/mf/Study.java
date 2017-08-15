@@ -10,6 +10,8 @@
  *******************************************************************************/
 package org.weasis.dicom.mf;
 
+import java.io.IOException;
+import java.io.Writer;
 import java.text.Collator;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -96,11 +98,10 @@ public class Study implements Xml {
     }
 
     @Override
-    public String toXml() {
-        StringBuilder result = new StringBuilder();
+    public void toXml(Writer result) throws IOException {
         if (studyInstanceUID != null) {
             result.append("\n<");
-            result.append(Xml.Level.STUDY);
+            result.append(Xml.Level.STUDY.getTagName());
             result.append(" ");
             Xml.addXmlAttribute(Tag.StudyInstanceUID, studyInstanceUID, result);
             Xml.addXmlAttribute(Tag.StudyDescription, studyDescription, result);
@@ -113,14 +114,13 @@ public class Study implements Xml {
 
             Collections.sort(seriesList, Series::compareSeries);
             for (Series s : seriesList) {
-                result.append(s.toXml());
+                s.toXml(result);
             }
 
             result.append("\n</");
-            result.append(Xml.Level.STUDY);
+            result.append(Xml.Level.STUDY.getTagName());
             result.append(">");
         }
-        return result.toString();
     }
 
     public boolean isEmpty() {

@@ -10,6 +10,8 @@
  *******************************************************************************/
 package org.weasis.dicom.mf;
 
+import java.io.IOException;
+import java.io.Writer;
 import java.util.Objects;
 
 import org.dcm4che3.data.Tag;
@@ -56,10 +58,9 @@ public class SOPInstance implements Xml {
     }
 
     @Override
-    public String toXml() {
-        StringBuilder result = new StringBuilder();
+    public void toXml(Writer result) throws IOException {
         result.append("\n<");
-        result.append(Xml.Level.INSTANCE);
+        result.append(Xml.Level.INSTANCE.getTagName());
         result.append(" ");
         Xml.addXmlAttribute(Tag.SOPInstanceUID, sopInstanceUID, result);
         // file_tsuid DICOM Transfer Syntax UID (0002,0010)
@@ -67,8 +68,6 @@ public class SOPInstance implements Xml {
         Xml.addXmlAttribute(Tag.InstanceNumber, instanceNumber, result);
         Xml.addXmlAttribute(TagW.DirectDownloadFile, directDownloadFile, result);
         result.append("/>");
-
-        return result.toString();
     }
 
     public static int compareInstanceNumber(SOPInstance o1, SOPInstance o2) {

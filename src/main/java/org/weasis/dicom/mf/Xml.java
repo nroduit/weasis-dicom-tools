@@ -10,6 +10,8 @@
  *******************************************************************************/
 package org.weasis.dicom.mf;
 
+import java.io.IOException;
+import java.io.Writer;
 import java.util.List;
 
 import org.dcm4che3.data.ElementDictionary;
@@ -46,9 +48,9 @@ public interface Xml {
         }
     }
 
-    String toXml();
+    void toXml(Writer result) throws IOException;
 
-    static void addXmlAttribute(int tagID, String value, StringBuilder result) {
+    static void addXmlAttribute(int tagID, String value, Writer result) throws IOException {
         if (StringUtil.hasText(value)) {
             String key = ElementDictionary.getStandardElementDictionary().keywordOf(tagID);
             if (key == null) {
@@ -62,7 +64,7 @@ public interface Xml {
         }
     }
 
-    static void addXmlAttribute(String tag, String value, StringBuilder result) {
+    static void addXmlAttribute(String tag, String value, Writer result) throws IOException {
         if (tag != null && StringUtil.hasText(value)) {
             result.append(tag);
             result.append("=\"");
@@ -71,7 +73,7 @@ public interface Xml {
         }
     }
 
-    static void addXmlAttribute(String tag, Boolean value, StringBuilder result) {
+    static void addXmlAttribute(String tag, Boolean value, Writer result) throws IOException {
         if (tag != null && value != null) {
             result.append(tag);
             result.append("=\"");
@@ -80,7 +82,7 @@ public interface Xml {
         }
     }
 
-    static void addXmlAttribute(String tag, List<String> value, StringBuilder result) {
+    static void addXmlAttribute(String tag, List<String> value, Writer result) throws IOException {
         if (tag != null && value != null) {
             result.append(tag);
             result.append("=\"");
@@ -95,7 +97,7 @@ public interface Xml {
         }
     }
 
-    static void addXmlAttribute(TagW tag, String value, StringBuilder result) {
+    static void addXmlAttribute(TagW tag, String value, Writer result) throws IOException {
         if (tag != null) {
             addXmlAttribute(tag.getKeyword(), value, result);
         }

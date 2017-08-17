@@ -23,6 +23,8 @@ public class ArcParameters {
     public static final String BASE_URL = "baseUrl";
     public static final String TAG_PR_ROOT = "presentations";
     public static final String TAG_PR = "presentation";
+    public static final String TAG_SEL_ROOT = "selections";
+    public static final String TAG_SEL = "selection";
 
     // Manifest 1
     public static final String TAG_HTTP_TAG = "httpTag";

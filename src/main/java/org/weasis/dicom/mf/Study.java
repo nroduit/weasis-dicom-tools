@@ -15,15 +15,20 @@ import java.io.Writer;
 import java.text.Collator;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Set;
 
 import org.dcm4che3.data.Tag;
 import org.weasis.dicom.util.DateUtil;
 
-public class Study implements Xml {
+public class Study implements Xml, Comparable<Study> {
 
     private final String studyInstanceUID;
     private String studyID = null;
@@ -32,11 +37,11 @@ public class Study implements Xml {
     private String studyTime = null;
     private String accessionNumber = null;
     private String referringPhysicianName = null;
-    private final List<Series> seriesList;
+    private final Map<String, Series> seriesMap;
 
     public Study(String studyInstanceUID) {
         this.studyInstanceUID = Objects.requireNonNull(studyInstanceUID, "studyInstanceUID cannot be null!");
-        this.seriesList = new ArrayList<>();
+        this.seriesMap = new HashMap<>();
     }
 
     public String getStudyInstanceUID() {
@@ -92,9 +97,51 @@ public class Study implements Xml {
     }
 
     public void addSeries(Series s) {
-        if (!seriesList.contains(s)) {
-            seriesList.add(s);
+        if (s != null) {
+            seriesMap.put(s.getSeriesInstanceUID(), s);
         }
+    }
+
+    public Series removeSeries(String seriesUID) {
+        return seriesMap.remove(seriesUID);
+    }
+
+    public boolean isEmpty() {
+        for (Series s : seriesMap.values()) {
+            if (!s.isEmpty()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public Series getSeries(String seriesUID) {
+        return seriesMap.get(seriesUID);
+    }
+
+    public Collection<Series> getSeries() {
+        return seriesMap.values();
+    }
+
+    public Set<Entry<String, Series>> getEntrySet() {
+        return seriesMap.entrySet();
+    }
+
+    @Override
+    public int hashCode() {
+        return 31 + studyInstanceUID.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        Study other = (Study) obj;
+        return studyInstanceUID.equals(other.studyInstanceUID);
     }
 
     @Override
@@ -112,8 +159,9 @@ public class Study implements Xml {
             Xml.addXmlAttribute(Tag.ReferringPhysicianName, referringPhysicianName, result);
             result.append(">");
 
-            Collections.sort(seriesList, Series::compareSeries);
-            for (Series s : seriesList) {
+            List<Series> list = new ArrayList<>(seriesMap.values());
+            Collections.sort(list);
+            for (Series s : list) {
                 s.toXml(result);
             }
 
@@ -123,33 +171,12 @@ public class Study implements Xml {
         }
     }
 
-    public boolean isEmpty() {
-        for (Series s : seriesList) {
-            if (!s.isEmpty()) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    public Series getSeries(String uid) {
-        for (Series s : seriesList) {
-            if (s.getSeriesInstanceUID().equals(uid)) {
-                return s;
-            }
-        }
-        return null;
-    }
-
-    public List<Series> getSeriesList() {
-        return seriesList;
-    }
-
-    public static int compareStudy(Study o1, Study o2) {
+    @Override
+    public int compareTo(Study s) {
         LocalDateTime date1 =
-            DateUtil.dateTime(DateUtil.getDicomDate(o1.getStudyDate()), DateUtil.getDicomTime(o1.getStudyTime()));
+            DateUtil.dateTime(DateUtil.getDicomDate(getStudyDate()), DateUtil.getDicomTime(getStudyTime()));
         LocalDateTime date2 =
-            DateUtil.dateTime(DateUtil.getDicomDate(o2.getStudyDate()), DateUtil.getDicomTime(o2.getStudyTime()));
+            DateUtil.dateTime(DateUtil.getDicomDate(s.getStudyDate()), DateUtil.getDicomTime(s.getStudyTime()));
 
         int c = -1;
         if (date1 != null && date2 != null) {
@@ -161,8 +188,8 @@ public class Study implements Xml {
         }
 
         if (c == 0 || (date1 == null && date2 == null)) {
-            String d1 = o1.getStudyDescription();
-            String d2 = o2.getStudyDescription();
+            String d1 = getStudyDescription();
+            String d2 = s.getStudyDescription();
             if (d1 != null && d2 != null) {
                 c = Collator.getInstance(Locale.getDefault()).compare(d1, d2);
                 if (c != 0) {
@@ -184,7 +211,7 @@ public class Study implements Xml {
                 return -1;
             }
         }
-        return o1.getStudyInstanceUID().compareTo(o2.getStudyInstanceUID());
+        return getStudyInstanceUID().compareTo(s.getStudyInstanceUID());
     }
 
 }

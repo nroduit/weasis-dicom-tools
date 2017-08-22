@@ -13,6 +13,7 @@ package org.weasis.dicom.mf;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -98,7 +99,7 @@ public class ArcQuery implements XmlManifest {
 
             buildHttpTags(mf, wadoParameters.getHttpTaglist());
             buildViewerMessage(mf, archive.getViewerMessage());
-            buildPatient(mf, archive.getPatients());
+            buildPatient(mf, new ArrayList<>(archive.getPatients().values()));
 
             mf.append("\n</");
             mf.append(ArcParameters.TAG_ARC_QUERY);
@@ -125,7 +126,7 @@ public class ArcQuery implements XmlManifest {
 
             buildHttpTags(mf, wadoParameters.getHttpTaglist());
             buildViewerMessage(mf, archive.getViewerMessage());
-            buildPatient(mf, archive.getPatients());
+            buildPatient(mf,  new ArrayList<>(archive.getPatients().values()));
 
             mf.append("\n</");
             mf.append(WadoParameters.TAG_WADO_QUERY);
@@ -137,7 +138,7 @@ public class ArcQuery implements XmlManifest {
 
     public static void buildPatient(Writer mf, List<Patient> patientList) throws IOException {
         if (patientList != null) {
-            Collections.sort(patientList, (o1, o2) -> o1.getPatientName().compareTo(o2.getPatientName()));
+            Collections.sort(patientList);
 
             for (Patient patient : patientList) {
                 patient.toXml(mf);

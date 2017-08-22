@@ -26,14 +26,15 @@ public class ForwardDestination {
 
     public ForwardDestination(AdvancedParams forwardParams, DicomNode callingNode, DicomNode destinationNode,
         AttributeEditor attributesEditor) throws IOException {
-        this(forwardParams, callingNode, destinationNode, false, attributesEditor);
+        this(forwardParams, callingNode, destinationNode, false, null, attributesEditor);
     }
 
     public ForwardDestination(AdvancedParams forwardParams, DicomNode callingNode, DicomNode destinationNode,
-        boolean useDestinationAetForKeyMap, AttributeEditor attributesEditor) throws IOException {
+        boolean useDestinationAetForKeyMap, DicomProgress progress, AttributeEditor attributesEditor)
+        throws IOException {
         this.callingNode = callingNode;
         this.destinationNode = destinationNode;
-        this.streamSCU = new StoreFromStreamSCU(forwardParams, callingNode, destinationNode);
+        this.streamSCU = new StoreFromStreamSCU(forwardParams, callingNode, destinationNode, progress);
         this.streamSCUService = new DeviceOpService(streamSCU.getDevice());
         this.attributesEditor = attributesEditor;
         this.useDestinationAetForKeyMap = useDestinationAetForKeyMap;

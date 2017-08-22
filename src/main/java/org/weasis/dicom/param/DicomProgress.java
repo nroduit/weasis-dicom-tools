@@ -40,7 +40,7 @@ public class DicomProgress implements CancelListener {
             int failed = getNumberOfFailedSuboperations();
             failed = failed < 0 ? 0 : failed;
             this.attributes = attributes;
-            lastFailed = failed != getNumberOfFailedSuboperations();
+            lastFailed = failed < getNumberOfFailedSuboperations();
         }
 
         fireProgress();

@@ -1,12 +1,17 @@
 package org.weasis.dicom.mf;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
+import java.util.Map.Entry;
+
+import org.weasis.core.api.util.LangUtil;
 
 public abstract class AbstractQueryResult implements QueryResult {
 
-    protected final List<Patient> patients;
+    protected final Map<String, Patient> patientMap;
     protected ViewerMessage viewerMessage;
 
     public AbstractQueryResult() {
@@ -14,21 +19,33 @@ public abstract class AbstractQueryResult implements QueryResult {
     }
 
     public AbstractQueryResult(List<Patient> patients) {
-        this.patients = Optional.ofNullable(patients).orElseGet(ArrayList::new);
+        this.patientMap = new HashMap<>();
+        for (Patient p : LangUtil.emptyIfNull(patients)) {
+            addPatient(p);
+        }
     }
 
     @Override
     public abstract WadoParameters getWadoParameters();
 
     @Override
-    public void removePatientId(List<String> patientIdList) {
+    public void removePatientId(List<String> patientIdList, boolean containsIssuer) {
         if (patientIdList != null && !patientIdList.isEmpty()) {
-            synchronized (patients) {
-                for (int i = patients.size() - 1; i >= 0; i--) {
-                    if (!patientIdList.contains(patients.get(i).getPatientID())) {
-                        patients.remove(i);
+            if (containsIssuer) {
+                patientIdList.forEach(patientMap::remove);
+            } else {
+                List<String> list = new ArrayList<>();
+                for (String patientID : patientIdList) {
+                    synchronized (patientMap) {
+                        for (Patient p : patientMap.values()) {
+                            if (p.getPatientID().equals(patientID)) {
+                                list.add(p.getPseudoPatientUID());
+                                break;
+                            }
+                        }
                     }
                 }
+                list.forEach(patientMap::remove);
             }
         }
     }
@@ -36,82 +53,105 @@ public abstract class AbstractQueryResult implements QueryResult {
     @Override
     public void removeStudyUid(List<String> studyUidList) {
         if (studyUidList != null && !studyUidList.isEmpty()) {
-            synchronized (patients) {
-                for (Patient p : patients) {
-                    List<Study> studies = p.getStudies();
-                    for (int i = studies.size() - 1; i >= 0; i--) {
-                        if (!studyUidList.contains(studies.get(i).getStudyInstanceUID())) {
-                            studies.remove(i);
-                        }
+            synchronized (patientMap) {
+                for (Patient p : patientMap.values()) {
+                    for (String studyUID : studyUidList) {
+                        p.removeStudy(studyUID);
                     }
                 }
             }
+            removeItemsWithoutElements();
         }
     }
 
     @Override
     public void removeAccessionNumber(List<String> accessionNumberList) {
         if (accessionNumberList != null && !accessionNumberList.isEmpty()) {
-            synchronized (patients) {
-                for (Patient p : patients) {
-                    List<Study> studies = p.getStudies();
-                    for (int i = studies.size() - 1; i >= 0; i--) {
-                        if (!accessionNumberList.contains(studies.get(i).getAccessionNumber())) {
-                            studies.remove(i);
+            synchronized (patientMap) {
+                for (Patient p : patientMap.values()) {
+                    Iterator<Entry<String, Study>> studyIt = p.getEntrySet().iterator();
+                    while (studyIt.hasNext()) {
+                        Study study = studyIt.next().getValue();
+                        if (!accessionNumberList.contains(study.getAccessionNumber())) {
+                            studyIt.remove();
                         }
                     }
                 }
             }
+            removeItemsWithoutElements();
         }
     }
 
     @Override
     public void removeSeriesUid(List<String> seriesUidList) {
         if (seriesUidList != null && !seriesUidList.isEmpty()) {
-            for (Patient p : patients) {
-                List<Study> studies = p.getStudies();
-                for (int i = studies.size() - 1; i >= 0; i--) {
-                    List<Series> series = studies.get(i).getSeriesList();
-                    for (int k = series.size() - 1; k >= 0; k--) {
-                        if (!seriesUidList.contains(series.get(k).getSeriesInstanceUID())) {
-                            series.remove(k);
-                            if (series.isEmpty()) {
-                                studies.remove(i);
-                            }
+            synchronized (patientMap) {
+                for (Patient p : patientMap.values()) {
+                    for (Study study : p.getStudies()) {
+                        for (String seriesUID : seriesUidList) {
+                            study.removeSeries(seriesUID);
                         }
                     }
                 }
             }
-        }
-    }
-
-    public void removeItemsWithoutElements() {
-        synchronized (patients) {
-            for (int i = patients.size() - 1; i >= 0; i--) {
-                if (patients.get(i).isEmpty()) {
-                    patients.remove(i);
-                } else {
-                    List<Study> studies = patients.get(i).getStudies();
-                    for (int j = studies.size() - 1; j >= 0; j--) {
-                        if (studies.get(j).isEmpty()) {
-                            studies.remove(j);
-                        } else {
-                            List<Series> series = studies.get(i).getSeriesList();
-                            for (int k = series.size() - 1; k >= 0; k--) {
-                                if (series.get(k).isEmpty()) {
-                                    series.remove(k);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            removeItemsWithoutElements();
         }
     }
 
     @Override
-    public List<Patient> getPatients() {
-        return patients;
+    public void removeItemsWithoutElements() {
+        synchronized (patientMap) {
+            Iterator<Entry<String, Patient>> patientIt = patientMap.entrySet().iterator();
+            while (patientIt.hasNext()) {
+                Patient p = patientIt.next().getValue();
+
+                Iterator<Entry<String, Study>> studyIt = p.getEntrySet().iterator();
+                while (studyIt.hasNext()) {
+                    Study study = studyIt.next().getValue();
+
+                    study.getEntrySet().removeIf(s -> s.getValue().isEmpty());
+                    if (study.isEmpty()) {
+                        studyIt.remove();
+                    }
+                }
+                if (p.isEmpty()) {
+                    patientIt.remove();
+                }
+            }
+        }
+    }
+
+    public void addPatient(Patient p) {
+        if (p != null) {
+            patientMap.put(p.getPseudoPatientUID(), p);
+        }
+    }
+
+    public Patient removePatient(String patientID, String issuerOfPatientID) {
+        if (patientID == null) {
+            return null;
+        }
+        StringBuilder key = new StringBuilder(patientID);
+        if (issuerOfPatientID != null) {
+            key.append(issuerOfPatientID);
+        }
+        return patientMap.remove(key.toString());
+    }
+
+    public Patient getPatient(String patientID, String issuerOfPatientID) {
+        if (patientID == null) {
+            return null;
+        }
+        StringBuilder key = new StringBuilder(patientID);
+        if (issuerOfPatientID != null) {
+            key.append(issuerOfPatientID);
+        }
+        return patientMap.get(key.toString());
+    }
+
+    @Override
+    public Map<String, Patient> getPatients() {
+        return patientMap;
     }
 
     @Override

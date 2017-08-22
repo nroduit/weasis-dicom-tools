@@ -62,8 +62,15 @@ public class DicomGatewayMultiDestNetTest {
         attrs.setString(Tag.PatientID, VR.LO, "ModifiedPatientID");
         DefaultAttributeEditor editor = new DefaultAttributeEditor(true, attrs);
         try {
+            DicomProgress progress = new DicomProgress();
+            progress.addProgressListener(p -> {
+                Attributes attributes = p.getAttributes();
+                if (attributes != null) {
+
+                }
+            });
             List<ForwardDestination> list = new ArrayList<>();
-            list.add(new ForwardDestination(params, calling, destination, editor));
+            list.add(new ForwardDestination(params, calling, destination, false, progress, editor));
             destinations.put(new DicomNode("WEASIS-SCU", "localhost", null, true), list);
         } catch (IOException e1) {
             e1.printStackTrace();
@@ -80,8 +87,8 @@ public class DicomGatewayMultiDestNetTest {
             e.printStackTrace();
         }
 
-        DicomProgress progress = new DicomProgress();
-        progress.addProgressListener(new ProgressListener() {
+        DicomProgress progress2 = new DicomProgress();
+        progress2.addProgressListener(new ProgressListener() {
 
             @Override
             public void handleProgression(DicomProgress progress) {
@@ -98,7 +105,7 @@ public class DicomGatewayMultiDestNetTest {
 
         String studyUID = "1.2.840.113619.6.374.254041414921518201393113960545126839710";
 
-        DicomState state = CGetForward.processStudy(params, params, calling, called, scpNode, progress, studyUID);
+        DicomState state = CGetForward.processStudy(params, params, calling, called, scpNode, progress2, studyUID);
         // Should never happen
         Assert.assertNotNull(state);
 

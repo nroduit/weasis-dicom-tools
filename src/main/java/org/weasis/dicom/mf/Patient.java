@@ -13,56 +13,66 @@ package org.weasis.dicom.mf;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Set;
 
 import org.dcm4che3.data.Tag;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.weasis.core.api.util.StringUtil;
 
-public class Patient implements Xml {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(Patient.class);
+public class Patient implements Xml, Comparable<Patient> {
 
     private final String patientID;
-    private String issuerOfPatientID = null;
-    private String patientName = null;
+    private String issuerOfPatientID;
+    private String patientName;
     private String patientBirthDate = null;
     private String patientBirthTime = null;
     private String patientSex = null;
-    private final List<Study> studiesList;
+    private final Map<String, Study> studiesMap;
 
-    public Patient(String patientID) {
-        this(patientID, null);
-    }
-
+    /**
+     * Create a new Patient. The patientID is associated to the Issuer Of PatientID to compose a pseudo PatientUID (the
+     * patient global identifier).
+     * 
+     * @param patientID
+     * @param issuerOfPatientID
+     *            the Issuer Of PatientID. It can be null.
+     */
     public Patient(String patientID, String issuerOfPatientID) {
         this.patientID = Objects.requireNonNull(patientID, "PaientID cannot be null!");
         this.issuerOfPatientID = issuerOfPatientID;
-        studiesList = new ArrayList<>();
-    }
-
-    public boolean hasSameUniqueID(String patientID, String issuerOfPatientID) {
-        return this.patientID.equals(patientID) && Objects.equals(this.issuerOfPatientID, issuerOfPatientID);
+        this.patientName = "";
+        this.studiesMap = new HashMap<>();
     }
 
     public String getPatientID() {
         return patientID;
     }
 
+    public String getPseudoPatientUID() {
+        StringBuilder key = new StringBuilder(patientID);
+        if (issuerOfPatientID != null) {
+            key.append(issuerOfPatientID);
+        }
+        return key.toString();
+    }
+
     public String getPatientName() {
         return patientName;
     }
 
-    public List<Study> getStudies() {
-        return studiesList;
+    public Collection<Study> getStudies() {
+        return studiesMap.values();
     }
 
     public boolean isEmpty() {
-        for (Study s : studiesList) {
+        for (Study s : studiesMap.values()) {
             if (!s.isEmpty()) {
                 return false;
             }
@@ -104,9 +114,47 @@ public class Patient implements Xml {
     }
 
     public void addStudy(Study study) {
-        if (!studiesList.contains(study)) {
-            studiesList.add(study);
+        if (study != null) {
+            studiesMap.put(study.getStudyInstanceUID(), study);
         }
+    }
+
+    public Study removeStudy(String studyUID) {
+        return studiesMap.remove(studyUID);
+    }
+
+    public Study getStudy(String studyUID) {
+        return studiesMap.get(studyUID);
+    }
+
+    public Set<Entry<String, Study>> getEntrySet() {
+        return studiesMap.entrySet();
+    }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ((issuerOfPatientID == null) ? 0 : issuerOfPatientID.hashCode());
+        result = prime * result + patientID.hashCode();
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        Patient other = (Patient) obj;
+        if (issuerOfPatientID == null) {
+            if (other.issuerOfPatientID != null)
+                return false;
+        } else if (!issuerOfPatientID.equals(other.issuerOfPatientID))
+            return false;
+        return patientID.equals(other.patientID);
     }
 
     @Override
@@ -124,8 +172,9 @@ public class Patient implements Xml {
             Xml.addXmlAttribute(Tag.PatientSex, patientSex, result);
             result.append(">");
 
-            Collections.sort(studiesList, Study::compareStudy);
-            for (Study s : studiesList) {
+            List<Study> list = new ArrayList<>(studiesMap.values());
+            Collections.sort(list);
+            for (Study s : list) {
                 s.toXml(result);
             }
             result.append("\n</");
@@ -134,13 +183,8 @@ public class Patient implements Xml {
         }
     }
 
-    public Study getStudy(String uid) {
-        for (Study s : studiesList) {
-            if (s.getStudyInstanceUID().equals(uid)) {
-                return s;
-            }
-        }
-        return null;
+    @Override
+    public int compareTo(Patient p) {
+        return getPatientName().compareTo(p.getPatientName());
     }
-
 }

@@ -13,9 +13,14 @@ package org.weasis.dicom.mf;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Set;
 
 import org.dcm4che3.data.Tag;
 import org.slf4j.Logger;
@@ -23,12 +28,13 @@ import org.slf4j.LoggerFactory;
 import org.weasis.core.api.media.data.TagW;
 import org.weasis.core.api.util.StringUtil;
 
-public class Series implements Xml {
+public class Series implements Xml, Comparable<Series> {
     private static final Logger LOGGER = LoggerFactory.getLogger(Series.class);
 
     private final String seriesInstanceUID;
+    private final Map<String, SopInstance> sopInstanceMap;
+    
     private String seriesDescription = null;
-    private final ArrayList<SOPInstance> sopInstancesList;
     private String modality = null;
     private String seriesNumber = null;
     private String wadoTransferSyntaxUID = null;
@@ -38,7 +44,7 @@ public class Series implements Xml {
 
     public Series(String seriesInstanceUID) {
         this.seriesInstanceUID = Objects.requireNonNull(seriesInstanceUID, "seriesInstanceUID is null");
-        sopInstancesList = new ArrayList<>();
+        this.sopInstanceMap = new HashMap<>();
     }
 
     public String getSeriesInstanceUID() {
@@ -85,10 +91,20 @@ public class Series implements Xml {
         seriesDescription = s;
     }
 
-    public void addSOPInstance(SOPInstance s) {
-        if (s != null) {
-            sopInstancesList.add(s);
-        }
+    public void addSopInstance(SopInstance s) {
+        SopInstance.addSopInstance(sopInstanceMap, s);
+    }
+
+    public SopInstance removeSopInstance(String sopUID, Integer instanceNumber) {
+        return SopInstance.removeSopInstance(sopInstanceMap, sopUID, instanceNumber);
+    }
+
+    public SopInstance getSopInstance(String sopUID, Integer instanceNumber) {
+        return SopInstance.getSopInstance(sopInstanceMap, sopUID, instanceNumber);
+    }
+
+    public Set<Entry<String, SopInstance>> getEntrySet() {
+        return sopInstanceMap.entrySet();
     }
 
     public String getModality() {
@@ -107,11 +123,30 @@ public class Series implements Xml {
         this.thumbnail = thumbnail;
     }
 
-    public List<SOPInstance> getSopInstancesList() {
-        return sopInstancesList;
+    public Collection<SopInstance> getSopInstances() {
+        return sopInstanceMap.values();
     }
 
+    public boolean isEmpty() {
+        return sopInstanceMap.isEmpty();
+    }
 
+    @Override
+    public int hashCode() {
+        return 31 + seriesInstanceUID.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        Series other = (Series) obj;
+        return seriesInstanceUID.equals(other.seriesInstanceUID);
+    }
 
     @Override
     public void toXml(Writer result) throws IOException {
@@ -128,9 +163,10 @@ public class Series implements Xml {
             Xml.addXmlAttribute(TagW.WadoCompressionRate,
                 wadoCompression < 1 ? null : Integer.toString(wadoCompression), result);
             result.append(">");
-            
-            Collections.sort(sopInstancesList, SOPInstance::compareInstanceNumber);
-            for (SOPInstance s : sopInstancesList) {
+
+            List<SopInstance> list = new ArrayList<>(sopInstanceMap.values());
+            Collections.sort(list);
+            for (SopInstance s : list) {
                 s.toXml(result);
             }
             result.append("\n</");
@@ -139,13 +175,10 @@ public class Series implements Xml {
         }
     }
 
-    public boolean isEmpty() {
-        return sopInstancesList.isEmpty();
-    }
-    
-    public static int compareSeries(Series o1, Series o2) {
-        Integer val1 = StringUtil.getInteger(o1.getSeriesNumber());
-        Integer val2 = StringUtil.getInteger(o2.getSeriesNumber());
+    @Override
+    public int compareTo(Series s) {
+        Integer val1 = StringUtil.getInteger(getSeriesNumber());
+        Integer val2 = StringUtil.getInteger(s.getSeriesNumber());
 
         int c = -1;
         if (val1 != null && val2 != null) {
@@ -156,7 +189,7 @@ public class Series implements Xml {
         }
 
         if (c == 0 || (val1 == null && val2 == null)) {
-            return o1.getSeriesInstanceUID().compareTo(o2.getSeriesInstanceUID());
+            return getSeriesInstanceUID().compareTo(s.getSeriesInstanceUID());
         } else {
             if (val1 == null) {
                 // Add o1 after o2
@@ -167,6 +200,6 @@ public class Series implements Xml {
             }
         }
 
-        return o1.getSeriesInstanceUID().compareTo(o2.getSeriesInstanceUID());
+        return getSeriesInstanceUID().compareTo(s.getSeriesInstanceUID());
     }
 }

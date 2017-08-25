@@ -33,7 +33,7 @@ public class DicomGateway {
      */
     public DicomGateway(AdvancedParams forwardParams, DicomNode callingNode, DicomNode destinationNode)
         throws IOException {
-        this(forwardParams, callingNode, destinationNode, null);
+        this(forwardParams, callingNode, callingNode.getAet(), destinationNode, null);
     }
 
     /**
@@ -49,12 +49,13 @@ public class DicomGateway {
      *            the editor for modifying attributes on the fly (can be Null)
      * @throws IOException
      */
-    public DicomGateway(AdvancedParams forwardParams, DicomNode callingNode, DicomNode destinationNode,
-        AttributeEditor attributesEditor) throws IOException {
-        this.storeSCP = new StoreScpForward(forwardParams, callingNode, destinationNode, attributesEditor);
+    public DicomGateway(AdvancedParams forwardParams, DicomNode callingNode, String forwardAETitle,
+        DicomNode destinationNode, AttributeEditor attributesEditor) throws IOException {
+        this.storeSCP =
+            new StoreScpForward(forwardParams, callingNode, forwardAETitle, destinationNode, attributesEditor);
         this.deviceService = new DeviceListenerService(storeSCP.getDevice());
     }
-    
+
     public DicomGateway(Map<DicomNode, List<ForwardDestination>> destinations) throws IOException {
         this.storeSCP = new StoreScpForward(destinations);
         this.deviceService = new DeviceListenerService(storeSCP.getDevice());

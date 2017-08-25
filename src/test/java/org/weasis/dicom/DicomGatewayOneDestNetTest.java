@@ -10,7 +10,6 @@ package org.weasis.dicom;
  *     Nicolas Roduit - initial API and implementation
  *******************************************************************************/
 
-
 import org.apache.log4j.BasicConfigurator;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
@@ -35,7 +34,7 @@ public class DicomGatewayOneDestNetTest {
     @Test
     public void testProcess() {
         BasicConfigurator.configure();
-        
+
         AdvancedParams params = new AdvancedParams();
         ConnectOptions connectOptions = new ConnectOptions();
         connectOptions.setConnectTimeout(3000);
@@ -54,12 +53,12 @@ public class DicomGatewayOneDestNetTest {
         attrs.setString(Tag.PatientName, VR.PN, "Override^Patient^Name");
         attrs.setString(Tag.PatientID, VR.LO, "ModifiedPatientID");
         DefaultAttributeEditor editor = new DefaultAttributeEditor(true, attrs);
-        
+
         GatewayParams gparams = new GatewayParams(params, false, null, calling.getAet());
 
         DicomGateway gateway;
         try {
-            gateway = new DicomGateway(params, calling, destination, editor);
+            gateway = new DicomGateway(params, calling, calling.getAet(), destination, editor);
             gateway.start(scpNode, gparams);
         } catch (Exception e) {
             e.printStackTrace();

@@ -71,4 +71,9 @@ public class ForwardDestination {
         }
         streamSCUService.stop();
     }
+
+    @Override
+    public String toString() {
+        return destinationNode.toString();
+    }
 }

@@ -64,9 +64,8 @@ public class DicomGatewayMultiDestNetTest {
         try {
             DicomProgress progress = new DicomProgress();
             progress.addProgressListener(p -> {
-                Attributes attributes = p.getAttributes();
-                if (attributes != null) {
-
+                if(p.isLastFailed()) {
+                    System.out.println("Failed: DICOM Status:" + p.getStatus());
                 }
             });
             List<ForwardDestination> list = new ArrayList<>();

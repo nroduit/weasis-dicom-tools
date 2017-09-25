@@ -24,8 +24,9 @@ public class SopInstance implements Xml, Comparable<SopInstance> {
 
     private final String sopInstanceUID;
     private final Integer instanceNumber;
-    private String transferSyntaxUID = null;
-    private String directDownloadFile = null;
+    private String imageComments;
+    private String transferSyntaxUID;
+    private String directDownloadFile;
     private Object graphicModel;
 
     /**
@@ -76,6 +77,14 @@ public class SopInstance implements Xml, Comparable<SopInstance> {
         this.graphicModel = graphicModel;
     }
 
+    public String getImageComments() {
+        return imageComments;
+    }
+
+    public void setImageComments(String imageComments) {
+        this.imageComments = imageComments;
+    }
+
     @Override
     public int hashCode() {
         final int prime = 31;
@@ -110,6 +119,7 @@ public class SopInstance implements Xml, Comparable<SopInstance> {
         Xml.addXmlAttribute(Tag.SOPInstanceUID, sopInstanceUID, result);
         // file_tsuid DICOM Transfer Syntax UID (0002,0010)
         Xml.addXmlAttribute(Tag.TransferSyntaxUID, transferSyntaxUID, result);
+        Xml.addXmlAttribute(Tag.ImageComments, imageComments, result);
         Xml.addXmlAttribute(Tag.InstanceNumber, getStringInstanceNumber(), result);
         Xml.addXmlAttribute(TagW.DirectDownloadFile, directDownloadFile, result);
         result.append("/>");

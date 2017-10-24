@@ -16,6 +16,7 @@ public class ArcParameters {
 
     // Manifest 2.5
     public static final String TAG_DOCUMENT_ROOT = "manifest";
+    public static final String MANIFEST_UID = "uid";
     public static final String SCHEMA =
         "xmlns=\"http://www.weasis.org/xsd/2.5\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"";
     public static final String TAG_ARC_QUERY = "arcQuery";

@@ -17,19 +17,27 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.weasis.core.api.util.StringUtil;
 
 public class ArcQuery implements XmlManifest {
     private static final Logger LOGGER = LoggerFactory.getLogger(ArcQuery.class);
 
     private final List<QueryResult> queryList;
+    protected final String manifestUID;
 
     public ArcQuery(List<QueryResult> resultList) {
-        this.queryList = Objects.requireNonNull(resultList);
+        this(resultList, null);
     }
-
+    
+    public ArcQuery(List<QueryResult> resultList, String manifestUID) {
+        this.queryList = Objects.requireNonNull(resultList);
+        this.manifestUID = StringUtil.hasText(manifestUID) ? manifestUID : UUID.randomUUID().toString() ;
+    }
+    
     public List<QueryResult> getQueryList() {
         return queryList;
     }
@@ -77,6 +85,7 @@ public class ArcQuery implements XmlManifest {
         mf.append("\n<");
         mf.append(ArcParameters.TAG_DOCUMENT_ROOT);
         mf.append(" ");
+        Xml.addXmlAttribute(ArcParameters.MANIFEST_UID, manifestUID, mf);
         mf.append(ArcParameters.SCHEMA);
         mf.append(">");
 

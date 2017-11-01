@@ -6,14 +6,14 @@
 	<artifactId>weasis-dicom-tools</artifactId>
 	<packaging>jar</packaging>
 	<name>Weasis DICOM API (based on dcm4che3)</name>
-	<version>1.2.2-SNAPSHOT</version>
+	<version>1.2.2</version>
 
 	<properties>
 		<java-version>1.8</java-version>
 		<enforcer.jdk-version>[${java-version},)</enforcer.jdk-version>
 		<enforcer.maven-version>[3.0.5,)</enforcer.maven-version>
 		<dcm4che.version>dcm4chee-arc-light-5.10.1</dcm4che.version>
-		<weasis.version>2.6.0-rc1</weasis.version>
+		<weasis.version>2.6.0</weasis.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 	</properties>

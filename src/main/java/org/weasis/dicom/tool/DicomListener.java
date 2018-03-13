@@ -9,7 +9,6 @@ import java.util.Objects;
 import org.dcm4che3.net.Connection;
 import org.dcm4che3.net.TransferCapability;
 import org.dcm4che3.tool.storescp.StoreSCP;
-import org.weasis.core.api.util.StringUtil;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.DeviceListenerService;
 import org.weasis.dicom.param.DicomNode;
@@ -61,9 +60,7 @@ public class DicomListener {
             throw new IOException("Cannot start a DICOM Listener because it is already running.");
         }
         storeSCP.setStatus(0);
-        if (StringUtil.hasText(params.getStoragePattern())) {
-            storeSCP.setStorageFilePathFormat(params.getStoragePattern());
-        }
+        storeSCP.setStorageFilePathFormat(params.getStoragePattern());
 
         AdvancedParams options = Objects.requireNonNull(params).getParams();
         Connection conn = storeSCP.getConnection();

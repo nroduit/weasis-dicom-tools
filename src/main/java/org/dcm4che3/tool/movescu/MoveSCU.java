@@ -12,7 +12,7 @@
  * License.
  *
  * The Original Code is part of dcm4che, an implementation of DICOM(TM) in
- * Java(TM), hosted at https://github.com/gunterze/dcm4che.
+ * Java(TM), hosted at https://github.com/dcm4che.
  *
  * The Initial Developer of the Original Code is
  * Agfa Healthcare.
@@ -131,6 +131,24 @@ public class MoveSCU extends Device implements AutoCloseable {
             addLevel(model.level);
         }
     }
+    
+
+    public void addLevel(String s) {
+        keys.setString(Tag.QueryRetrieveLevel, VR.CS, s);
+    }
+
+    public final void setDestination(String destination) {
+        this.destination = destination;
+    }
+
+    public void addKey(int tag, String... ss) {
+        VR vr = ElementDictionary.vrOf(tag, keys.getPrivateCreator(tag));
+        keys.setString(tag, vr, ss);
+    }
+
+    public final void setInputFilter(int[] inFilter) {
+        this.inFilter = inFilter;
+    }
 
     public ApplicationEntity getApplicationEntity() {
         return ae;
@@ -152,22 +170,6 @@ public class MoveSCU extends Device implements AutoCloseable {
         return keys;
     }
 
-    public void addLevel(String s) {
-        keys.setString(Tag.QueryRetrieveLevel, VR.CS, s);
-    }
-
-    public final void setDestination(String destination) {
-        this.destination = destination;
-    }
-
-    public void addKey(int tag, String... ss) {
-        VR vr = ElementDictionary.vrOf(tag, keys.getPrivateCreator(tag));
-        keys.setString(tag, vr, ss);
-    }
-
-    public final void setInputFilter(int[] inFilter) {
-        this.inFilter = inFilter;
-    }
 
     public void open()
         throws IOException, InterruptedException, IncompatibleConnectionException, GeneralSecurityException {

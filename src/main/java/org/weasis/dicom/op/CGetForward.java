@@ -44,14 +44,14 @@ import org.weasis.core.api.util.StringUtil;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.AttributeEditor;
 import org.weasis.dicom.param.AttributeEditorContext;
+import org.weasis.dicom.param.AttributeEditorContext.Abort;
 import org.weasis.dicom.param.DeviceOpService;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
-import org.weasis.dicom.param.AttributeEditorContext.Abort;
 import org.weasis.dicom.util.ServiceUtil;
-import org.weasis.dicom.util.StoreFromStreamSCU;
 import org.weasis.dicom.util.ServiceUtil.ProgressStatus;
+import org.weasis.dicom.util.StoreFromStreamSCU;
 
 public class CGetForward implements AutoCloseable {
 
@@ -115,7 +115,7 @@ public class CGetForward implements AutoCloseable {
                 String cuid = rq.getString(Tag.AffectedSOPClassUID);
                 String iuid = rq.getString(Tag.AffectedSOPInstanceUID);
                 String tsuid = pc.getTransferSyntax();
-
+                
                 if (streamSCU.getAssociation() == null) {
                     streamSCUService.start();
                     // Add Presentation Context for the association

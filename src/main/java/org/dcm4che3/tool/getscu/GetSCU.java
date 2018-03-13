@@ -12,7 +12,7 @@
  * License.
  *
  * The Original Code is part of dcm4che, an implementation of DICOM(TM) in
- * Java(TM), hosted at https://github.com/gunterze/dcm4che.
+ * Java(TM), hosted at https://github.com/dcm4che.
  *
  * The Initial Developer of the Original Code is
  * Agfa Healthcare.
@@ -266,12 +266,8 @@ public class GetSCU implements AutoCloseable {
 
     public void retrieve(File f) throws IOException, InterruptedException {
         Attributes attrs = new Attributes();
-        DicomInputStream dis = null;
-        try {
-            dis = new DicomInputStream(f);
+        try (DicomInputStream dis = new DicomInputStream(f)) {
             attrs.addSelected(dis.readDataset(-1, -1), inFilter);
-        } finally {
-            SafeClose.close(dis);
         }
         attrs.addAll(keys);
         retrieve(attrs);
@@ -320,7 +316,7 @@ public class GetSCU implements AutoCloseable {
         ServiceUtil.shutdownService((ExecutorService) device.getExecutor());
         ServiceUtil.shutdownService(device.getScheduledExecutor());
     }
-    
+
     private void updateProgress(Association as, Attributes cmd) {
         DicomProgress p = state.getProgress();
         if (p != null) {

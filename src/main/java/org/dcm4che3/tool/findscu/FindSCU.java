@@ -12,11 +12,11 @@
  * License.
  *
  * The Original Code is part of dcm4che, an implementation of DICOM(TM) in
- * Java(TM), hosted at https://github.com/gunterze/dcm4che.
+ * Java(TM), hosted at https://github.com/dcm4che.
  *
  * The Initial Developer of the Original Code is
- * Agfa Healthcare.
- * Portions created by the Initial Developer are Copyright (C) 2011
+ * J4Care.
+ * Portions created by the Initial Developer are Copyright (C) 2017
  * the Initial Developer. All Rights Reserved.
  *
  * Contributor(s):
@@ -57,11 +57,13 @@ import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 
 import org.dcm4che3.data.Attributes;
+import org.dcm4che3.data.Sequence;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.io.DicomOutputStream;
+import org.dcm4che3.io.SAXReader;
 import org.dcm4che3.io.SAXWriter;
 import org.dcm4che3.net.ApplicationEntity;
 import org.dcm4che3.net.Association;
@@ -242,7 +244,7 @@ public class FindSCU implements AutoCloseable {
 
     public void open()
         throws IOException, InterruptedException, IncompatibleConnectionException, GeneralSecurityException {
-        as = ae.connect(remote, rq);
+        as = ae.connect(conn, remote, rq);
     }
 
     @Override
@@ -255,21 +257,55 @@ public class FindSCU implements AutoCloseable {
         out = null;
     }
 
-    public void query(File f) throws IOException, InterruptedException {
+    public void query(File f) throws Exception {
         Attributes attrs;
-        DicomInputStream dis = null;
-        try {
-            dis = new DicomInputStream(f);
-            attrs = dis.readDataset(-1, -1);
-            if (inFilter != null) {
-                attrs = new Attributes(inFilter.length + 1);
-                attrs.addSelected(attrs, inFilter);
+        String filePath = f.getPath();
+        String fileExt = filePath.substring(filePath.lastIndexOf(".") + 1).toLowerCase();
+        
+        if (fileExt.equals("xml")) {
+            attrs = SAXReader.parse(filePath);
+        } else {
+            try (DicomInputStream dis = new DicomInputStream(f)) {
+                attrs = dis.readDataset(-1, -1);
             }
-        } finally {
-            SafeClose.close(dis);
+        }
+        if (inFilter != null) {
+            attrs = new Attributes(inFilter.length + 1);
+            attrs.addSelected(attrs, inFilter);
+        }
+        mergeKeys(attrs, keys);
+        query(attrs);
+    }
+
+    private static class MergeNested implements Attributes.Visitor {
+        private final Attributes keys;
+
+        MergeNested(Attributes keys) {
+            this.keys = keys;
+        }
+
+        @Override
+        public boolean visit(Attributes attrs, int tag, VR vr, Object val) {
+            if (isNotEmptySequence(val)) {
+                Object o = keys.remove(tag);
+                if (isNotEmptySequence(o))
+                    ((Sequence) val).get(0).addAll(((Sequence) o).get(0));
+            }
+            return true;
+        }
+
+        private static boolean isNotEmptySequence(Object val) {
+            return val instanceof Sequence && !((Sequence) val).isEmpty();
+        }
+    }
+
+    static void mergeKeys(Attributes attrs, Attributes keys) {
+        try {
+            attrs.accept(new MergeNested(keys), false);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
         attrs.addAll(keys);
-        query(attrs);
     }
 
     public void query() throws IOException, InterruptedException {
@@ -361,7 +397,7 @@ public class FindSCU implements AutoCloseable {
         saxWriter.write(attrs);
     }
 
-    public TransformerHandler getTransformerHandler() throws Exception {
+    private TransformerHandler getTransformerHandler() throws Exception {
         SAXTransformerFactory tf = saxtf;
         if (tf == null) {
             saxtf = tf = (SAXTransformerFactory) TransformerFactory.newInstance();

@@ -52,7 +52,7 @@ public class CGetNetTest {
          */
 
         DicomParam[] params =
-            { new DicomParam(Tag.StudyInstanceUID, "1.2.840.113619.6.374.254041414921518201393113960545126839710") };
+            { new DicomParam(Tag.StudyInstanceUID, "1.2.826.0.1.3680043.11.105") };
         DicomNode calling = new DicomNode("WEASIS-SCU");
         DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
 

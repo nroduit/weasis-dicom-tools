@@ -102,7 +102,7 @@ public class DicomGatewayMultiDestNetTest {
             }
         });
 
-        String studyUID = "1.2.840.113619.6.374.254041414921518201393113960545126839710";
+        String studyUID = "1.2.826.0.1.3680043.11.105";
 
         DicomState state = CGetForward.processStudy(params, params, calling, called, scpNode, progress2, studyUID);
         // Should never happen

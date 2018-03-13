@@ -12,7 +12,7 @@
  * License.
  *
  * The Original Code is part of dcm4che, an implementation of DICOM(TM) in
- * Java(TM), hosted at https://github.com/gunterze/dcm4che.
+ * Java(TM), hosted at https://github.com/dcm4che.
  *
  * The Initial Developer of the Original Code is
  * Agfa Healthcare.
@@ -70,6 +70,7 @@ import org.dcm4che3.util.AttributesFormat;
 import org.dcm4che3.util.SafeClose;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.weasis.core.api.util.StringUtil;
 import org.weasis.dicom.param.DicomNode;
 
 /**
@@ -86,9 +87,10 @@ public class StoreSCP {
     private final ApplicationEntity ae = new ApplicationEntity("*");
     private final Connection conn = new Connection();
     private final File storageDir;
-    private AttributesFormat filePathFormat;
-    private int status = Status.Success;
-    private List<DicomNode> authorizedCallingNodes;
+    private final List<DicomNode> authorizedCallingNodes;
+    private volatile AttributesFormat filePathFormat;
+    private volatile Pattern regex;
+    private volatile int status = Status.Success;
 
     private final BasicCStoreSCP cstoreSCP = new BasicCStoreSCP("*") {
 
@@ -112,7 +114,7 @@ public class StoreSCP {
             String cuid = rq.getString(Tag.AffectedSOPClassUID);
             String iuid = rq.getString(Tag.AffectedSOPInstanceUID);
             String tsuid = pc.getTransferSyntax();
-            File file = new File(storageDir, TMP_DIR + File.separator + iuid + ".part");
+            File file = new File(storageDir, TMP_DIR + File.separator + iuid);
             try {
                 Attributes fmi = as.createFileMetaInformation(iuid, cuid, tsuid);
                 storeTo(as, fmi, data, file);
@@ -121,7 +123,6 @@ public class StoreSCP {
                     filename = iuid;
                 } else {
                     Attributes a = fmi;
-                    Pattern regex = Pattern.compile("\\{(.*?)\\}");
                     Matcher regexMatcher = regex.matcher(filePathFormat.toString());
                     while (regexMatcher.find()) {
                         if (!regexMatcher.group(1).startsWith("0002")) {
@@ -140,15 +141,32 @@ public class StoreSCP {
         }
 
     };
-
+    
+    /**
+     * @param storageDir
+     *            the base path of storage folder
+     * @throws IOException
+     */
     public StoreSCP(File storageDir) throws IOException {
+        this(storageDir, null);
+    }
+
+    /**
+     * @param storageDir
+     *            the base path of storage folder
+     * @param authorizedCallingNodes
+     *            the list of authorized nodes to call store files (authorizedCallingNodes allow to check hostname
+     *            unlike acceptedCallingAETitles)
+     * @throws IOException
+     */
+    public StoreSCP(File storageDir, List<DicomNode> authorizedCallingNodes) throws IOException {
         this.storageDir = Objects.requireNonNull(storageDir);
         device.setDimseRQHandler(createServiceRegistry());
         device.addConnection(conn);
         device.addApplicationEntity(ae);
         ae.setAssociationAcceptor(true);
         ae.addConnection(conn);
-        this.authorizedCallingNodes = null;
+        this.authorizedCallingNodes = authorizedCallingNodes;
     }
 
     private void storeTo(Association as, Attributes fmi, PDVInputStream data, File file) throws IOException {
@@ -196,7 +214,13 @@ public class StoreSCP {
     }
 
     public void setStorageFilePathFormat(String pattern) {
-        this.filePathFormat = new AttributesFormat(pattern);
+        if (StringUtil.hasText(pattern)) {
+            this.filePathFormat = new AttributesFormat(pattern);
+            this.regex = Pattern.compile("\\{(.*?)\\}");
+        } else {
+            this.filePathFormat = null;
+            this.regex = null;
+        }
     }
 
     public void setStatus(int status) {

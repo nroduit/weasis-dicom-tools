@@ -6,14 +6,13 @@
 	<artifactId>weasis-dicom-tools</artifactId>
 	<packaging>jar</packaging>
 	<name>Weasis DICOM API (based on dcm4che3)</name>
-	<version>1.2.2</version>
+	<version>5.13.0</version>
 
 	<properties>
 		<java-version>1.8</java-version>
 		<enforcer.jdk-version>[${java-version},)</enforcer.jdk-version>
 		<enforcer.maven-version>[3.0.5,)</enforcer.maven-version>
-		<dcm4che.version>dcm4chee-arc-light-5.10.1</dcm4che.version>
-		<weasis.version>2.6.0</weasis.version>
+		<weasis.version>3.0.0-RC1</weasis.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 	</properties>
@@ -150,12 +149,12 @@
 		<dependency>
 			<groupId>org.dcm4che</groupId>
 			<artifactId>dcm4che-core</artifactId>
-			<version>${dcm4che.version}</version>
+			<version>${project.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.dcm4che</groupId>
 			<artifactId>dcm4che-net</artifactId>
-			<version>${dcm4che.version}</version>
+			<version>${project.version}</version>
 		</dependency>
 
 		<!-- Only required by storeSCU for uncompressing data not supported by the destination. dcm4che-imageio is linked to native 
@@ -163,17 +162,17 @@
 		<dependency>
 			<groupId>org.dcm4che</groupId>
 			<artifactId>dcm4che-imageio</artifactId>
-			<version>${dcm4che.version}-r1</version>
+			<version>${project.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.dcm4che</groupId>
 			<artifactId>dcm4che-imageio-rle</artifactId>
-			<version>${dcm4che.version}</version>
+			<version>${project.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.dcm4che</groupId>
 			<artifactId>dcm4che-image</artifactId>
-			<version>${dcm4che.version}</version>
+			<version>${project.version}</version>
 		</dependency>
 		<!-- End of only required by storeSCU -->
 

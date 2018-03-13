@@ -9,6 +9,8 @@ import java.util.Set;
 
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
+import org.dcm4che3.data.UID;
+import org.dcm4che3.imageio.codec.Decompressor;
 import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.io.DicomInputStream.IncludeBulkData;
 import org.dcm4che3.net.Association;
@@ -230,8 +232,9 @@ public class ForwardUtil {
                 throw new IllegalStateException("Association not ready for transfer.");
             }
 
+            String tsuid = p.getTsuid();
             String iuid = p.getIuid();
-            AttributeEditorContext context = new AttributeEditorContext(p.getTsuid(), sourceNode,
+            AttributeEditorContext context = new AttributeEditorContext(tsuid, sourceNode,
                 DicomNode.buildRemoteDicomNode(streamSCU.getAssociation()));
             in = new DicomInputStream(p.getData());
             in.setIncludeBulkData(IncludeBulkData.URI);
@@ -258,6 +261,12 @@ public class ForwardUtil {
                 in.readAttributes(attributes, -1, -1);
             }
             copy.addAll(attributes);
+            
+            String supportedTsuid = selectTransferSyntax(streamSCU.getAssociation(), p.getCuid(), tsuid);
+            if (!supportedTsuid.equals(tsuid)) {
+                Decompressor.decompress(copy, tsuid);
+            }
+            
             DataWriter dataWriter = new DataWriterAdapter(attributes);
 
             streamSCU.getAssociation().cstore(p.getCuid(), iuid, p.getPriority(), dataWriter, p.getTsuid(),
@@ -287,6 +296,7 @@ public class ForwardUtil {
             if (!streamSCU.getAssociation().isReadyForDataTransfer()) {
                 throw new IllegalStateException("Association not ready for transfer.");
             }
+     
             DataWriter dataWriter;
             String iuid = p.getIuid();
             if (destination.getAttributesEditor() == null) {
@@ -325,6 +335,19 @@ public class ForwardUtil {
             ServiceUtil.notifyProgession(streamSCU.getState(), Status.ProcessingFailure, ProgressStatus.FAILED,
                 streamSCU.getNumberOfSuboperations());
         }
+    }
+    
+    public static String selectTransferSyntax(Association as, String cuid, String filets) {
+        Set<String> tss = as.getTransferSyntaxesFor(cuid);
+        if (tss.contains(filets)) {
+            return filets;
+        }
+
+        if (tss.contains(UID.ExplicitVRLittleEndian)) {
+            return UID.ExplicitVRLittleEndian;
+        }
+
+        return UID.ImplicitVRLittleEndian;
     }
 
 }

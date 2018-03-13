@@ -12,7 +12,7 @@
  * License.
  *
  * The Original Code is part of dcm4che, an implementation of DICOM(TM) in
- * Java(TM), hosted at https://github.com/gunterze/dcm4che.
+ * Java(TM), hosted at https://github.com/dcm4che.
  *
  * The Initial Developer of the Original Code is
  * Agfa Healthcare.
@@ -50,7 +50,6 @@ import java.io.OutputStreamWriter;
 import java.security.GeneralSecurityException;
 import java.text.MessageFormat;
 import java.util.List;
-import java.util.Set;
 
 import javax.xml.parsers.ParserConfigurationException;
 
@@ -85,6 +84,7 @@ import org.weasis.dicom.param.AttributeEditorContext;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
+import org.weasis.dicom.util.ForwardUtil;
 import org.weasis.dicom.util.ServiceUtil;
 import org.weasis.dicom.util.ServiceUtil.ProgressStatus;
 import org.xml.sax.SAXException;
@@ -307,7 +307,7 @@ public class StoreSCU implements AutoCloseable {
 
     public void send(final File f, long fmiEndPos, String cuid, String iuid, String filets)
         throws IOException, InterruptedException, ParserConfigurationException, SAXException {
-        String ts = selectTransferSyntax(cuid, filets);
+        String ts = ForwardUtil.selectTransferSyntax(as, cuid, filets);
 
         boolean noChange = uidSuffix == null && attrs.isEmpty() && ts.equals(filets) && attributesEditor == null;
         DataWriter dataWriter = null;
@@ -317,6 +317,7 @@ public class StoreSCU implements AutoCloseable {
             if (f.getName().endsWith(".xml")) {
                 in = new FileInputStream(f);
                 data = SAXReader.parse(in);
+                noChange = false;
             } else if (noChange) {
                 in = new FileInputStream(f);
                 in.skip(fmiEndPos);
@@ -349,18 +350,7 @@ public class StoreSCU implements AutoCloseable {
         }
     }
 
-    private String selectTransferSyntax(String cuid, String filets) {
-        Set<String> tss = as.getTransferSyntaxesFor(cuid);
-        if (tss.contains(filets)) {
-            return filets;
-        }
 
-        if (tss.contains(UID.ExplicitVRLittleEndian)) {
-            return UID.ExplicitVRLittleEndian;
-        }
-
-        return UID.ImplicitVRLittleEndian;
-    }
 
     @Override
     public void close() throws IOException, InterruptedException {

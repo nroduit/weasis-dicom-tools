@@ -12,6 +12,7 @@
 		<java-version>1.8</java-version>
 		<enforcer.jdk-version>[${java-version},)</enforcer.jdk-version>
 		<enforcer.maven-version>[3.0.5,)</enforcer.maven-version>
+		<dcm4che.version>${project.version}</dcm4che.version>
 		<weasis.version>3.0.0-RC1</weasis.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -19,8 +20,8 @@
 
 	<licenses>
 		<license>
-			<name>Eclipse Public License v1.0</name>
-			<url>http://www.eclipse.org/legal/epl-v10.html</url>
+			<name>Eclipse Public License v2.0</name>
+			<url>http://www.eclipse.org/legal/epl-v20.html</url>
 			<distribution>repo</distribution>
 		</license>
 	</licenses>
@@ -149,12 +150,12 @@
 		<dependency>
 			<groupId>org.dcm4che</groupId>
 			<artifactId>dcm4che-core</artifactId>
-			<version>${project.version}</version>
+			<version>${dcm4che.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.dcm4che</groupId>
 			<artifactId>dcm4che-net</artifactId>
-			<version>${project.version}</version>
+			<version>${dcm4che.version}</version>
 		</dependency>
 
 		<!-- Only required by storeSCU for uncompressing data not supported by the destination. dcm4che-imageio is linked to native 
@@ -162,17 +163,17 @@
 		<dependency>
 			<groupId>org.dcm4che</groupId>
 			<artifactId>dcm4che-imageio</artifactId>
-			<version>${project.version}</version>
+			<version>${dcm4che.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.dcm4che</groupId>
 			<artifactId>dcm4che-imageio-rle</artifactId>
-			<version>${project.version}</version>
+			<version>${dcm4che.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.dcm4che</groupId>
 			<artifactId>dcm4che-image</artifactId>
-			<version>${project.version}</version>
+			<version>${dcm4che.version}</version>
 		</dependency>
 		<!-- End of only required by storeSCU -->
 

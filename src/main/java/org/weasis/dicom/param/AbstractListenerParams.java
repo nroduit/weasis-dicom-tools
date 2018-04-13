@@ -23,7 +23,7 @@ public abstract class AbstractListenerParams {
         this.bindCallingAet = bindCallingAet;
         this.transferCapabilityFile = transferCapabilityFile;
         this.acceptedCallingAETitles = acceptedCallingAETitles;
-        if (params == null) {
+        if (params == null && this.params.getConnectOptions() != null) {
             // Concurrent DICOM operations
             this.params.getConnectOptions().setMaxOpsInvoked(15);
             this.params.getConnectOptions().setMaxOpsPerformed(15);

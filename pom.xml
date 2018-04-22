@@ -158,11 +158,16 @@
 			<version>${dcm4che.version}</version>
 		</dependency>
 
-		<!-- Only required by storeSCU for uncompressing data not supported by the destination. dcm4che-imageio is linked to native 
-			libraries not located in this package -->
+		<!-- dcm4che-imageio packages are linked to native libraries not located in this package (see dcm4che-imageio-opencv). 
+			Only required by storeSCU, Dicomizer and ForwardUtil (DicomGateway) for uncompressing data not supported by the destination. -->
 		<dependency>
 			<groupId>org.dcm4che</groupId>
 			<artifactId>dcm4che-imageio</artifactId>
+			<version>${dcm4che.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.dcm4che</groupId>
+			<artifactId>dcm4che-imageio-opencv</artifactId>
 			<version>${dcm4che.version}</version>
 		</dependency>
 		<dependency>
@@ -175,7 +180,7 @@
 			<artifactId>dcm4che-image</artifactId>
 			<version>${dcm4che.version}</version>
 		</dependency>
-		<!-- End of only required by storeSCU -->
+		<!-- End of dcm4che-imageio packages -->
 
 		<dependency>
 			<groupId>junit</groupId>

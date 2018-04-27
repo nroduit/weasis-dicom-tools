@@ -236,7 +236,7 @@ public class StoreSCU implements AutoCloseable {
                 DicomProgress p = state.getProgress();
                 if (p != null) {
                     if (p.isCancel()) {
-                        LOG.info("Aborting C-Store: ");
+                        LOG.info("Aborting C-Store: {}", "cancel by progress");
                         as.abort();
                         break;
                     }
@@ -251,6 +251,7 @@ public class StoreSCU implements AutoCloseable {
             try {
                 as.waitForOutstandingRSP();
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 LOG.error("Waiting for RSP", e);
             }
         } finally {

@@ -116,11 +116,9 @@ public class CFind {
             throw new IllegalArgumentException("callingNode or calledNode cannot be null!");
         }
 
-        FindSCU findSCU = null;
         AdvancedParams options = params == null ? new AdvancedParams() : params;
 
-        try {
-            findSCU = new FindSCU();
+        try (FindSCU findSCU = new FindSCU()) {
             Connection remote = findSCU.getRemoteConnection();
             Connection conn = findSCU.getConnection();
             options.configureConnect(findSCU.getAAssociateRQ(), remote, calledNode);

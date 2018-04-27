@@ -76,11 +76,9 @@ public class CMove {
         if (callingNode == null || calledNode == null || destinationAet == null) {
             throw new IllegalArgumentException("callingNode, calledNode or destinationAet cannot be null!");
         }
-        MoveSCU moveSCU = null;
         AdvancedParams options = params == null ? new AdvancedParams() : params;
 
-        try {
-            moveSCU = new MoveSCU(progress);
+        try (MoveSCU moveSCU = new MoveSCU(progress);) {
             Connection remote = moveSCU.getRemoteConnection();
             Connection conn = moveSCU.getConnection();
             options.configureConnect(moveSCU.getAAssociateRQ(), remote, calledNode);

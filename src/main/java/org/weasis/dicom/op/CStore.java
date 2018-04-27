@@ -194,6 +194,8 @@ public class CStore {
             LOGGER.error("storescu", e);
             return new DicomState(Status.UnableToProcess,
                 "DICOM Store failed" + StringUtil.COLON_AND_SPACE + e.getMessage(), null);
+        } finally {
+            FileUtil.safeClose(storeSCU);
         }
     }
 

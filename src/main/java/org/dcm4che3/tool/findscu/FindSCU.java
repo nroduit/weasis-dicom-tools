@@ -90,7 +90,7 @@ import org.weasis.dicom.param.DicomState;
  */
 public class FindSCU implements AutoCloseable {
 
-    public static enum InformationModel {
+    public enum InformationModel {
         PatientRoot(UID.PatientRootQueryRetrieveInformationModelFIND, "STUDY"),
         StudyRoot(UID.StudyRootQueryRetrieveInformationModelFIND, "STUDY"),
         PatientStudyOnly(UID.PatientStudyOnlyQueryRetrieveInformationModelFINDRetired, "STUDY"),
@@ -261,7 +261,7 @@ public class FindSCU implements AutoCloseable {
         Attributes attrs;
         String filePath = f.getPath();
         String fileExt = filePath.substring(filePath.lastIndexOf(".") + 1).toLowerCase();
-        
+
         if (fileExt.equals("xml")) {
             attrs = SAXReader.parse(filePath);
         } else {
@@ -365,8 +365,9 @@ public class FindSCU implements AutoCloseable {
             if (xml) {
                 writeAsXML(data, out);
             } else {
-                DicomOutputStream dos = new DicomOutputStream(out, UID.ImplicitVRLittleEndian);
-                dos.writeDataset(null, data);
+                try (DicomOutputStream dos = new DicomOutputStream(out, UID.ImplicitVRLittleEndian)) {
+                    dos.writeDataset(null, data);
+                }
             }
             out.flush();
         } catch (Exception e) {

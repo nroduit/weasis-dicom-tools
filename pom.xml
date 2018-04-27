@@ -55,6 +55,14 @@
 		</repository>
 	</repositories>
 	<build>
+		<resources>
+			<resource>
+				<directory>src/main/resources</directory>
+			</resource>
+			<resource>
+				<directory>${project.build.directory}/dict</directory>
+			</resource>
+		</resources>
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -99,6 +107,34 @@
 						<goals>
 							<goal>jar</goal>
 						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<version>3.1.0</version>
+				<executions>
+					<execution>
+						<id>unpack</id>
+						<phase>generate-resources</phase>
+						<goals>
+							<goal>unpack</goal>
+						</goals>
+						<configuration>
+							<artifactItems>
+								<artifactItem>
+									<groupId>org.dcm4che</groupId>
+									<artifactId>dcm4che-dict</artifactId>
+									<version>${dcm4che.version}</version>
+									<type>jar</type>
+									<overWrite>false</overWrite>
+									<includes>**/*.xml</includes>
+									<excludes>META-INF/**</excludes>
+								</artifactItem>
+							</artifactItems>
+							<outputDirectory>${project.build.directory}/dict</outputDirectory>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>
@@ -150,6 +186,11 @@
 		<dependency>
 			<groupId>org.dcm4che</groupId>
 			<artifactId>dcm4che-core</artifactId>
+			<version>${dcm4che.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.dcm4che</groupId>
+			<artifactId>dcm4che-dict</artifactId>
 			<version>${dcm4che.version}</version>
 		</dependency>
 		<dependency>

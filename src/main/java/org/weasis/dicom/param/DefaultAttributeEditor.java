@@ -39,20 +39,12 @@ public class DefaultAttributeEditor implements AttributeEditor {
                 }
                 // New Study UID
                 String oldStudyUID = data.getString(Tag.StudyInstanceUID);
-                String studyUID = uidMap.get(oldStudyUID);
-                if (studyUID == null) {
-                    studyUID = UIDUtils.createUID();
-                    uidMap.put(oldStudyUID, studyUID);
-                }
+                String studyUID = uidMap.computeIfAbsent(oldStudyUID, k -> UIDUtils.createUID());
                 data.setString(Tag.StudyInstanceUID, VR.UI, studyUID);
 
                 // New Series UID
                 String oldSeriesUID = data.getString(Tag.SeriesInstanceUID);
-                String seriesUID = uidMap.get(oldSeriesUID);
-                if (seriesUID == null) {
-                    seriesUID = UIDUtils.createUID();
-                    uidMap.put(oldSeriesUID, seriesUID);
-                }
+                String seriesUID = uidMap.computeIfAbsent(oldSeriesUID, k -> UIDUtils.createUID());
                 data.setString(Tag.SeriesInstanceUID, VR.UI, seriesUID);
 
                 // New Sop UID

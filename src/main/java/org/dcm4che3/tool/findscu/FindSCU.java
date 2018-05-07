@@ -368,9 +368,9 @@ public class FindSCU implements AutoCloseable {
             if (xml) {
                 writeAsXML(data, out);
             } else {
-                try (DicomOutputStream dos = new DicomOutputStream(out, UID.ImplicitVRLittleEndian)) {
-                    dos.writeDataset(null, data);
-                }
+                // Only "out" needs to be closed
+                DicomOutputStream dos = new DicomOutputStream(out, UID.ImplicitVRLittleEndian);
+                dos.writeDataset(null, data);
             }
             out.flush();
         } catch (Exception e) {

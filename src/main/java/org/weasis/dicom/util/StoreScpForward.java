@@ -54,9 +54,8 @@ public class StoreScpForward {
             DicomNode sourceNode = DicomNode.buildRemoteDicomNode(as);
             boolean valid =
                 destinations.keySet().stream()
-                    .filter(n -> n.getAet().equals(sourceNode.getAet())
-                        && (!n.isValidateHostname() || n.equalsHostname(sourceNode.getHostname())))
-                    .findFirst().isPresent();
+                    .anyMatch(n -> n.getAet().equals(sourceNode.getAet())
+                        && (!n.isValidateHostname() || n.equalsHostname(sourceNode.getHostname())));
             if (!valid) {
                 rsp.setInt(Tag.Status, VR.US, Status.NotAuthorized);
                 return;

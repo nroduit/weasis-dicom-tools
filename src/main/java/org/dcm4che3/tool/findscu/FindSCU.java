@@ -77,6 +77,8 @@ import org.dcm4che3.net.pdu.AAssociateRQ;
 import org.dcm4che3.net.pdu.ExtendedNegotiation;
 import org.dcm4che3.net.pdu.PresentationContext;
 import org.dcm4che3.util.SafeClose;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
 
@@ -89,6 +91,7 @@ import org.weasis.dicom.param.DicomState;
  * @author Gunter Zeilinger <gunterze@gmail.com>
  */
 public class FindSCU implements AutoCloseable {
+    private static final Logger LOGGER = LoggerFactory.getLogger(FindSCU.class);
 
     public enum InformationModel {
         PatientRoot(UID.PatientRootQueryRetrieveInformationModelFIND, "STUDY"),
@@ -303,7 +306,7 @@ public class FindSCU implements AutoCloseable {
         try {
             attrs.accept(new MergeNested(keys), false);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new IllegalStateException(e);
         }
         attrs.addAll(keys);
     }
@@ -330,7 +333,7 @@ public class FindSCU implements AutoCloseable {
                             cancel(as);
                             cancelAfter = 0;
                         } catch (IOException e) {
-                            e.printStackTrace();
+                            LOGGER.error("Building response", e);
                         }
                     }
                 } else {
@@ -371,7 +374,7 @@ public class FindSCU implements AutoCloseable {
             }
             out.flush();
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error("Building response", e);
             SafeClose.close(out);
             out = null;
         } finally {

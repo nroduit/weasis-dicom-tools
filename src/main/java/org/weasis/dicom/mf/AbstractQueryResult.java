@@ -26,9 +26,6 @@ public abstract class AbstractQueryResult implements QueryResult {
     }
 
     @Override
-    public abstract WadoParameters getWadoParameters();
-
-    @Override
     public void removePatientId(List<String> patientIdList, boolean containsIssuer) {
         if (patientIdList != null && !patientIdList.isEmpty()) {
             if (containsIssuer) {

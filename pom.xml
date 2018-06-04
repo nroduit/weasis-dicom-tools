@@ -13,7 +13,7 @@
 		<enforcer.jdk-version>[${java-version},)</enforcer.jdk-version>
 		<enforcer.maven-version>[3.0.5,)</enforcer.maven-version>
 		<dcm4che.version>5.13.0</dcm4che.version>
-		<weasis.version>3.0.0-RC1</weasis.version>
+		<weasis.version>3.0.1</weasis.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 	</properties>

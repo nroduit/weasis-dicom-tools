@@ -49,12 +49,15 @@ public class ServiceUtil {
         }
     }
 
-    public static void notifyProgession(DicomState state, int status, ProgressStatus ps, int numberOfSuboperations) {
+    public static void notifyProgession(DicomState state, String iuid, String cuid, int status, ProgressStatus ps,
+        int numberOfSuboperations) {
         state.setStatus(status);
         DicomProgress p = state.getProgress();
         if (p != null) {
             Attributes cmd = Optional.ofNullable(p.getAttributes()).orElseGet(Attributes::new);
             cmd.setInt(Tag.Status, VR.US, status);
+            cmd.setString(Tag.AffectedSOPInstanceUID, VR.UI, iuid);
+            cmd.setString(Tag.AffectedSOPClassUID, VR.UI, cuid);
             notifyProgession(p, cmd, ps, numberOfSuboperations);
             p.setAttributes(cmd);
         }

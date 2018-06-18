@@ -115,7 +115,7 @@ public class CGetForward implements AutoCloseable {
                 String cuid = rq.getString(Tag.AffectedSOPClassUID);
                 String iuid = rq.getString(Tag.AffectedSOPInstanceUID);
                 String tsuid = pc.getTransferSyntax();
-                
+
                 if (streamSCU.getAssociation() == null) {
                     streamSCUService.start();
                     // Add Presentation Context for the association
@@ -173,12 +173,14 @@ public class CGetForward implements AutoCloseable {
                     streamSCU.getAssociation().cstore(cuid, iuid, priority, dataWriter, tsuid,
                         streamSCU.getRspHandlerFactory().createDimseRSPHandler());
                 } catch (AbortException e) {
-                    ServiceUtil.notifyProgession(streamSCU.getState(), Status.ProcessingFailure, ProgressStatus.FAILED,
+                    ServiceUtil.notifyProgession(streamSCU.getState(), rq.getString(Tag.AffectedSOPInstanceUID),
+                        rq.getString(Tag.AffectedSOPClassUID), Status.ProcessingFailure, ProgressStatus.FAILED,
                         streamSCU.getNumberOfSuboperations());
                     throw e;
                 } catch (Exception e) {
                     LOGGER.error("Error when forwarding to the final destination", e);
-                    ServiceUtil.notifyProgession(streamSCU.getState(), Status.ProcessingFailure, ProgressStatus.FAILED,
+                    ServiceUtil.notifyProgession(streamSCU.getState(), rq.getString(Tag.AffectedSOPInstanceUID),
+                        rq.getString(Tag.AffectedSOPClassUID), Status.ProcessingFailure, ProgressStatus.FAILED,
                         streamSCU.getNumberOfSuboperations());
                 } finally {
                     FileUtil.safeClose(in);

@@ -25,6 +25,7 @@ import org.weasis.dicom.param.DefaultAttributeEditor;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
+import org.weasis.dicom.param.ForwardDicomNode;
 import org.weasis.dicom.param.GatewayParams;
 import org.weasis.dicom.param.ProgressListener;
 import org.weasis.dicom.tool.DicomGateway;
@@ -44,7 +45,7 @@ public class DicomGatewayOneDestNetTest {
         connectOptions.setMaxOpsPerformed(15);
         params.setConnectOptions(connectOptions);
 
-        DicomNode calling = new DicomNode("WEASIS-SCU");
+        ForwardDicomNode calling = new ForwardDicomNode("FWD-AET", "WEASIS-SCU");
         DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
         DicomNode destination = new DicomNode("DCM4CHEE", "localhost", 11112);
         DicomNode scpNode = new DicomNode("DICOMLISTENER", "localhost", 11113);
@@ -58,7 +59,7 @@ public class DicomGatewayOneDestNetTest {
 
         DicomGateway gateway;
         try {
-            gateway = new DicomGateway(params, calling, calling.getAet(), destination, editor);
+            gateway = new DicomGateway(params, calling, destination, editor);
             gateway.start(scpNode, gparams);
         } catch (Exception e) {
             e.printStackTrace();

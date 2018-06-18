@@ -78,7 +78,7 @@ public class DicomNode {
         return convertToIP(hostname).equals(convertToIP(anotherHostname));
     }
 
-    private String convertToIP(String hostname) {
+    public static String convertToIP(String hostname) {
         try {
             return InetAddress.getByName(hostname).getHostAddress();
         } catch (UnknownHostException e) {

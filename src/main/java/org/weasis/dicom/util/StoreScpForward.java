@@ -7,7 +7,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
@@ -29,9 +32,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.AttributeEditor;
+import org.weasis.dicom.param.DicomForwardDestination;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.ForwardDestination;
+import org.weasis.dicom.param.ForwardDicomNode;
 import org.weasis.dicom.util.ForwardUtil.Params;
+import org.weasis.dicom.web.WebForwardDestination;
 
 public class StoreScpForward {
 
@@ -43,19 +49,29 @@ public class StoreScpForward {
     private volatile int priority;
     private volatile int status = 0;
 
-    private final Map<DicomNode, List<ForwardDestination>> destinations;
+    private final Map<ForwardDicomNode, List<ForwardDestination>> destinations;
 
     private final BasicCStoreSCP cstoreSCP = new BasicCStoreSCP("*") {
 
         @Override
         protected void store(Association as, PresentationContext pc, Attributes rq, PDVInputStream data, Attributes rsp)
             throws IOException {
+            Optional<ForwardDicomNode> sourceNode =
+                destinations.keySet().stream().filter(n -> n.getForwardAETitle().equals(as.getCalledAET())).findFirst();
+            if (!sourceNode.isPresent()) {
+                throw new IllegalStateException("Cannot find the forward AeTitle " + as.getCalledAET());
+            }
+            ForwardDicomNode fwdNode = sourceNode.get();
+            List<ForwardDestination> destList = destinations.get(fwdNode);
+            if (destList == null || destList.isEmpty()) {
+                throw new IllegalStateException("No DICOM destinations of " + fwdNode.toString());
+            }
 
-            DicomNode sourceNode = DicomNode.buildRemoteDicomNode(as);
+            DicomNode callingNode = DicomNode.buildRemoteDicomNode(as);
+            Set<DicomNode> srcNodes = fwdNode.getAcceptedSourceNodes();
             boolean valid =
-                destinations.keySet().stream()
-                    .anyMatch(n -> n.getAet().equals(sourceNode.getAet())
-                        && (!n.isValidateHostname() || n.equalsHostname(sourceNode.getHostname())));
+                srcNodes.isEmpty() || srcNodes.stream().anyMatch(n -> n.getAet().equals(callingNode.getAet())
+                    && (!n.isValidateHostname() || n.equalsHostname(callingNode.getHostname())));
             if (!valid) {
                 rsp.setInt(Tag.Status, VR.US, Status.NotAuthorized);
                 return;
@@ -67,7 +83,7 @@ public class StoreScpForward {
                 Params p = new Params(rq.getString(Tag.AffectedSOPInstanceUID), rq.getString(Tag.AffectedSOPClassUID),
                     pc.getTransferSyntax(), priority, data, as);
 
-                ForwardUtil.storeMulitpleDestination(sourceNode, destinations, p);
+                ForwardUtil.storeMulitpleDestination(fwdNode, destList, p);
 
             } catch (Exception e) {
                 throw new DicomServiceException(Status.ProcessingFailure, e);
@@ -75,19 +91,19 @@ public class StoreScpForward {
         }
     };
 
-    public StoreScpForward(DicomNode callingNode, DicomNode destinationNode) throws IOException {
-        this(null, callingNode, callingNode.getAet(), destinationNode, null);
+    public StoreScpForward(ForwardDicomNode fwdNode, DicomNode destinationNode) throws IOException {
+        this(null, fwdNode, destinationNode, null);
     }
 
-    public StoreScpForward(AdvancedParams forwardParams, DicomNode callingNode, DicomNode destinationNode)
+    public StoreScpForward(AdvancedParams forwardParams, ForwardDicomNode callingNode, DicomNode destinationNode)
         throws IOException {
-        this(forwardParams, callingNode, callingNode.getAet(), destinationNode, null);
+        this(forwardParams, callingNode, destinationNode, null);
     }
 
     /**
      * @param forwardParams
      *            the optional advanced parameters (proxy, authentication, connection and TLS) for the final destination
-     * @param callingNode
+     * @param fwdNode
      *            the calling DICOM node configuration
      * @param destinationNode
      *            the final DICOM node configuration
@@ -95,27 +111,46 @@ public class StoreScpForward {
      *            the editor for modifying attributes on the fly (can be Null)
      * @throws IOException
      */
-    public StoreScpForward(AdvancedParams forwardParams, DicomNode callingNode, String forwardAETitle,
-        DicomNode destinationNode, AttributeEditor attributesEditor) throws IOException {
+    public StoreScpForward(AdvancedParams forwardParams, ForwardDicomNode fwdNode, DicomNode destinationNode,
+        AttributeEditor attributesEditor) throws IOException {
         device.setDimseRQHandler(createServiceRegistry());
         device.addConnection(conn);
         device.addApplicationEntity(ae);
         ae.setAssociationAcceptor(true);
         ae.addConnection(conn);
 
-        ForwardDestination uniqueDestination =
-            new ForwardDestination(forwardParams, new DicomNode(forwardAETitle), destinationNode, attributesEditor);
+        DicomForwardDestination uniqueDestination =
+            new DicomForwardDestination(forwardParams, fwdNode, destinationNode, attributesEditor);
         this.destinations = new HashMap<>();
-        destinations.put(callingNode, Arrays.asList(uniqueDestination));
+        destinations.put(fwdNode, Arrays.asList(uniqueDestination));
+        initDestinations();
     }
 
-    public StoreScpForward(Map<DicomNode, List<ForwardDestination>> destinations) throws IOException {
+    public StoreScpForward(Map<ForwardDicomNode, List<ForwardDestination>> destinations) throws IOException {
         device.setDimseRQHandler(createServiceRegistry());
         device.addConnection(conn);
         device.addApplicationEntity(ae);
         ae.setAssociationAcceptor(true);
         ae.addConnection(conn);
         this.destinations = Objects.requireNonNull(destinations);
+        initDestinations();
+    }
+
+    private void initDestinations() {
+        // Stop http connection when idle
+        destinations.keySet().stream().forEach(f -> {
+            f.getCheckProcess().scheduleAtFixedRate(() -> {
+                long t = f.getActivityTimestamp();
+                if (t > 0 && System.currentTimeMillis() - t > ForwardDicomNode.MAX_IDLE_CONNECTION) {
+                    f.setActivityTimestamp(0);
+                    List<ForwardDestination> destList = destinations.get(f);
+                    if (destList != null) {
+                        destList.stream().filter(WebForwardDestination.class::isInstance)
+                            .forEach(ForwardDestination::stop);
+                    }
+                }
+            }, ForwardDicomNode.MAX_IDLE_CONNECTION, ForwardDicomNode.MAX_IDLE_CONNECTION, TimeUnit.SECONDS);
+        });
     }
 
     public final void setPriority(int priority) {

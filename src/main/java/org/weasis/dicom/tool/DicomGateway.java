@@ -13,6 +13,7 @@ import org.weasis.dicom.param.AttributeEditor;
 import org.weasis.dicom.param.DeviceListenerService;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.ForwardDestination;
+import org.weasis.dicom.param.ForwardDicomNode;
 import org.weasis.dicom.param.GatewayParams;
 import org.weasis.dicom.util.StoreScpForward;
 
@@ -25,15 +26,15 @@ public class DicomGateway {
      * 
      * @param forwardParams
      *            the optional advanced parameters (proxy, authentication, connection and TLS) for the final destination
-     * @param callingNode
+     * @param fwdNode
      *            the calling DICOM node configuration
      * @param destinationNode
      *            the final DICOM node configuration
      * @throws IOException
      */
-    public DicomGateway(AdvancedParams forwardParams, DicomNode callingNode, DicomNode destinationNode)
+    public DicomGateway(AdvancedParams forwardParams, ForwardDicomNode fwdNode, DicomNode destinationNode)
         throws IOException {
-        this(forwardParams, callingNode, callingNode.getAet(), destinationNode, null);
+        this(forwardParams, fwdNode, destinationNode, null);
     }
 
     /**
@@ -41,7 +42,7 @@ public class DicomGateway {
      * 
      * @param forwardParams
      *            the optional advanced parameters (proxy, authentication, connection and TLS) for the final destination
-     * @param callingNode
+     * @param fwdNode
      *            the calling DICOM node configuration
      * @param destinationNode
      *            the final DICOM node configuration
@@ -49,14 +50,13 @@ public class DicomGateway {
      *            the editor for modifying attributes on the fly (can be Null)
      * @throws IOException
      */
-    public DicomGateway(AdvancedParams forwardParams, DicomNode callingNode, String forwardAETitle,
-        DicomNode destinationNode, AttributeEditor attributesEditor) throws IOException {
-        this.storeSCP =
-            new StoreScpForward(forwardParams, callingNode, forwardAETitle, destinationNode, attributesEditor);
+    public DicomGateway(AdvancedParams forwardParams, ForwardDicomNode fwdNode, DicomNode destinationNode,
+        AttributeEditor attributesEditor) throws IOException {
+        this.storeSCP = new StoreScpForward(forwardParams, fwdNode, destinationNode, attributesEditor);
         this.deviceService = new DeviceListenerService(storeSCP.getDevice());
     }
 
-    public DicomGateway(Map<DicomNode, List<ForwardDestination>> destinations) throws IOException {
+    public DicomGateway(Map<ForwardDicomNode, List<ForwardDestination>> destinations) throws IOException {
         this.storeSCP = new StoreScpForward(destinations);
         this.deviceService = new DeviceListenerService(storeSCP.getDevice());
     }

@@ -7,13 +7,13 @@ import static java.time.temporal.ChronoField.MONTH_OF_YEAR;
 import static java.time.temporal.ChronoField.SECOND_OF_MINUTE;
 import static java.time.temporal.ChronoField.YEAR;
 
+import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
-import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,7 +35,7 @@ public class DateUtil {
 
     private DateUtil() {
     }
-    
+
     public static LocalDate getDicomDate(String date) {
         if (StringUtil.hasText(date)) {
             try {
@@ -70,7 +70,7 @@ public class DateUtil {
         }
         return null;
     }
-    
+
     public static LocalDateTime dateTime(LocalDate date, LocalTime time) {
         if (date == null) {
             return null;
@@ -81,17 +81,24 @@ public class DateUtil {
         return LocalDateTime.of(date, time);
     }
 
-
     public static String formatDicomDate(LocalDate date) {
         if (date != null) {
-            return DICOM_DATE.format(date);
+            try {
+                return DICOM_DATE.format(date);
+            } catch (DateTimeException e) {
+                LOGGER.error("Format date", e); //$NON-NLS-1$
+            }
         }
         return StringUtil.EMPTY_STRING;
     }
 
     public static String formatDicomTime(LocalTime time) {
         if (time != null) {
-            return DICOM_TIME.format(time);
+            try {
+                return DICOM_TIME.format(time);
+            } catch (DateTimeException e) {
+                LOGGER.error("Format time", e); //$NON-NLS-1$
+            }
         }
         return StringUtil.EMPTY_STRING;
     }

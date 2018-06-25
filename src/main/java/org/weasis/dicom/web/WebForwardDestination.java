@@ -18,6 +18,7 @@ public class WebForwardDestination extends ForwardDestination {
 
     private final ForwardDicomNode callingNode;
     private final String requestURL;
+    private final String authentication;
     private final DicomState state;
 
     private volatile StowRS stowRS;
@@ -32,9 +33,15 @@ public class WebForwardDestination extends ForwardDestination {
 
     public WebForwardDestination(ForwardDicomNode fwdNode, String requestURL, DicomProgress progress,
         AttributeEditor attributesEditor) {
+        this(fwdNode, requestURL, null, progress, attributesEditor);
+    }
+
+    public WebForwardDestination(ForwardDicomNode fwdNode, String requestURL, String authentication,
+        DicomProgress progress, AttributeEditor attributesEditor) {
         super(attributesEditor);
         this.callingNode = fwdNode;
         this.requestURL = requestURL;
+        this.authentication = authentication;
         this.state = new DicomState(progress == null ? new DicomProgress() : progress);
     }
 
@@ -50,7 +57,7 @@ public class WebForwardDestination extends ForwardDestination {
     public StowRS getStowRS() throws IOException {
         synchronized (this) {
             if (stowRS == null) {
-                this.stowRS = new StowRS(requestURL, ContentType.DICOM);
+                this.stowRS = new StowRS(requestURL, ContentType.DICOM, null, authentication);
             }
         }
         return stowRS;
@@ -63,10 +70,9 @@ public class WebForwardDestination extends ForwardDestination {
         if (s != null) {
             try {
                 String response = s.writeEndMarkers();
-                if(response == null && Status.isPending(state.getStatus())) {
-                   state.setStatus(Status.Success); 
-                }
-                else {
+                if (response == null && Status.isPending(state.getStatus())) {
+                    state.setStatus(Status.Success);
+                } else {
                     state.setMessage(response);
                 }
                 DicomState.buildMessage(state, null, null);

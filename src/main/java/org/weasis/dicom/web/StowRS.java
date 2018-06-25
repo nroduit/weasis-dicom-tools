@@ -12,6 +12,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
@@ -33,6 +34,7 @@ import org.dcm4che3.util.UIDUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.api.util.FileUtil;
+import org.weasis.core.api.util.StringUtil;
 
 public class StowRS implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(StowRS.class);
@@ -64,10 +66,23 @@ public class StowRS implements AutoCloseable {
     private final DataOutputStream out;
 
     public StowRS(String requestURL, ContentType contentType) throws IOException {
-        this(requestURL, contentType, null);
+        this(requestURL, contentType, null, null);
     }
 
-    public StowRS(String requestURL, ContentType contentType, String agentName) throws IOException {
+    /**
+     * @param requestURL
+     *            the URL of the STOW service
+     * @param contentType
+     *            the value of the type in the Content-Type HTTP property
+     * @param agentName
+     *            the value of the User-Agent HTTP property
+     * @param authentication
+     *            the user and the password for the HTTP connection if required. The string format is "user:password".
+     * @throws IOException
+     *             Exception during the POST initialization
+     */
+    public StowRS(String requestURL, ContentType contentType, String agentName, String authentication)
+        throws IOException {
         try {
             this.contentType = Objects.requireNonNull(contentType);
             URL url = new URL(requestURL);
@@ -84,6 +99,12 @@ public class StowRS implements AutoCloseable {
             httpPost.setRequestProperty("User-Agent", agentName == null ? "Weasis STOWRS" : agentName);
             httpPost.setRequestProperty("Accept",
                 contentType == ContentType.JSON ? ContentType.JSON.toString() : ContentType.XML.toString());
+
+            if (StringUtil.hasText(authentication)) {
+                // Authorization header
+                String encodedAuthorization = Base64.getEncoder().encodeToString(authentication.getBytes());
+                httpPost.setRequestProperty("Authorization", "Basic " + encodedAuthorization);
+            }
 
             out = new DataOutputStream(httpPost.getOutputStream());
         } catch (IOException e) {

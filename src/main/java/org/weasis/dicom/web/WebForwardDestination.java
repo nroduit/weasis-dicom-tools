@@ -1,6 +1,7 @@
 package org.weasis.dicom.web;
 
 import java.io.IOException;
+import java.util.Objects;
 
 import org.dcm4che3.net.Status;
 import org.slf4j.Logger;
@@ -40,7 +41,7 @@ public class WebForwardDestination extends ForwardDestination {
         DicomProgress progress, AttributeEditor attributesEditor) {
         super(attributesEditor);
         this.callingNode = fwdNode;
-        this.requestURL = requestURL;
+        this.requestURL = Objects.requireNonNull(requestURL, "requestURL cannot be null");
         this.authentication = authentication;
         this.state = new DicomState(progress == null ? new DicomProgress() : progress);
     }

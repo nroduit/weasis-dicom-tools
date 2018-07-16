@@ -71,7 +71,7 @@ public class DicomGatewayMultiDestNetTest {
         });
         List<ForwardDestination> list = new ArrayList<>();
         ForwardDicomNode fwdSrcNode = new ForwardDicomNode(destination.getAet());
-        fwdSrcNode.addAcceptedSourceNode(calling.getAet(), "localhost", true);
+        fwdSrcNode.addAcceptedSourceNode(calling.getAet(), "localhost");
         WebForwardDestination web = new WebForwardDestination(fwdSrcNode,
             "http://localhost:8080/dcm4chee-arc/aets/DCM4CHEE/rs/studies", progress, editor);
         list.add(web);

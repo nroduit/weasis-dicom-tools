@@ -6,7 +6,7 @@ import java.util.Set;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 public class ForwardDicomNode extends DicomNode {
-    public static final int MAX_IDLE_CONNECTION = 15;
+    public static final int MAX_IDLE_TIME = 15;
 
     private final ScheduledThreadPoolExecutor checkProcess;
     private final String forwardAETitle;
@@ -19,18 +19,18 @@ public class ForwardDicomNode extends DicomNode {
 
     public ForwardDicomNode(String fwdAeTitle, String fwdHostname) {
         super(fwdAeTitle, fwdHostname, null);
-        this.forwardAETitle = Objects.requireNonNull(fwdAeTitle, "fwdAeTitle must be unique and non null!");
+        this.forwardAETitle = fwdAeTitle;
         this.acceptedSourceNodes = new HashSet<>();
         this.checkProcess = new ScheduledThreadPoolExecutor(1);
         this.activityTimestamp = 0;
     }
 
     public void addAcceptedSourceNode(String srcAeTitle) {
-        addAcceptedSourceNode(srcAeTitle, null, false);
+        addAcceptedSourceNode(srcAeTitle, null);
     }
 
-    public void addAcceptedSourceNode(String srcAeTitle, String srcHostname, boolean validateSrcHostname) {
-        acceptedSourceNodes.add(new DicomNode(srcAeTitle, srcHostname, null, validateSrcHostname));
+    public void addAcceptedSourceNode(String srcAeTitle, String srcHostname) {
+        acceptedSourceNodes.add(new DicomNode(srcAeTitle, srcHostname, null, srcHostname != null));
     }
 
     public Set<DicomNode> getAcceptedSourceNodes() {

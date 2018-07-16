@@ -94,6 +94,11 @@ public class ForwardUtil {
         if (destList == null || destList.isEmpty()) {
             throw new IllegalStateException("Cannot find the DICOM destination from " + fwdNode.toString());
         }
+        // Exclude DICOMDIR
+        if ("1.2.840.10008.1.3.10".equals(p.cuid)) {
+            LOGGER.warn("Cannot send DICOMDIR {}", p.iuid);
+            return;
+        }
 
         try {
             // Reset activity timestamp during the transfer

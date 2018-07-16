@@ -137,11 +137,11 @@ public class StoreScpForward {
     }
 
     private void initDestinations() {
-        // Stop http connection when idle
+        // Stop http connection when idle and send STOW end mark 
         destinations.keySet().stream().forEach(f -> {
             f.getCheckProcess().scheduleAtFixedRate(() -> {
                 long t = f.getActivityTimestamp();
-                if (t > 0 && System.currentTimeMillis() - t > ForwardDicomNode.MAX_IDLE_CONNECTION) {
+                if (t > 0 && System.currentTimeMillis() - t > ForwardDicomNode.MAX_IDLE_TIME) {
                     f.setActivityTimestamp(0);
                     List<ForwardDestination> destList = destinations.get(f);
                     if (destList != null) {
@@ -149,7 +149,7 @@ public class StoreScpForward {
                             .forEach(ForwardDestination::stop);
                     }
                 }
-            }, ForwardDicomNode.MAX_IDLE_CONNECTION, ForwardDicomNode.MAX_IDLE_CONNECTION, TimeUnit.SECONDS);
+            }, ForwardDicomNode.MAX_IDLE_TIME, ForwardDicomNode.MAX_IDLE_TIME, TimeUnit.SECONDS);
         });
     }
 

@@ -41,13 +41,13 @@ public class DicomNode {
 
     public DicomNode(String aet, String hostname, Integer port, boolean validateHostname) {
         if (!StringUtil.hasText(aet)) {
-            throw new IllegalArgumentException("Missing AET");
+            throw new IllegalArgumentException("Missing AETitle");
         }
         if (aet.length() > 16) {
-            throw new IllegalArgumentException("AET has more than 16 characters");
+            throw new IllegalArgumentException("AETitle has more than 16 characters");
         }
         if (port != null && (port < 1 || port > 65535)) {
-            throw new IllegalArgumentException("Port out of bound");
+            throw new IllegalArgumentException("Port is out of bound");
         }
         this.aet = aet;
         this.hostname = hostname;

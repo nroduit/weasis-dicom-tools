@@ -146,6 +146,8 @@ public class StowRS implements AutoCloseable {
 
         // write dicom binary file
         Files.copy(file.toPath(), out);
+
+        serverResponse(file.getPath());
     }
 
     private void writeContentMarkers() throws IOException {
@@ -169,7 +171,7 @@ public class StowRS implements AutoCloseable {
         out.flush();
         out.close();
 
-        LOGGER.info("STOWRS: server response: {}", httpPost.getResponseMessage()); //$NON-NLS-1$
+        LOGGER.info("STOWRS end markers: server response: {}", httpPost.getResponseMessage()); //$NON-NLS-1$
         if (httpPost.getResponseCode() == HttpURLConnection.HTTP_ACCEPTED) { // Failed or Warning
             // See http://dicom.nema.org/medical/dicom/current/output/chtml/part18/sect_6.6.html#table_6.6.1-1
             StringBuilder response = new StringBuilder();
@@ -195,6 +197,8 @@ public class StowRS implements AutoCloseable {
             dos.write(buf, 0, offset);
         }
         dos.flush();
+
+        serverResponse((String) fmi.getValue(Tag.MediaStorageSOPInstanceUID));
     }
 
     public void uploadDicom(Attributes metadata, String tsuid) throws IOException {
@@ -204,6 +208,17 @@ public class StowRS implements AutoCloseable {
         DicomOutputStream dos = new DicomOutputStream(out, tsuid);
         dos.writeDataset(fmi, metadata);
         dos.flush();
+
+        serverResponse((String) metadata.getValue(Tag.SOPInstanceUID));
+    }
+
+    private void serverResponse(String uid) throws IOException {
+        int responseCode = httpPost.getResponseCode();
+        if (responseCode < HttpURLConnection.HTTP_OK || responseCode >= HttpURLConnection.HTTP_MULT_CHOICE) {
+            LOGGER.error("STOWRS upload {}: server response: {}", uid, //$NON-NLS-1$
+                responseCode);
+            throw new IOException("Cannot upload " + uid);
+        }
     }
 
     public void uploadEncapsulatedDocument(Attributes metadata, File bulkDataFile, String mimeType, String sopClassUID)
@@ -243,6 +258,8 @@ public class StowRS implements AutoCloseable {
 
             Files.copy(bulkDataFile.toPath(), out);
         }
+
+        serverResponse((String) metadata.getValue(Tag.SOPInstanceUID));
     }
 
     private static void ensureUID(Attributes attrs, int tag) {

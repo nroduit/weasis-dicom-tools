@@ -12,6 +12,8 @@ package org.weasis.dicom.op;
 
 import java.text.MessageFormat;
 
+import org.dcm4che3.data.Attributes;
+import org.dcm4che3.data.Tag;
 import org.dcm4che3.net.ApplicationEntity;
 import org.dcm4che3.net.Connection;
 import org.dcm4che3.net.Device;
@@ -97,11 +99,11 @@ public class Echo {
             try {
                 long t1 = System.currentTimeMillis();
                 storeSCU.open();
-                storeSCU.echo();
+                Attributes rsp = storeSCU.echo();
                 long t2 = System.currentTimeMillis();
                 String message = MessageFormat.format("Successful DICOM Echo. Connected from {0} to {1} in {2}ms",
                     storeSCU.getAAssociateRQ().getCallingAET(), storeSCU.getAAssociateRQ().getCalledAET(), t2 - t1);
-                return new DicomState(Status.Success, message, null);
+                return new DicomState(rsp.getInt(Tag.Status, Status.Success), message, null);
             } finally {
                 FileUtil.safeClose(storeSCU);
                 service.stop();

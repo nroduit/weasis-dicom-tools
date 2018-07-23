@@ -10,7 +10,9 @@
  *******************************************************************************/
 package org.weasis.dicom;
 
+import java.io.File;
 import java.io.FileInputStream;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,28 +35,28 @@ public class StowNetTest {
         BasicConfigurator.configure();
 
         List<String> files = new ArrayList<>();
-        files.add("/home/nicolas/Data/Downloads/stow-dcm");
-        // try {
-        // files.add(new File(getClass().getResource("mr.dcm").toURI()).getPath());
-        // } catch (URISyntaxException e) {
-        // e.printStackTrace();
-        // }
+        try {
+            files.add(new File(getClass().getResource("mr.dcm").toURI()).getPath());
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+        }
 
-        String stowService = "http://192.168.172.130:8080/dcm4chee-arc/aets/DCM4CHEE/rs/studies";
+        String stowService = "http://localhost:8080/dcm4chee-arc/aets/DCM4CHEE/rs/studies";
         String message = null;
-        
-        try (StowRS stowRS = new StowRS(stowService, ContentType.DICOM)) {
+
+        try (StowRS stowRS =
+            new StowRS(stowService, ContentType.DICOM, null, null)) {
             message = stowRS.uploadDicom(files, true);
         } catch (Exception e) {
             message = e.getMessage();
-            System.out.println("StowRS error: {}" + message);
+            System.out.println("StowRS error: " + message);
         }
         Assert.assertNull(message, message);
-        
+
         try (StowRS stowRS = new StowRS(stowService, ContentType.DICOM)) {
             DicomInputStream in = new DicomInputStream(new FileInputStream(files.get(0)));
             in.setIncludeBulkData(IncludeBulkData.URI);
-            Attributes attributes = in.readDataset(-1, Tag.PixelData); 
+            Attributes attributes = in.readDataset(-1, Tag.PixelData);
             attributes.setString(Tag.PatientName, VR.PN, "Override^Patient^Name");
             attributes.setString(Tag.PatientID, VR.LO, "ModifiedPatientID");
             attributes.setString(Tag.StudyInstanceUID, VR.UI, UIDUtils.createUID());

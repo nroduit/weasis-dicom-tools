@@ -34,7 +34,7 @@ public class CGetNetTest {
     @Test
     public void testProcess() throws IOException {
         BasicConfigurator.configure();
-        
+
         DicomProgress progress = new DicomProgress();
         progress.addProgressListener(new ProgressListener() {
 
@@ -51,8 +51,7 @@ public class CGetNetTest {
          * The following parameters must be changed to get a successful test.
          */
 
-        DicomParam[] params =
-            { new DicomParam(Tag.StudyInstanceUID, "1.2.826.0.1.3680043.11.105") };
+        DicomParam[] params = { new DicomParam(Tag.StudyInstanceUID, "1.2.826.0.1.3680043.11.111") };
         DicomNode calling = new DicomNode("WEASIS-SCU");
         DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
 

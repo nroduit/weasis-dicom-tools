@@ -99,10 +99,13 @@ public class Echo {
             try {
                 long t1 = System.currentTimeMillis();
                 storeSCU.open();
-                Attributes rsp = storeSCU.echo();
                 long t2 = System.currentTimeMillis();
-                String message = MessageFormat.format("Successful DICOM Echo. Connected from {0} to {1} in {2}ms",
-                    storeSCU.getAAssociateRQ().getCallingAET(), storeSCU.getAAssociateRQ().getCalledAET(), t2 - t1);
+                Attributes rsp = storeSCU.echo();
+                long t3 = System.currentTimeMillis();
+                String message = MessageFormat.format(
+                    "Successful DICOM Echo. Connected in {2}ms from {0} to {1}. Service execution in {3}ms.",
+                    storeSCU.getAAssociateRQ().getCallingAET(), storeSCU.getAAssociateRQ().getCalledAET(), t2 - t1,
+                    t3 - t2);
                 return new DicomState(rsp.getInt(Tag.Status, Status.Success), message, null);
             } finally {
                 FileUtil.safeClose(storeSCU);

@@ -131,11 +131,14 @@ public class CGet {
                 DicomState dcmState = getSCU.getState();
                 long t1 = System.currentTimeMillis();
                 getSCU.open();
-                getSCU.retrieve();
                 long t2 = System.currentTimeMillis();
-                String timeMsg = MessageFormat.format("Get files from {0} to {1} in {2}ms",
-                    getSCU.getAAssociateRQ().getCallingAET(), getSCU.getAAssociateRQ().getCalledAET(), t2 - t1);
+                getSCU.retrieve();
                 ServiceUtil.forceGettingAttributes(dcmState, getSCU);
+                long t3 = System.currentTimeMillis();
+                String timeMsg =
+                    MessageFormat.format("DICOM C-GET connected in {2}ms from {0} to {1}. Get files in {3}ms.",
+                        getSCU.getAAssociateRQ().getCallingAET(), getSCU.getAAssociateRQ().getCalledAET(), t2 - t1,
+                        t3 - t2);
                 return DicomState.buildMessage(dcmState, timeMsg, null);
             } catch (Exception e) {
                 LOGGER.error("getscu", e);

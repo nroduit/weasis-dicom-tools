@@ -30,7 +30,7 @@ import org.weasis.dicom.tool.DicomListener;
 public class DicomListenerNetTest {
     @Rule
     public TemporaryFolder testFolder = new TemporaryFolder();
-    
+
     @Test
     public void testProcess() {
         BasicConfigurator.configure();
@@ -77,7 +77,7 @@ public class DicomListenerNetTest {
             }
         });
 
-        String studyUID = "1.2.826.0.1.3680043.11.105";
+        String studyUID = "1.2.826.0.1.3680043.11.111";
 
         DicomState state = CGetForward.processStudy(params, params, calling, called, scpNode, progress, studyUID);
 

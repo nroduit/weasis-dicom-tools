@@ -30,7 +30,7 @@ public class ModalityWorklistNetTest {
     @Test
     public void testProcess() {
         BasicConfigurator.configure();
-        
+
         // Filter by AETitle by setting a value
         final int[] sps = { Tag.ScheduledProcedureStepSequence };
         DicomParam stationAet = new DicomParam(sps, Tag.ScheduledStationAETitle, "ADVT");
@@ -74,6 +74,9 @@ public class ModalityWorklistNetTest {
                 System.out.println(item.toString(100, 150));
             }
         }
+
+        System.out.println("DICOM Status:" + state.getStatus());
+        System.out.println(state.getMessage());
 
         // see org.dcm4che3.net.Status
         // See server log at http://dicomserver.co.uk/logs/

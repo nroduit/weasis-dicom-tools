@@ -102,11 +102,14 @@ public class CMove {
                 DicomState dcmState = moveSCU.getState();
                 long t1 = System.currentTimeMillis();
                 moveSCU.open();
-                moveSCU.retrieve();
                 long t2 = System.currentTimeMillis();
-                String timeMsg = MessageFormat.format("Move files from {0} to {1} in {2}ms",
-                    moveSCU.getAAssociateRQ().getCallingAET(), moveSCU.getAAssociateRQ().getCalledAET(), t2 - t1);
+                moveSCU.retrieve();
                 ServiceUtil.forceGettingAttributes(dcmState, moveSCU);
+                long t3 = System.currentTimeMillis();
+                String timeMsg =
+                    MessageFormat.format("DICOM C-MOVE connected in {2}ms from {0} to {1}. Sent files in {3}ms.",
+                        moveSCU.getAAssociateRQ().getCallingAET(), moveSCU.getAAssociateRQ().getCalledAET(), t2 - t1,
+                        t3 - t2);
                 return DicomState.buildMessage(dcmState, timeMsg, null);
             } catch (Exception e) {
                 LOGGER.error("movescu", e);

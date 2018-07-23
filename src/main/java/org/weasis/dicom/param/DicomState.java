@@ -100,10 +100,16 @@ public class DicomState {
         boolean hasFailed = false;
         if (p != null) {
             int failed = p.getNumberOfFailedSuboperations();
+            int warning = p.getNumberOfWarningSuboperations();
+            int remaining = p.getNumberOfRemainingSuboperations();
             if (failed > 0) {
                 hasFailed = true;
                 msg.append(String.format("%d/%d operations has failed.", failed,
                     failed + p.getNumberOfCompletedSuboperations()));
+            } else if (remaining > 0) {
+                msg.append(String.format("%d operations remains. ", remaining));
+            } else if (warning > 0) {
+                msg.append(String.format("%d operations has a warning status. ", warning));
             }
         }
         if (e != null) {
@@ -125,7 +131,7 @@ public class DicomState {
                 msg.append(StringUtil.COLON_AND_SPACE);
                 msg.append(error);
             }
-            
+
             if (!Status.isPending(s) && s != -1 && s != Status.Success && s != Status.Cancel) {
                 if (msg.length() > 0) {
                     msg.append("\n");
@@ -135,7 +141,6 @@ public class DicomState {
                 msg.append(s);
             }
         }
-        state.setMessage(msg.toString());
 
         if (!hasFailed) {
             if (timeMessage != null) {
@@ -146,6 +151,7 @@ public class DicomState {
                 state.setStatus(Status.UnableToProcess);
             }
         }
+        state.setMessage(msg.toString());
         return state;
     }
 

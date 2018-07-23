@@ -174,12 +174,14 @@ public class CStore {
                 try {
                     long t1 = System.currentTimeMillis();
                     storeSCU.open();
-                    storeSCU.sendFiles();
                     long t2 = System.currentTimeMillis();
-                    String timeMsg = MessageFormat.format("Sent files from {0} to {1} in {2}ms. Total size {3}",
-                        storeSCU.getAAssociateRQ().getCallingAET(), storeSCU.getAAssociateRQ().getCalledAET(), t2 - t1,
-                        FileUtil.formatSize(storeSCU.getTotalSize()));
+                    storeSCU.sendFiles();
                     ServiceUtil.forceGettingAttributes(dcmState, storeSCU);
+                    long t3 = System.currentTimeMillis();
+                    String timeMsg = MessageFormat.format(
+                        "DICOM C-STORE connected in {2}ms from {0} to {1}. Stored files in {3}ms. Total size {4}",
+                        storeSCU.getAAssociateRQ().getCallingAET(), storeSCU.getAAssociateRQ().getCalledAET(), t2 - t1,
+                        t3 - t2, FileUtil.formatSize(storeSCU.getTotalSize()));
                     return DicomState.buildMessage(dcmState, timeMsg, null);
                 } catch (Exception e) {
                     LOGGER.error("storescu", e);

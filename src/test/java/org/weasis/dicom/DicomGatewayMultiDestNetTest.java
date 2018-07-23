@@ -103,7 +103,7 @@ public class DicomGatewayMultiDestNetTest {
             }
         });
 
-        String studyUID = "1.2.826.0.1.3680043.11.105";
+        String studyUID = "1.2.826.0.1.3680043.11.111";
         DicomState state = CGetForward.processStudy(params, params, calling, called, destination, progress2, studyUID);
         // String seriesUID = "1.2.528.1.1001.100.3.3865.6101.93503564261.20070711142700388";
         // DicomState state = CGetForward.processSeries(params, params, calling, called, destination, progress2, seriesUID);

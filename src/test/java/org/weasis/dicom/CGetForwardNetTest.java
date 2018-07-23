@@ -58,13 +58,12 @@ public class CGetForwardNetTest {
         DicomNode calling = new DicomNode("WEASIS-SCU");
         DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
         DicomNode destination = new DicomNode("DCM4CHEE", "localhost", 11112);
-        String studyUID = "1.2.826.0.1.3680043.11.105";
+        String studyUID = "1.2.826.0.1.3680043.11.120.1";
 
         Attributes attrs = new Attributes();
         attrs.setString(Tag.PatientName, VR.PN, "Override^Patient^Name");
         attrs.setString(Tag.PatientID, VR.LO, "ModifiedPatientID");
         DefaultAttributeEditor editor = new DefaultAttributeEditor(true, attrs);
-
 
         DicomState state =
             CGetForward.processStudy(params, params, calling, called, destination, progress, studyUID, editor);

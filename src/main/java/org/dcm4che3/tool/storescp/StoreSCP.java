@@ -99,11 +99,12 @@ public class StoreSCP {
             throws IOException {
             if (authorizedCallingNodes != null && !authorizedCallingNodes.isEmpty()) {
                 DicomNode sourceNode = DicomNode.buildRemoteDicomNode(as);
-                boolean valid = authorizedCallingNodes.stream()
-                    .anyMatch(n -> n.getAet().equals(sourceNode.getAet())
-                        && (!n.isValidateHostname() || n.equalsHostname(sourceNode.getHostname())));
+                boolean valid = authorizedCallingNodes.stream().anyMatch(n -> n.getAet().equals(sourceNode.getAet())
+                    && (!n.isValidateHostname() || n.equalsHostname(sourceNode.getHostname())));
                 if (!valid) {
                     rsp.setInt(Tag.Status, VR.US, Status.NotAuthorized);
+                    LOGGER.error("Refused: not authorized (124H). Source node: {0}. SopUID: {1}", sourceNode,
+                        rq.getString(Tag.AffectedSOPInstanceUID));
                     return;
                 }
             }
@@ -140,7 +141,7 @@ public class StoreSCP {
         }
 
     };
-    
+
     /**
      * @param storageDir
      *            the base path of storage folder

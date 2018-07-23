@@ -74,6 +74,8 @@ public class StoreScpForward {
                     && (!n.isValidateHostname() || n.equalsHostname(callingNode.getHostname())));
             if (!valid) {
                 rsp.setInt(Tag.Status, VR.US, Status.NotAuthorized);
+                LOGGER.error("Refused: not authorized (124H). Source node: {0}. SopUID: {1}", callingNode,
+                    rq.getString(Tag.AffectedSOPInstanceUID));
                 return;
             }
 
@@ -137,7 +139,7 @@ public class StoreScpForward {
     }
 
     private void initDestinations() {
-        // Stop http connection when idle and send STOW end mark 
+        // Stop http connection when idle and send STOW end mark
         destinations.keySet().stream().forEach(f -> {
             f.getCheckProcess().scheduleAtFixedRate(() -> {
                 long t = f.getActivityTimestamp();

@@ -45,7 +45,7 @@ public class DicomGatewayOneDestNetTest {
         connectOptions.setMaxOpsPerformed(15);
         params.setConnectOptions(connectOptions);
 
-        ForwardDicomNode calling = new ForwardDicomNode("FWD-AET", "WEASIS-SCU");
+        ForwardDicomNode calling = new ForwardDicomNode("FWD-AET", "localhost");
         DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
         DicomNode destination = new DicomNode("DCM4CHEE", "localhost", 11112);
         DicomNode scpNode = new DicomNode("DICOMLISTENER", "localhost", 11113);
@@ -81,7 +81,7 @@ public class DicomGatewayOneDestNetTest {
             }
         });
 
-        String studyUID = "1.2.826.0.1.3680043.11.105";
+        String studyUID = "1.2.826.0.1.3680043.11.111";
 
         DicomState state = CGetForward.processStudy(params, params, calling, called, scpNode, progress, studyUID);
         // Should never happen

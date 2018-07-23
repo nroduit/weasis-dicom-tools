@@ -538,11 +538,14 @@ public class CGetForward implements AutoCloseable {
                 DicomState dcmState = forward.getState();
                 long t1 = System.currentTimeMillis();
                 forward.open();
-                forward.retrieve();
                 long t2 = System.currentTimeMillis();
-                String timeMsg = MessageFormat.format("Get files from {0} to {1} in {2}ms",
-                    forward.getAAssociateRQ().getCallingAET(), forward.getAAssociateRQ().getCalledAET(), t2 - t1);
+                forward.retrieve();
                 ServiceUtil.forceGettingAttributes(dcmState, forward);
+                long t3 = System.currentTimeMillis();
+                String timeMsg =
+                    MessageFormat.format("DICOM C-GET connected in {2}ms from {0} to {1}. Get files in {3}ms.",
+                        forward.getAAssociateRQ().getCallingAET(), forward.getAAssociateRQ().getCalledAET(), t2 - t1,
+                        t3 - t2);
                 return DicomState.buildMessage(dcmState, timeMsg, null);
             } catch (Exception e) {
                 LOGGER.error("getscu", e);

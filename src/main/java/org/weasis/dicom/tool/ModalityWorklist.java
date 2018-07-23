@@ -139,7 +139,7 @@ public class ModalityWorklist {
 
         AdvancedParams options = params == null ? new AdvancedParams() : params;
 
-        try (FindSCU findSCU = new FindSCU()){
+        try (FindSCU findSCU = new FindSCU()) {
             Connection remote = findSCU.getRemoteConnection();
             Connection conn = findSCU.getConnection();
             options.configureConnect(findSCU.getAAssociateRQ(), remote, calledNode);
@@ -163,11 +163,14 @@ public class ModalityWorklist {
                 DicomState dcmState = findSCU.getState();
                 long t1 = System.currentTimeMillis();
                 findSCU.open();
-                findSCU.query();
                 long t2 = System.currentTimeMillis();
-                String timeMsg = MessageFormat.format("C-Find from {0} to {1} in {2}ms",
-                    findSCU.getAAssociateRQ().getCallingAET(), findSCU.getAAssociateRQ().getCalledAET(), t2 - t1);
+                findSCU.query();
                 ServiceUtil.forceGettingAttributes(dcmState, findSCU);
+                long t3 = System.currentTimeMillis();
+                String timeMsg =
+                    MessageFormat.format("DICOM C-Find connected in {2}ms from {0} to {1}. Query in {3}ms.",
+                        findSCU.getAAssociateRQ().getCallingAET(), findSCU.getAAssociateRQ().getCalledAET(), t2 - t1,
+                        t3 - t2);
                 return DicomState.buildMessage(dcmState, timeMsg, null);
             } catch (Exception e) {
                 LOGGER.error("findscu", e);

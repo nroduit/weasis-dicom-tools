@@ -44,15 +44,18 @@ public class StowNetTest {
         String stowService = "http://localhost:8080/dcm4chee-arc/aets/DCM4CHEE/rs/studies";
         String message = null;
 
-        try (StowRS stowRS =
-            new StowRS(stowService, ContentType.DICOM, null, null)) {
+        // Upload files
+        try (StowRS stowRS = new StowRS(stowService, ContentType.DICOM, null, null)) {
             message = stowRS.uploadDicom(files, true);
         } catch (Exception e) {
             message = e.getMessage();
             System.out.println("StowRS error: " + message);
         }
+
+        System.out.println(message);
         Assert.assertNull(message, message);
 
+        // Upload a modify file
         try (StowRS stowRS = new StowRS(stowService, ContentType.DICOM)) {
             DicomInputStream in = new DicomInputStream(new FileInputStream(files.get(0)));
             in.setIncludeBulkData(IncludeBulkData.URI);
@@ -67,11 +70,14 @@ public class StowNetTest {
                 in.readAttributes(attributes, -1, -1);
             }
             stowRS.uploadDicom(attributes, in.getTransferSyntax());
+            // Call to end the multipart post 
             message = stowRS.writeEndMarkers();
         } catch (Exception e) {
             message = e.getMessage();
             System.out.println("StowRS error: {}" + message);
         }
+
+        System.out.println(message);
         Assert.assertNull(message, message);
     }
 

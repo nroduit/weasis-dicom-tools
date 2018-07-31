@@ -6,7 +6,7 @@
 	<artifactId>weasis-dicom-tools</artifactId>
 	<packaging>jar</packaging>
 	<name>Weasis DICOM API (based on dcm4che3)</name>
-	<version>5.13.3</version>
+	<version>5.13.4-SNAPSHOT</version>
 
 	<properties>
 		<java-version>1.8</java-version>

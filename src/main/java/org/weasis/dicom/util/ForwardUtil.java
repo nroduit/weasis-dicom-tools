@@ -89,8 +89,8 @@ public class ForwardUtil {
     private ForwardUtil() {
     }
 
-    public static void storeMulitpleDestination(ForwardDicomNode fwdNode, List<ForwardDestination> destList,
-        Params p) throws Exception {
+    public static void storeMulitpleDestination(ForwardDicomNode fwdNode, List<ForwardDestination> destList, Params p)
+        throws Exception {
         if (destList == null || destList.isEmpty()) {
             throw new IllegalStateException("Cannot find the DICOM destination from " + fwdNode.toString());
         }
@@ -215,7 +215,7 @@ public class ForwardUtil {
                     DicomNode.buildRemoteDicomNode(streamSCU.getAssociation()));
                 in = new DicomInputStream(p.getData());
                 in.setIncludeBulkData(IncludeBulkData.URI);
-                Attributes attributes = in.readDataset(-1, Tag.PixelData);
+                Attributes attributes = in.readDataset(-1, -1);
                 if (destination.getAttributesEditor().apply(attributes, context)) {
                     iuid = attributes.getString(Tag.SOPInstanceUID);
                 }
@@ -230,10 +230,6 @@ public class ForwardUtil {
                         p.getAs().abort();
                     }
                     throw new AbortException("DICOM association abort: " + context.getAbortMessage());
-                }
-                if (in.tag() == Tag.PixelData) {
-                    in.readValue(in, attributes);
-                    in.readAttributes(attributes, -1, -1);
                 }
 
                 if (copy != null) {
@@ -341,7 +337,7 @@ public class ForwardUtil {
                 AttributeEditorContext context = new AttributeEditorContext(tsuid, fwdNode, null);
                 in = new DicomInputStream(p.getData());
                 in.setIncludeBulkData(IncludeBulkData.URI);
-                Attributes attributes = in.readDataset(-1, Tag.PixelData);
+                Attributes attributes = in.readDataset(-1, -1);
                 destination.getAttributesEditor().apply(attributes, context);
 
                 if (context.getAbort() == Abort.FILE_EXCEPTION) {
@@ -355,11 +351,7 @@ public class ForwardUtil {
                     }
                     throw new AbortException("STOWRS abort: " + context.getAbortMessage());
                 }
-                if (in.tag() == Tag.PixelData) {
-                    in.readValue(in, attributes);
-                    in.readAttributes(attributes, -1, -1);
-                }
-                
+
                 if (copy != null) {
                     copy.addAll(attributes);
                 }

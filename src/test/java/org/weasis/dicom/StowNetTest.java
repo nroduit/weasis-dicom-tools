@@ -56,21 +56,18 @@ public class StowNetTest {
         Assert.assertNull(message, message);
 
         // Upload a modify file
-        try (StowRS stowRS = new StowRS(stowService, ContentType.DICOM)) {
-            DicomInputStream in = new DicomInputStream(new FileInputStream(files.get(0)));
+        try (StowRS stowRS = new StowRS(stowService, ContentType.DICOM);
+                        DicomInputStream in = new DicomInputStream(new FileInputStream(files.get(0)))) {
             in.setIncludeBulkData(IncludeBulkData.URI);
-            Attributes attributes = in.readDataset(-1, Tag.PixelData);
+            Attributes attributes = in.readDataset(-1, -1);
             attributes.setString(Tag.PatientName, VR.PN, "Override^Patient^Name");
             attributes.setString(Tag.PatientID, VR.LO, "ModifiedPatientID");
             attributes.setString(Tag.StudyInstanceUID, VR.UI, UIDUtils.createUID());
             attributes.setString(Tag.SeriesInstanceUID, VR.UI, UIDUtils.createUID());
             attributes.setString(Tag.SOPInstanceUID, VR.UI, UIDUtils.createUID());
-            if (in.tag() == Tag.PixelData) {
-                in.readValue(in, attributes);
-                in.readAttributes(attributes, -1, -1);
-            }
+
             stowRS.uploadDicom(attributes, in.getTransferSyntax());
-            // Call to end the multipart post 
+            // Call to end the multipart post
             message = stowRS.writeEndMarkers();
         } catch (Exception e) {
             message = e.getMessage();

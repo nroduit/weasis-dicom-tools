@@ -151,7 +151,7 @@ public class CGetForward implements AutoCloseable {
                                 DicomNode.buildRemoteDicomNode(streamSCU.getAssociation()));
                         in = new DicomInputStream(data);
                         in.setIncludeBulkData(IncludeBulkData.URI);
-                        Attributes attributes = in.readDataset(-1, Tag.PixelData);
+                        Attributes attributes = in.readDataset(-1, -1);
                         if (attributesEditor.apply(attributes, context)) {
                             iuid = attributes.getString(Tag.SOPInstanceUID);
                         }
@@ -162,10 +162,6 @@ public class CGetForward implements AutoCloseable {
                         } else if (context.getAbort() == Abort.CONNECTION_EXCEPTION) {
                             as.abort();
                             throw new AbortException("DICOM associtation abort. " + context.getAbortMessage());
-                        }
-                        if (in.tag() == Tag.PixelData) {
-                            in.readValue(in, attributes);
-                            in.readAttributes(attributes, -1, -1);
                         }
                         dataWriter = new DataWriterAdapter(attributes);
                     }

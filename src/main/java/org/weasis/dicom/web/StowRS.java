@@ -116,6 +116,19 @@ public class StowRS implements AutoCloseable {
             throw e;
         }
     }
+    
+    // TODO remove and use FileUtil from Weasis 3.0.2
+    public static void getAllFilesInDirectory(File directory, List<File> files, boolean recursive) {
+        File[] fList = directory.listFiles();
+        for (File f : fList) {
+            if (f.isFile()) {
+                files.add(f);
+            } else if (recursive && f.isDirectory()) {
+                getAllFilesInDirectory(f, files, recursive);
+            }
+        }
+    }
+
 
     public String uploadDicom(List<String> filesOrFolders, boolean recursive) {
         try {
@@ -123,7 +136,7 @@ public class StowRS implements AutoCloseable {
                 File file = new File(entry);
                 if (file.isDirectory()) {
                     List<File> fileList = new ArrayList<>();
-                    FileUtil.getAllFilesInDirectory(file, fileList, recursive);
+                    getAllFilesInDirectory(file, fileList, recursive);
                     for (File f : fileList) {
                         uploadFile(f);
                     }

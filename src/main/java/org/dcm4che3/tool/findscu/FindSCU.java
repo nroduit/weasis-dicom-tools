@@ -48,6 +48,7 @@ import java.text.DecimalFormat;
 import java.util.EnumSet;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.xml.XMLConstants;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Templates;
 import javax.xml.transform.TransformerFactory;
@@ -122,7 +123,7 @@ public class FindSCU implements AutoCloseable {
         }
     }
 
-    private static SAXTransformerFactory saxtf;
+    private SAXTransformerFactory saxtf;
 
     private final Device device = new Device("findscu");
     private final ApplicationEntity ae = new ApplicationEntity("FINDSCU");
@@ -405,6 +406,7 @@ public class FindSCU implements AutoCloseable {
         SAXTransformerFactory tf = saxtf;
         if (tf == null) {
             saxtf = tf = (SAXTransformerFactory) TransformerFactory.newInstance();
+            tf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
         }
         if (xsltFile == null) {
             return tf.newTransformerHandler();

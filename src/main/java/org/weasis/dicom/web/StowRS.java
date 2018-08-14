@@ -95,7 +95,7 @@ public class StowRS implements AutoCloseable {
             httpPost.setConnectTimeout(5000);
             httpPost.setReadTimeout(5000);
             httpPost.setRequestProperty("Content-Type", //$NON-NLS-1$
-                "multipart/related; type=" + contentType + "; boundary=" + MULTIPART_BOUNDARY); //$NON-NLS-1$
+                "multipart/related; type=\"" + contentType + "\"; boundary=" + MULTIPART_BOUNDARY); //$NON-NLS-1$
             httpPost.setRequestProperty("User-Agent", agentName == null ? "Weasis STOWRS" : agentName);
             httpPost.setRequestProperty("Accept",
                 contentType == ContentType.JSON ? ContentType.JSON.toString() : ContentType.XML.toString());

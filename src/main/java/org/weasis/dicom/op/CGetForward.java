@@ -13,6 +13,7 @@ import org.dcm4che3.data.ElementDictionary;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
 import org.dcm4che3.data.VR;
+import org.dcm4che3.imageio.codec.Decompressor;
 import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.io.DicomInputStream.IncludeBulkData;
 import org.dcm4che3.net.ApplicationEntity;
@@ -49,6 +50,7 @@ import org.weasis.dicom.param.DeviceOpService;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
+import org.weasis.dicom.util.ForwardUtil;
 import org.weasis.dicom.util.ServiceUtil;
 import org.weasis.dicom.util.ServiceUtil.ProgressStatus;
 import org.weasis.dicom.util.StoreFromStreamSCU;
@@ -143,13 +145,14 @@ public class CGetForward implements AutoCloseable {
                         throw new IllegalStateException("Association not ready for transfer.");
                     }
                     DataWriter dataWriter;
-                    if (attributesEditor == null) {
+                    String supportedTsuid = ForwardUtil.selectTransferSyntax(streamSCU.getAssociation(), cuid, tsuid);
+                    if (attributesEditor == null && supportedTsuid.equals(tsuid)) {
                         dataWriter = new InputStreamDataWriter(data);
                     } else {
                         AttributeEditorContext context =
                             new AttributeEditorContext(tsuid, DicomNode.buildRemoteDicomNode(as),
                                 DicomNode.buildRemoteDicomNode(streamSCU.getAssociation()));
-                        in = new DicomInputStream(data);
+                        in = new DicomInputStream(data, tsuid);
                         in.setIncludeBulkData(IncludeBulkData.URI);
                         Attributes attributes = in.readDataset(-1, -1);
                         if (attributesEditor.apply(attributes, context)) {
@@ -162,6 +165,10 @@ public class CGetForward implements AutoCloseable {
                         } else if (context.getAbort() == Abort.CONNECTION_EXCEPTION) {
                             as.abort();
                             throw new AbortException("DICOM associtation abort. " + context.getAbortMessage());
+                        }
+
+                        if (!supportedTsuid.equals(tsuid)) {
+                            Decompressor.decompress(attributes, tsuid);
                         }
                         dataWriter = new DataWriterAdapter(attributes);
                     }

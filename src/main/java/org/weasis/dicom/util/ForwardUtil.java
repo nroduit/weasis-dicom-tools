@@ -3,7 +3,6 @@ package org.weasis.dicom.util;
 import java.io.File;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
@@ -213,7 +212,7 @@ public class ForwardUtil {
             } else {
                 AttributeEditorContext context = new AttributeEditorContext(tsuid, sourceNode,
                     DicomNode.buildRemoteDicomNode(streamSCU.getAssociation()));
-                in = new DicomInputStream(p.getData());
+                in = new DicomInputStream(p.getData(), tsuid);
                 in.setIncludeBulkData(IncludeBulkData.URI);
                 Attributes attributes = in.readDataset(-1, -1);
                 if (destination.getAttributesEditor().apply(attributes, context)) {
@@ -236,11 +235,8 @@ public class ForwardUtil {
                     copy.addAll(attributes);
                 }
 
-                LOGGER.debug("Orginal blulkdata: {}", Arrays.toString(in.getBulkDataFiles().toArray()));
                 if (!supportedTsuid.equals(tsuid)) {
                     Decompressor.decompress(attributes, tsuid);
-                    LOGGER.debug("After decompression, blulkdata: {}",
-                        Arrays.toString(in.getBulkDataFiles().toArray()));
                 }
                 dataWriter = new DataWriterAdapter(attributes);
             }
@@ -335,7 +331,7 @@ public class ForwardUtil {
                 }
             } else {
                 AttributeEditorContext context = new AttributeEditorContext(tsuid, fwdNode, null);
-                in = new DicomInputStream(p.getData());
+                in = new DicomInputStream(p.getData(), tsuid);
                 in.setIncludeBulkData(IncludeBulkData.URI);
                 Attributes attributes = in.readDataset(-1, -1);
                 destination.getAttributesEditor().apply(attributes, context);

@@ -21,6 +21,7 @@ import org.dcm4che3.net.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.api.util.FileUtil;
+import org.weasis.dicom.param.AttributeEditor;
 import org.weasis.dicom.param.AttributeEditorContext;
 import org.weasis.dicom.param.AttributeEditorContext.Abort;
 import org.weasis.dicom.param.DicomForwardDestination;
@@ -206,8 +207,9 @@ public class ForwardUtil {
             String tsuid = p.getTsuid();
             String iuid = p.getIuid();
             String supportedTsuid = selectTransferSyntax(streamSCU.getAssociation(), p.getCuid(), tsuid);
+            AttributeEditor editor = destination.getAttributesEditor();
 
-            if (copy == null && destination.getAttributesEditor() == null && supportedTsuid.equals(tsuid)) {
+            if (copy == null && editor == null && supportedTsuid.equals(tsuid)) {
                 dataWriter = new InputStreamDataWriter(p.getData());
             } else {
                 AttributeEditorContext context = new AttributeEditorContext(tsuid, sourceNode,
@@ -215,7 +217,7 @@ public class ForwardUtil {
                 in = new DicomInputStream(p.getData(), tsuid);
                 in.setIncludeBulkData(IncludeBulkData.URI);
                 Attributes attributes = in.readDataset(-1, -1);
-                if (destination.getAttributesEditor().apply(attributes, context)) {
+                if (editor != null && editor.apply(attributes, context)) {
                     iuid = attributes.getString(Tag.SOPInstanceUID);
                 }
 
@@ -282,13 +284,14 @@ public class ForwardUtil {
             String tsuid = p.getTsuid();
             String iuid = p.getIuid();
             String supportedTsuid = selectTransferSyntax(streamSCU.getAssociation(), p.getCuid(), tsuid);
-            if (destination.getAttributesEditor() == null && supportedTsuid.equals(tsuid)) {
+            AttributeEditor editor = destination.getAttributesEditor();
+            if (editor == null && supportedTsuid.equals(tsuid)) {
                 dataWriter = new DataWriterAdapter(copy);
             } else {
                 AttributeEditorContext context = new AttributeEditorContext(tsuid, fwdNode,
                     DicomNode.buildRemoteDicomNode(streamSCU.getAssociation()));
                 Attributes attributes = new Attributes(copy);
-                if (destination.getAttributesEditor().apply(attributes, context)) {
+                if (editor != null && editor.apply(attributes, context)) {
                     iuid = attributes.getString(Tag.SOPInstanceUID);
                 }
 

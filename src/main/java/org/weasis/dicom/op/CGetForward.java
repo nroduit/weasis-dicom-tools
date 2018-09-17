@@ -155,7 +155,7 @@ public class CGetForward implements AutoCloseable {
                         in = new DicomInputStream(data, tsuid);
                         in.setIncludeBulkData(IncludeBulkData.URI);
                         Attributes attributes = in.readDataset(-1, -1);
-                        if (attributesEditor.apply(attributes, context)) {
+                        if (attributesEditor != null && attributesEditor.apply(attributes, context)) {
                             iuid = attributes.getString(Tag.SOPInstanceUID);
                         }
 

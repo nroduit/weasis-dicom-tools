@@ -9,6 +9,8 @@ This project replaces [weasis-dicom-operations](https://github.com/nroduit/weasi
 
 **Getting started**: [see the test classes](https://github.com/nroduit/weasis-dicom-tools/tree/master/src/test/java/org/weasis/dicom)
 
+## [Release History](CHANGELOG.md)
+
 ## Build weasis-dicom-tools ##
 
 Prerequisites: JDK 8 and Maven 3

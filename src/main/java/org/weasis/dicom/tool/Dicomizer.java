@@ -40,11 +40,8 @@ public class Dicomizer {
         attrs.setValue(Tag.EncapsulatedDocument, VR.OB, bulk);
         attrs.setString(Tag.MIMETypeOfEncapsulatedDocument, VR.LO, "application/pdf");
         Attributes fmi = attrs.createFileMetaInformation(UID.ExplicitVRLittleEndian);
-        DicomOutputStream dos = new DicomOutputStream(dcmFile);
-        try {
+        try (DicomOutputStream dos = new DicomOutputStream(dcmFile)) {
             dos.writeDataset(fmi, attrs);
-        } finally {
-            dos.close();
         }
     }
 
@@ -65,7 +62,6 @@ public class Dicomizer {
                         DicomOutputStream dos = new DicomOutputStream(dcmFile);) {
             ensureString(attrs, Tag.SOPClassUID, VR.UI,
                 mpeg ? UID.VideoPhotographicImageStorage : UID.VLPhotographicImageStorage);
-            ensureString(attrs, Tag.TransferSyntaxUID, VR.UI, mpeg ? UID.MPEG2 : UID.JPEGBaseline1);
 
             ensureString(attrs, Tag.SpecificCharacterSet, VR.CS, "ISO_IR 192");// UTF-8
             ensureUID(attrs, Tag.StudyInstanceUID);
@@ -75,7 +71,7 @@ public class Dicomizer {
             readPixelHeader(p, attrs, jpgInput, mpeg);
 
             setCreationDate(attrs);
-            Attributes fmi = attrs.createFileMetaInformation(attrs.getString(Tag.TransferSyntaxUID));
+            Attributes fmi = attrs.createFileMetaInformation( mpeg ? UID.MPEG2 : UID.JPEGBaseline1);
 
             dos.writeDataset(fmi, attrs);
             dos.writeHeader(Tag.PixelData, VR.OB, -1);

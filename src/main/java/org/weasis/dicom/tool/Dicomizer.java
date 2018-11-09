@@ -1,10 +1,11 @@
 package org.weasis.dicom.tool;
 
 import java.io.BufferedInputStream;
-import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.Arrays;
 import java.util.Date;
 
 import org.dcm4che3.data.Attributes;
@@ -20,10 +21,12 @@ import org.dcm4che3.util.StreamUtils;
 import org.dcm4che3.util.UIDUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.weasis.core.api.util.FileUtil;
 
 public class Dicomizer {
     private static final Logger LOGGER = LoggerFactory.getLogger(Dicomizer.class);
+    
+    private static final int INIT_BUFFER_SIZE = 8192;
+    private static final int MAX_BUFFER_SIZE = 10485768; // 10MiB
 
     private Dicomizer() {
     }
@@ -58,69 +61,68 @@ public class Dicomizer {
         Parameters p = new Parameters();
         p.fileLength = (int) jpgFile.length();
 
-        try (DataInputStream jpgInput = new DataInputStream(new BufferedInputStream(new FileInputStream(jpgFile)));
-                        DicomOutputStream dos = new DicomOutputStream(dcmFile);) {
-            ensureString(attrs, Tag.SOPClassUID, VR.UI,
-                mpeg ? UID.VideoPhotographicImageStorage : UID.VLPhotographicImageStorage);
-
-            ensureString(attrs, Tag.SpecificCharacterSet, VR.CS, "ISO_IR 192");// UTF-8
-            ensureUID(attrs, Tag.StudyInstanceUID);
-            ensureUID(attrs, Tag.SeriesInstanceUID);
-            ensureUID(attrs, Tag.SOPInstanceUID);
-
-            readPixelHeader(p, attrs, jpgInput, mpeg);
-
-            setCreationDate(attrs);
-            Attributes fmi = attrs.createFileMetaInformation( mpeg ? UID.MPEG2 : UID.JPEGBaseline1);
-
-            dos.writeDataset(fmi, attrs);
-            dos.writeHeader(Tag.PixelData, VR.OB, -1);
-            dos.writeHeader(Tag.Item, null, 0);
-
-            if (noAPPn && p.jpegHeader != null) {
-                int off = p.jpegHeader.offsetAfterAPP();
-                dos.writeHeader(Tag.Item, null, (p.fileLength - off + 4) & ~1);
-                dos.write((byte) -1);
-                dos.write((byte) JPEG.SOI);
-                dos.write((byte) -1);
-                dos.write(p.buffer, off, p.realBufferLength - off);
-            } else {
-                dos.writeHeader(Tag.Item, null, (p.fileLength + 1) & ~1);
-                dos.write(p.buffer, 0, p.realBufferLength);
+        try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(jpgFile))) {
+            if (!readPixelHeader(p, attrs, bis, mpeg)) {
+                throw new IOException("Cannot read the header of " + jpgFile.getPath());
             }
+            
+            int itemLen = p.fileLength;
+            try (DicomOutputStream dos = new DicomOutputStream(dcmFile)) {
+                ensureString(attrs, Tag.SpecificCharacterSet, VR.CS, "ISO_IR 192");// UTF-8
+                ensureUID(attrs, Tag.StudyInstanceUID);
+                ensureUID(attrs, Tag.SeriesInstanceUID);
+                ensureUID(attrs, Tag.SOPInstanceUID);
 
-            byte[] buf = new byte[FileUtil.FILE_BUFFER];
-            int r;
-            while ((r = jpgInput.read(buf)) > 0) {
-                dos.write(buf, 0, r);
+                setCreationDate(attrs);
+                
+                dos.writeDataset(attrs.createFileMetaInformation(mpeg ? UID.MPEG2 : UID.JPEGBaseline1), attrs);
+                dos.writeHeader(Tag.PixelData, VR.OB, -1);
+                dos.writeHeader(Tag.Item, null, 0);
+                if (p.jpegHeader != null && noAPPn) {
+                    int offset = p.jpegHeader.offsetAfterAPP();
+                    itemLen -= offset - 3;
+                    dos.writeHeader(Tag.Item, null, (itemLen + 1) & ~1);
+                    dos.write((byte) -1);
+                    dos.write((byte) JPEG.SOI);
+                    dos.write((byte) -1);
+                    dos.write(p.buffer, offset, p.realBufferLength - offset);
+                } else {
+                    dos.writeHeader(Tag.Item, null, (itemLen + 1) & ~1);
+                    dos.write(p.buffer, 0, p.realBufferLength);
+                }
+                StreamUtils.copy(bis, dos, p.buffer);
+                if ((itemLen & 1) != 0) {
+                    dos.write(0);
+                }
+                dos.writeHeader(Tag.SequenceDelimitationItem, null, 0);
             }
-
-            if ((p.fileLength & 1) != 0) {
-                dos.write(0);
-            }
-
-            dos.writeHeader(Tag.SequenceDelimitationItem, null, 0);
 
         } catch (Exception e) {
             LOGGER.error("Building {}", mpeg ? "mpeg" : "jpg", e);
         }
     }
 
-    private static void readPixelHeader(Parameters p, Attributes metadata, DataInputStream jpgInput, boolean mpeg)
-        throws IOException {
-
-        int bLength = p.buffer.length;
-        int streamLength = StreamUtils.readAvailable(jpgInput, p.buffer, 0, bLength);
-        if(streamLength < p.realBufferLength) {
-            p.realBufferLength = streamLength;
+    private static boolean readPixelHeader(Parameters p, Attributes metadata, InputStream in, boolean mpeg) throws IOException {
+        int grow = INIT_BUFFER_SIZE;
+        while (p.realBufferLength == p.buffer.length && p.realBufferLength < MAX_BUFFER_SIZE) {
+            grow += p.realBufferLength;
+            p.buffer = Arrays.copyOf(p.buffer, grow);
+            p.realBufferLength += StreamUtils.readAvailable(in, p.buffer, p.realBufferLength, p.buffer.length - p.realBufferLength);
+            boolean jpgHeader;
+            if (mpeg) {
+                MPEGHeader mpegHeader = new MPEGHeader(p.buffer);
+                jpgHeader = mpegHeader.toAttributes(metadata, p.fileLength) != null;
+            } else {
+                p.jpegHeader = new JPEGHeader(p.buffer, JPEG.SOS);
+                jpgHeader = p.jpegHeader.toAttributes(metadata) != null;
+            }
+            if (jpgHeader) {
+                ensureString(metadata, Tag.SOPClassUID, VR.UI,
+                    mpeg ? UID.VideoPhotographicImageStorage : UID.VLPhotographicImageStorage);
+                return true;
+            }
         }
-        if (mpeg) {
-            MPEGHeader mpegHeader = new MPEGHeader(p.buffer);
-            mpegHeader.toAttributes(metadata, p.fileLength);
-        } else {
-            p.jpegHeader = new JPEGHeader(p.buffer, JPEG.SOS);
-            p.jpegHeader.toAttributes(metadata);
-        }
+        return false;
     }
 
     private static void setCreationDate(Attributes attrs) {
@@ -142,9 +144,9 @@ public class Dicomizer {
     }
 
     private static class Parameters {
-        int realBufferLength = 16384;
-        byte[] buffer = new byte[16384];
+        int realBufferLength = 0;
+        byte[] buffer = {};
         int fileLength = 0;
         JPEGHeader jpegHeader;
-    }
+    }    
 }

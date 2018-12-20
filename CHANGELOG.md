@@ -1,5 +1,17 @@
 # Changelog
 
+## [v5.15.0](https://github.com/nroduit/weasis-dicom-tools/tree/v5.15.0) (2018-12-20)
+
+[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.14.1...v5.15.0)
+
+**Implemented enhancements:**
+
+- Update to dcm4che 5.15.0 [\#10](https://github.com/nroduit/weasis-dicom-tools/issues/10)
+
+**Fixed bugs:**
+
+- Cannot dicomize some jpeg images [\#9](https://github.com/nroduit/weasis-dicom-tools/issues/9) [[Priority: High](https://github.com/nroduit/weasis-dicom-tools/labels/Priority:%20High)]
+
 ## [v5.14.1](https://github.com/nroduit/weasis-dicom-tools/tree/v5.14.1) (2018-11-02)
 
 [Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/5.13.5...v5.14.1)

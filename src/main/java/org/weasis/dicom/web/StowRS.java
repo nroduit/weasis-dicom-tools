@@ -14,9 +14,12 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Map.Entry;
 
 import javax.json.Json;
 import javax.json.stream.JsonGenerator;
@@ -76,12 +79,12 @@ public class StowRS implements AutoCloseable {
      *            the value of the type in the Content-Type HTTP property
      * @param agentName
      *            the value of the User-Agent HTTP property
-     * @param authentication
-     *            the user and the password for the HTTP connection if required. The string format is "user:password".
+     * @param headers
+     *            some additional header properties.
      * @throws IOException
      *             Exception during the POST initialization
      */
-    public StowRS(String requestURL, ContentType contentType, String agentName, String authentication)
+    public StowRS(String requestURL, ContentType contentType, String agentName, Map<String, String> headers)
         throws IOException {
         try {
             this.contentType = Objects.requireNonNull(contentType);
@@ -100,10 +103,11 @@ public class StowRS implements AutoCloseable {
             httpPost.setRequestProperty("Accept",
                 contentType == ContentType.JSON ? ContentType.JSON.toString() : ContentType.XML.toString());
 
-            if (StringUtil.hasText(authentication)) {
-                // Authorization header
-                String encodedAuthorization = Base64.getEncoder().encodeToString(authentication.getBytes());
-                httpPost.setRequestProperty("Authorization", "Basic " + encodedAuthorization);
+            if (headers != null && !headers.isEmpty()) {
+                for (Iterator<Entry<String, String>> iter = headers.entrySet().iterator(); iter.hasNext();) {
+                    Entry<String, String> element = iter.next();
+                    httpPost.addRequestProperty(element.getKey(), element.getValue());
+                }
             }
 
             out = new DataOutputStream(httpPost.getOutputStream());

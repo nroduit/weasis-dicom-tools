@@ -1,6 +1,7 @@
 package org.weasis.dicom.web;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Objects;
 
 import org.dcm4che3.net.Status;
@@ -19,7 +20,7 @@ public class WebForwardDestination extends ForwardDestination {
 
     private final ForwardDicomNode callingNode;
     private final String requestURL;
-    private final String authentication;
+    private final Map<String, String> headers;
     private final DicomState state;
 
     private volatile StowRS stowRS;
@@ -37,12 +38,12 @@ public class WebForwardDestination extends ForwardDestination {
         this(fwdNode, requestURL, null, progress, attributesEditor);
     }
 
-    public WebForwardDestination(ForwardDicomNode fwdNode, String requestURL, String authentication,
+    public WebForwardDestination(ForwardDicomNode fwdNode, String requestURL, Map<String, String> headers,
         DicomProgress progress, AttributeEditor attributesEditor) {
         super(attributesEditor);
         this.callingNode = fwdNode;
         this.requestURL = Objects.requireNonNull(requestURL, "requestURL cannot be null");
-        this.authentication = authentication;
+        this.headers = headers;
         this.state = new DicomState(progress == null ? new DicomProgress() : progress);
     }
 
@@ -58,7 +59,7 @@ public class WebForwardDestination extends ForwardDestination {
     public StowRS getStowRS() throws IOException {
         synchronized (this) {
             if (stowRS == null) {
-                this.stowRS = new StowRS(requestURL, ContentType.DICOM, null, authentication);
+                this.stowRS = new StowRS(requestURL, ContentType.DICOM, null, headers);
             }
         }
         return stowRS;

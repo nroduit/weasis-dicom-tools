@@ -95,8 +95,8 @@ public class StowRS implements AutoCloseable {
             httpPost.setDoOutput(true);// indicates POST method
             httpPost.setDoInput(true);
             httpPost.setRequestMethod("POST");
-            httpPost.setConnectTimeout(5000);
-            httpPost.setReadTimeout(5000);
+            httpPost.setConnectTimeout(10000);
+            httpPost.setReadTimeout(60000);
             httpPost.setRequestProperty("Content-Type", //$NON-NLS-1$
                 "multipart/related; type=\"" + contentType + "\"; boundary=" + MULTIPART_BOUNDARY); //$NON-NLS-1$
             httpPost.setRequestProperty("User-Agent", agentName == null ? "Weasis STOWRS" : agentName);
@@ -106,7 +106,7 @@ public class StowRS implements AutoCloseable {
             if (headers != null && !headers.isEmpty()) {
                 for (Iterator<Entry<String, String>> iter = headers.entrySet().iterator(); iter.hasNext();) {
                     Entry<String, String> element = iter.next();
-                    httpPost.addRequestProperty(element.getKey(), element.getValue());
+                    httpPost.setRequestProperty(element.getKey(), element.getValue());
                 }
             }
 
@@ -121,26 +121,13 @@ public class StowRS implements AutoCloseable {
         }
     }
     
-    // TODO remove and use FileUtil from Weasis 3.0.2
-    public static void getAllFilesInDirectory(File directory, List<File> files, boolean recursive) {
-        File[] fList = directory.listFiles();
-        for (File f : fList) {
-            if (f.isFile()) {
-                files.add(f);
-            } else if (recursive && f.isDirectory()) {
-                getAllFilesInDirectory(f, files, recursive);
-            }
-        }
-    }
-
-
     public String uploadDicom(List<String> filesOrFolders, boolean recursive) {
         try {
             for (String entry : filesOrFolders) {
                 File file = new File(entry);
                 if (file.isDirectory()) {
                     List<File> fileList = new ArrayList<>();
-                    getAllFilesInDirectory(file, fileList, recursive);
+                    FileUtil.getAllFilesInDirectory(file, fileList, recursive);
                     for (File f : fileList) {
                         uploadFile(f);
                     }
@@ -186,8 +173,11 @@ public class StowRS implements AutoCloseable {
         out.flush();
         out.close();
 
-        LOGGER.info("STOWRS end markers: server response: {}", httpPost.getResponseMessage()); //$NON-NLS-1$
-        if (httpPost.getResponseCode() == HttpURLConnection.HTTP_ACCEPTED) { // Failed or Warning
+        if (httpPost.getResponseCode() == HttpURLConnection.HTTP_OK) {
+            LOGGER.info("STOWRS end markers: server response message: HTTP Status-Code 200: OK."); //$NON-NLS-1$
+        }
+        else {
+            LOGGER.warn("STOWRS end markers: server response message: {}", httpPost.getResponseMessage()); //$NON-NLS-1$
             // See http://dicom.nema.org/medical/dicom/current/output/chtml/part18/sect_6.6.html#table_6.6.1-1
             StringBuilder response = new StringBuilder();
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(httpPost.getInputStream()))) {

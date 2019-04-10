@@ -51,15 +51,12 @@ import org.dcm4che3.util.StringUtils;
  */
 public class RelatedGeneralSOPClasses {
 
-    private final HashMap<String, CommonExtendedNegotiation> commonExtNegs =
-        new HashMap<String, CommonExtendedNegotiation>();
+    private final HashMap<String, CommonExtendedNegotiation> commonExtNegs = new HashMap<>();
 
     public void init(Properties props) {
         for (String cuid : props.stringPropertyNames()) {
-            commonExtNegs.put(
-                cuid,
-                new CommonExtendedNegotiation(cuid, UID.StorageServiceClass, StringUtils.split(props.getProperty(cuid),
-                    ',')));
+            commonExtNegs.put(cuid, new CommonExtendedNegotiation(cuid, UID.StorageServiceClass,
+                StringUtils.split(props.getProperty(cuid), ',')));
         }
     }
 

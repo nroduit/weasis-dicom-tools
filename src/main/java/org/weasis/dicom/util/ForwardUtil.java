@@ -33,6 +33,7 @@ import org.weasis.dicom.web.StowRS;
 import org.weasis.dicom.web.WebForwardDestination;
 
 public class ForwardUtil {
+    private static final String ERROR_WHEN_FORWARDING = "Error when forwarding to the final destination";
     private static final Logger LOGGER = LoggerFactory.getLogger(ForwardUtil.class);
 
     public static final class Params {
@@ -250,7 +251,7 @@ public class ForwardUtil {
                 ProgressStatus.FAILED, streamSCU.getNumberOfSuboperations());
             throw e;
         } catch (Exception e) {
-            LOGGER.error("Error when forwarding to the final destination", e);
+            LOGGER.error(ERROR_WHEN_FORWARDING, e);
             ServiceUtil.notifyProgession(streamSCU.getState(), p.getIuid(), p.getCuid(), Status.ProcessingFailure,
                 ProgressStatus.FAILED, streamSCU.getNumberOfSuboperations());
         } finally {
@@ -314,7 +315,7 @@ public class ForwardUtil {
                 ProgressStatus.FAILED, streamSCU.getNumberOfSuboperations());
             throw e;
         } catch (Exception e) {
-            LOGGER.error("Error when forwarding to the final destination", e);
+            LOGGER.error(ERROR_WHEN_FORWARDING, e);
             ServiceUtil.notifyProgession(streamSCU.getState(), p.getIuid(), p.getCuid(), Status.ProcessingFailure,
                 ProgressStatus.FAILED, streamSCU.getNumberOfSuboperations());
         }
@@ -364,7 +365,7 @@ public class ForwardUtil {
                 ProgressStatus.FAILED, 0);
             throw e;
         } catch (Exception e) {
-            LOGGER.error("Error when forwarding to the final destination", e);
+            LOGGER.error(ERROR_WHEN_FORWARDING, e);
             ServiceUtil.notifyProgession(destination.getState(), p.getIuid(), p.getCuid(), Status.ProcessingFailure,
                 ProgressStatus.FAILED, 0);
         } finally {
@@ -400,7 +401,7 @@ public class ForwardUtil {
                 ProgressStatus.FAILED, 0);
             throw e;
         } catch (Exception e) {
-            LOGGER.error("Error when forwarding to the final destination", e);
+            LOGGER.error(ERROR_WHEN_FORWARDING, e);
             ServiceUtil.notifyProgession(destination.getState(), p.getIuid(), p.getCuid(), Status.ProcessingFailure,
                 ProgressStatus.FAILED, 0);
         }

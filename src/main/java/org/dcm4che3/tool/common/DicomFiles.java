@@ -41,6 +41,7 @@ package org.dcm4che3.tool.common;
 import java.io.File;
 import java.util.List;
 
+import javax.xml.XMLConstants;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
@@ -85,7 +86,9 @@ public abstract class DicomFiles {
             try {
                 SAXParser p = saxParser;
                 if (p == null) {
-                    saxParser = p = SAXParserFactory.newInstance().newSAXParser();
+                    SAXParserFactory factory = SAXParserFactory.newInstance();
+                    factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+                    saxParser = p = factory.newSAXParser();
                 }
                 Attributes ds = new Attributes();
                 ContentHandlerAdapter ch = new ContentHandlerAdapter(ds);

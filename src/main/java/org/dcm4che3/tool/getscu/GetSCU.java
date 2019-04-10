@@ -80,7 +80,7 @@ public class GetSCU implements AutoCloseable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GetSCU.class);
 
-    public static enum InformationModel {
+    public enum InformationModel {
 
         PatientRoot(UID.PatientRootQueryRetrieveInformationModelGET, "STUDY"),
         StudyRoot(UID.StudyRootQueryRetrieveInformationModelGET, "STUDY"),

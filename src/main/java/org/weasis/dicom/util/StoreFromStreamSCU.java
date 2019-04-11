@@ -55,12 +55,58 @@ public class StoreFromStreamSCU {
         @Override
         public void onDimseRSP(Association as, Attributes cmd, Attributes data) {
             super.onDimseRSP(as, cmd, data);
-            StoreFromStreamSCU.this.onCStoreRSP(cmd);
+            onCStoreRSP(cmd);
 
             DicomProgress progress = state.getProgress();
             if (progress != null) {
                 progress.setAttributes(cmd);
             }
+        }
+        
+        /**
+         * @see <a
+         *      href="ERROR CODE STATUS">https://github.com/dcm4che/dcm4che/blob/master/dcm4che-net/src/main/java/org/dcm4che3/net/Status.java</a>
+         */
+        private void onCStoreRSP(Attributes cmd) {
+            int status = cmd.getInt(Tag.Status, -1);
+            state.setStatus(status);
+            ProgressStatus ps;
+
+            switch (status) {
+                case Status.Success:
+                    ps = ProgressStatus.COMPLETED;
+                    break;
+                case Status.CoercionOfDataElements:
+                case Status.ElementsDiscarded:
+
+                case Status.DataSetDoesNotMatchSOPClassWarning:
+                    ps = ProgressStatus.WARNING;
+                    if (lastStatusCode != status && nbStatusLog < 3) {
+                        nbStatusLog++;
+                        lastStatusCode = status;
+                        if (LOGGER.isDebugEnabled()) {
+                            LOGGER.warn("Received C-STORE-RSP with Status {}H{}", TagUtils.shortToHexString(status),
+                                "\r\n" + cmd.toString());
+                        } else {
+                            LOGGER.warn("Received C-STORE-RSP with Status {}H", TagUtils.shortToHexString(status));
+                        }
+                    }
+                    break;
+
+                default:
+                    ps = ProgressStatus.FAILED;
+                    if (lastStatusCode != status && nbStatusLog < 3) {
+                        nbStatusLog++;
+                        lastStatusCode = status;
+                        if (LOGGER.isDebugEnabled()) {
+                            LOGGER.error("Received C-STORE-RSP with Status {}H{}", TagUtils.shortToHexString(status),
+                                "\r\n" + cmd.toString());
+                        } else {
+                            LOGGER.error("Received C-STORE-RSP with Status {}H", TagUtils.shortToHexString(status));
+                        }
+                    }
+            }
+            ServiceUtil.notifyProgession(state.getProgress(), cmd, ps, numberOfSuboperations);
         }
     };
 
@@ -131,7 +177,7 @@ public class StoreFromStreamSCU {
         relExtNeg = enable;
     }
 
-    public boolean addData(String cuid, String tsuid) throws IOException {
+    public boolean addData(String cuid, String tsuid) {
         if (cuid == null || tsuid == null) {
             return false;
         }
@@ -176,51 +222,7 @@ public class StoreFromStreamSCU {
         return as;
     }
 
-    /**
-     * @see <a
-     *      href="ERROR CODE STATUS">https://github.com/dcm4che/dcm4che/blob/master/dcm4che-net/src/main/java/org/dcm4che3/net/Status.java</a>
-     */
-    private void onCStoreRSP(Attributes cmd) {
-        int status = cmd.getInt(Tag.Status, -1);
-        state.setStatus(status);
-        ProgressStatus ps;
 
-        switch (status) {
-            case Status.Success:
-                ps = ProgressStatus.COMPLETED;
-                break;
-            case Status.CoercionOfDataElements:
-            case Status.ElementsDiscarded:
-
-            case Status.DataSetDoesNotMatchSOPClassWarning:
-                ps = ProgressStatus.WARNING;
-                if (lastStatusCode != status && nbStatusLog < 3) {
-                    nbStatusLog++;
-                    lastStatusCode = status;
-                    if (LOGGER.isDebugEnabled()) {
-                        LOGGER.warn("Received C-STORE-RSP with Status {}H{}", TagUtils.shortToHexString(status),
-                            "\r\n" + cmd.toString());
-                    } else {
-                        LOGGER.warn("Received C-STORE-RSP with Status {}H", TagUtils.shortToHexString(status));
-                    }
-                }
-                break;
-
-            default:
-                ps = ProgressStatus.FAILED;
-                if (lastStatusCode != status && nbStatusLog < 3) {
-                    nbStatusLog++;
-                    lastStatusCode = status;
-                    if (LOGGER.isDebugEnabled()) {
-                        LOGGER.error("Received C-STORE-RSP with Status {}H{}", TagUtils.shortToHexString(status),
-                            "\r\n" + cmd.toString());
-                    } else {
-                        LOGGER.error("Received C-STORE-RSP with Status {}H", TagUtils.shortToHexString(status));
-                    }
-                }
-        }
-        ServiceUtil.notifyProgession(state.getProgress(), cmd, ps, numberOfSuboperations);
-    }
 
     public int getNumberOfSuboperations() {
         return numberOfSuboperations;

@@ -74,7 +74,7 @@ public class StoreScpForward {
                     && (!n.isValidateHostname() || n.equalsHostname(callingNode.getHostname())));
             if (!valid) {
                 rsp.setInt(Tag.Status, VR.US, Status.NotAuthorized);
-                LOGGER.error("Refused: not authorized (124H). Source node: {0}. SopUID: {1}", callingNode,
+                LOGGER.error("Refused: not authorized (124H). Source node: {}. SopUID: {}", callingNode,
                     rq.getString(Tag.AffectedSOPInstanceUID));
                 return;
             }
@@ -128,7 +128,7 @@ public class StoreScpForward {
         initDestinations();
     }
 
-    public StoreScpForward(Map<ForwardDicomNode, List<ForwardDestination>> destinations) throws IOException {
+    public StoreScpForward(Map<ForwardDicomNode, List<ForwardDestination>> destinations) {
         device.setDimseRQHandler(createServiceRegistry());
         device.addConnection(conn);
         device.addApplicationEntity(ae);

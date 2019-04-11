@@ -264,7 +264,7 @@ public class FindSCU implements AutoCloseable {
     public void query(File f) throws Exception {
         Attributes attrs;
         String filePath = f.getPath();
-        String fileExt = filePath.substring(filePath.lastIndexOf(".") + 1).toLowerCase();
+        String fileExt = filePath.substring(filePath.lastIndexOf('.') + 1).toLowerCase();
 
         if (fileExt.equals("xml")) {
             attrs = SAXReader.parse(filePath);

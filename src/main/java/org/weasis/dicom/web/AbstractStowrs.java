@@ -1,18 +1,17 @@
 package org.weasis.dicom.web;
 
-import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
-import java.util.Optional;
 
 import javax.xml.parsers.ParserConfigurationException;
 
@@ -51,8 +50,11 @@ public class AbstractStowrs implements AutoCloseable {
         }
     }
 
-    protected final ContentType contentType;
-    protected final HttpURLConnection httpPost;
+    private final List<HttpURLConnection> connections;
+    private final ContentType contentType;
+    private final String requestURL;
+    private final String agentName;
+    private final Map<String, String> headers;
 
     /**
      * @param requestURL
@@ -66,12 +68,19 @@ public class AbstractStowrs implements AutoCloseable {
      * @throws IOException
      *             Exception during the POST initialization
      */
-    public AbstractStowrs(String requestURL, ContentType contentType, String agentName, Map<String, String> headers)
-        throws IOException {
+    public AbstractStowrs(String requestURL, ContentType contentType, String agentName, Map<String, String> headers) {
+        this.contentType = Objects.requireNonNull(contentType);
+        this.requestURL = Objects.requireNonNull(requestURL, "requestURL cannot be null");
+        this.headers = headers;
+        this.agentName = agentName;
+        this.connections = new ArrayList<>();
+    }
+
+    protected HttpURLConnection buildConnection() throws IOException {
         try {
-            this.contentType = Objects.requireNonNull(contentType);
+
             URL url = new URL(requestURL);
-            httpPost = (HttpURLConnection) url.openConnection();
+            HttpURLConnection httpPost = (HttpURLConnection) url.openConnection();
 
             httpPost.setUseCaches(false);
             httpPost.setDoOutput(true);// indicates POST method
@@ -91,6 +100,8 @@ public class AbstractStowrs implements AutoCloseable {
                     httpPost.setRequestProperty(element.getKey(), element.getValue());
                 }
             }
+            connections.add(httpPost);
+            return httpPost;
 
         } catch (IOException e) {
             try {
@@ -124,7 +135,7 @@ public class AbstractStowrs implements AutoCloseable {
         out.writeBytes(CRLF);
     }
 
-    protected void writeEndMarkers(DataOutputStream out, String iuid) throws IOException {
+    protected void writeEndMarkers(HttpURLConnection httpPost, DataOutputStream out, String iuid) throws IOException {
         endMarkers(out);
 
         int code = httpPost.getResponseCode();
@@ -136,7 +147,8 @@ public class AbstractStowrs implements AutoCloseable {
         }
     }
 
-    protected Attributes writeEndMarkers(DataOutputStream out) throws IOException, ParserConfigurationException, SAXException {
+    protected Attributes writeEndMarkers(HttpURLConnection httpPost, DataOutputStream out)
+        throws IOException, ParserConfigurationException, SAXException {
         endMarkers(out);
 
         int code = httpPost.getResponseCode();
@@ -147,22 +159,10 @@ public class AbstractStowrs implements AutoCloseable {
             // See http://dicom.nema.org/medical/dicom/current/output/chtml/part18/sect_6.6.html#table_6.6.1-1
             return SAXReader.parse(httpPost.getInputStream());
         } else {
-            throw new HttpServerErrorException(
-                String.format("STOWRS server response message: HTTP Status-Code %d: %s", code, httpPost.getResponseMessage()));
+            throw new HttpServerErrorException(String.format("STOWRS server response message: HTTP Status-Code %d: %s",
+                code, httpPost.getResponseMessage()));
         }
         return null;
-    }
-
-    protected String getDicomState(DataOutputStream out) throws IOException {
-
-        StringBuilder response = new StringBuilder();
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(httpPost.getInputStream()))) {
-            String line = null;
-            while ((line = reader.readLine()) != null) {
-                response.append(line);
-            }
-            return response.toString();
-        }
     }
 
     protected static void ensureUID(Attributes attrs, int tag) {
@@ -197,10 +197,28 @@ public class AbstractStowrs implements AutoCloseable {
         }
         return null;
     }
+    
+    protected void removeConnection(HttpURLConnection httpPost) {
+        connections.remove(httpPost);
+    }
 
     @Override
     public void close() throws Exception {
-        Optional.ofNullable(httpPost).ifPresent(HttpURLConnection::disconnect);
+        connections.forEach(HttpURLConnection::disconnect);
+        connections.clear();
+    }
+    
+
+    public ContentType getContentType() {
+        return contentType;
+    }
+
+    public String getRequestURL() {
+        return requestURL;
+    }
+
+    public Map<String, String> getHeaders() {
+        return headers;
     }
 
 }

@@ -29,6 +29,7 @@ import org.weasis.dicom.param.DicomState;
 import org.weasis.dicom.web.AbstractStowrs.ContentType;
 import org.weasis.dicom.web.StowrsMultiFiles;
 import org.weasis.dicom.web.StowrsSingleFile;
+import org.weasis.dicom.web.UploadSingleFile;
 
 public class StowNetTest {
 
@@ -59,7 +60,7 @@ public class StowNetTest {
         }
 
         // Upload a modify file
-        try (StowrsSingleFile stowRS = new StowrsSingleFile(stowService, ContentType.DICOM);
+        try (UploadSingleFile stowRS = new StowrsSingleFile(stowService, ContentType.DICOM);
                         DicomInputStream in = new DicomInputStream(new FileInputStream(files.get(0)))) {
             in.setIncludeBulkData(IncludeBulkData.URI);
             Attributes attributes = in.readDataset(-1, -1);

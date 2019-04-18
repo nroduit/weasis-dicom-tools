@@ -34,7 +34,8 @@ public class StowrsMultiFiles extends AbstractStowrs {
         super(requestURL, contentType, agentName, headers);
     }
 
-    public DicomState uploadDicom(List<String> filesOrFolders, boolean recursive) {
+    public DicomState uploadDicom(List<String> filesOrFolders, boolean recursive) throws IOException {
+        HttpURLConnection httpPost = buildConnection();
         DicomState state = new DicomState(new DicomProgress());
         String message = null;
         int nbFile = 0;
@@ -53,7 +54,7 @@ public class StowrsMultiFiles extends AbstractStowrs {
                     nbFile++;
                 }
             }
-            Attributes error = writeEndMarkers(out);
+            Attributes error = writeEndMarkers(httpPost, out);
             if (error == null) {
                 state.setStatus(Status.Success);
                 message = "all the files has been tranfered";
@@ -83,7 +84,7 @@ public class StowrsMultiFiles extends AbstractStowrs {
             LOGGER.error("STOWRS: error when posting data", e); //$NON-NLS-1$
             return DicomState.buildMessage(state, "STOWRS: error when posting data", e);
         } finally {
-            Optional.ofNullable(httpPost).ifPresent(HttpURLConnection::disconnect);
+            removeConnection(httpPost);
         }
         return DicomState.buildMessage(state, message, null);
     }

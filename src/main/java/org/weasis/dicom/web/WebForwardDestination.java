@@ -2,7 +2,6 @@ package org.weasis.dicom.web;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.Objects;
 
 import org.weasis.core.api.util.FileUtil;
 import org.weasis.dicom.param.AttributeEditor;
@@ -15,11 +14,8 @@ import org.weasis.dicom.web.AbstractStowrs.ContentType;
 public class WebForwardDestination extends ForwardDestination {
 
     private final ForwardDicomNode callingNode;
-    private final String requestURL;
-    private final Map<String, String> headers;
     private final DicomState state;
-
-    private volatile StowrsSingleFile stowRS;
+    private final UploadSingleFile stowRS;
 
     public WebForwardDestination(ForwardDicomNode fwdNode, String requestURL) {
         this(fwdNode, requestURL, null);
@@ -38,9 +34,16 @@ public class WebForwardDestination extends ForwardDestination {
         DicomProgress progress, AttributeEditor attributesEditor) {
         super(attributesEditor);
         this.callingNode = fwdNode;
-        this.requestURL = Objects.requireNonNull(requestURL, "requestURL cannot be null");
-        this.headers = headers;
         this.state = new DicomState(progress == null ? new DicomProgress() : progress);
+        this.stowRS = new StowrsSingleFile(requestURL, ContentType.DICOM, null, headers);
+    }
+    
+    public WebForwardDestination(ForwardDicomNode fwdNode, UploadSingleFile uploadManager,
+        DicomProgress progress, AttributeEditor attributesEditor) {
+        super(attributesEditor);
+        this.callingNode = fwdNode;
+        this.state = new DicomState(progress == null ? new DicomProgress() : progress);
+        this.stowRS = uploadManager;
     }
 
     @Override
@@ -49,28 +52,21 @@ public class WebForwardDestination extends ForwardDestination {
     }
 
     public String getRequestURL() {
-        return requestURL;
+        return stowRS.getRequestURL();
     }
 
-    public StowrsSingleFile getStowrsSingleFile() throws IOException {
-        synchronized (this) {
-            if (stowRS == null) {
-                this.stowRS = new StowrsSingleFile(requestURL, ContentType.DICOM, null, headers);
-            }
-        }
+    public UploadSingleFile getStowrsSingleFile() throws IOException {
         return stowRS;
     }
 
     @Override
     public void stop() {
-        StowrsSingleFile s = stowRS;
-        this.stowRS = null;
-        FileUtil.safeClose(s);
+        FileUtil.safeClose(stowRS);
     }
 
     @Override
     public String toString() {
-        return requestURL;
+        return stowRS.getRequestURL();
     }
 
     public DicomState getState() {

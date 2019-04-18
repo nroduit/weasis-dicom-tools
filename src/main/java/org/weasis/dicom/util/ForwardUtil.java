@@ -32,7 +32,7 @@ import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.ForwardDestination;
 import org.weasis.dicom.param.ForwardDicomNode;
 import org.weasis.dicom.util.ServiceUtil.ProgressStatus;
-import org.weasis.dicom.web.StowrsSingleFile;
+import org.weasis.dicom.web.UploadSingleFile;
 import org.weasis.dicom.web.WebForwardDestination;
 
 public class ForwardUtil {
@@ -334,7 +334,7 @@ public class ForwardUtil {
         DicomInputStream in = null;
         List<File> files = null;
         try {
-            StowrsSingleFile stow = destination.getStowrsSingleFile();
+            UploadSingleFile stow = destination.getStowrsSingleFile();
             String tsuid = p.getTsuid();
             if (copy == null && destination.getAttributesEditor() == null) {
                 Attributes fmi = Attributes.createFileMetaInformation(p.getIuid(), p.getCuid(), tsuid);
@@ -386,7 +386,7 @@ public class ForwardUtil {
     public static void transferOther(ForwardDicomNode fwdNode, WebForwardDestination destination, Attributes copy,
         Params p) {
         try {
-            StowrsSingleFile stow = destination.getStowrsSingleFile();
+            UploadSingleFile stow = destination.getStowrsSingleFile();
             String tsuid = p.getTsuid();
             if (destination.getAttributesEditor() == null) {
                 stow.uploadDicom(copy, tsuid);

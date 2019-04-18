@@ -23,10 +23,12 @@ import org.dcm4che3.data.VR;
 import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.io.DicomInputStream.IncludeBulkData;
 import org.dcm4che3.util.UIDUtils;
-import org.junit.Assert;
 import org.junit.Test;
-import org.weasis.dicom.web.StowRS;
-import org.weasis.dicom.web.StowRS.ContentType;
+import org.weasis.core.api.util.StringUtil;
+import org.weasis.dicom.param.DicomState;
+import org.weasis.dicom.web.AbstractStowrs.ContentType;
+import org.weasis.dicom.web.StowrsMultiFiles;
+import org.weasis.dicom.web.StowrsSingleFile;
 
 public class StowNetTest {
 
@@ -45,18 +47,19 @@ public class StowNetTest {
         String message = null;
 
         // Upload files
-        try (StowRS stowRS = new StowRS(stowService, ContentType.DICOM, null, null)) {
-            message = stowRS.uploadDicom(files, true);
+        try (StowrsMultiFiles stowRS = new StowrsMultiFiles(stowService, ContentType.DICOM, null, null)) {
+            DicomState state = stowRS.uploadDicom(files, true);
+            message = state.getMessage();
         } catch (Exception e) {
             message = e.getMessage();
+        }
+        
+        if (StringUtil.hasText(message)) {
             System.out.println("StowRS error: " + message);
         }
 
-        System.out.println(message);
-        Assert.assertNull(message, message);
-
         // Upload a modify file
-        try (StowRS stowRS = new StowRS(stowService, ContentType.DICOM);
+        try (StowrsSingleFile stowRS = new StowrsSingleFile(stowService, ContentType.DICOM);
                         DicomInputStream in = new DicomInputStream(new FileInputStream(files.get(0)))) {
             in.setIncludeBulkData(IncludeBulkData.URI);
             Attributes attributes = in.readDataset(-1, -1);
@@ -67,15 +70,10 @@ public class StowNetTest {
             attributes.setString(Tag.SOPInstanceUID, VR.UI, UIDUtils.createUID());
 
             stowRS.uploadDicom(attributes, in.getTransferSyntax());
-            // Call to end the multipart post
-            message = stowRS.writeEndMarkers();
         } catch (Exception e) {
             message = e.getMessage();
-            System.out.println("StowRS error: {}" + message);
+            System.out.println("StowRS error: " + message);
         }
-
-        System.out.println(message);
-        Assert.assertNull(message, message);
     }
 
 }

@@ -125,7 +125,6 @@ public class StoreScpForward {
             new DicomForwardDestination(forwardParams, fwdNode, destinationNode, attributesEditor);
         this.destinations = new HashMap<>();
         destinations.put(fwdNode, Arrays.asList(uniqueDestination));
-        initDestinations();
     }
 
     public StoreScpForward(Map<ForwardDicomNode, List<ForwardDestination>> destinations) {
@@ -135,21 +134,6 @@ public class StoreScpForward {
         ae.setAssociationAcceptor(true);
         ae.addConnection(conn);
         this.destinations = Objects.requireNonNull(destinations);
-        initDestinations();
-    }
-
-    private void initDestinations() {
-        // Stop http connection when idle and send STOW end mark
-        destinations.keySet().stream().forEach(f -> f.getCheckProcess().scheduleAtFixedRate(() -> {
-            long t = f.getActivityTimestamp();
-            if (t > 0 && System.currentTimeMillis() - t > ForwardDicomNode.MAX_IDLE_TIME) {
-                f.setActivityTimestamp(0);
-                List<ForwardDestination> destList = destinations.get(f);
-                if (destList != null) {
-                    destList.stream().filter(WebForwardDestination.class::isInstance).forEach(ForwardDestination::stop);
-                }
-            }
-        }, ForwardDicomNode.MAX_IDLE_TIME, ForwardDicomNode.MAX_IDLE_TIME, TimeUnit.SECONDS));
     }
 
     public final void setPriority(int priority) {

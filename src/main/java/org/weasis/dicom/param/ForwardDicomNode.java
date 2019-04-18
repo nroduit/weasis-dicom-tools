@@ -5,12 +5,10 @@ import java.util.Set;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 public class ForwardDicomNode extends DicomNode {
-    public static final int MAX_IDLE_TIME = 15;
 
     private final ScheduledThreadPoolExecutor checkProcess;
     private final String forwardAETitle;
     private final Set<DicomNode> acceptedSourceNodes;
-    private volatile long activityTimestamp;
 
     public ForwardDicomNode(String fwdAeTitle) {
         this(fwdAeTitle, null);
@@ -21,7 +19,6 @@ public class ForwardDicomNode extends DicomNode {
         this.forwardAETitle = fwdAeTitle;
         this.acceptedSourceNodes = new HashSet<>();
         this.checkProcess = new ScheduledThreadPoolExecutor(1);
-        this.activityTimestamp = 0;
     }
 
     public void addAcceptedSourceNode(String srcAeTitle) {
@@ -36,13 +33,7 @@ public class ForwardDicomNode extends DicomNode {
         return acceptedSourceNodes;
     }
 
-    public long getActivityTimestamp() {
-        return activityTimestamp;
-    }
 
-    public void setActivityTimestamp(long timestamp) {
-        this.activityTimestamp = timestamp;
-    }
 
     public ScheduledThreadPoolExecutor getCheckProcess() {
         return checkProcess;

@@ -46,14 +46,10 @@ public class CstoreNetTest {
         params.setConnectOptions(connectOptions);
 
         DicomProgress progress = new DicomProgress();
-        progress.addProgressListener(new ProgressListener() {
-
-            @Override
-            public void handleProgression(DicomProgress progress) {
-                System.out.println("DICOM Status:" + progress.getStatus());
-                if (progress.isLastFailed()) {
-                    System.out.println("Last file has failed:" + progress.getProcessedFile());
-                }
+        progress.addProgressListener(progress1 -> {
+            System.out.println("DICOM Status:" + progress1.getStatus());
+            if (progress1.isLastFailed()) {
+                System.out.println("Last file has failed:" + progress1.getProcessedFile());
             }
         });
 

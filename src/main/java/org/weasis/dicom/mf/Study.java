@@ -207,11 +207,8 @@ public class Study implements Xml, Comparable<Study> {
                 // Add o1 after o2
                 return 1;
             }
-            if (date2 == null) {
-                return -1;
-            }
+            return -1;
         }
-        return getStudyInstanceUID().compareTo(s.getStudyInstanceUID());
     }
 
 }

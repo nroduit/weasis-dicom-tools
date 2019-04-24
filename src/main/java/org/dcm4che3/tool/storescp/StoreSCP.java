@@ -103,7 +103,7 @@ public class StoreSCP {
                     && (!n.isValidateHostname() || n.equalsHostname(sourceNode.getHostname())));
                 if (!valid) {
                     rsp.setInt(Tag.Status, VR.US, Status.NotAuthorized);
-                    LOGGER.error("Refused: not authorized (124H). Source node: {0}. SopUID: {1}", sourceNode,
+                    LOGGER.error("Refused: not authorized (124H). Source node: {}. SopUID: {}", sourceNode,
                         rq.getString(Tag.AffectedSOPInstanceUID));
                     return;
                 }

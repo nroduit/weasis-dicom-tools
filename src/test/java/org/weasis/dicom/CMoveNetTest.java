@@ -32,15 +32,11 @@ public class CMoveNetTest {
         BasicConfigurator.configure();
         
         DicomProgress progress = new DicomProgress();
-        progress.addProgressListener(new ProgressListener() {
-
-            @Override
-            public void handleProgression(DicomProgress progress) {
-                System.out.println("Remaining operations:" + progress.getNumberOfRemainingSuboperations());
-                // if (progress.getNumberOfRemainingSuboperations() == 100) {
-                // progress.cancel();
-                // }
-            }
+        progress.addProgressListener(progress1 -> {
+            System.out.println("Remaining operations:" + progress1.getNumberOfRemainingSuboperations());
+            // if (progress.getNumberOfRemainingSuboperations() == 100) {
+            // progress.cancel();
+            // }
         });
 
         /**

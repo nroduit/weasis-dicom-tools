@@ -145,12 +145,8 @@ public class SopInstance implements Xml, Comparable<SopInstance> {
                 // Add o1 after o2
                 return 1;
             }
-            if (val2 == null) {
-                return -1;
-            }
+            return -1;
         }
-
-        return compareSopInstanceUID(getSopInstanceUID(), s.getSopInstanceUID());
     }
 
     private static int compareSopInstanceUID(String s1, String s2) {
@@ -169,10 +165,9 @@ public class SopInstance implements Xml, Comparable<SopInstance> {
     private static String adaptSopInstanceUID(String s, char[] c) {
         Arrays.fill(c, '0');
         int index = s.lastIndexOf(".") + 1; //$NON-NLS-1$
-        StringBuilder buf = new StringBuilder(s.substring(0, index));
-        buf.append(c);
-        buf.append(s.substring(index));
-        return buf.toString();
+        String buf = s.substring(0, index) + String.valueOf(c) +
+                s.substring(index);
+        return buf;
     }
 
     public static void addSopInstance(Map<String, SopInstance> sopInstanceMap, SopInstance s) {

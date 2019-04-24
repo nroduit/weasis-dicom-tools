@@ -88,34 +88,18 @@ public class DicomNode {
     }
 
     @Override
-    public int hashCode() {
-        final int prime = 31;
-        int result = 1;
-        result = prime * result + aet.hashCode();
-        result = prime * result + convertToIP(hostname).hashCode();
-        result = prime * result + ((port == null) ? 0 : port.hashCode());
-        return result;
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        DicomNode dicomNode = (DicomNode) o;
+        return aet.equals(dicomNode.aet) &&
+                Objects.equals(hostname, dicomNode.hostname) &&
+                Objects.equals(port, dicomNode.port);
     }
 
     @Override
-    public boolean equals(Object obj) {
-        if (this == obj)
-            return true;
-        if (obj == null)
-            return false;
-        if (getClass() != obj.getClass())
-            return false;
-        DicomNode other = (DicomNode) obj;
-        if (!aet.equals(other.aet))
-            return false;
-        if (!equalsHostname(other.hostname))
-            return false;
-        if (port == null) {
-            if (other.port != null)
-                return false;
-        } else if (!port.equals(other.port))
-            return false;
-        return true;
+    public int hashCode() {
+        return Objects.hash(aet, hostname, port);
     }
 
     @Override

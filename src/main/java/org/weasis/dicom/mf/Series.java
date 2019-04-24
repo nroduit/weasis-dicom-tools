@@ -195,11 +195,7 @@ public class Series implements Xml, Comparable<Series> {
                 // Add o1 after o2
                 return 1;
             }
-            if (val2 == null) {
-                return -1;
-            }
+            return -1;
         }
-
-        return getSeriesInstanceUID().compareTo(s.getSeriesInstanceUID());
     }
 }

@@ -40,7 +40,7 @@ public class AbstractStowrs implements AutoCloseable {
 
         private final String type;
 
-        private ContentType(String type) {
+        ContentType(String type) {
             this.type = type;
         }
 
@@ -95,8 +95,7 @@ public class AbstractStowrs implements AutoCloseable {
                 contentType == ContentType.JSON ? ContentType.JSON.toString() : ContentType.XML.toString());
 
             if (headers != null && !headers.isEmpty()) {
-                for (Iterator<Entry<String, String>> iter = headers.entrySet().iterator(); iter.hasNext();) {
-                    Entry<String, String> element = iter.next();
+                for (Entry<String, String> element : headers.entrySet()) {
                     httpPost.setRequestProperty(element.getKey(), element.getValue());
                 }
             }

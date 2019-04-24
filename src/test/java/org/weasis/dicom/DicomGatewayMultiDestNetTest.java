@@ -88,18 +88,14 @@ public class DicomGatewayMultiDestNetTest {
         }
 
         DicomProgress progress2 = new DicomProgress();
-        progress2.addProgressListener(new ProgressListener() {
-
-            @Override
-            public void handleProgression(DicomProgress progress) {
-                System.out.println("DICOM Status:" + progress.getStatus());
-                System.out.println("NumberOfRemainingSuboperations:" + progress.getNumberOfRemainingSuboperations());
-                System.out.println("NumberOfCompletedSuboperations:" + progress.getNumberOfCompletedSuboperations());
-                System.out.println("NumberOfFailedSuboperations:" + progress.getNumberOfFailedSuboperations());
-                System.out.println("NumberOfWarningSuboperations:" + progress.getNumberOfWarningSuboperations());
-                if (progress.isLastFailed()) {
-                    System.out.println("Last file has failed:" + progress.getProcessedFile());
-                }
+        progress2.addProgressListener(progress1 -> {
+            System.out.println("DICOM Status:" + progress1.getStatus());
+            System.out.println("NumberOfRemainingSuboperations:" + progress1.getNumberOfRemainingSuboperations());
+            System.out.println("NumberOfCompletedSuboperations:" + progress1.getNumberOfCompletedSuboperations());
+            System.out.println("NumberOfFailedSuboperations:" + progress1.getNumberOfFailedSuboperations());
+            System.out.println("NumberOfWarningSuboperations:" + progress1.getNumberOfWarningSuboperations());
+            if (progress1.isLastFailed()) {
+                System.out.println("Last file has failed:" + progress1.getProcessedFile());
             }
         });
 

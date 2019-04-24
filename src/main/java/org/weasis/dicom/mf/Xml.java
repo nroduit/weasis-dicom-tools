@@ -34,7 +34,7 @@ public interface Xml {
 
         private final String tag;
 
-        private Level(String tag) {
+        Level(String tag) {
             this.tag = tag;
         }
 
@@ -88,7 +88,7 @@ public interface Xml {
             result.append("=\"");
             int size = value.size();
             for (int i = 0; i < size - 1; i++) {
-                result.append(EscapeChars.forXML(value.get(i)) + ",");
+                result.append(EscapeChars.forXML(value.get(i))).append(",");
             }
             if (size > 0) {
                 result.append(EscapeChars.forXML(value.get(size - 1)));

@@ -209,22 +209,15 @@ public class StoreSCU implements AutoCloseable {
     public void scanFiles(List<String> fnames, boolean printout) throws IOException {
         tmpFile = File.createTempFile(tmpPrefix, tmpSuffix, tmpDir);
         tmpFile.deleteOnExit();
-        final BufferedWriter fileInfos = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(tmpFile)));
-        try {
-            DicomFiles.scan(fnames, printout, new DicomFiles.Callback() {
-
-                @Override
-                public boolean dicomFile(File f, Attributes fmi, long dsPos, Attributes ds) throws IOException {
-                    if (!addFile(fileInfos, f, dsPos, fmi, ds)) {
-                        return false;
-                    }
-
-                    filesScanned++;
-                    return true;
+        try (BufferedWriter fileInfos = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(tmpFile)))) {
+            DicomFiles.scan(fnames, printout, (f, fmi, dsPos, ds) -> {
+                if (!addFile(fileInfos, f, dsPos, fmi, ds)) {
+                    return false;
                 }
+
+                filesScanned++;
+                return true;
             });
-        } finally {
-            fileInfos.close();
         }
     }
 

@@ -194,10 +194,10 @@ public class ModalityWorklist {
                 CFind.addAttributes(findSCU.getKeys(), p);
             } else {
                 Attributes parent = findSCU.getKeys();
-                for (int i = 0; i < pSeq.length; i++) {
-                    Sequence lastSeq = parent.getSequence(pSeq[i]);
+                for (int value : pSeq) {
+                    Sequence lastSeq = parent.getSequence(value);
                     if (lastSeq == null || lastSeq.isEmpty()) {
-                        lastSeq = parent.newSequence(pSeq[i], 1);
+                        lastSeq = parent.newSequence(value, 1);
                         lastSeq.add(new Attributes());
                     }
                     parent = lastSeq.get(0);

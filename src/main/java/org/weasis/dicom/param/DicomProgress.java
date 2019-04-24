@@ -71,8 +71,8 @@ public class DicomProgress implements CancelListener {
     }
 
     private void fireProgress() {
-        for (int i = 0; i < listenerList.size(); i++) {
-            listenerList.get(i).handleProgression(this);
+        for (ProgressListener progressListener : listenerList) {
+            progressListener.handleProgression(this);
         }
     }
 

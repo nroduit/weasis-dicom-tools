@@ -57,7 +57,7 @@ public class DicomState {
      * 
      * @ see org.dcm4che3.net.Status
      * 
-     * @param the
+     * @param status
      *            DICOM status of the process
      */
     public void setStatus(int status) {

@@ -2,14 +2,7 @@ package org.weasis.dicom.util;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import org.dcm4che3.data.Attributes;
@@ -124,7 +117,7 @@ public class StoreScpForward {
         DicomForwardDestination uniqueDestination =
             new DicomForwardDestination(forwardParams, fwdNode, destinationNode, attributesEditor);
         this.destinations = new HashMap<>();
-        destinations.put(fwdNode, Arrays.asList(uniqueDestination));
+        destinations.put(fwdNode, Collections.singletonList(uniqueDestination));
     }
 
     public StoreScpForward(Map<ForwardDicomNode, List<ForwardDestination>> destinations) {

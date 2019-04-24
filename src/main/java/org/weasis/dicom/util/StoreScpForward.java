@@ -2,8 +2,14 @@ package org.weasis.dicom.util;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.*;
-import java.util.concurrent.TimeUnit;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Properties;
+import java.util.Set;
 
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
@@ -30,7 +36,6 @@ import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.ForwardDestination;
 import org.weasis.dicom.param.ForwardDicomNode;
 import org.weasis.dicom.util.ForwardUtil.Params;
-import org.weasis.dicom.web.WebForwardDestination;
 
 public class StoreScpForward {
 

@@ -19,7 +19,7 @@ import org.weasis.core.api.util.StringUtil;
 
 public class DicomState {
     private volatile int status;
-    private volatile String message;
+    private String message;
     private final List<Attributes> dicomRSP;
     private final DicomProgress progress;
 
@@ -64,11 +64,11 @@ public class DicomState {
         this.status = status;
     }
 
-    public String getMessage() {
+    public synchronized String getMessage() {
         return message;
     }
 
-    public void setMessage(String message) {
+    public synchronized void setMessage(String message) {
         this.message = message;
     }
 

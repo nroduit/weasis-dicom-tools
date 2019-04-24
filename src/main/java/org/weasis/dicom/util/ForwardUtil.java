@@ -6,9 +6,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import javax.net.ssl.SSLException;
-import javax.net.ssl.SSLHandshakeException;
-
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
@@ -92,7 +89,8 @@ public class ForwardUtil {
         public AbortException(String string, Exception e) {
             super(string, e);
         }
-        
+
+        @Override
         public String toString() {
             return getMessage();
         }

@@ -21,9 +21,9 @@ import org.dcm4che3.net.Status;
 public class DicomProgress implements CancelListener {
 
     private final List<ProgressListener> listenerList;
-    private volatile Attributes attributes;
+    private Attributes attributes;
     private volatile boolean cancel;
-    private volatile File processedFile;
+    private File processedFile;
     private volatile boolean lastFailed = false;
 
     public DicomProgress() {

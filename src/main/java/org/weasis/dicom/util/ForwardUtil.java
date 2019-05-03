@@ -43,6 +43,7 @@ public class ForwardUtil {
         private final InputStream data;
         private final Association as;
         private final int priority;
+        private String outputTsuid;
 
         public Params(String iuid, String cuid, String tsuid, int priority, InputStream data, Association as) {
             super();
@@ -52,6 +53,7 @@ public class ForwardUtil {
             this.priority = priority;
             this.as = as;
             this.data = data;
+            this.outputTsuid = tsuid;
         }
 
         public String getIuid() {
@@ -77,6 +79,15 @@ public class ForwardUtil {
         public InputStream getData() {
             return data;
         }
+
+        public String getOutputTsuid() {
+            return outputTsuid;
+        }
+
+        public void setOutputTsuid(String outputTsuid) {
+            this.outputTsuid = outputTsuid;
+        }
+
     }
 
     private static final class AbortException extends IllegalStateException {
@@ -334,13 +345,18 @@ public class ForwardUtil {
         try {
             UploadSingleFile stow = destination.getStowrsSingleFile();
             String tsuid = p.getTsuid();
-            if (copy == null && destination.getAttributesEditor() == null) {
-                Attributes fmi = Attributes.createFileMetaInformation(p.getIuid(), p.getCuid(), tsuid);
+            boolean originalTsuid = true;
+            if(UID.ImplicitVRLittleEndian.equals(tsuid) || UID.ExplicitVRBigEndianRetired.equals(tsuid)) {
+                p.setOutputTsuid(UID.ExplicitVRLittleEndian);
+                originalTsuid = false;
+            }
+            if (originalTsuid && copy == null && destination.getAttributesEditor() == null) {
+                Attributes fmi = Attributes.createFileMetaInformation(p.getIuid(), p.getCuid(), p.getOutputTsuid());
                 try (InputStream stream = p.getData()) {
-                    stow.uploadDicom(p.getData(), fmi, tsuid, p.getIuid());
+                    stow.uploadDicom(p.getData(), fmi, p.getOutputTsuid(), p.getIuid());
                 }
             } else {
-                AttributeEditorContext context = new AttributeEditorContext(tsuid, fwdNode, null);
+                AttributeEditorContext context = new AttributeEditorContext(p.getOutputTsuid(), fwdNode, null);
                 in = new DicomInputStream(p.getData(), tsuid);
                 in.setIncludeBulkData(IncludeBulkData.URI);
                 Attributes attributes = in.readDataset(-1, -1);
@@ -362,7 +378,7 @@ public class ForwardUtil {
                     copy.addAll(attributes);
                 }
 
-                stow.uploadDicom(attributes, tsuid);
+                stow.uploadDicom(attributes, p.getOutputTsuid());
                 ServiceUtil.notifyProgession(destination.getState(), p.getIuid(), p.getCuid(), Status.Success,
                     ProgressStatus.COMPLETED, 0);
             }
@@ -385,7 +401,7 @@ public class ForwardUtil {
         Params p) {
         try {
             UploadSingleFile stow = destination.getStowrsSingleFile();
-            String tsuid = p.getTsuid();
+            String tsuid = p.getOutputTsuid();
             if (destination.getAttributesEditor() == null) {
                 stow.uploadDicom(copy, tsuid);
             } else {

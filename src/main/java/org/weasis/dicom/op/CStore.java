@@ -181,7 +181,7 @@ public class CStore {
                     String timeMsg = MessageFormat.format(
                         "DICOM C-STORE connected in {2}ms from {0} to {1}. Stored files in {3}ms. Total size {4}",
                         storeSCU.getAAssociateRQ().getCallingAET(), storeSCU.getAAssociateRQ().getCalledAET(), t2 - t1,
-                        t3 - t2, FileUtil.formatSize(storeSCU.getTotalSize()));
+                        t3 - t2, FileUtil.humanReadableByte(storeSCU.getTotalSize(), false ));
                     return DicomState.buildMessage(dcmState, timeMsg, null);
                 } catch (Exception e) {
                     LOGGER.error("storescu", e);

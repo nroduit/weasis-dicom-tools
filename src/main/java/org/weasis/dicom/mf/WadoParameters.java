@@ -35,7 +35,7 @@ public class WadoParameters extends ArcParameters {
 
     public WadoParameters(String archiveID, String wadoURL, boolean requireOnlySOPInstanceUID,
         String additionnalParameters, String overrideDicomTagsList, String webLogin) {
-        this("", wadoURL, requireOnlySOPInstanceUID, additionnalParameters, overrideDicomTagsList, webLogin, false);
+        this(archiveID, wadoURL, requireOnlySOPInstanceUID, additionnalParameters, overrideDicomTagsList, webLogin, false);
     }
     public WadoParameters(String archiveID, String wadoURL, boolean requireOnlySOPInstanceUID,
         String additionnalParameters, String overrideDicomTagsList, String webLogin,  boolean wadoRS) {

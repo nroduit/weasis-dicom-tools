@@ -23,6 +23,8 @@ import org.dcm4che3.data.VR;
 import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.io.DicomInputStream.IncludeBulkData;
 import org.dcm4che3.util.UIDUtils;
+import org.hamcrest.core.IsNull;
+import org.junit.Assert;
 import org.junit.Test;
 import org.weasis.core.api.util.StringUtil;
 import org.weasis.dicom.param.DicomState;
@@ -54,11 +56,11 @@ public class StowNetTest {
         } catch (Exception e) {
             message = e.getMessage();
         }
-        
         if (StringUtil.hasText(message)) {
             System.out.println("StowRS error: " + message);
         }
-
+        Assert.assertThat(message, message, IsNull.nullValue());
+        
         // Upload a modify file
         try (UploadSingleFile stowRS = new StowrsSingleFile(stowService, Multipart.ContentType.DICOM);
                         DicomInputStream in = new DicomInputStream(new FileInputStream(files.get(0)))) {
@@ -75,6 +77,7 @@ public class StowNetTest {
             message = e.getMessage();
             System.out.println("StowRS error: " + message);
         }
+        Assert.assertThat(message, message, IsNull.nullValue());
     }
 
 }

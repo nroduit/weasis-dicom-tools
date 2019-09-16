@@ -70,6 +70,7 @@ import org.dcm4che3.util.AttributesFormat;
 import org.dcm4che3.util.SafeClose;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.weasis.core.api.util.FileUtil;
 import org.weasis.core.api.util.StringUtil;
 import org.weasis.dicom.param.DicomNode;
 
@@ -183,8 +184,7 @@ public class StoreSCP {
 
     private static void renameTo(Association as, File from, File dest) throws IOException {
         LOGGER.info("{}: M-RENAME {} to {}", as, from, dest);
-        if (!dest.getParentFile().mkdirs())
-            dest.delete();
+        FileUtil.prepareToWriteFile(dest);
         if (!from.renameTo(dest))
             throw new IOException("Failed to rename " + from + " to " + dest);
     }

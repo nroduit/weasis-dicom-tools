@@ -17,13 +17,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.weasis.core.api.util.StringUtil;
 
 public class Multipart {
-    private static final Logger LOGGER = LoggerFactory.getLogger(Multipart.class);
-
     public interface Handler {
         void readBodyPart(MultipartReader multipartReader, int partNumber, Map<String, String> headers)
             throws IOException;

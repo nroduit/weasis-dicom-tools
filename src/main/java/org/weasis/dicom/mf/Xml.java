@@ -77,7 +77,7 @@ public interface Xml {
         if (tag != null && value != null) {
             result.append(tag);
             result.append("=\"");
-            result.append(value ? "true" : "false");
+            result.append(value.toString());
             result.append("\" ");
         }
     }

@@ -120,25 +120,18 @@ public class StoreSCU implements AutoCloseable {
     private final AttributeEditor attributesEditor;
     private final DicomState state;
 
-    private RSPHandlerFactory rspHandlerFactory = new RSPHandlerFactory() {
+    private RSPHandlerFactory rspHandlerFactory = file -> new DimseRSPHandler(as.nextMessageID()) {
 
         @Override
-        public DimseRSPHandler createDimseRSPHandler(final File file) {
+        public void onDimseRSP(Association as, Attributes cmd, Attributes data) {
+            super.onDimseRSP(as, cmd, data);
+            StoreSCU.this.onCStoreRSP(cmd, file);
 
-            return new DimseRSPHandler(as.nextMessageID()) {
-
-                @Override
-                public void onDimseRSP(Association as, Attributes cmd, Attributes data) {
-                    super.onDimseRSP(as, cmd, data);
-                    StoreSCU.this.onCStoreRSP(cmd, file);
-
-                    DicomProgress progress = state.getProgress();
-                    if (progress != null) {
-                        progress.setProcessedFile(file);
-                        progress.setAttributes(cmd);
-                    }
-                }
-            };
+            DicomProgress progress = state.getProgress();
+            if (progress != null) {
+                progress.setProcessedFile(file);
+                progress.setAttributes(cmd);
+            }
         }
     };
 

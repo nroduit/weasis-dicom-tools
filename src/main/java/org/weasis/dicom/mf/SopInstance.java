@@ -164,10 +164,9 @@ public class SopInstance implements Xml, Comparable<SopInstance> {
 
     private static String adaptSopInstanceUID(String s, char[] c) {
         Arrays.fill(c, '0');
-        int index = s.lastIndexOf(".") + 1; //$NON-NLS-1$
-        String buf = s.substring(0, index) + String.valueOf(c) +
-                s.substring(index);
-        return buf;
+        int index = s.lastIndexOf('.') + 1; 
+        return s.substring(0, index) + String.valueOf(c) +
+                        s.substring(index);
     }
 
     public static void addSopInstance(Map<String, SopInstance> sopInstanceMap, SopInstance s) {

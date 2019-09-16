@@ -1,9 +1,9 @@
 /*******************************************************************************
- * Copyright (c) 2014 Weasis Team.
+ * Copyright (c) 2009-2019 Weasis Team and others.
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * http://www.eclipse.org/legal/epl-v20.html
  *
  * Contributors:
  *     Nicolas Roduit - initial API and implementation
@@ -26,7 +26,7 @@ import org.dcm4che3.util.UIDUtils;
 import org.junit.Test;
 import org.weasis.core.api.util.StringUtil;
 import org.weasis.dicom.param.DicomState;
-import org.weasis.dicom.web.AbstractStowrs.ContentType;
+import org.weasis.dicom.web.Multipart;
 import org.weasis.dicom.web.StowrsMultiFiles;
 import org.weasis.dicom.web.StowrsSingleFile;
 import org.weasis.dicom.web.UploadSingleFile;
@@ -48,7 +48,7 @@ public class StowNetTest {
         String message = null;
 
         // Upload files
-        try (StowrsMultiFiles stowRS = new StowrsMultiFiles(stowService, ContentType.DICOM, null, null)) {
+        try (StowrsMultiFiles stowRS = new StowrsMultiFiles(stowService, Multipart.ContentType.DICOM, null, null)) {
             DicomState state = stowRS.uploadDicom(files, true);
             message = state.getMessage();
         } catch (Exception e) {
@@ -60,7 +60,7 @@ public class StowNetTest {
         }
 
         // Upload a modify file
-        try (UploadSingleFile stowRS = new StowrsSingleFile(stowService, ContentType.DICOM);
+        try (UploadSingleFile stowRS = new StowrsSingleFile(stowService, Multipart.ContentType.DICOM);
                         DicomInputStream in = new DicomInputStream(new FileInputStream(files.get(0)))) {
             in.setIncludeBulkData(IncludeBulkData.URI);
             Attributes attributes = in.readDataset(-1, -1);

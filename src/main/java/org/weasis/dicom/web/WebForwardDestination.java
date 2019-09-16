@@ -1,3 +1,13 @@
+/*******************************************************************************
+ * Copyright (c) 2009-2019 Weasis Team and others.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v2.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v20.html
+ *
+ * Contributors:
+ *     Nicolas Roduit - initial API and implementation
+ *******************************************************************************/
 package org.weasis.dicom.web;
 
 import java.io.IOException;
@@ -9,7 +19,6 @@ import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
 import org.weasis.dicom.param.ForwardDestination;
 import org.weasis.dicom.param.ForwardDicomNode;
-import org.weasis.dicom.web.AbstractStowrs.ContentType;
 
 public class WebForwardDestination extends ForwardDestination {
 
@@ -35,7 +44,7 @@ public class WebForwardDestination extends ForwardDestination {
         super(attributesEditor);
         this.callingNode = fwdNode;
         this.state = new DicomState(progress == null ? new DicomProgress() : progress);
-        this.stowRS = new StowrsSingleFile(requestURL, ContentType.DICOM, null, headers);
+        this.stowRS = new StowrsSingleFile(requestURL, Multipart.ContentType.DICOM, null, headers);
     }
     
     public WebForwardDestination(ForwardDicomNode fwdNode, UploadSingleFile uploadManager,

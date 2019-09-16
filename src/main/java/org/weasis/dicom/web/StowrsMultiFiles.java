@@ -1,3 +1,13 @@
+/*******************************************************************************
+ * Copyright (c) 2009-2019 Weasis Team and others.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v2.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v20.html
+ *
+ * Contributors:
+ *     Nicolas Roduit - initial API and implementation
+ *******************************************************************************/
 package org.weasis.dicom.web;
 
 import java.io.DataOutputStream;
@@ -25,11 +35,11 @@ import org.weasis.dicom.param.DicomState;
 public class StowrsMultiFiles extends AbstractStowrs {
     private static final Logger LOGGER = LoggerFactory.getLogger(StowrsMultiFiles.class);
 
-    public StowrsMultiFiles(String requestURL, ContentType contentType) throws IOException {
+    public StowrsMultiFiles(String requestURL, Multipart.ContentType contentType) throws IOException {
         this(requestURL, contentType, null, null);
     }
 
-    public StowrsMultiFiles(String requestURL, ContentType contentType, String agentName, Map<String, String> headers)
+    public StowrsMultiFiles(String requestURL, Multipart.ContentType contentType, String agentName, Map<String, String> headers)
         throws IOException {
         super(requestURL, contentType, agentName, headers);
     }

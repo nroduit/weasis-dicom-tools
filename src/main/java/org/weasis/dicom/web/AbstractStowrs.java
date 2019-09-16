@@ -1,3 +1,13 @@
+/*******************************************************************************
+ * Copyright (c) 2009-2019 Weasis Team and others.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v2.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v20.html
+ *
+ * Contributors:
+ *     Nicolas Roduit - initial API and implementation
+ *******************************************************************************/
 package org.weasis.dicom.web;
 
 import java.io.DataOutputStream;
@@ -23,6 +33,7 @@ import org.dcm4che3.util.DateUtils;
 import org.dcm4che3.util.UIDUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.weasis.dicom.web.Multipart.ContentType;
 import org.xml.sax.SAXException;
 
 public class AbstractStowrs implements AutoCloseable {
@@ -32,22 +43,6 @@ public class AbstractStowrs implements AutoCloseable {
      */
     protected static final String MULTIPART_BOUNDARY = "mimeTypeBoundary";
     protected static final String BOUNDARY_PREFIX = "--";
-    protected static final String CRLF = "\r\n";
-
-    public enum ContentType {
-        DICOM("application/dicom"), XML("application/dicom+xml"), JSON("application/dicom+json");
-
-        private final String type;
-
-        ContentType(String type) {
-            this.type = type;
-        }
-
-        @Override
-        public String toString() {
-            return type;
-        }
-    }
 
     private final List<HttpURLConnection> connections;
     private final ContentType contentType;
@@ -67,7 +62,8 @@ public class AbstractStowrs implements AutoCloseable {
      * @throws IOException
      *             Exception during the POST initialization
      */
-    public AbstractStowrs(String requestURL, ContentType contentType, String agentName, Map<String, String> headers) {
+    public AbstractStowrs(String requestURL, Multipart.ContentType contentType, String agentName,
+        Map<String, String> headers) {
         this.contentType = Objects.requireNonNull(contentType);
         this.requestURL = Objects.requireNonNull(requestURL, "requestURL cannot be null");
         this.headers = headers;
@@ -113,7 +109,7 @@ public class AbstractStowrs implements AutoCloseable {
 
     private void endMarkers(DataOutputStream out) throws IOException {
         // Final part segment
-        out.writeBytes(CRLF);
+        out.write(Multipart.Separator.FIELD.getType());
         out.writeBytes(BOUNDARY_PREFIX);
         out.writeBytes(MULTIPART_BOUNDARY);
         out.writeBytes(BOUNDARY_PREFIX);
@@ -122,15 +118,16 @@ public class AbstractStowrs implements AutoCloseable {
     }
 
     protected void writeContentMarkers(DataOutputStream out) throws IOException {
-        out.writeBytes(CRLF);
+        byte[] fsep = Multipart.Separator.FIELD.getType();
+        out.write(fsep);
         out.writeBytes(BOUNDARY_PREFIX);
         out.writeBytes(MULTIPART_BOUNDARY);
-        out.writeBytes(CRLF);
+        out.write(fsep);
         out.writeBytes("Content-Type: "); //$NON-NLS-1$
         out.writeBytes(contentType.toString());
         // Two CRLF before content
-        out.writeBytes(CRLF);
-        out.writeBytes(CRLF);
+        out.write(fsep);
+        out.write(fsep);
     }
 
     protected void writeEndMarkers(HttpURLConnection httpPost, DataOutputStream out, String iuid) throws IOException {
@@ -195,7 +192,7 @@ public class AbstractStowrs implements AutoCloseable {
         }
         return null;
     }
-    
+
     protected void removeConnection(HttpURLConnection httpPost) {
         connections.remove(httpPost);
     }
@@ -205,7 +202,6 @@ public class AbstractStowrs implements AutoCloseable {
         connections.forEach(HttpURLConnection::disconnect);
         connections.clear();
     }
-    
 
     public ContentType getContentType() {
         return contentType;

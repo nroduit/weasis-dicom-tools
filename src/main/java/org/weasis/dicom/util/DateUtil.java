@@ -1,3 +1,13 @@
+/*******************************************************************************
+ * Copyright (c) 2009-2019 Weasis Team and others.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v2.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v20.html
+ *
+ * Contributors:
+ *     Nicolas Roduit - initial API and implementation
+ *******************************************************************************/
 package org.weasis.dicom.util;
 
 import static java.time.temporal.ChronoField.DAY_OF_MONTH;
@@ -14,6 +24,10 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
+import java.util.GregorianCalendar;
+
+import javax.xml.datatype.DatatypeConfigurationException;
+import javax.xml.datatype.DatatypeFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,6 +115,11 @@ public class DateUtil {
             }
         }
         return StringUtil.EMPTY_STRING;
+    }
+    
+    public static GregorianCalendar parseXmlDateTime(CharSequence s) throws DatatypeConfigurationException {
+        String val = s.toString().trim();
+        return DatatypeFactory.newInstance().newXMLGregorianCalendar(val).toGregorianCalendar();
     }
 
 }

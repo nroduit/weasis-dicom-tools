@@ -10,25 +10,16 @@
  *******************************************************************************/
 package org.weasis.dicom.web;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.Map;
 
-import org.dcm4che3.data.Attributes;
+public class MultipartStreamException extends IOException {
+    private static final long serialVersionUID = -4358358366372546933L;
 
-public interface UploadSingleFile extends AutoCloseable {
+    public MultipartStreamException(String message) {
+        super(message);
+    }
 
-    void uploadDicom(InputStream in, Attributes fmi, String tsuid, String iuid) throws IOException;
-
-    void uploadDicom(Attributes metadata, String tsuid) throws IOException;
-
-    void uploadEncapsulatedDocument(Attributes metadata, File bulkDataFile, String mimeType, String sopClassUID)
-        throws Exception;
-
-    String getRequestURL();
-
-    Multipart.ContentType getContentType();
-
-    Map<String, String> getHeaders();
+    public MultipartStreamException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

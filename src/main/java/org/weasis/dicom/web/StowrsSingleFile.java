@@ -1,3 +1,13 @@
+/*******************************************************************************
+ * Copyright (c) 2009-2019 Weasis Team and others.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v2.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v20.html
+ *
+ * Contributors:
+ *     Nicolas Roduit - initial API and implementation
+ *******************************************************************************/
 package org.weasis.dicom.web;
 
 import java.io.ByteArrayOutputStream;
@@ -24,11 +34,11 @@ import org.weasis.core.api.util.FileUtil;
 
 public class StowrsSingleFile extends AbstractStowrs implements UploadSingleFile {
 
-    public StowrsSingleFile(String requestURL, ContentType contentType) throws IOException {
+    public StowrsSingleFile(String requestURL, Multipart.ContentType contentType) throws IOException {
         this(requestURL, contentType, null, null);
     }
 
-    public StowrsSingleFile(String requestURL, ContentType contentType, String agentName, Map<String, String> headers) {
+    public StowrsSingleFile(String requestURL, Multipart.ContentType contentType, String agentName, Map<String, String> headers) {
         super(requestURL, contentType, agentName, headers);
     }
 
@@ -81,7 +91,7 @@ public class StowrsSingleFile extends AbstractStowrs implements UploadSingleFile
 
         try (ByteArrayOutputStream bOut = new ByteArrayOutputStream();
                         DataOutputStream out = new DataOutputStream(httpPost.getOutputStream())) {
-            if (getContentType() == ContentType.JSON)
+            if (getContentType() == Multipart.ContentType.JSON)
                 try (JsonGenerator gen = Json.createGenerator(bOut)) {
                     new JSONWriter(gen).write(metadata);
                 }
@@ -94,18 +104,19 @@ public class StowrsSingleFile extends AbstractStowrs implements UploadSingleFile
             out.write(bOut.toByteArray());
 
             // Segment for a part
-            out.writeBytes(CRLF);
+            byte[] fsep = Multipart.Separator.FIELD.getType();
+            out.write(fsep);
             out.writeBytes(BOUNDARY_PREFIX);
             out.writeBytes(MULTIPART_BOUNDARY);
-            out.writeBytes(CRLF);
+            out.write(fsep);
             out.writeBytes("Content-Type: "); //$NON-NLS-1$
             out.writeBytes(mimeType);
-            out.writeBytes(CRLF);
+            out.write(fsep);
             out.writeBytes("Content-Location: "); //$NON-NLS-1$
             out.writeBytes(getContentLocation(metadata));
             // Two CRLF before content
-            out.writeBytes(CRLF);
-            out.writeBytes(CRLF);
+            out.write(fsep);
+            out.write(fsep);
 
             Files.copy(bulkDataFile.toPath(), out);
 

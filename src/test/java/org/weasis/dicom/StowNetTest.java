@@ -22,11 +22,12 @@ import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.io.DicomInputStream.IncludeBulkData;
+import org.dcm4che3.net.Status;
 import org.dcm4che3.util.UIDUtils;
+import org.hamcrest.core.IsEqual;
 import org.hamcrest.core.IsNull;
 import org.junit.Assert;
 import org.junit.Test;
-import org.weasis.core.api.util.StringUtil;
 import org.weasis.dicom.param.DicomState;
 import org.weasis.dicom.web.Multipart;
 import org.weasis.dicom.web.StowrsMultiFiles;
@@ -47,20 +48,19 @@ public class StowNetTest {
         }
 
         String stowService = "http://localhost:8080/dcm4chee-arc/aets/DCM4CHEE/rs/studies";
-        String message = null;
+        DicomState state = null;
 
         // Upload files
         try (StowrsMultiFiles stowRS = new StowrsMultiFiles(stowService, Multipart.ContentType.DICOM, null, null)) {
-            DicomState state = stowRS.uploadDicom(files, true);
-            message = state.getMessage();
+            state = stowRS.uploadDicom(files, true);
         } catch (Exception e) {
-            message = e.getMessage();
+            System.out.println("StowRS error: " + e.getMessage());
         }
-        if (StringUtil.hasText(message)) {
-            System.out.println("StowRS error: " + message);
-        }
-        Assert.assertThat(message, message, IsNull.nullValue());
+
+        Assert.assertThat("DicomState cannot be null", state, IsNull.notNullValue());
+        Assert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(Status.Success));
         
+        String message = null;
         // Upload a modify file
         try (UploadSingleFile stowRS = new StowrsSingleFile(stowService, Multipart.ContentType.DICOM);
                         DicomInputStream in = new DicomInputStream(new FileInputStream(files.get(0)))) {
@@ -75,7 +75,6 @@ public class StowNetTest {
             stowRS.uploadDicom(attributes, in.getTransferSyntax());
         } catch (Exception e) {
             message = e.getMessage();
-            System.out.println("StowRS error: " + message);
         }
         Assert.assertThat(message, message, IsNull.nullValue());
     }

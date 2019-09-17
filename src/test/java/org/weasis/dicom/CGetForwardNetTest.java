@@ -25,7 +25,6 @@ import org.weasis.dicom.param.DefaultAttributeEditor;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
-import org.weasis.dicom.param.ProgressListener;
 
 public class CGetForwardNetTest {
 
@@ -75,7 +74,7 @@ public class CGetForwardNetTest {
 
         // see org.dcm4che3.net.Status
         // See server log at http://dicomserver.co.uk/logs/
-        Assert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(Status.Success));
+        Assert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(Status.Pending));
     }
 
 }

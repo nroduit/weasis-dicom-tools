@@ -33,7 +33,6 @@ import org.weasis.dicom.param.DicomState;
 import org.weasis.dicom.param.ForwardDestination;
 import org.weasis.dicom.param.ForwardDicomNode;
 import org.weasis.dicom.param.GatewayParams;
-import org.weasis.dicom.param.ProgressListener;
 import org.weasis.dicom.tool.DicomGateway;
 import org.weasis.dicom.web.WebForwardDestination;
 
@@ -113,10 +112,10 @@ public class DicomGatewayMultiDestNetTest {
         System.out.println("DICOM Status for retrieving:" + state.getStatus());
         // see org.dcm4che3.net.Status
         // See server log at http://dicomserver.co.uk/logs/
-        Assert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(Status.Success));
+        Assert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(Status.Pending));
         
         System.out.println("DICOM Status for forwarding:" + web.getState().getStatus());
-        Assert.assertThat(web.getState().getMessage(), web.getState().getStatus(), IsEqual.equalTo(Status.Success));
+        Assert.assertThat(web.getState().getMessage(), web.getState().getStatus(), IsEqual.equalTo(Status.Pending));
         
     }
 

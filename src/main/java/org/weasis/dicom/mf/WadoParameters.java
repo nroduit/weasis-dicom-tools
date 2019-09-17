@@ -42,7 +42,6 @@ public class WadoParameters extends ArcParameters {
         super(archiveID, wadoURL, additionnalParameters, overrideDicomTagsList, webLogin);
         this.requireOnlySOPInstanceUID = requireOnlySOPInstanceUID;
         this.wadoRS = wadoRS;
-        
     }
 
     public boolean isRequireOnlySOPInstanceUID() {

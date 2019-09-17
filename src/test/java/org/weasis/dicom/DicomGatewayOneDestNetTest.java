@@ -27,7 +27,6 @@ import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
 import org.weasis.dicom.param.ForwardDicomNode;
 import org.weasis.dicom.param.GatewayParams;
-import org.weasis.dicom.param.ProgressListener;
 import org.weasis.dicom.tool.DicomGateway;
 
 public class DicomGatewayOneDestNetTest {
@@ -78,8 +77,8 @@ public class DicomGatewayOneDestNetTest {
         });
 
         String studyUID = "1.2.826.0.1.3680043.11.111";
-
-        DicomState state = CGetForward.processStudy(params, params, calling, called, scpNode, progress, studyUID);
+        DicomNode calling2 = new DicomNode("WEASIS-SCU");
+        DicomState state = CGetForward.processStudy(params, params, calling2, called, scpNode, progress, studyUID);
         // Should never happen
         Assert.assertNotNull(state);
 
@@ -88,7 +87,7 @@ public class DicomGatewayOneDestNetTest {
 
         // see org.dcm4che3.net.Status
         // See server log at http://dicomserver.co.uk/logs/
-        Assert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(Status.Success));
+        Assert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(Status.Pending));
     }
 
 }

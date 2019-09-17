@@ -103,20 +103,17 @@ public class StowrsSingleFile extends AbstractStowrs implements UploadSingleFile
 
             out.write(bOut.toByteArray());
 
-            // Segment for a part
-            byte[] fsep = Multipart.Separator.FIELD.getType();
-            out.write(fsep);
-            out.writeBytes(BOUNDARY_PREFIX);
+            // Segment and headers for a part
+            out.write(Multipart.Separator.BOUNDARY.getType());
             out.writeBytes(MULTIPART_BOUNDARY);
+            byte[] fsep = Multipart.Separator.FIELD.getType();
             out.write(fsep);
             out.writeBytes("Content-Type: "); //$NON-NLS-1$
             out.writeBytes(mimeType);
             out.write(fsep);
             out.writeBytes("Content-Location: "); //$NON-NLS-1$
             out.writeBytes(getContentLocation(metadata));
-            // Two CRLF before content
-            out.write(fsep);
-            out.write(fsep);
+            out.write(Multipart.Separator.HEADER.getType());
 
             Files.copy(bulkDataFile.toPath(), out);
 

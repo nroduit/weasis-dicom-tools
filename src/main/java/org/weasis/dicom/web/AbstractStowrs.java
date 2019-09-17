@@ -42,7 +42,6 @@ public class AbstractStowrs implements AutoCloseable {
      * @see <a href="https://tools.ietf.org/html/rfc2387">multipart specifications</a>
      */
     protected static final String MULTIPART_BOUNDARY = "mimeTypeBoundary";
-    protected static final String BOUNDARY_PREFIX = "--";
 
     private final List<HttpURLConnection> connections;
     private final ContentType contentType;
@@ -84,7 +83,7 @@ public class AbstractStowrs implements AutoCloseable {
             httpPost.setConnectTimeout(10000);
             httpPost.setReadTimeout(60000);
             httpPost.setRequestProperty("Content-Type", //$NON-NLS-1$
-                "multipart/related; type=\"" + contentType + "\"; boundary=" + MULTIPART_BOUNDARY); //$NON-NLS-1$
+                Multipart.MULTIPART_RELATED + "; type=\"" + contentType + "\"; boundary=" + MULTIPART_BOUNDARY); //$NON-NLS-1$
             httpPost.setRequestProperty("User-Agent", agentName == null ? "Weasis STOWRS" : agentName);
             httpPost.setRequestProperty("Accept",
                 contentType == ContentType.JSON ? ContentType.JSON.toString() : ContentType.XML.toString());
@@ -109,25 +108,20 @@ public class AbstractStowrs implements AutoCloseable {
 
     private void endMarkers(DataOutputStream out) throws IOException {
         // Final part segment
-        out.write(Multipart.Separator.FIELD.getType());
-        out.writeBytes(BOUNDARY_PREFIX);
+        out.write(Multipart.Separator.BOUNDARY.getType());
         out.writeBytes(MULTIPART_BOUNDARY);
-        out.writeBytes(BOUNDARY_PREFIX);
+        out.write(Multipart.Separator.STREAM.getType());
         out.flush();
         out.close();
     }
 
     protected void writeContentMarkers(DataOutputStream out) throws IOException {
-        byte[] fsep = Multipart.Separator.FIELD.getType();
-        out.write(fsep);
-        out.writeBytes(BOUNDARY_PREFIX);
+        out.write(Multipart.Separator.BOUNDARY.getType());
         out.writeBytes(MULTIPART_BOUNDARY);
-        out.write(fsep);
+        out.write(Multipart.Separator.FIELD.getType());
         out.writeBytes("Content-Type: "); //$NON-NLS-1$
         out.writeBytes(contentType.toString());
-        // Two CRLF before content
-        out.write(fsep);
-        out.write(fsep);
+        out.write(Multipart.Separator.HEADER.getType());
     }
 
     protected void writeEndMarkers(HttpURLConnection httpPost, DataOutputStream out, String iuid) throws IOException {

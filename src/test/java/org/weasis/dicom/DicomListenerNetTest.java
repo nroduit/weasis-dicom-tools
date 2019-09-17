@@ -24,7 +24,6 @@ import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
 import org.weasis.dicom.param.ListenerParams;
-import org.weasis.dicom.param.ProgressListener;
 import org.weasis.dicom.tool.DicomListener;
 
 public class DicomListenerNetTest {
@@ -85,7 +84,7 @@ public class DicomListenerNetTest {
 
         // see org.dcm4che3.net.Status
         // See server log at http://dicomserver.co.uk/logs/
-        Assert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(Status.Success));
+        Assert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(Status.Pending));
     }
 
 }

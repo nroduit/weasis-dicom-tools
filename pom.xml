@@ -6,14 +6,14 @@
 	<artifactId>weasis-dicom-tools</artifactId>
 	<packaging>jar</packaging>
 	<name>Weasis DICOM API (based on dcm4che3)</name>
-	<version>5.18.1</version>
+	<version>5.19.1</version>
 
 	<properties>
 		<java-version>1.8</java-version>
 		<enforcer.jdk-version>[${java-version},)</enforcer.jdk-version>
 		<enforcer.maven-version>[3.0.5,)</enforcer.maven-version>
-		<dcm4che.version>5.18.1</dcm4che.version>
-		<weasis.version>3.5.3</weasis.version>
+		<dcm4che.version>5.19.1</dcm4che.version>
+		<weasis.version>3.5.4</weasis.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 	</properties>
@@ -36,7 +36,7 @@
 		<repository>
 			<id>github</id>
 			<name>GitHub Weasis Maven Packages</name>
-			<url>https://maven.pkg.github.com/nroduit</url>
+			<url>https://maven.pkg.github.com/nroduit/weasis-dicom-tools</url>
 		</repository>
 	</distributionManagement>
 	<repositories>

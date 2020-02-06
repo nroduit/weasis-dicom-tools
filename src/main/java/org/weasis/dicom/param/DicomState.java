@@ -12,15 +12,16 @@ package org.weasis.dicom.param;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.OptionalInt;
 
-import org.dcm4che3.data.Attributes;
-import org.dcm4che3.net.Status;
+import org.dcm4che6.data.DicomObject;
+import org.dcm4che6.net.Status;
 import org.weasis.core.api.util.StringUtil;
 
 public class DicomState {
     private volatile int status;
     private String message;
-    private final List<Attributes> dicomRSP;
+    private final List<DicomObject> dicomRSP;
     private final DicomProgress progress;
 
     public DicomState() {
@@ -45,11 +46,11 @@ public class DicomState {
      * 
      * @return the DICOM status of the process
      */
-    public int getStatus() {
+    public OptionalInt getStatus() {
         if (progress != null && progress.getAttributes() != null) {
             return progress.getStatus();
         }
-        return status;
+        return OptionalInt.of(status);
     }
 
     /**
@@ -76,11 +77,11 @@ public class DicomState {
         return progress;
     }
 
-    public List<Attributes> getDicomRSP() {
+    public List<DicomObject> getDicomRSP() {
         return dicomRSP;
     }
 
-    public void addDicomRSP(Attributes dicomRSP) {
+    public void addDicomRSP(DicomObject dicomRSP) {
         if (dicomRSP != null) {
             this.dicomRSP.add(dicomRSP);
         }
@@ -93,19 +94,19 @@ public class DicomState {
         }
 
         DicomProgress p = state.getProgress();
-        int s = state.getStatus();
+        OptionalInt s = state.getStatus();
 
         StringBuilder msg = new StringBuilder();
 
         boolean hasFailed = false;
         if (p != null) {
-            int failed = p.getNumberOfFailedSuboperations();
-            int warning = p.getNumberOfWarningSuboperations();
-            int remaining = p.getNumberOfRemainingSuboperations();
+            int failed = p.getNumberOfFailedSuboperations().orElse(0);
+            int warning = p.getNumberOfWarningSuboperations().orElse(0);
+            int remaining = p.getNumberOfRemainingSuboperations().orElse(0);
             if (failed > 0) {
                 hasFailed = true;
                 msg.append(String.format("%d/%d operations has failed.", failed,
-                    failed + p.getNumberOfCompletedSuboperations()));
+                    failed + p.getNumberOfCompletedSuboperations().orElse(0)));
             } else if (remaining > 0) {
                 msg.append(String.format("%d operations remains. ", remaining));
             } else if (warning > 0) {
@@ -132,13 +133,13 @@ public class DicomState {
                 msg.append(error);
             }
 
-            if (!Status.isPending(s) && s != -1 && s != Status.Success && s != Status.Cancel) {
+            if (s.isPresent()) {
                 if (msg.length() > 0) {
                     msg.append("\n");
                 }
                 msg.append("DICOM status");
                 msg.append(StringUtil.COLON_AND_SPACE);
-                msg.append(s);
+                msg.append(s.getAsInt());
             }
         }
 
@@ -147,7 +148,7 @@ public class DicomState {
                 msg.append(timeMessage);
             }
         } else {
-            if (Status.isPending(s) || s == -1) {
+            if (s.isPresent() && Status.isPending(s.getAsInt())) {
                 state.setStatus(Status.UnableToProcess);
             }
         }

@@ -12,17 +12,19 @@ package org.weasis.dicom.param;
 
 import java.util.HashMap;
 
-import org.dcm4che3.data.Attributes;
-import org.dcm4che3.data.Tag;
-import org.dcm4che3.data.VR;
-import org.dcm4che3.util.UIDUtils;
+import org.dcm4che6.data.DicomObject;
+import org.dcm4che6.data.Tag;
+import org.dcm4che6.data.VR;
+import org.dcm4che6.util.UIDUtils;
+
+
 
 public class DefaultAttributeEditor implements AttributeEditor {
     private HashMap<String, String> uidMap;
     private final boolean generateUIDs;
-    private final Attributes tagToOverride;
+    private final DicomObject tagToOverride;
 
-    public DefaultAttributeEditor(Attributes tagToOverride) {
+    public DefaultAttributeEditor(DicomObject tagToOverride) {
         this(false, tagToOverride);
     }
 
@@ -33,37 +35,35 @@ public class DefaultAttributeEditor implements AttributeEditor {
      *            list of DICOM attributes to override
      * 
      */
-    public DefaultAttributeEditor(boolean generateUIDs, Attributes tagToOverride) {
+    public DefaultAttributeEditor(boolean generateUIDs, DicomObject tagToOverride) {
         this.generateUIDs = generateUIDs;
         this.tagToOverride = tagToOverride;
         this.uidMap = generateUIDs ? new HashMap<>() : null;
     }
 
     @Override
-    public boolean apply(Attributes data, AttributeEditorContext context) {
+    public boolean apply(DicomObject data, AttributeEditorContext context) {
         if (data != null) {
             boolean update = false;
             if (generateUIDs) {
-                if ("2.25".equals(UIDUtils.getRoot())) {
-                    UIDUtils.setRoot("2.25.35");
-                }
                 // New Study UID
-                String oldStudyUID = data.getString(Tag.StudyInstanceUID);
-                String studyUID = uidMap.computeIfAbsent(oldStudyUID, k -> UIDUtils.createUID());
+                String oldStudyUID = data.getString(Tag.StudyInstanceUID).orElseThrow();
+                String studyUID = uidMap.computeIfAbsent(oldStudyUID, k -> UIDUtils.randomUID());
                 data.setString(Tag.StudyInstanceUID, VR.UI, studyUID);
 
                 // New Series UID
-                String oldSeriesUID = data.getString(Tag.SeriesInstanceUID);
-                String seriesUID = uidMap.computeIfAbsent(oldSeriesUID, k -> UIDUtils.createUID());
+                String oldSeriesUID = data.getString(Tag.SeriesInstanceUID).orElseThrow();;
+                String seriesUID = uidMap.computeIfAbsent(oldSeriesUID, k -> UIDUtils.randomUID());
                 data.setString(Tag.SeriesInstanceUID, VR.UI, seriesUID);
 
                 // New Sop UID
-                String iuid = UIDUtils.createUID();
+                String iuid = UIDUtils.randomUID();
                 data.setString(Tag.SOPInstanceUID, VR.UI, iuid);
                 update = true;
             }
             if (tagToOverride != null && !tagToOverride.isEmpty()) {
-                data.update(Attributes.UpdatePolicy.OVERWRITE, tagToOverride, null);
+                tagToOverride.elementStream().forEach(el -> data.add(el));
+             //   data.update(Attributes.UpdatePolicy.OVERWRITE, tagToOverride, null);
                 update = true;
             }
             return update;

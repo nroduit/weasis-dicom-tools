@@ -10,30 +10,28 @@
  *******************************************************************************/
 package org.weasis.dicom;
 
+import java.net.MalformedURLException;
+import java.util.OptionalInt;
+
 import org.apache.log4j.BasicConfigurator;
-import org.dcm4che3.net.Status;
+import org.dcm4che6.net.Status;
 import org.hamcrest.core.IsEqual;
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.weasis.dicom.op.Echo;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomState;
 
-public class EchoNetTest {
+public class EchoAdvTest {
+
+    @BeforeAll
+    public static void setLogger() throws MalformedURLException {
+        BasicConfigurator.configure();
+    }
 
     @Test
     public void testProcess() {
-        BasicConfigurator.configure();
-        
-        // DicomNode calling = new DicomNode("WEA-SCU");
-        // DicomNode called = new DicomNode("DCM4CHEE", "localhost", 11112);
-        // AdvancedParams params = new AdvancedParams();
-        // TlsOptions tls =
-        // new TlsOptions(true, "/home/dcm4chee/dcm4chee-2.18.0-mysql/server/default/conf/keystore.jks", "JKS",
-        // "keypwd", "keypwd", "/home/dcm4chee/dcm4chee-2.18.0-mysql/server/default/conf/trust.jks", "JKS",
-        // "trustpwd");
-        // params.setTlsOptions(tls);
-        // DicomState state = Echo.process(params, calling, called);
 
         DicomNode calling = new DicomNode("WEASIS-SCU");
         DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
@@ -41,10 +39,11 @@ public class EchoNetTest {
         // Should never happen
         Assert.assertNotNull(state);
 
-        System.out.println("DICOM Status:" + state.getStatus());
-        System.out.println(state.getMessage());
-        // see org.dcm4che3.net.Status
         // See server log at http://dicomserver.co.uk/logs/
-        Assert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(Status.Success));
+        System.out.println("DicomState result: ");
+        System.out.println("\tDICOM Status: " + state.getStatus()); // see org.dcm4ch6.net.Status
+        System.out.println("\t" + state.getMessage());
+
+        Assert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(OptionalInt.of(Status.Success)));
     }
 }

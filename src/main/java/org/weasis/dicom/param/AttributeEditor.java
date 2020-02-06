@@ -10,11 +10,11 @@
  *******************************************************************************/
 package org.weasis.dicom.param;
 
-import org.dcm4che3.data.Attributes;
+import org.dcm4che6.data.DicomObject;
 
 @FunctionalInterface
 public interface AttributeEditor {
 
-    boolean apply(Attributes attributes, AttributeEditorContext context);
+    boolean apply(DicomObject dcm, AttributeEditorContext context);
 
 }

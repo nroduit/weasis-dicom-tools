@@ -23,7 +23,7 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
 
-import org.dcm4che3.data.Tag;
+import org.dcm4che6.data.Tag;
 import org.weasis.core.api.util.StringUtil;
 
 public class Patient implements Xml, Comparable<Patient> {

@@ -16,7 +16,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 
-import org.dcm4che3.data.Tag;
+import org.dcm4che6.data.Tag;
 import org.weasis.core.api.media.data.TagW;
 import org.weasis.core.api.util.StringUtil;
 

@@ -10,7 +10,7 @@
  *******************************************************************************/
 package org.weasis.dicom.param;
 
-import org.dcm4che3.data.ElementDictionary;
+import org.dcm4che6.data.ElementDictionary;
 
 public class DicomParam {
 

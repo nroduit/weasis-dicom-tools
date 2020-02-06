@@ -12,7 +12,6 @@ package org.weasis.dicom.param;
 
 import java.io.IOException;
 
-import org.dcm4che3.net.Association;
 import org.weasis.dicom.util.StoreFromStreamSCU;
 
 public class DicomForwardDestination extends ForwardDestination {

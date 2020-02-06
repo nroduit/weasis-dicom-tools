@@ -14,8 +14,8 @@ import java.io.IOException;
 import java.io.Writer;
 import java.util.List;
 
-import org.dcm4che3.data.ElementDictionary;
-import org.dcm4che3.util.TagUtils;
+import org.dcm4che6.data.ElementDictionary;
+import org.dcm4che6.util.TagUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.api.media.data.TagW;
@@ -52,7 +52,7 @@ public interface Xml {
 
     static void addXmlAttribute(int tagID, String value, Writer result) throws IOException {
         if (StringUtil.hasText(value)) {
-            String key = ElementDictionary.getStandardElementDictionary().keywordOf(tagID);
+            String key = ElementDictionary.standardElementDictionary().keywordOf(tagID);
             if (key == null) {
                 LOGGER.error("Cannot find keyword of tagID {}", TagUtils.toString(tagID));
             } else {

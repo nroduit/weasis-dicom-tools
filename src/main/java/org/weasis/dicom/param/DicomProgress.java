@@ -13,15 +13,18 @@ package org.weasis.dicom.param;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.OptionalInt;
 
-import org.dcm4che3.data.Attributes;
-import org.dcm4che3.data.Tag;
-import org.dcm4che3.net.Status;
+import org.dcm4che6.data.DicomObject;
+import org.dcm4che6.data.Tag;
+import org.dcm4che6.net.Status;
+
+
 
 public class DicomProgress implements CancelListener {
 
     private final List<ProgressListener> listenerList;
-    private Attributes attributes;
+    private DicomObject attributes;
     private volatile boolean cancel;
     private File processedFile;
     private volatile boolean lastFailed = false;
@@ -31,16 +34,15 @@ public class DicomProgress implements CancelListener {
         this.listenerList = new ArrayList<>();
     }
 
-    public Attributes getAttributes() {
+    public DicomObject getAttributes() {
         return attributes;
     }
 
-    public void setAttributes(Attributes attributes) {
+    public void setAttributes(DicomObject attributes) {
         synchronized (this) {
-            int failed = getNumberOfFailedSuboperations();
-            failed = failed < 0 ? 0 : failed;
+            OptionalInt failed = getNumberOfFailedSuboperations();
             this.attributes = attributes;
-            lastFailed = failed < getNumberOfFailedSuboperations();
+            lastFailed =  getNumberOfFailedSuboperations().orElse(0) > failed.orElse(0);
         }
 
         fireProgress();
@@ -85,46 +87,46 @@ public class DicomProgress implements CancelListener {
         return cancel;
     }
 
-    private int getIntTag(int tag) {
-        Attributes dcm = attributes;
+    private OptionalInt getIntTag(int tag) {
+        DicomObject dcm = attributes;
         if (dcm == null) {
-            return -1;
+            return OptionalInt.empty();
         }
-        return dcm.getInt(tag, -1);
+        return dcm.getInt(tag);
     }
 
-    public int getStatus() {
+    public OptionalInt getStatus() {
         if (isCancel()) {
-            return Status.Cancel;
+            return OptionalInt.of(Status.Cancel);
         }
-        Attributes dcm = attributes;
+        DicomObject dcm = attributes;
         if (dcm == null) {
-            return Status.Pending;
+            return  OptionalInt.empty();
         }
-        return dcm.getInt(Tag.Status, Status.Pending);
+        return dcm.getInt(Tag.Status);
     }
 
     public String getErrorComment() {
-        Attributes dcm = attributes;
+        DicomObject dcm = attributes;
         if (dcm == null) {
             return null;
         }
-        return dcm.getString(Tag.ErrorComment);
+        return dcm.getString(Tag.ErrorComment).orElse(null);
     }
 
-    public int getNumberOfRemainingSuboperations() {
+    public OptionalInt getNumberOfRemainingSuboperations() {
         return getIntTag(Tag.NumberOfRemainingSuboperations);
     }
 
-    public int getNumberOfCompletedSuboperations() {
+    public OptionalInt getNumberOfCompletedSuboperations() {
         return getIntTag(Tag.NumberOfCompletedSuboperations);
     }
 
-    public int getNumberOfFailedSuboperations() {
+    public OptionalInt getNumberOfFailedSuboperations() {
         return getIntTag(Tag.NumberOfFailedSuboperations);
     }
 
-    public int getNumberOfWarningSuboperations() {
+    public OptionalInt getNumberOfWarningSuboperations() {
         return getIntTag(Tag.NumberOfWarningSuboperations);
     }
 

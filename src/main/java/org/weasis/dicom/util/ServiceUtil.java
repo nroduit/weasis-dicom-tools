@@ -10,17 +10,21 @@
  *******************************************************************************/
 package org.weasis.dicom.util;
 
-import java.io.File;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 
-import org.dcm4che3.data.Attributes;
-import org.dcm4che3.data.Tag;
-import org.dcm4che3.data.VR;
-import org.dcm4che3.io.DicomInputStream;
+import org.dcm4che6.conf.model.Connection;
+import org.dcm4che6.data.DicomObject;
+import org.dcm4che6.data.Tag;
+import org.dcm4che6.data.VR;
+import org.dcm4che6.io.DicomInputStream;
+import org.dcm4che6.net.DimseRSP;
+import org.dcm4che6.net.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.api.util.FileUtil;
+import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
 
@@ -32,6 +36,54 @@ public class ServiceUtil {
     }
 
     private ServiceUtil() {
+    }
+
+    /**
+     * Get a connection from a <code>DicomNode</code>
+     * 
+     * @param dicomNode
+     * @return
+     */
+    public static Connection getConnection(DicomNode dicomNode) {
+        Connection con = new Connection();
+        if (Objects.requireNonNull(dicomNode).getHostname() != null) {
+            con.setHostname(dicomNode.getHostname());
+        }
+        if (dicomNode.getPort() != null) {
+            con.setPort(dicomNode.getPort());
+        }
+        return con;
+    }
+
+    public static int getStatus(DimseRSP resp) {
+        if (resp != null && resp.command != null) {
+            return resp.command.getInt(Tag.Status).orElse(Status.UnableToProcess);
+        }
+        return Status.UnableToProcess;
+    }
+
+    public static ProgressStatus setDicomRSP(DimseRSP resp, DicomState state, int filesScanned) {
+        if (resp == null || resp.command == null) {
+            return ProgressStatus.FAILED;
+        }
+        int status = resp.command.getInt(Tag.Status).orElse(Status.Pending);
+        state.setStatus(status);
+        ProgressStatus ps;
+
+        switch (status) {
+            case Status.Success:
+                ps = ProgressStatus.COMPLETED;
+                break;
+            case Status.CoercionOfDataElements:
+            case Status.ElementsDiscarded:
+            case Status.DataSetDoesNotMatchSOPClassWarning:
+                ps = ProgressStatus.WARNING;
+                break;
+            default:
+                ps = ProgressStatus.FAILED;
+        }
+        ServiceUtil.notifyProgession(state.getProgress(), resp.command, ps, filesScanned);
+        return ps;
     }
 
     public static void shutdownService(ExecutorService executorService) {
@@ -53,9 +105,9 @@ public class ServiceUtil {
 
     public static void safeClose(DicomInputStream in) {
         if (in != null) {
-            for (File file : in.getBulkDataFiles()) {
-                FileUtil.delete(file);
-            }
+            // for (File file : in.getBulkDataFiles()) {
+            // FileUtil.delete(file);
+            // }
         }
     }
 
@@ -64,7 +116,7 @@ public class ServiceUtil {
         state.setStatus(status);
         DicomProgress p = state.getProgress();
         if (p != null) {
-            Attributes cmd = Optional.ofNullable(p.getAttributes()).orElseGet(Attributes::new);
+            DicomObject cmd = Optional.ofNullable(p.getAttributes()).orElseGet(() -> DicomObject.newDicomObject());
             cmd.setInt(Tag.Status, VR.US, status);
             cmd.setString(Tag.AffectedSOPInstanceUID, VR.UI, iuid);
             cmd.setString(Tag.AffectedSOPClassUID, VR.UI, cuid);
@@ -73,7 +125,8 @@ public class ServiceUtil {
         }
     }
 
-    public static void notifyProgession(DicomProgress p, Attributes cmd, ProgressStatus ps, int numberOfSuboperations) {
+    public static void notifyProgession(DicomProgress p, DicomObject cmd, ProgressStatus ps,
+        int numberOfSuboperations) {
         if (p != null && cmd != null) {
             int c;
             int f;
@@ -85,9 +138,9 @@ public class ServiceUtil {
                 w = 0;
                 r = numberOfSuboperations;
             } else {
-                c = p.getNumberOfCompletedSuboperations();
-                f = p.getNumberOfFailedSuboperations();
-                w = p.getNumberOfWarningSuboperations();
+                c = p.getNumberOfCompletedSuboperations().orElse(0);
+                f = p.getNumberOfFailedSuboperations().orElse(0);
+                w = p.getNumberOfWarningSuboperations().orElse(0);
                 r = numberOfSuboperations - (c + f + w);
             }
 
@@ -109,12 +162,12 @@ public class ServiceUtil {
         }
     }
 
-    public static int getTotalOfSuboperations(Attributes cmd) {
+    public static int getTotalOfSuboperations(DicomObject cmd) {
         if (cmd != null) {
-            int c = cmd.getInt(Tag.NumberOfCompletedSuboperations, 0);
-            int f = cmd.getInt(Tag.NumberOfFailedSuboperations, 0);
-            int w = cmd.getInt(Tag.NumberOfWarningSuboperations, 0);
-            int r = cmd.getInt(Tag.NumberOfRemainingSuboperations, 0);
+            int c = cmd.getInt(Tag.NumberOfCompletedSuboperations).orElse(0);
+            int f = cmd.getInt(Tag.NumberOfFailedSuboperations).orElse(0);
+            int w = cmd.getInt(Tag.NumberOfWarningSuboperations).orElse(0);
+            int r = cmd.getInt(Tag.NumberOfRemainingSuboperations).orElse(0);
             return r + c + f + w;
         }
         return 0;

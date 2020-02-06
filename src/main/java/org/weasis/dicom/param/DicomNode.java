@@ -14,7 +14,6 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Objects;
 
-import org.dcm4che3.net.Association;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.api.util.StringUtil;
@@ -113,21 +112,21 @@ public class DicomNode {
         return buf.toString();
     }
 
-    public static DicomNode buildLocalDicomNode(Association as) {
-        String ip = null;
-        InetAddress address = as.getSocket().getLocalAddress();
-        if (address != null) {
-            ip = address.getHostAddress();
-        }
-        return new DicomNode(as.getLocalAET(), ip, as.getSocket().getLocalPort());
-    }
-
-    public static DicomNode buildRemoteDicomNode(Association as) {
-        String ip = null;
-        InetAddress address = as.getSocket().getInetAddress();
-        if (address != null) {
-            ip = address.getHostAddress();
-        }
-        return new DicomNode(as.getRemoteAET(), ip, as.getSocket().getPort());
-    }
+//    public static DicomNode buildLocalDicomNode(Association as) {
+//        String ip = null;
+//        InetAddress address = as.getSocket().getLocalAddress();
+//        if (address != null) {
+//            ip = address.getHostAddress();
+//        }
+//        return new DicomNode(as.getLocalAET(), ip, as.getSocket().getLocalPort());
+//    }
+//
+//    public static DicomNode buildRemoteDicomNode(Association as) {
+//        String ip = null;
+//        InetAddress address = as.getSocket().getInetAddress();
+//        if (address != null) {
+//            ip = address.getHostAddress();
+//        }
+//        return new DicomNode(as.getRemoteAET(), ip, as.getSocket().getPort());
+//    }
 }

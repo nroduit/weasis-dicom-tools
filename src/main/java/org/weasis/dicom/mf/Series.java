@@ -22,7 +22,7 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
 
-import org.dcm4che3.data.Tag;
+import org.dcm4che6.data.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.api.media.data.TagW;

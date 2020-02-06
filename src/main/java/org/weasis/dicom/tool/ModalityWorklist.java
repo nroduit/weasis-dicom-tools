@@ -12,13 +12,12 @@ package org.weasis.dicom.tool;
 
 import java.text.MessageFormat;
 
-import org.dcm4che3.data.Attributes;
-import org.dcm4che3.data.Sequence;
-import org.dcm4che3.data.Tag;
-import org.dcm4che3.net.Connection;
-import org.dcm4che3.net.Status;
+import javax.sound.midi.Sequence;
+
 import org.dcm4che3.tool.findscu.FindSCU;
 import org.dcm4che3.tool.findscu.FindSCU.InformationModel;
+import org.dcm4che6.data.Tag;
+import org.dcm4che6.net.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.api.util.FileUtil;

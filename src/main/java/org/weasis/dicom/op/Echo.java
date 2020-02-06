@@ -11,21 +11,22 @@
 package org.weasis.dicom.op;
 
 import java.text.MessageFormat;
+import java.util.concurrent.CompletableFuture;
 
-import org.dcm4che3.data.Attributes;
-import org.dcm4che3.data.Tag;
-import org.dcm4che3.net.ApplicationEntity;
-import org.dcm4che3.net.Connection;
-import org.dcm4che3.net.Device;
-import org.dcm4che3.net.Status;
-import org.dcm4che3.tool.storescu.StoreSCU;
+import org.dcm4che6.conf.model.Connection;
+import org.dcm4che6.data.UID;
+import org.dcm4che6.net.AAssociate;
+import org.dcm4che6.net.Association;
+import org.dcm4che6.net.DicomServiceRegistry;
+import org.dcm4che6.net.DimseRSP;
+import org.dcm4che6.net.Status;
+import org.dcm4che6.net.TCPConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.weasis.core.api.util.FileUtil;
 import org.weasis.dicom.param.AdvancedParams;
-import org.weasis.dicom.param.DeviceOpService;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomState;
+import org.weasis.dicom.util.ServiceUtil;
 
 public class Echo {
 
@@ -74,48 +75,39 @@ public class Echo {
         }
 
         AdvancedParams options = params == null ? new AdvancedParams() : params;
-
         try {
-            Device device = new Device("storescu");
-            Connection conn = new Connection();
-            device.addConnection(conn);
-            ApplicationEntity ae = new ApplicationEntity(callingNode.getAet());
-            device.addApplicationEntity(ae);
-            ae.addConnection(conn);
-            StoreSCU storeSCU = new StoreSCU(ae, null);
-            Connection remote = storeSCU.getRemoteConnection();
-            DeviceOpService service = new DeviceOpService(device);
-
-            options.configureConnect(storeSCU.getAAssociateRQ(), remote, calledNode);
-            options.configureBind(ae, conn, callingNode);
-
-            // configure
-            options.configure(conn);
-            options.configureTLS(conn, remote);
-
-            storeSCU.setPriority(options.getPriority());
-
-            service.start();
-            try {
-                long t1 = System.currentTimeMillis();
-                storeSCU.open();
-                long t2 = System.currentTimeMillis();
-                Attributes rsp = storeSCU.echo();
-                long t3 = System.currentTimeMillis();
-                String message = MessageFormat.format(
-                    "Successful DICOM Echo. Connected in {2}ms from {0} to {1}. Service execution in {3}ms.",
-                    storeSCU.getAAssociateRQ().getCallingAET(), storeSCU.getAAssociateRQ().getCalledAET(), t2 - t1,
-                    t3 - t2);
-                return new DicomState(rsp.getInt(Tag.Status, Status.Success), message, null);
-            } finally {
-                FileUtil.safeClose(storeSCU);
-                service.stop();
-            }
+            DicomServiceRegistry serviceRegistry = new DicomServiceRegistry();
+            TCPConnector<Association> inst =
+                new TCPConnector<>((connector, role) -> new Association(connector, role, serviceRegistry));
+            CompletableFuture<Void> task = CompletableFuture.runAsync(inst);
+            AAssociate.RQ rq = new AAssociate.RQ();
+            rq.setCallingAETitle(callingNode.getAet());
+            rq.setCalledAETitle(calledNode.getAet());
+            rq.putPresentationContext((byte) 1, UID.VerificationSOPClass, UID.ImplicitVRLittleEndian);
+            Connection local = ServiceUtil.getConnection(callingNode);
+            Connection remote = ServiceUtil.getConnection(calledNode);
+            options.configureTLS(local, remote);
+            long t1 = System.currentTimeMillis();
+            Association as = inst.connect(local, remote).thenCompose(as1 -> as1.open(rq)).join();
+            long t2 = System.currentTimeMillis();
+            CompletableFuture<DimseRSP> echo = as.cecho();
+            echo.join();
+            DimseRSP resp = echo.get();
+            as.release();
+            long t3 = System.currentTimeMillis();
+            as.onClose().join();
+            task.cancel(true);
+            String message = MessageFormat.format(
+                "Successful DICOM Echo. Connected in {2}ms from {0} to {1}. Service execution in {3}ms.",
+                rq.getCallingAETitle(), rq.getCalledAETitle(), t2 - t1, t3 - t2);
+            return new DicomState(ServiceUtil.getStatus(resp), message, null); 
         } catch (Exception e) {
-            String message = "DICOM Echo failed, storescu: " + e.getMessage();
+            String message = "DICOM Echo failed: " + e.getMessage();
             LOGGER.error(message, e);
             return new DicomState(Status.UnableToProcess, message, null);
         }
     }
+
+
 
 }

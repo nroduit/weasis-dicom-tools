@@ -72,7 +72,7 @@ public class StoreScpForward {
             ForwardDicomNode fwdNode = sourceNode.get();
             List<ForwardDestination> destList = destinations.get(fwdNode);
             if (destList == null || destList.isEmpty()) {
-                throw new IllegalStateException("No DICOM destinations of " + fwdNode.toString());
+                throw new IllegalStateException("No DICOM destinations for " + fwdNode.toString());
             }
 
             DicomNode callingNode = DicomNode.buildRemoteDicomNode(as);

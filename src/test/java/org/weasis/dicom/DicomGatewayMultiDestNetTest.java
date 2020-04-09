@@ -10,19 +10,21 @@
  *******************************************************************************/
 package org.weasis.dicom;
 
+import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.BasicConfigurator;
-import org.dcm4che3.data.Attributes;
-import org.dcm4che3.data.Tag;
-import org.dcm4che3.data.VR;
-import org.dcm4che3.net.Status;
+import org.dcm4che6.data.DicomObject;
+import org.dcm4che6.data.Tag;
+import org.dcm4che6.data.VR;
+import org.dcm4che6.net.Status;
 import org.hamcrest.core.IsEqual;
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.weasis.dicom.op.CGetForward;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.ConnectOptions;
@@ -37,6 +39,11 @@ import org.weasis.dicom.tool.DicomGateway;
 import org.weasis.dicom.web.WebForwardDestination;
 
 public class DicomGatewayMultiDestNetTest {
+    
+    @BeforeAll
+    public static void setLogger() throws MalformedURLException {
+        BasicConfigurator.configure();
+    }
 
     @Test
     public void testProcess() {
@@ -57,10 +64,10 @@ public class DicomGatewayMultiDestNetTest {
         DicomNode destination = new DicomNode("FWD-AET", "localhost", 11113);
 
         Map<ForwardDicomNode, List<ForwardDestination>> destinations = new HashMap<>();
-        Attributes attrs = new Attributes();
-        attrs.setString(Tag.PatientName, VR.PN, "Override^Patient^Name");
-        attrs.setString(Tag.PatientID, VR.LO, "ModifiedPatientID");
-        DefaultAttributeEditor editor = new DefaultAttributeEditor(true, attrs);
+        DicomObject dcm = DicomObject.newDicomObject();
+        dcm.setString(Tag.PatientName, VR.PN, "Override^Patient^Name");
+        dcm.setString(Tag.PatientID, VR.LO, "ModifiedPatientID");
+        DefaultAttributeEditor editor = new DefaultAttributeEditor(true, dcm);
 
         DicomProgress progress = new DicomProgress();
         progress.addProgressListener(p -> {

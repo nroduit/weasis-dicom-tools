@@ -10,16 +10,22 @@
  *******************************************************************************/
 package org.weasis.dicom;
 
+import java.io.File;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.log4j.BasicConfigurator;
-import org.dcm4che3.net.Status;
+import org.dcm4che6.net.Status;
 import org.hamcrest.core.IsEqual;
 import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.weasis.dicom.op.CGetForward;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.weasis.dicom.op.CStore;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.ConnectOptions;
+import org.weasis.dicom.param.CstoreParams;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
@@ -27,8 +33,8 @@ import org.weasis.dicom.param.ListenerParams;
 import org.weasis.dicom.tool.DicomListener;
 
 public class DicomListenerNetTest {
-    @Rule
-    public TemporaryFolder testFolder = new TemporaryFolder();
+    @TempDir
+    File testFolder;
 
     @Test
     public void testProcess() {
@@ -54,10 +60,11 @@ public class DicomListenerNetTest {
 
         DicomListener listener;
         try {
-            listener = new DicomListener(testFolder.newFolder("tmp-dcm-listener"));
+            listener = new DicomListener(testFolder.toPath());
             listener.start(scpNode, lparams);
         } catch (Exception e) {
             e.printStackTrace();
+            throw new IllegalStateException("Cannot start the DICOM listener");
         }
 
         DicomProgress progress = new DicomProgress();
@@ -72,10 +79,27 @@ public class DicomListenerNetTest {
             }
         });
 
-        String studyUID = "1.2.826.0.1.3680043.11.111";
+//        String studyUID = "1.2.826.0.1.3680043.11.111";
+//        DicomState state = CGetForward.processStudy(params, params, calling, called, scpNode, progress, studyUID);
 
-        DicomState state = CGetForward.processStudy(params, params, calling, called, scpNode, progress, studyUID);
-
+        List<Path> files = new ArrayList<>();
+        try {
+            files.add(Path.of(getClass().getResource("mr.dcm").toURI()));
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+        }
+        CstoreParams cstoreParams = new CstoreParams(null, false, null);
+        DicomState state = CStore.process(params, calling, scpNode, files, progress, cstoreParams);
+        scpNode = new DicomNode("DICOMLISTENER", "localhost", 11119);
+        try {
+            listener.stop();
+            listener.start(scpNode, lparams);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new IllegalStateException("Cannot start the DICOM listener");
+        }
+        state = CStore.process(params, calling, scpNode, files, progress, cstoreParams);
+        
         // Should never happen
         Assert.assertNotNull(state);
 

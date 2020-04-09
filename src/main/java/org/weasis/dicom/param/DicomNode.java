@@ -10,10 +10,17 @@
  *******************************************************************************/
 package org.weasis.dicom.param;
 
+import java.io.IOException;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.SocketChannel;
 import java.util.Objects;
+import java.util.Optional;
 
+import org.dcm4che6.net.AAssociate.RQ;
+import org.dcm4che6.net.Association;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.api.util.StringUtil;
@@ -25,7 +32,8 @@ public class DicomNode {
     private final String hostname;
     private final Integer port;
     private final boolean validateHostname;
-
+    private final Long id;
+    
     public DicomNode(String aet) {
         this(aet, null, null);
     }
@@ -35,10 +43,14 @@ public class DicomNode {
     }
 
     public DicomNode(String aet, String hostname, Integer port) {
-        this(aet, hostname, port, false);
+        this(null, aet, hostname, port, false);
+    }
+    
+    public DicomNode(Long id, String aet, String hostname, Integer port) {
+        this(id, aet, hostname, port, false);
     }
 
-    public DicomNode(String aet, String hostname, Integer port, boolean validateHostname) {
+    public DicomNode(Long id, String aet, String hostname, Integer port, boolean validateHostname) {
         if (!StringUtil.hasText(aet)) {
             throw new IllegalArgumentException("Missing AETitle");
         }
@@ -48,10 +60,15 @@ public class DicomNode {
         if (port != null && (port < 1 || port > 65535)) {
             throw new IllegalArgumentException("Port is out of bound");
         }
+        this.id = id;
         this.aet = aet;
         this.hostname = hostname;
         this.port = port;
         this.validateHostname = validateHostname;
+    }
+    
+    public Long getId() {
+        return id;
     }
 
     public String getAet() {
@@ -88,12 +105,13 @@ public class DicomNode {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o)
+            return true;
+        if (o == null || getClass() != o.getClass())
+            return false;
         DicomNode dicomNode = (DicomNode) o;
-        return aet.equals(dicomNode.aet) &&
-                Objects.equals(hostname, dicomNode.hostname) &&
-                Objects.equals(port, dicomNode.port);
+        return aet.equals(dicomNode.aet) && Objects.equals(hostname, dicomNode.hostname)
+            && Objects.equals(port, dicomNode.port);
     }
 
     @Override
@@ -112,21 +130,38 @@ public class DicomNode {
         return buf.toString();
     }
 
-//    public static DicomNode buildLocalDicomNode(Association as) {
-//        String ip = null;
-//        InetAddress address = as.getSocket().getLocalAddress();
-//        if (address != null) {
-//            ip = address.getHostAddress();
-//        }
-//        return new DicomNode(as.getLocalAET(), ip, as.getSocket().getLocalPort());
-//    }
-//
-//    public static DicomNode buildRemoteDicomNode(Association as) {
-//        String ip = null;
-//        InetAddress address = as.getSocket().getInetAddress();
-//        if (address != null) {
-//            ip = address.getHostAddress();
-//        }
-//        return new DicomNode(as.getRemoteAET(), ip, as.getSocket().getPort());
-//    }
+    // public static DicomNode buildLocalDicomNode(Association as) {
+    // String ip = null;
+    // InetAddress address = as.getSocket().getLocalAddress();
+    // if (address != null) {
+    // ip = address.getHostAddress();
+    // }
+    // return new DicomNode(as.getLocalAET(), ip, as.getSocket().getLocalPort());
+    // }
+    //
+
+    public static DicomNode buildRemoteDicomNode(Association as) {
+        RQ rq = as.getAarq();
+        if (rq != null) {
+            String ip = null;
+            Integer port = null;
+            Optional<SelectionKey> fkey = as.connector.getSelector().keys().stream()
+                .filter(k -> k.attachment() == as).findFirst();
+            if (fkey.isPresent() && fkey.get().channel() instanceof SocketChannel) {
+                SocketChannel channel = (SocketChannel) fkey.get().channel();
+                try {
+                    if (channel.getRemoteAddress() instanceof InetSocketAddress) {
+                        InetSocketAddress address = (InetSocketAddress) channel.getRemoteAddress();
+                        ip = address.getHostName();
+                        port = address.getPort();
+                    }
+                } catch (IOException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+            }
+            return new DicomNode(rq.getCallingAETitle(), ip, port);
+        }
+        return null;
+    }
 }

@@ -23,16 +23,14 @@ public class AttributeEditorContext {
         // Stop the DICOM connection. Attention, this will abort other transfers when there are several destinations for one source.
         CONNECTION_EXCEPTION
     }
-
-    private final String tsuid;
+    
     private final DicomNode sourceNode;
     private final DicomNode destinationNode;
 
     private Abort abort;
     private String abortMessage;
 
-    public AttributeEditorContext(String tsuid, DicomNode sourceNode, DicomNode destinationNode) {
-        this.tsuid = tsuid;
+    public AttributeEditorContext(DicomNode sourceNode, DicomNode destinationNode) {
         this.sourceNode = sourceNode;
         this.destinationNode = destinationNode;
         this.abort = Abort.NONE;
@@ -52,10 +50,6 @@ public class AttributeEditorContext {
 
     public void setAbortMessage(String abortMessage) {
         this.abortMessage = abortMessage;
-    }
-
-    public String getTsuid() {
-        return tsuid;
     }
 
     public DicomNode getSourceNode() {

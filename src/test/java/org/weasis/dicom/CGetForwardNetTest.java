@@ -10,14 +10,17 @@
  *******************************************************************************/
 package org.weasis.dicom;
 
+import java.net.MalformedURLException;
+
 import org.apache.log4j.BasicConfigurator;
-import org.dcm4che3.data.Attributes;
-import org.dcm4che3.data.Tag;
-import org.dcm4che3.data.VR;
-import org.dcm4che3.net.Status;
+import org.dcm4che6.data.DicomObject;
+import org.dcm4che6.data.Tag;
+import org.dcm4che6.data.VR;
+import org.dcm4che6.net.Status;
 import org.hamcrest.core.IsEqual;
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
 import org.weasis.dicom.op.CGetForward;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.ConnectOptions;
@@ -28,6 +31,12 @@ import org.weasis.dicom.param.DicomState;
 
 public class CGetForwardNetTest {
 
+    @BeforeAll
+    public static void setLogger() throws MalformedURLException {
+        BasicConfigurator.configure();
+    }
+
+    
     @Test
     public void testProcess() {
         BasicConfigurator.configure();
@@ -55,10 +64,10 @@ public class CGetForwardNetTest {
         DicomNode destination = new DicomNode("DCM4CHEE", "localhost", 11112);
         String studyUID = "1.2.826.0.1.3680043.11.120.1";
 
-        Attributes attrs = new Attributes();
-        attrs.setString(Tag.PatientName, VR.PN, "Override^Patient^Name");
-        attrs.setString(Tag.PatientID, VR.LO, "ModifiedPatientID");
-        DefaultAttributeEditor editor = new DefaultAttributeEditor(true, attrs);
+        DicomObject dcm = DicomObject.newDicomObject();
+        dcm.setString(Tag.PatientName, VR.PN, "Override^Patient^Name");
+        dcm.setString(Tag.PatientID, VR.LO, "ModifiedPatientID");
+        DefaultAttributeEditor editor = new DefaultAttributeEditor(true, dcm);
 
         DicomState state =
             CGetForward.processStudy(params, params, calling, called, destination, progress, studyUID, editor);

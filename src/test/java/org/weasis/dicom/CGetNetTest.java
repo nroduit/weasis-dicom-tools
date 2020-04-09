@@ -10,26 +10,26 @@
  *******************************************************************************/
 package org.weasis.dicom;
 
+import java.io.File;
 import java.io.IOException;
 
 import org.apache.log4j.BasicConfigurator;
-import org.dcm4che3.data.Tag;
-import org.dcm4che3.net.Status;
+import org.dcm4che6.data.Tag;
+import org.dcm4che6.net.Status;
 import org.hamcrest.core.IsEqual;
 import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.weasis.dicom.op.CGet;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomParam;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
-import org.weasis.dicom.param.ProgressListener;
 
 public class CGetNetTest {
-    @Rule
-    public TemporaryFolder testFolder = new TemporaryFolder();
+    @TempDir
+    File testFolder;
+    
 
     @Test
     public void testProcess() throws IOException {
@@ -51,7 +51,7 @@ public class CGetNetTest {
         DicomNode calling = new DicomNode("WEASIS-SCU");
         DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
 
-        DicomState state = CGet.process(calling, called, progress, testFolder.newFolder("c-get"), params);
+        DicomState state = CGet.process(calling, called, progress, testFolder, params);
 
         // Should never happen
         Assert.assertNotNull(state);

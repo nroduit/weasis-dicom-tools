@@ -62,7 +62,7 @@ public class DefaultAttributeEditor implements AttributeEditor {
                 update = true;
             }
             if (tagToOverride != null && !tagToOverride.isEmpty()) {
-                tagToOverride.elementStream().forEach(el -> data.add(el));
+                tagToOverride.elementStream().forEach(data::add);
              //   data.update(Attributes.UpdatePolicy.OVERWRITE, tagToOverride, null);
                 update = true;
             }

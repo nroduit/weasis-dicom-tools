@@ -15,22 +15,26 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 
 import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.TransformerConfigurationException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.sax.SAXTransformerFactory;
+import javax.xml.transform.sax.TransformerHandler;
+import javax.xml.transform.stream.StreamSource;
 
-import org.dcm4che3.data.Attributes;
-import org.dcm4che3.data.BulkData;
-import org.dcm4che3.data.Tag;
-import org.dcm4che3.data.VR;
-import org.dcm4che3.io.SAXReader;
-import org.dcm4che3.util.DateUtils;
-import org.dcm4che3.util.UIDUtils;
+import org.dcm4che6.data.DicomObject;
+import org.dcm4che6.data.Tag;
+import org.dcm4che6.data.VR;
+import org.dcm4che6.util.DateTimeUtils;
+import org.dcm4che6.util.UIDUtils;
+import org.dcm4che6.xml.SAXReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.dicom.web.Multipart.ContentType;
@@ -136,7 +140,7 @@ public class AbstractStowrs implements AutoCloseable {
         }
     }
 
-    protected Attributes writeEndMarkers(HttpURLConnection httpPost, DataOutputStream out)
+    protected DicomObject writeEndMarkers(HttpURLConnection httpPost, DataOutputStream out)
         throws IOException, ParserConfigurationException, SAXException {
         endMarkers(out);
 
@@ -145,8 +149,9 @@ public class AbstractStowrs implements AutoCloseable {
             LOGGER.info("STOWRS server response message: HTTP Status-Code 200: OK for all the image set"); //$NON-NLS-1$
         } else if (code == HttpURLConnection.HTTP_ACCEPTED || code == HttpURLConnection.HTTP_CONFLICT) {
             LOGGER.warn("STOWRS server response message: HTTP Status-Code {}: {}", code, httpPost.getResponseMessage()); //$NON-NLS-1$
+            DicomObject metadata = DicomObject.newDicomObject();
             // See http://dicom.nema.org/medical/dicom/current/output/chtml/part18/sect_6.6.html#table_6.6.1-1
-            return SAXReader.parse(httpPost.getInputStream());
+            return SAXReader.parse(httpPost.getInputStream(), metadata);
         } else {
             throw new HttpServerErrorException(String.format("STOWRS server response message: HTTP Status-Code %d: %s",
                 code, httpPost.getResponseMessage()));
@@ -154,35 +159,27 @@ public class AbstractStowrs implements AutoCloseable {
         return null;
     }
 
-    protected static void ensureUID(Attributes attrs, int tag) {
-        if (!attrs.containsValue(tag)) {
-            attrs.setString(tag, VR.UI, UIDUtils.createUID());
+    protected static void ensureUID(DicomObject attrs, int tag) {
+        if (attrs.get(tag).isEmpty()) {
+            attrs.setString(tag, VR.UI, UIDUtils.randomUID());
         }
     }
 
-    protected static void setEncapsulatedDocumentAttributes(Path bulkDataFile, Attributes metadata, String mimeType) {
+    protected static void setEncapsulatedDocumentAttributes(Path bulkDataFile, DicomObject metadata, String mimeType) {
         metadata.setInt(Tag.InstanceNumber, VR.IS, 1);
-        metadata.setString(Tag.ContentDate, VR.DA,
-            DateUtils.formatDA(null, new Date(bulkDataFile.toFile().lastModified())));
-        metadata.setString(Tag.ContentTime, VR.TM,
-            DateUtils.formatTM(null, new Date(bulkDataFile.toFile().lastModified())));
-        metadata.setString(Tag.AcquisitionDateTime, VR.DT,
-            DateUtils.formatTM(null, new Date(bulkDataFile.toFile().lastModified())));
+        LocalDateTime dt = LocalDateTime.ofEpochSecond(bulkDataFile.toFile().lastModified(), 0, null);
+        metadata.setString(Tag.ContentDate, VR.DA, DateTimeUtils.formatDA(dt));
+        metadata.setString(Tag.ContentTime, VR.TM, DateTimeUtils.formatDA(dt));
+        metadata.setString(Tag.AcquisitionDateTime, VR.DT, DateTimeUtils.formatDA(dt));
         metadata.setString(Tag.BurnedInAnnotation, VR.CS, "YES");
         metadata.setNull(Tag.DocumentTitle, VR.ST);
         metadata.setNull(Tag.ConceptNameCodeSequence, VR.SQ);
         metadata.setString(Tag.MIMETypeOfEncapsulatedDocument, VR.LO, mimeType);
     }
 
-    protected String getContentLocation(Attributes metadata) {
-        BulkData data = ((BulkData) metadata.getValue(Tag.EncapsulatedDocument));
-        if (data != null) {
-            return data.getURI();
-        }
-
-        data = ((BulkData) metadata.getValue(Tag.PixelData));
-        if (data != null) {
-            return data.getURI();
+    protected String getContentLocation(DicomObject metadata) {
+        if (metadata.get(Tag.EncapsulatedDocument).isPresent()) {
+            return metadata.get(Tag.EncapsulatedDocument).get().bulkDataURI();
         }
         return null;
     }
@@ -207,6 +204,15 @@ public class AbstractStowrs implements AutoCloseable {
 
     public Map<String, String> getHeaders() {
         return headers;
+    }
+
+    protected TransformerHandler getTransformerHandler(URL url) throws TransformerConfigurationException {
+        SAXTransformerFactory tf = (SAXTransformerFactory) TransformerFactory.newInstance();
+        if (url == null)
+            return tf.newTransformerHandler();
+
+        TransformerHandler th = tf.newTransformerHandler(new StreamSource(url.toExternalForm()));
+        return th;
     }
 
 }

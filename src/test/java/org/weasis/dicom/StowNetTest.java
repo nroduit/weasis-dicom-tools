@@ -10,24 +10,25 @@
  *******************************************************************************/
 package org.weasis.dicom;
 
-import java.io.File;
-import java.io.FileInputStream;
+import java.net.MalformedURLException;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.log4j.BasicConfigurator;
-import org.dcm4che3.data.Attributes;
-import org.dcm4che3.data.Tag;
-import org.dcm4che3.data.VR;
-import org.dcm4che3.io.DicomInputStream;
-import org.dcm4che3.io.DicomInputStream.IncludeBulkData;
-import org.dcm4che3.net.Status;
-import org.dcm4che3.util.UIDUtils;
+import org.dcm4che6.data.DicomObject;
+import org.dcm4che6.data.Tag;
+import org.dcm4che6.data.VR;
+import org.dcm4che6.io.DicomInputStream;
+import org.dcm4che6.net.Status;
+import org.dcm4che6.util.UIDUtils;
 import org.hamcrest.core.IsEqual;
 import org.hamcrest.core.IsNull;
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.weasis.dicom.param.DicomState;
 import org.weasis.dicom.web.Multipart;
 import org.weasis.dicom.web.StowrsMultiFiles;
@@ -35,14 +36,17 @@ import org.weasis.dicom.web.StowrsSingleFile;
 import org.weasis.dicom.web.UploadSingleFile;
 
 public class StowNetTest {
+    
+    @BeforeAll
+    public static void setLogger() throws MalformedURLException {
+        BasicConfigurator.configure();
+    }
 
     @Test
     public void testProcess() {
-        BasicConfigurator.configure();
-
-        List<String> files = new ArrayList<>();
+        List<Path> files = new ArrayList<>();
         try {
-            files.add(new File(getClass().getResource("mr.dcm").toURI()).getPath());
+            files.add(Path.of(getClass().getResource("mr.dcm").toURI()));
         } catch (URISyntaxException e) {
             e.printStackTrace();
         }
@@ -59,24 +63,27 @@ public class StowNetTest {
 
         Assert.assertThat("DicomState cannot be null", state, IsNull.notNullValue());
         Assert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(Status.Success));
-        
+
         String message = null;
         // Upload a modify file
+        Path p1 = files.get(0);
         try (UploadSingleFile stowRS = new StowrsSingleFile(stowService, Multipart.ContentType.DICOM);
-                        DicomInputStream in = new DicomInputStream(new FileInputStream(files.get(0)))) {
-            in.setIncludeBulkData(IncludeBulkData.URI);
-            Attributes attributes = in.readDataset(-1, -1);
-            attributes.setString(Tag.PatientName, VR.PN, "Override^Patient^Name");
-            attributes.setString(Tag.PatientID, VR.LO, "ModifiedPatientID");
-            attributes.setString(Tag.StudyInstanceUID, VR.UI, UIDUtils.createUID());
-            attributes.setString(Tag.SeriesInstanceUID, VR.UI, UIDUtils.createUID());
-            attributes.setString(Tag.SOPInstanceUID, VR.UI, UIDUtils.createUID());
+                        DicomInputStream dis = new DicomInputStream(Files.newInputStream(p1))) {
+            dis.withBulkData(DicomInputStream::isBulkData).withBulkDataURI(p1);
+            // Handle input stream with not random stream reading
+            // Path tmp = Files.createTempFile("dcm", ".blk");
+            // dis.spoolBulkDataTo(tmp); // delete file
+            DicomObject data = dis.readDataSet();
+            data.setString(Tag.PatientName, VR.PN, "Override^Patient^Name");
+            data.setString(Tag.PatientID, VR.LO, "ModifiedPatientID");
+            data.setString(Tag.StudyInstanceUID, VR.UI, UIDUtils.randomUID());
+            data.setString(Tag.SeriesInstanceUID, VR.UI, UIDUtils.randomUID());
+            data.setString(Tag.SOPInstanceUID, VR.UI, UIDUtils.randomUID());
 
-            stowRS.uploadDicom(attributes, in.getTransferSyntax());
+            stowRS.uploadDicom(data, dis.getEncoding().transferSyntaxUID);
         } catch (Exception e) {
             message = e.getMessage();
         }
         Assert.assertThat(message, message, IsNull.nullValue());
     }
-
 }

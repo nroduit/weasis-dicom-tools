@@ -16,19 +16,23 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 public class ForwardDicomNode extends DicomNode {
 
-    private final ScheduledThreadPoolExecutor checkProcess;
     private final String forwardAETitle;
     private final Set<DicomNode> acceptedSourceNodes;
+    private final Long id;
 
     public ForwardDicomNode(String fwdAeTitle) {
         this(fwdAeTitle, null);
     }
 
     public ForwardDicomNode(String fwdAeTitle, String fwdHostname) {
+        this(fwdAeTitle, fwdHostname, null);
+    }
+
+    public ForwardDicomNode(String fwdAeTitle, String fwdHostname, Long id) {
         super(fwdAeTitle, fwdHostname, null);
         this.forwardAETitle = fwdAeTitle;
+        this.id = id;
         this.acceptedSourceNodes = new HashSet<>();
-        this.checkProcess = new ScheduledThreadPoolExecutor(1);
     }
 
     public void addAcceptedSourceNode(String srcAeTitle) {
@@ -36,21 +40,23 @@ public class ForwardDicomNode extends DicomNode {
     }
 
     public void addAcceptedSourceNode(String srcAeTitle, String srcHostname) {
-        acceptedSourceNodes.add(new DicomNode(srcAeTitle, srcHostname, null, srcHostname != null));
+        acceptedSourceNodes.add(new DicomNode(null, srcAeTitle, srcHostname, null, srcHostname != null));
+    }
+
+    public void addAcceptedSourceNode(Long id, String srcAeTitle, String srcHostname) {
+        acceptedSourceNodes.add(new DicomNode(id, srcAeTitle, srcHostname, null, srcHostname != null));
     }
 
     public Set<DicomNode> getAcceptedSourceNodes() {
         return acceptedSourceNodes;
     }
 
-
-
-    public ScheduledThreadPoolExecutor getCheckProcess() {
-        return checkProcess;
-    }
-
     public String getForwardAETitle() {
         return forwardAETitle;
+    }
+
+    public Long getId() {
+        return id;
     }
 
     @Override

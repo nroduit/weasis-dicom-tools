@@ -13,13 +13,19 @@ package org.weasis.dicom.param;
 public abstract class ForwardDestination {
 
     protected final AttributeEditor attributesEditor;
+    private final Long id;
 
-    public ForwardDestination(AttributeEditor attributesEditor) {
+    public ForwardDestination(Long id, AttributeEditor attributesEditor) {
         this.attributesEditor = attributesEditor;
+        this.id = id;
     }
 
     public AttributeEditor getAttributesEditor() {
         return attributesEditor;
+    }
+    
+    public Long getId() {
+        return id;
     }
 
     public abstract ForwardDicomNode getForwardDicomNode();

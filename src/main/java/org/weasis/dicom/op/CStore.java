@@ -10,9 +10,6 @@
  *******************************************************************************/
 package org.weasis.dicom.op;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.MessageFormat;
@@ -22,11 +19,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 import org.dcm4che6.conf.model.Connection;
-import org.dcm4che6.data.DicomElement;
-import org.dcm4che6.data.DicomObject;
-import org.dcm4che6.data.Tag;
-import org.dcm4che6.io.DicomInputHandler;
-import org.dcm4che6.io.DicomInputStream;
 import org.dcm4che6.net.AAssociate;
 import org.dcm4che6.net.Association;
 import org.dcm4che6.net.DicomServiceRegistry;
@@ -39,7 +31,9 @@ import org.slf4j.LoggerFactory;
 import org.weasis.core.api.util.FileUtil;
 import org.weasis.core.api.util.StringUtil;
 import org.weasis.dicom.param.AdvancedParams;
+import org.weasis.dicom.param.AttributeEditorContext;
 import org.weasis.dicom.param.CstoreParams;
+import org.weasis.dicom.param.DicomFileStream;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
@@ -148,20 +142,27 @@ public class CStore {
 
         AdvancedParams options = params == null ? new AdvancedParams() : params;
         CstoreParams storeOptions = cstoreParams == null ? new CstoreParams(null, false, null) : cstoreParams;
+        AttributeEditorContext context = new AttributeEditorContext(callingNode, calledNode);
 
-        List<FileInfo> fileInfos = new ArrayList<>();
+        List<DicomFileStream> fileInfos = new ArrayList<>();
         long totalSize = 0;
         try {
             for (Path path : files) {
                 try (Stream<Path> walk = Files.walk(path)) {
-                    walk.forEach(p -> fileInfos.add(scanFile(p)));
+                    walk.forEach(p -> {
+                        DicomFileStream fileInfo = new DicomFileStream(path, storeOptions.getAttributeEditor());
+                        if (fileInfo.isValid()) {
+                            fileInfo.setContext(context);
+                            fileInfos.add(fileInfo);
+                        }
+                    });
                 }
             }
             DicomServiceRegistry serviceRegistry = new DicomServiceRegistry();
             AAssociate.RQ rq = new AAssociate.RQ();
             rq.setCallingAETitle(callingNode.getAet());
             rq.setCalledAETitle(calledNode.getAet());
-            fileInfos.forEach(info -> rq.findOrAddPresentationContext(info.sopClassUID, info.transferSyntax));
+            fileInfos.forEach(info -> rq.findOrAddPresentationContext(info.getSopClassUID(), info.getTransferSyntax()));
             TCPConnector<Association> inst =
                 new TCPConnector<>((connector, role) -> new Association(connector, role, serviceRegistry));
             Connection local = ServiceUtil.getConnection(callingNode);
@@ -172,26 +173,29 @@ public class CStore {
             Association as = inst.connect(local, remote).thenCompose(as1 -> as1.open(rq)).join();
             long t2 = System.currentTimeMillis();
             DicomState state = new DicomState(progress);
-            for (FileInfo fileInfo : fileInfos) {
-                CompletableFuture<DimseRSP> s =
-                    as.cstore(fileInfo.sopClassUID, fileInfo.sopInstanceUID, fileInfo, fileInfo.transferSyntax);
-               
+            for (DicomFileStream fileInfo : fileInfos) {
+                CompletableFuture<DimseRSP> s = as.cstore(fileInfo.getSopClassUID(), fileInfo.getSopInstanceUID(),
+                    fileInfo, fileInfo.getTransferSyntax());
+
                 ProgressStatus ps = ServiceUtil.setDicomRSP(s.get(), state, fileInfos.size());
                 switch (ps) {
                     case COMPLETED:
                         ps = ProgressStatus.COMPLETED;
-                        totalSize += fileInfo.length;
+                        totalSize += fileInfo.getLength();
                         break;
                     case WARNING:
                         ps = ProgressStatus.WARNING;
-                        totalSize += fileInfo.length;
-                         System.err.println(MessageFormat.format("WARNING: Received C-STORE-RSP with Status {0}H for {1}",
-                         TagUtils.shortToHexString(state.getStatus().orElse(Status.UnableToProcess)), fileInfo.path));
+                        totalSize += fileInfo.getLength();
+                        System.err
+                            .println(MessageFormat.format("WARNING: Received C-STORE-RSP with Status {0}H for {1}",
+                                TagUtils.shortToHexString(state.getStatus().orElse(Status.UnableToProcess)),
+                                fileInfo.getPath()));
                         System.err.println(s.get().command);
                         break;
                     default:
-                         System.err.println(MessageFormat.format("ERROR: Received C-STORE-RSP with Status {0}H for {1}",
-                         TagUtils.shortToHexString(state.getStatus().orElse(Status.UnableToProcess)), fileInfo.path));
+                        System.err.println(MessageFormat.format("ERROR: Received C-STORE-RSP with Status {0}H for {1}",
+                            TagUtils.shortToHexString(state.getStatus().orElse(Status.UnableToProcess)),
+                            fileInfo.getPath()));
                         System.err.println(s.get().command);
                 }
             }
@@ -210,57 +214,6 @@ public class CStore {
             LOGGER.error("storescu", e);
             return new DicomState(Status.UnableToProcess,
                 "DICOM Store failed" + StringUtil.COLON_AND_SPACE + e.getMessage(), null);
-        }
-    }
-
-    private static FileInfo scanFile(Path path) {
-        try (DicomInputStream dis = new DicomInputStream(Files.newInputStream(path))) {
-            FileInfo fileInfo = new FileInfo();
-            fileInfo.path = path;
-            fileInfo.length = Files.size(path);
-            DicomObject fmi = dis.readFileMetaInformation();
-            if (fmi != null) {
-                fileInfo.sopClassUID = fmi.getStringOrElseThrow(Tag.MediaStorageSOPClassUID);
-                fileInfo.sopInstanceUID = fmi.getStringOrElseThrow(Tag.MediaStorageSOPInstanceUID);
-                fileInfo.transferSyntax = fmi.getStringOrElseThrow(Tag.TransferSyntaxUID);
-                fileInfo.position = dis.getStreamPosition();
-            } else {
-                fileInfo.transferSyntax = dis.getEncoding().transferSyntaxUID;
-                dis.withInputHandler(fileInfo).readDataSet();
-            }
-            return fileInfo;
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
-    private static class FileInfo implements Association.DataWriter, DicomInputHandler {
-        Path path;
-        String sopClassUID;
-        String sopInstanceUID;
-        String transferSyntax;
-        long position;
-        long length;
-
-        @Override
-        public void writeTo(OutputStream out, String tsuid) throws IOException {
-            try (InputStream in = Files.newInputStream(path)) {
-                in.skipNBytes(position);
-                in.transferTo(out);
-            }
-        }
-
-        @Override
-        public boolean endElement(DicomInputStream dis, DicomElement dcmElm, boolean bulkData) throws IOException {
-            switch (dcmElm.tag()) {
-                case Tag.SOPInstanceUID:
-                    sopInstanceUID = dcmElm.stringValue(0).get();
-                    return false;
-                case Tag.SOPClassUID:
-                    sopClassUID = dcmElm.stringValue(0).get();
-            }
-            return true;
         }
     }
 }

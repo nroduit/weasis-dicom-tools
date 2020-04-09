@@ -38,18 +38,24 @@ public class WebForwardDestination extends ForwardDestination {
         AttributeEditor attributesEditor) {
         this(fwdNode, requestURL, null, progress, attributesEditor);
     }
-
     public WebForwardDestination(ForwardDicomNode fwdNode, String requestURL, Map<String, String> headers,
         DicomProgress progress, AttributeEditor attributesEditor) {
-        super(attributesEditor);
+        this(null, fwdNode, requestURL, headers, progress, attributesEditor);
+    }
+    public WebForwardDestination(Long id, ForwardDicomNode fwdNode, String requestURL, Map<String, String> headers,
+        DicomProgress progress, AttributeEditor attributesEditor) {
+        super(id, attributesEditor);
         this.callingNode = fwdNode;
         this.state = new DicomState(progress == null ? new DicomProgress() : progress);
         this.stowRS = new StowrsSingleFile(requestURL, Multipart.ContentType.DICOM, null, headers);
     }
-    
-    public WebForwardDestination(ForwardDicomNode fwdNode, UploadSingleFile uploadManager,
-        DicomProgress progress, AttributeEditor attributesEditor) {
-        super(attributesEditor);
+    public WebForwardDestination(ForwardDicomNode fwdNode, UploadSingleFile uploadManager, DicomProgress progress,
+        AttributeEditor attributesEditor) {
+        this(null, fwdNode, uploadManager, progress, attributesEditor);
+    }
+    public WebForwardDestination(Long id, ForwardDicomNode fwdNode, UploadSingleFile uploadManager, DicomProgress progress,
+        AttributeEditor attributesEditor) {
+        super(id, attributesEditor);
         this.callingNode = fwdNode;
         this.state = new DicomState(progress == null ? new DicomProgress() : progress);
         this.stowRS = uploadManager;

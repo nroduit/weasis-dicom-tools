@@ -17,7 +17,6 @@ import org.weasis.dicom.util.StoreFromStreamSCU;
 public class DicomForwardDestination extends ForwardDestination {
 
     private final StoreFromStreamSCU streamSCU;
-    private final DeviceOpService streamSCUService;
     private final boolean useDestinationAetForKeyMap;
 
     private final ForwardDicomNode callingNode;
@@ -52,20 +51,22 @@ public class DicomForwardDestination extends ForwardDestination {
     public DicomForwardDestination(AdvancedParams forwardParams, ForwardDicomNode fwdNode, DicomNode destinationNode,
         boolean useDestinationAetForKeyMap, DicomProgress progress, AttributeEditor attributesEditor)
         throws IOException {
-        super(attributesEditor);
+        this(null, forwardParams, fwdNode, destinationNode, useDestinationAetForKeyMap, progress, attributesEditor);
+    }
+    
+    public DicomForwardDestination(Long id, AdvancedParams forwardParams, ForwardDicomNode fwdNode, DicomNode destinationNode,
+        boolean useDestinationAetForKeyMap, DicomProgress progress, AttributeEditor attributesEditor)
+        throws IOException {
+        super(id, attributesEditor);
         this.callingNode = fwdNode;
         this.destinationNode = destinationNode;
-        this.streamSCU = new StoreFromStreamSCU(forwardParams, fwdNode, destinationNode, progress);
-        this.streamSCUService = new DeviceOpService(streamSCU.getDevice());
+        CstoreParams params = new CstoreParams(attributesEditor, false, null);
+        this.streamSCU = new StoreFromStreamSCU(forwardParams, fwdNode, destinationNode, progress, params);
         this.useDestinationAetForKeyMap = useDestinationAetForKeyMap;
     }
 
     public StoreFromStreamSCU getStreamSCU() {
         return streamSCU;
-    }
-
-    public DeviceOpService getStreamSCUService() {
-        return streamSCUService;
     }
 
     public boolean isUseDestinationAetForKeyMap() {
@@ -83,11 +84,8 @@ public class DicomForwardDestination extends ForwardDestination {
 
     @Override
     public void stop() {
-        Association as = streamSCU.getAssociation();
-        if (as != null && as.isReadyForDataTransfer()) {
-            as.abort();
-        }
-        streamSCUService.stop();
+        streamSCU.triggerCloseExecutor();
+        streamSCU.close();
     }
 
     @Override

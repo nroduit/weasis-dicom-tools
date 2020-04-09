@@ -9,9 +9,11 @@
 	<version>6.0.0-SNAPSSHOT</version>
 
 	<properties>
-		<java-version>13</java-version>
+		<java-version>14</java-version>
 		<enforcer.jdk-version>[${java-version},)</enforcer.jdk-version>
 		<enforcer.maven-version>[3.0.5,)</enforcer.maven-version>
+		<junit.jupiter.version>5.5.2</junit.jupiter.version>
+		<junit.platform.version>1.5.2</junit.platform.version>
 		<dcm4che.version>6.0.0</dcm4che.version>
 		<weasis.version>3.6.0-rc1</weasis.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -224,13 +226,13 @@
 		</plugins>
 	</build>
 
-	<!-- To perform network DICOM test with a demo server, run: mvn -Dnet.test -->
+	<!-- To perform DICOM integration tests (require to be connected with other DICOM nodes, run: mvn -DintegrationTest -->
 	<profiles>
 		<profile>
 			<id>default-profile</id>
 			<activation>
 				<property>
-					<name>!net.test</name>
+					<name>!integrationTest</name>
 				</property>
 			</activation>
 
@@ -250,12 +252,25 @@
 		</profile>
 
 		<profile>
-			<id>network-test</id>
+			<id>integration-test</id>
 			<activation>
 				<property>
-					<name>net.test</name>
+					<name>integrationTest</name>
 				</property>
 			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-surefire-plugin</artifactId>
+						<configuration>
+							<includes>
+								<include>**/*NetTest.java</include>
+							</includes>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
 		</profile>
 	</profiles>
 
@@ -285,7 +300,16 @@
 			<artifactId>dcm4che-json</artifactId>
 			<version>${dcm4che.version}</version>
 		</dependency>
-
+		<dependency>
+			<groupId>org.dcm4che</groupId>
+			<artifactId>dcm4che-xml</artifactId>
+			<version>${dcm4che.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.dcm4che</groupId>
+			<artifactId>dcm4che-codec</artifactId>
+			<version>${dcm4che.version}</version>
+		</dependency>
 		<!-- dcm4che-img packages are linked to native libraries not located in this package. Only required by storeSCU, Dicomizer 
 			and ForwardUtil (DicomGateway) for uncompressing data not supported by the destination. -->
 		<dependency>
@@ -294,6 +318,18 @@
 			<version>${dcm4che.version}</version>
 		</dependency>
 		<!-- End of dcm4che-img packages -->
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter-engine</artifactId>
+			<version>${junit.jupiter.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.junit.platform</groupId>
+			<artifactId>junit-platform-runner</artifactId>
+			<version>${junit.platform.version}</version>
+			<scope>test</scope>
+		</dependency>
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-log4j12</artifactId>

@@ -10,15 +10,17 @@
  *******************************************************************************/
 package org.weasis.dicom;
 
+import java.net.MalformedURLException;
 import java.util.List;
 
 import org.apache.log4j.BasicConfigurator;
-import org.dcm4che3.data.Attributes;
-import org.dcm4che3.data.Tag;
-import org.dcm4che3.net.Status;
+import org.dcm4che6.data.DicomObject;
+import org.dcm4che6.data.Tag;
+import org.dcm4che6.net.Status;
 import org.hamcrest.core.IsEqual;
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.weasis.dicom.op.CFind;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomParam;
@@ -26,10 +28,14 @@ import org.weasis.dicom.param.DicomState;
 import org.weasis.dicom.tool.ModalityWorklist;
 
 public class ModalityWorklistNetTest {
+    
+    @BeforeAll
+    public static void setLogger() throws MalformedURLException {
+        BasicConfigurator.configure();
+    }
 
     @Test
     public void testProcess() {
-        BasicConfigurator.configure();
 
         // Filter by AETitle by setting a value
         final int[] sps = { Tag.ScheduledProcedureStepSequence };
@@ -64,10 +70,10 @@ public class ModalityWorklistNetTest {
         // Should never happen
         Assert.assertNotNull(state);
 
-        List<Attributes> items = state.getDicomRSP();
+        List<DicomObject> items = state.getDicomRSP();
         if (items != null) {
             for (int i = 0; i < items.size(); i++) {
-                Attributes item = items.get(i);
+                DicomObject item = items.get(i);
                 System.out.println("===========================================");
                 System.out.println("Worklist Item " + (i + 1));
                 System.out.println("===========================================");

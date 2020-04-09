@@ -121,5 +121,4 @@ public class DateUtil {
         String val = s.toString().trim();
         return DatatypeFactory.newInstance().newXMLGregorianCalendar(val).toGregorianCalendar();
     }
-
 }

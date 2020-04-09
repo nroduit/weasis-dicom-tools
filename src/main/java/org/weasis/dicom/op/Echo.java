@@ -107,7 +107,4 @@ public class Echo {
             return new DicomState(Status.UnableToProcess, message, null);
         }
     }
-
-
-
 }

@@ -21,15 +21,18 @@ import java.util.Map;
 
 import javax.json.Json;
 import javax.json.stream.JsonGenerator;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.sax.TransformerHandler;
 import javax.xml.transform.stream.StreamResult;
 
-import org.dcm4che3.data.Attributes;
-import org.dcm4che3.data.BulkData;
-import org.dcm4che3.data.Tag;
-import org.dcm4che3.data.VR;
-import org.dcm4che3.io.DicomOutputStream;
-import org.dcm4che3.io.SAXTransformer;
-import org.dcm4che3.json.JSONWriter;
+import org.dcm4che6.data.DicomObject;
+import org.dcm4che6.data.Tag;
+import org.dcm4che6.data.VR;
+import org.dcm4che6.io.DicomEncoding;
+import org.dcm4che6.io.DicomOutputStream;
+import org.dcm4che6.json.JSONWriter;
+import org.dcm4che6.xml.SAXWriter;
 import org.weasis.core.api.util.FileUtil;
 
 public class StowrsSingleFile extends AbstractStowrs implements UploadSingleFile {
@@ -38,15 +41,16 @@ public class StowrsSingleFile extends AbstractStowrs implements UploadSingleFile
         this(requestURL, contentType, null, null);
     }
 
-    public StowrsSingleFile(String requestURL, Multipart.ContentType contentType, String agentName, Map<String, String> headers) {
+    public StowrsSingleFile(String requestURL, Multipart.ContentType contentType, String agentName,
+        Map<String, String> headers) {
         super(requestURL, contentType, agentName, headers);
     }
 
     @Override
-    public void uploadDicom(InputStream in, Attributes fmi, String tsuid, String iuid) throws IOException {
+    public void uploadDicom(InputStream in, DicomObject fmi, String tsuid, String iuid) throws IOException {
         HttpURLConnection httpPost = buildConnection();
         try (DataOutputStream out = new DataOutputStream(httpPost.getOutputStream());
-                        DicomOutputStream dos = new DicomOutputStream(out, tsuid)) {
+                        DicomOutputStream dos = new DicomOutputStream(out).withEncoding(DicomEncoding.of(tsuid))) {
             writeContentMarkers(out);
             dos.writeFileMetaInformation(fmi);
 
@@ -62,29 +66,30 @@ public class StowrsSingleFile extends AbstractStowrs implements UploadSingleFile
     }
 
     @Override
-    public void uploadDicom(Attributes metadata, String tsuid) throws IOException {
+    public void uploadDicom(DicomObject metadata, String tsuid) throws IOException {
         HttpURLConnection httpPost = buildConnection();
         try (DataOutputStream out = new DataOutputStream(httpPost.getOutputStream());
-                        DicomOutputStream dos = new DicomOutputStream(out, tsuid)) {
+                        DicomOutputStream dos = new DicomOutputStream(out).withEncoding(DicomEncoding.of(tsuid))) {
             writeContentMarkers(out);
-            Attributes fmi = metadata.createFileMetaInformation(tsuid);
-            dos.writeDataset(fmi, metadata);
-            writeEndMarkers(httpPost, out, metadata.getString(Tag.SOPInstanceUID));
+            DicomObject fmi = metadata.createFileMetaInformation(tsuid);
+            dos.writeFileMetaInformation(fmi);
+            dos.writeDataSet(metadata);
+            writeEndMarkers(httpPost, out, metadata.getString(Tag.SOPInstanceUID).orElseThrow());
         } finally {
             removeConnection(httpPost);
         }
     }
 
     @Override
-    public void uploadEncapsulatedDocument(Attributes metadata, File bulkDataFile, String mimeType, String sopClassUID)
+    public void uploadEncapsulatedDocument(DicomObject metadata, File bulkDataFile, String mimeType, String sopClassUID)
         throws Exception {
         HttpURLConnection httpPost = buildConnection();
 
         setEncapsulatedDocumentAttributes(bulkDataFile.toPath(), metadata, mimeType);
-        if (metadata.getValue(Tag.EncapsulatedDocument) == null) {
-            metadata.setValue(Tag.EncapsulatedDocument, VR.OB, new BulkData(null, "bulk", false));
+        if (metadata.get(Tag.EncapsulatedDocument).isEmpty()) {
+            metadata.setBulkData(Tag.EncapsulatedDocument, VR.OB, bulkDataFile.toURI().toASCIIString(), null);
         }
-        metadata.setValue(Tag.SOPClassUID, VR.UI, sopClassUID);
+        metadata.setString(Tag.SOPClassUID, VR.UI, sopClassUID);
         ensureUID(metadata, Tag.StudyInstanceUID);
         ensureUID(metadata, Tag.SeriesInstanceUID);
         ensureUID(metadata, Tag.SOPInstanceUID);
@@ -93,10 +98,16 @@ public class StowrsSingleFile extends AbstractStowrs implements UploadSingleFile
                         DataOutputStream out = new DataOutputStream(httpPost.getOutputStream())) {
             if (getContentType() == Multipart.ContentType.JSON)
                 try (JsonGenerator gen = Json.createGenerator(bOut)) {
-                    new JSONWriter(gen).write(metadata);
+                    new JSONWriter(gen, bOut).writeDataSet(metadata);
                 }
             else {
-                SAXTransformer.getSAXWriter(new StreamResult(bOut)).write(metadata);
+                TransformerHandler th = getTransformerHandler(null);
+                Transformer t = th.getTransformer();
+                t.setOutputProperty(OutputKeys.INDENT, "no");
+                t.setOutputProperty(OutputKeys.VERSION, "1.0");
+                th.setResult(new StreamResult(bOut));
+                SAXWriter handler = new SAXWriter(th);
+                handler.writeDataSet(metadata);
             }
 
             writeContentMarkers(out);
@@ -117,7 +128,7 @@ public class StowrsSingleFile extends AbstractStowrs implements UploadSingleFile
 
             Files.copy(bulkDataFile.toPath(), out);
 
-            writeEndMarkers(httpPost, out, metadata.getString(Tag.SOPInstanceUID));
+            writeEndMarkers(httpPost, out, metadata.getString(Tag.SOPInstanceUID).orElseThrow());
         } finally {
             removeConnection(httpPost);
         }

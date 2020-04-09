@@ -107,6 +107,16 @@ public class AdvancedParams {
      */
     public void configureBind(ApplicationEntity applicationEntity, Connection connection, DicomNode callingNode) {
         applicationEntity.setAETitle(callingNode.getAet());
+        configureBind(connection, callingNode);
+    }
+    
+    /**
+     * Bind the connection with the callingNode 
+     * 
+     * @param connection
+     * @param callingNode
+     */
+    public void configureBind(Connection connection, DicomNode callingNode) {
         if (callingNode.getHostname() != null) {
             connection.setHostname(callingNode.getHostname());
         }

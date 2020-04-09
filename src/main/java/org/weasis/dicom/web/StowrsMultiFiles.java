@@ -11,24 +11,24 @@
 package org.weasis.dicom.web;
 
 import java.io.DataOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.nio.file.Files;
-import java.util.ArrayList;
+import java.nio.file.Path;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import org.dcm4che3.data.Attributes;
-import org.dcm4che3.data.Sequence;
-import org.dcm4che3.data.Tag;
-import org.dcm4che3.data.VR;
-import org.dcm4che3.net.Status;
+import org.dcm4che6.data.DicomElement;
+import org.dcm4che6.data.DicomObject;
+import org.dcm4che6.data.Tag;
+import org.dcm4che6.data.VR;
+import org.dcm4che6.net.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.weasis.core.api.util.FileUtil;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
 
@@ -39,32 +39,29 @@ public class StowrsMultiFiles extends AbstractStowrs {
         this(requestURL, contentType, null, null);
     }
 
-    public StowrsMultiFiles(String requestURL, Multipart.ContentType contentType, String agentName, Map<String, String> headers)
-        throws IOException {
+    public StowrsMultiFiles(String requestURL, Multipart.ContentType contentType, String agentName,
+        Map<String, String> headers) throws IOException {
         super(requestURL, contentType, agentName, headers);
     }
 
-    public DicomState uploadDicom(List<String> filesOrFolders, boolean recursive) throws IOException {
+    public DicomState uploadDicom(List<Path> filesOrFolders, boolean recursive) throws IOException {
         HttpURLConnection httpPost = buildConnection();
         DicomState state = new DicomState(new DicomProgress());
         String message = null;
         int nbFile = 0;
         try (DataOutputStream out = new DataOutputStream(httpPost.getOutputStream())) {
-            for (String entry : filesOrFolders) {
-                File file = new File(entry);
-                if (file.isDirectory()) {
-                    List<File> fileList = new ArrayList<>();
-                    FileUtil.getAllFilesInDirectory(file, fileList, recursive);
-                    for (File f : fileList) {
-                        uploadFile(f, out);
+            for (Path entry : filesOrFolders) {
+                if (Files.isDirectory(entry)) {
+                    for (Path p : getAllFilesInDirectory(entry)) {
+                        uploadFile(p, out);
                         nbFile++;
                     }
                 } else {
-                    uploadFile(file, out);
+                    uploadFile(entry, out);
                     nbFile++;
                 }
             }
-            Attributes error = writeEndMarkers(httpPost, out);
+            DicomObject error = writeEndMarkers(httpPost, out);
             if (error == null) {
                 state.setStatus(Status.Success);
                 message = "all the files has been tranfered";
@@ -73,16 +70,16 @@ public class StowrsMultiFiles extends AbstractStowrs {
                 state.setStatus(Status.OneOrMoreFailures);
                 DicomProgress p = state.getProgress();
                 if (p != null) {
-                    Sequence seq = error.getSequence(Tag.FailedSOPSequence);
+                    DicomElement seq = error.get(Tag.FailedSOPSequence).orElse(null);
                     if (seq != null && !seq.isEmpty()) {
-                        Attributes cmd = Optional.ofNullable(p.getAttributes()).orElseGet(Attributes::new);
+                        DicomObject cmd = Optional.ofNullable(p.getAttributes()).orElse(DicomObject.newDicomObject());
                         cmd.setInt(Tag.Status, VR.US, Status.OneOrMoreFailures);
                         cmd.setInt(Tag.NumberOfCompletedSuboperations, VR.US, nbFile);
                         cmd.setInt(Tag.NumberOfFailedSuboperations, VR.US, seq.size());
                         cmd.setInt(Tag.NumberOfWarningSuboperations, VR.US, 0);
                         cmd.setInt(Tag.NumberOfRemainingSuboperations, VR.US, 0);
                         p.setAttributes(cmd);
-                        message = seq.stream().map(s -> s.getString(Tag.ReferencedSOPInstanceUID, "Unknown SopUID")
+                        message = seq.itemStream().map(s -> s.getString(Tag.ReferencedSOPInstanceUID).orElse("")
                             + " -> " + s.getString(Tag.FailureReason)).collect(Collectors.joining(","));
                         return DicomState.buildMessage(state, null,
                             new RuntimeException("Failed instances: " + message));
@@ -99,11 +96,21 @@ public class StowrsMultiFiles extends AbstractStowrs {
         return DicomState.buildMessage(state, message, null);
     }
 
-    private void uploadFile(File file, DataOutputStream out) throws IOException {
+    private void uploadFile(Path file, DataOutputStream out) throws IOException {
         writeContentMarkers(out);
 
         // write dicom binary file
-        Files.copy(file.toPath(), out);
+        Files.copy(file, out);
     }
 
+    // TODO set in FileUtil
+    public static List<Path> getAllFilesInDirectory(Path path) {
+        try (Stream<Path> walk = Files.walk(path)) {
+            return walk.filter(Files::isRegularFile).collect(Collectors.toList());
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return Collections.emptyList();
+    }
 }

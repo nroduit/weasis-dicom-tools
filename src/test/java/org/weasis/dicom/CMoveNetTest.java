@@ -10,27 +10,32 @@
  *******************************************************************************/
 package org.weasis.dicom;
 
+import java.net.MalformedURLException;
+
 import org.apache.log4j.BasicConfigurator;
-import org.dcm4che3.data.Tag;
-import org.dcm4che3.net.QueryOption;
-import org.dcm4che3.net.Status;
+import org.dcm4che6.data.Tag;
+import org.dcm4che6.net.Status;
 import org.hamcrest.core.IsEqual;
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.weasis.dicom.op.CMove;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomParam;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
-import org.weasis.dicom.param.ProgressListener;
 
 public class CMoveNetTest {
 
+    
+    @BeforeAll
+    public static void setLogger() throws MalformedURLException {
+        BasicConfigurator.configure();
+    }
+    
     @Test
     public void testProcess() {
-        BasicConfigurator.configure();
-        
         DicomProgress progress = new DicomProgress();
         progress.addProgressListener(progress1 -> {
             System.out.println("Remaining operations:" + progress1.getNumberOfRemainingSuboperations());
@@ -54,7 +59,7 @@ public class CMoveNetTest {
         DicomNode calling = new DicomNode("WEASIS-SCU");
         DicomNode called = new DicomNode("DCM4CHEE", "localhost", 11112);
         AdvancedParams options = new AdvancedParams();
-        options.getQueryOptions().add(QueryOption.RELATIONAL); // Required for QueryRetrieveLevel other than study
+   //     options.getQueryOptions().add(QueryOption.RELATIONAL); // Required for QueryRetrieveLevel other than study
         DicomState state = CMove.process(options, calling, called, "WEASIS-SCU", progress, params);
 
         // Should never happen

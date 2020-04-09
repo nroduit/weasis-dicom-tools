@@ -23,7 +23,7 @@ import org.weasis.dicom.op.Echo;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomState;
 
-public class EchoAdvTest {
+public class EchoNetTest {
 
     @BeforeAll
     public static void setLogger() throws MalformedURLException {
@@ -32,7 +32,6 @@ public class EchoAdvTest {
 
     @Test
     public void testProcess() {
-
         DicomNode calling = new DicomNode("WEASIS-SCU");
         DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
         DicomState state = Echo.process(null, calling, called);
@@ -41,7 +40,8 @@ public class EchoAdvTest {
 
         // See server log at http://dicomserver.co.uk/logs/
         System.out.println("DicomState result: ");
-        System.out.println("\tDICOM Status: " + state.getStatus()); // see org.dcm4ch6.net.Status
+        // See org.dcm4ch6.net.Status
+        System.out.println("\tDICOM Status: " + String.format("0x%04X", state.getStatus().orElseThrow() & 0xFFFF));
         System.out.println("\t" + state.getMessage());
 
         Assert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(OptionalInt.of(Status.Success)));

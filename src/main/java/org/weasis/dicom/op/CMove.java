@@ -10,24 +10,13 @@
  *******************************************************************************/
 package org.weasis.dicom.op;
 
-import java.text.MessageFormat;
-
-import org.dcm4che3.net.Connection;
-import org.dcm4che3.net.QueryOption;
-import org.dcm4che3.net.Status;
-import org.dcm4che3.tool.movescu.MoveSCU;
-import org.dcm4che3.tool.movescu.MoveSCU.InformationModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.weasis.core.api.util.FileUtil;
-import org.weasis.core.api.util.StringUtil;
 import org.weasis.dicom.param.AdvancedParams;
-import org.weasis.dicom.param.DeviceOpService;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomParam;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
-import org.weasis.dicom.util.ServiceUtil;
 
 public class CMove {
 
@@ -78,60 +67,62 @@ public class CMove {
         }
         AdvancedParams options = params == null ? new AdvancedParams() : params;
 
-        try (MoveSCU moveSCU = new MoveSCU(progress);) {
-            Connection remote = moveSCU.getRemoteConnection();
-            Connection conn = moveSCU.getConnection();
-            options.configureConnect(moveSCU.getAAssociateRQ(), remote, calledNode);
-            options.configureBind(moveSCU.getApplicationEntity(), conn, callingNode);
-            DeviceOpService service = new DeviceOpService(moveSCU);
+        // try (MoveSCU moveSCU = new MoveSCU(progress);) {
+        // Connection remote = moveSCU.getRemoteConnection();
+        // Connection conn = moveSCU.getConnection();
+        // options.configureConnect(moveSCU.getAAssociateRQ(), remote, calledNode);
+        // options.configureBind(moveSCU.getApplicationEntity(), conn, callingNode);
+        // DeviceOpService service = new DeviceOpService(moveSCU);
+        //
+        // // configure
+        // options.configure(conn);
+        // options.configureTLS(conn, remote);
+        //
+        // moveSCU.setInformationModel(getInformationModel(options), options.getTsuidOrder(),
+        // options.getQueryOptions().contains(QueryOption.RELATIONAL));
+        //
+        // for (DicomParam p : keys) {
+        // moveSCU.addKey(p.getTag(), p.getValues());
+        // }
+        // moveSCU.setDestination(destinationAet);
+        //
+        // service.start();
+        // try {
+        // DicomState dcmState = moveSCU.getState();
+        // long t1 = System.currentTimeMillis();
+        // moveSCU.open();
+        // long t2 = System.currentTimeMillis();
+        // moveSCU.retrieve();
+        // ServiceUtil.forceGettingAttributes(dcmState, moveSCU);
+        // long t3 = System.currentTimeMillis();
+        // String timeMsg =
+        // MessageFormat.format("DICOM C-MOVE connected in {2}ms from {0} to {1}. Sent files in {3}ms.",
+        // moveSCU.getAAssociateRQ().getCallingAET(), moveSCU.getAAssociateRQ().getCalledAET(), t2 - t1,
+        // t3 - t2);
+        // return DicomState.buildMessage(dcmState, timeMsg, null);
+        // } catch (Exception e) {
+        // LOGGER.error("movescu", e);
+        // ServiceUtil.forceGettingAttributes(moveSCU.getState(), moveSCU);
+        // return DicomState.buildMessage(moveSCU.getState(), null, e);
+        // } finally {
+        // FileUtil.safeClose(moveSCU);
+        // service.stop();
+        // }
+        // } catch (Exception e) {
+        // LOGGER.error("movescu", e);
+        // return new DicomState(Status.UnableToProcess,
+        // "DICOM Move failed" + StringUtil.COLON_AND_SPACE + e.getMessage(), null);
+        // }
 
-            // configure
-            options.configure(conn);
-            options.configureTLS(conn, remote);
-
-            moveSCU.setInformationModel(getInformationModel(options), options.getTsuidOrder(),
-                options.getQueryOptions().contains(QueryOption.RELATIONAL));
-
-            for (DicomParam p : keys) {
-                moveSCU.addKey(p.getTag(), p.getValues());
-            }
-            moveSCU.setDestination(destinationAet);
-
-            service.start();
-            try {
-                DicomState dcmState = moveSCU.getState();
-                long t1 = System.currentTimeMillis();
-                moveSCU.open();
-                long t2 = System.currentTimeMillis();
-                moveSCU.retrieve();
-                ServiceUtil.forceGettingAttributes(dcmState, moveSCU);
-                long t3 = System.currentTimeMillis();
-                String timeMsg =
-                    MessageFormat.format("DICOM C-MOVE connected in {2}ms from {0} to {1}. Sent files in {3}ms.",
-                        moveSCU.getAAssociateRQ().getCallingAET(), moveSCU.getAAssociateRQ().getCalledAET(), t2 - t1,
-                        t3 - t2);
-                return DicomState.buildMessage(dcmState, timeMsg, null);
-            } catch (Exception e) {
-                LOGGER.error("movescu", e);
-                ServiceUtil.forceGettingAttributes(moveSCU.getState(), moveSCU);
-                return DicomState.buildMessage(moveSCU.getState(), null, e);
-            } finally {
-                FileUtil.safeClose(moveSCU);
-                service.stop();
-            }
-        } catch (Exception e) {
-            LOGGER.error("movescu", e);
-            return new DicomState(Status.UnableToProcess,
-                "DICOM Move failed" + StringUtil.COLON_AND_SPACE + e.getMessage(), null);
-        }
+        return null;
     }
 
-    private static InformationModel getInformationModel(AdvancedParams options) {
-        Object model = options.getInformationModel();
-        if (model instanceof InformationModel) {
-            return (InformationModel) model;
-        }
-        return InformationModel.StudyRoot;
-    }
+    // private static InformationModel getInformationModel(AdvancedParams options) {
+    // Object model = options.getInformationModel();
+    // if (model instanceof InformationModel) {
+    // return (InformationModel) model;
+    // }
+    // return InformationModel.StudyRoot;
+    // }
 
 }

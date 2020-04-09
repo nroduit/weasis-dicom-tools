@@ -10,153 +10,174 @@
  *******************************************************************************/
 package org.weasis.dicom.tool;
 
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.Arrays;
-import java.util.Date;
+import java.io.OutputStream;
+import java.io.UncheckedIOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.ByteChannel;
+import java.nio.channels.SeekableByteChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.LocalDateTime;
 
-import org.dcm4che3.data.Attributes;
-import org.dcm4che3.data.BulkData;
-import org.dcm4che3.data.Tag;
-import org.dcm4che3.data.UID;
-import org.dcm4che3.data.VR;
-import org.dcm4che3.imageio.codec.jpeg.JPEG;
-import org.dcm4che3.imageio.codec.jpeg.JPEGHeader;
-import org.dcm4che3.imageio.codec.mpeg.MPEGHeader;
-import org.dcm4che3.io.DicomOutputStream;
-import org.dcm4che3.util.StreamUtils;
-import org.dcm4che3.util.UIDUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.dcm4che6.codec.CompressedPixelParser;
+import org.dcm4che6.codec.JPEG;
+import org.dcm4che6.codec.JPEGParser;
+import org.dcm4che6.codec.MP4Parser;
+import org.dcm4che6.codec.MPEG2Parser;
+import org.dcm4che6.data.DicomObject;
+import org.dcm4che6.data.Tag;
+import org.dcm4che6.data.UID;
+import org.dcm4che6.data.VR;
+import org.dcm4che6.io.DicomOutputStream;
+import org.dcm4che6.util.DateTimeUtils;
+import org.dcm4che6.util.UIDUtils;
 
 public class Dicomizer {
-    private static final Logger LOGGER = LoggerFactory.getLogger(Dicomizer.class);
-    
-    private static final int INIT_BUFFER_SIZE = 8192;
-    private static final int MAX_BUFFER_SIZE = 10485768; // 10MiB
+    private static final int BUFFER_SIZE = 8192;
 
     private Dicomizer() {
     }
 
-    public static void pdf(final Attributes attrs, File pdfFile, File dcmFile) throws IOException {
-        attrs.setString(Tag.SOPClassUID, VR.UI, UID.EncapsulatedPDFStorage);
-        ensureString(attrs, Tag.SpecificCharacterSet, VR.CS, "ISO_IR 192");// UTF-8
-        ensureUID(attrs, Tag.StudyInstanceUID);
-        ensureUID(attrs, Tag.SeriesInstanceUID);
-        ensureUID(attrs, Tag.SOPInstanceUID);
-        setCreationDate(attrs);
-
-        BulkData bulk = new BulkData(pdfFile.toURI().toString(), 0, (int) pdfFile.length(), false);
-        attrs.setValue(Tag.EncapsulatedDocument, VR.OB, bulk);
-        attrs.setString(Tag.MIMETypeOfEncapsulatedDocument, VR.LO, "application/pdf");
-        Attributes fmi = attrs.createFileMetaInformation(UID.ExplicitVRLittleEndian);
-        try (DicomOutputStream dos = new DicomOutputStream(dcmFile)) {
-            dos.writeDataset(fmi, attrs);
+    public static void pdf(final DicomObject dcm, Path pdfFile, Path dcmFile) throws IOException {
+        ensureString(dcm, Tag.SOPClassUID, VR.UI, UID.EncapsulatedPDFStorage);
+        ensureString(dcm, Tag.SpecificCharacterSet, VR.CS, "ISO_IR 192");// UTF-8
+        ensureString(dcm, Tag.Modality, VR.CS, "DOC");
+        ensureUID(dcm, Tag.StudyInstanceUID);
+        ensureUID(dcm, Tag.SeriesInstanceUID);
+        ensureUID(dcm, Tag.SOPInstanceUID);
+        setCreationDate(dcm);
+//        dcm.setInt(Tag.InstanceNumber, VR.IS, 1);
+//        dcm.setString(Tag.BurnedInAnnotation, VR.CS, "YES");
+        int fileSize = (int) Files.size(pdfFile);
+        dcm.setInt(Tag.EncapsulatedDocumentLength, VR.UL, (int) Files.size(pdfFile));
+        dcm.setString(Tag.MIMETypeOfEncapsulatedDocument, VR.LO, "application/pdf");
+        dcm.setBulkData(Tag.EncapsulatedDocument, VR.OB, pdfFile.toUri().toASCIIString() + "#length=" + fileSize, null);
+        
+        if (!Files.exists(dcmFile.getParent())) {
+            Files.createDirectories(dcmFile.getParent());
+        }
+        DicomObject fmi = dcm.createFileMetaInformation(UID.ExplicitVRLittleEndian);
+        try (DicomOutputStream dos = new DicomOutputStream(Files.newOutputStream(dcmFile))) {
+            dos.writeFileMetaInformation(fmi).withEncoding(fmi);
+            dos.writeDataSet(dcm);
         }
     }
 
-    public static void jpeg(final Attributes attrs, File jpgFile, File dcmFile, boolean noAPPn) throws IOException {
-        buildDicom(attrs, jpgFile, dcmFile, noAPPn, false);
-    }
-
-    public static void mpeg2(final Attributes attrs, File mpegFile, File dcmFile) throws IOException {
-        buildDicom(attrs, mpegFile, dcmFile, false, true);
-    }
-
-    private static void buildDicom(final Attributes attrs, File jpgFile, File dcmFile, boolean noAPPn, boolean mpeg)
+    public static void jpegOrMpeg(final DicomObject dcm, Path jpgFile, Path dcmFile, boolean noAPPn)
         throws IOException {
-        Parameters p = new Parameters();
-        p.fileLength = (int) jpgFile.length();
+        if (!Files.exists(jpgFile)) {
+            throw new IllegalArgumentException("Source file doesn't exist: " + jpgFile);
+        }
+        ContentType type = ContentType.probe(jpgFile);
+        DicomObject fmi;
+        try (SeekableByteChannel channel = Files.newByteChannel(jpgFile)) {
+            CompressedPixelParser parser = type.factory.newCompressedPixelParser(channel);
+            DicomObject dcmobj = parser.getImagePixelDescription(dcm);
+            ensureString(dcmobj, Tag.SpecificCharacterSet, VR.CS, "ISO_IR 192");// UTF-8
+            ensureString(dcmobj, Tag.SOPClassUID, VR.UI, type.defaultSOPClassUID);
+            ensureUID(dcmobj, Tag.StudyInstanceUID);
+            ensureUID(dcmobj, Tag.SeriesInstanceUID);
+            ensureUID(dcmobj, Tag.SOPInstanceUID);
+            setCreationDate(dcmobj);
 
-        try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(jpgFile))) {
-            if (!readPixelHeader(p, attrs, bis, mpeg)) {
-                throw new IOException("Cannot read the header of " + jpgFile.getPath());
+            fmi = dcmobj.createFileMetaInformation(parser.getTransferSyntaxUID());
+
+            if (!Files.exists(dcmFile.getParent())) {
+                Files.createDirectories(dcmFile.getParent());
             }
-            
-            int itemLen = p.fileLength;
-            try (DicomOutputStream dos = new DicomOutputStream(dcmFile)) {
-                ensureString(attrs, Tag.SpecificCharacterSet, VR.CS, "ISO_IR 192");// UTF-8
-                ensureUID(attrs, Tag.StudyInstanceUID);
-                ensureUID(attrs, Tag.SeriesInstanceUID);
-                ensureUID(attrs, Tag.SOPInstanceUID);
-
-                setCreationDate(attrs);
-                
-                dos.writeDataset(attrs.createFileMetaInformation(mpeg ? UID.MPEG2 : UID.JPEGBaseline1), attrs);
+            try (DicomOutputStream dos = new DicomOutputStream(Files.newOutputStream(dcmFile))) {
+                dos.writeFileMetaInformation(fmi).withEncoding(fmi);
+                dos.writeDataSet(dcmobj);
                 dos.writeHeader(Tag.PixelData, VR.OB, -1);
-                dos.writeHeader(Tag.Item, null, 0);
-                if (p.jpegHeader != null && noAPPn) {
-                    int offset = p.jpegHeader.offsetAfterAPP();
-                    itemLen -= offset - 3;
-                    dos.writeHeader(Tag.Item, null, (itemLen + 1) & ~1);
-                    dos.write((byte) -1);
-                    dos.write((byte) JPEG.SOI);
-                    dos.write((byte) -1);
-                    dos.write(p.buffer, offset, p.realBufferLength - offset);
+                dos.writeHeader(Tag.Item, VR.NONE, 0);
+                if (noAPPn && parser.getPositionAfterAPPSegments().isPresent()) {
+                    copyPixelData(channel, parser.getPositionAfterAPPSegments().getAsLong(), dos, (byte) 0xFF,
+                        (byte) JPEG.SOI);
                 } else {
-                    dos.writeHeader(Tag.Item, null, (itemLen + 1) & ~1);
-                    dos.write(p.buffer, 0, p.realBufferLength);
+                    copyPixelData(channel, parser.getCodeStreamPosition(), dos);
                 }
-                StreamUtils.copy(bis, dos, p.buffer);
-                if ((itemLen & 1) != 0) {
-                    dos.write(0);
+                dos.writeHeader(Tag.SequenceDelimitationItem, VR.NONE, 0);
+            }
+        }
+    }
+
+    private static void setCreationDate(DicomObject dcm) {
+        LocalDateTime dt = LocalDateTime.now();
+        dcm.setString(Tag.InstanceCreationDate, VR.DA, DateTimeUtils.formatDA(dt));
+        dcm.setString(Tag.InstanceCreationTime, VR.TM, DateTimeUtils.formatTM(dt));
+    }
+
+    private static void ensureString(DicomObject dcm, int tag, VR vr, String value) {
+        if (dcm.get(tag).isEmpty()) {
+            dcm.setString(tag, vr, value);
+        }
+    }
+
+    private static void ensureUID(DicomObject dcm, int tag) {
+        if (dcm.get(tag).isEmpty()) {
+            dcm.setString(tag, VR.UI, UIDUtils.randomUID());
+        }
+    }
+
+    private static void copyPixelData(SeekableByteChannel channel, long position, DicomOutputStream dos, byte... prefix)
+        throws IOException {
+        long codeStreamSize = channel.size() - position + prefix.length;
+        dos.writeHeader(Tag.Item, VR.NONE, (int) ((codeStreamSize + 1) & ~1));
+        dos.write(prefix);
+        channel.position(position);
+        copy(channel, dos);
+        if ((codeStreamSize & 1) != 0)
+            dos.write(0);
+    }
+
+    private static void copy(ByteChannel in, OutputStream out) throws IOException {
+        byte[] b = new byte[BUFFER_SIZE];
+        ByteBuffer buf = ByteBuffer.wrap(b);
+        int read;
+        while ((read = in.read(buf)) > 0) {
+            out.write(b, 0, read);
+            buf.clear();
+        }
+    }
+
+    enum ContentType {
+        IMAGE_JPEG(JPEGParser::new, UID.VLPhotographicImageStorage),
+        VIDEO_MPEG(MPEG2Parser::new, UID.VideoPhotographicImageStorage),
+        VIDEO_MP4(MP4Parser::new, UID.VideoPhotographicImageStorage);
+
+        final CompressedPixelParserFactory factory;
+        final String defaultSOPClassUID;
+
+        ContentType(CompressedPixelParserFactory factory, String defaultSOPClassUID) {
+            this.factory = factory;
+            this.defaultSOPClassUID = defaultSOPClassUID;
+        }
+
+        static ContentType probe(Path path) {
+            try {
+                String type = Files.probeContentType(path);
+                if (type == null)
+                    throw new IOException(String.format("failed to determine content type of file: '%s'", path));
+                switch (type.toLowerCase()) {
+                    case "image/jpeg":
+                    case "image/jp2":
+                        return ContentType.IMAGE_JPEG;
+                    case "video/mpeg":
+                        return ContentType.VIDEO_MPEG;
+                    case "video/mp4":
+                        return ContentType.VIDEO_MP4;
                 }
-                dos.writeHeader(Tag.SequenceDelimitationItem, null, 0);
-            }
-
-        } catch (Exception e) {
-            LOGGER.error("Building {}", mpeg ? "mpeg" : "jpg", e);
-        }
-    }
-
-    private static boolean readPixelHeader(Parameters p, Attributes metadata, InputStream in, boolean mpeg) throws IOException {
-        int grow = INIT_BUFFER_SIZE;
-        while (p.realBufferLength == p.buffer.length && p.realBufferLength < MAX_BUFFER_SIZE) {
-            grow += p.realBufferLength;
-            p.buffer = Arrays.copyOf(p.buffer, grow);
-            p.realBufferLength += StreamUtils.readAvailable(in, p.buffer, p.realBufferLength, p.buffer.length - p.realBufferLength);
-            boolean jpgHeader;
-            if (mpeg) {
-                MPEGHeader mpegHeader = new MPEGHeader(p.buffer);
-                jpgHeader = mpegHeader.toAttributes(metadata, p.fileLength) != null;
-            } else {
-                p.jpegHeader = new JPEGHeader(p.buffer, JPEG.SOS);
-                jpgHeader = p.jpegHeader.toAttributes(metadata) != null;
-            }
-            if (jpgHeader) {
-                ensureString(metadata, Tag.SOPClassUID, VR.UI,
-                    mpeg ? UID.VideoPhotographicImageStorage : UID.VLPhotographicImageStorage);
-                return true;
+                throw new UnsupportedOperationException(
+                    String.format("unsupported content type: '%s' of file: '%s'", type, path));
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
             }
         }
-        return false;
     }
 
-    private static void setCreationDate(Attributes attrs) {
-        Date now = new Date();
-        attrs.setDate(Tag.InstanceCreationDate, VR.DA, now);
-        attrs.setDate(Tag.InstanceCreationTime, VR.TM, now);
+    @FunctionalInterface
+    private interface CompressedPixelParserFactory {
+        CompressedPixelParser newCompressedPixelParser(SeekableByteChannel channel) throws IOException;
     }
-
-    private static void ensureString(Attributes attrs, int tag, VR vr, String value) {
-        if (!attrs.containsValue(tag)) {
-            attrs.setString(tag, vr, value);
-        }
-    }
-
-    private static void ensureUID(Attributes attrs, int tag) {
-        if (!attrs.containsValue(tag)) {
-            attrs.setString(tag, VR.UI, UIDUtils.createUID());
-        }
-    }
-
-    private static class Parameters {
-        int realBufferLength = 0;
-        byte[] buffer = {};
-        int fileLength = 0;
-        JPEGHeader jpegHeader;
-    }    
 }

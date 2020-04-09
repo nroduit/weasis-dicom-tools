@@ -18,7 +18,6 @@ import org.dcm4che6.conf.model.Connection;
 import org.dcm4che6.data.DicomObject;
 import org.dcm4che6.data.Tag;
 import org.dcm4che6.data.VR;
-import org.dcm4che6.io.DicomInputStream;
 import org.dcm4che6.net.DimseRSP;
 import org.dcm4che6.net.Status;
 import org.slf4j.Logger;
@@ -62,7 +61,7 @@ public class ServiceUtil {
         return Status.UnableToProcess;
     }
 
-    public static ProgressStatus setDicomRSP(DimseRSP resp, DicomState state, int filesScanned) {
+    public static ProgressStatus setDicomRSP(DimseRSP resp, DicomState state, int nbFilesScanned) {
         if (resp == null || resp.command == null) {
             return ProgressStatus.FAILED;
         }
@@ -82,7 +81,7 @@ public class ServiceUtil {
             default:
                 ps = ProgressStatus.FAILED;
         }
-        ServiceUtil.notifyProgession(state.getProgress(), resp.command, ps, filesScanned);
+        ServiceUtil.notifyProgession(state.getProgress(), resp.command, ps, nbFilesScanned);
         return ps;
     }
 
@@ -100,14 +99,6 @@ public class ServiceUtil {
         DicomProgress p = dcmState.getProgress();
         if (p != null) {
             FileUtil.safeClose(closeable);
-        }
-    }
-
-    public static void safeClose(DicomInputStream in) {
-        if (in != null) {
-            // for (File file : in.getBulkDataFiles()) {
-            // FileUtil.delete(file);
-            // }
         }
     }
 

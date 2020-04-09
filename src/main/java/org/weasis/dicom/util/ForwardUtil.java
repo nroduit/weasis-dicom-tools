@@ -10,24 +10,36 @@
  *******************************************************************************/
 package org.weasis.dicom.util;
 
-import java.io.File;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import org.dcm4che3.data.Attributes;
-import org.dcm4che3.data.Tag;
-import org.dcm4che3.data.UID;
-import org.dcm4che3.imageio.codec.Decompressor;
-import org.dcm4che3.io.DicomInputStream;
-import org.dcm4che3.io.DicomInputStream.IncludeBulkData;
-import org.dcm4che3.net.Association;
-import org.dcm4che3.net.DataWriter;
-import org.dcm4che3.net.DataWriterAdapter;
-import org.dcm4che3.net.InputStreamDataWriter;
-import org.dcm4che3.net.PDVInputStream;
-import org.dcm4che3.net.Status;
+import org.dcm4che6.data.DataFragment;
+import org.dcm4che6.data.DicomElement;
+import org.dcm4che6.data.DicomObject;
+import org.dcm4che6.data.Tag;
+import org.dcm4che6.data.UID;
+import org.dcm4che6.data.VR;
+import org.dcm4che6.img.DicomOutputData;
+import org.dcm4che6.img.DicomTranscodeParam;
+import org.dcm4che6.img.Transcoder;
+import org.dcm4che6.img.data.TransferSyntaxType;
+import org.dcm4che6.img.stream.BytesWithImageDescriptor;
+import org.dcm4che6.img.stream.ImageDescriptor;
+import org.dcm4che6.io.DicomEncoding;
+import org.dcm4che6.io.DicomInputStream;
+import org.dcm4che6.io.DicomOutputStream;
+import org.dcm4che6.net.AAssociateRJ;
+import org.dcm4che6.net.Association;
+import org.dcm4che6.net.Association.DataWriter;
+import org.dcm4che6.net.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.api.util.FileUtil;
@@ -50,20 +62,24 @@ public class ForwardUtil {
         private final String iuid;
         private final String cuid;
         private final String tsuid;
+        private final Byte pcid;
         private final InputStream data;
         private final Association as;
-        private final int priority;
         private String outputTsuid;
 
-        public Params(String iuid, String cuid, String tsuid, int priority, InputStream data, Association as) {
+        public Params(String iuid, String cuid, Byte pcid, InputStream data, Association as) {
             super();
             this.iuid = iuid;
             this.cuid = cuid;
-            this.tsuid = tsuid;
-            this.priority = priority;
+            this.pcid = pcid;
+            this.tsuid = as.getTransferSyntax(pcid);
             this.as = as;
             this.data = data;
             this.outputTsuid = tsuid;
+        }
+
+        public Byte getPcid() {
+            return pcid;
         }
 
         public String getIuid() {
@@ -76,10 +92,6 @@ public class ForwardUtil {
 
         public String getTsuid() {
             return tsuid;
-        }
-
-        public int getPriority() {
-            return priority;
         }
 
         public Association getAs() {
@@ -121,7 +133,7 @@ public class ForwardUtil {
     }
 
     public static void storeMulitpleDestination(ForwardDicomNode fwdNode, List<ForwardDestination> destList, Params p)
-        throws Exception {
+        throws IOException {
         if (destList == null || destList.isEmpty()) {
             throw new IllegalStateException("Cannot find the DICOM destination from " + fwdNode.toString());
         }
@@ -151,30 +163,20 @@ public class ForwardUtil {
             } else if (destConList.size() == 1) {
                 storeOneDestination(fwdNode, destConList.get(0), p);
             } else {
-                List<File> files = null;
-                try {
-                    Attributes attributes = new Attributes();
-                    ForwardDestination fistDest = destConList.get(0);
-                    if (fistDest instanceof DicomForwardDestination) {
-                        files = transfer(fwdNode, (DicomForwardDestination) fistDest, attributes, p);
-                    } else if (fistDest instanceof WebForwardDestination) {
-                        files = transfer(fwdNode, (WebForwardDestination) fistDest, null, p);
-                    }
-                    if (!attributes.isEmpty()) {
-                        for (int i = 1; i < destConList.size(); i++) {
-                            ForwardDestination dest = destConList.get(i);
-                            if (dest instanceof DicomForwardDestination) {
-                                transferOther(fwdNode, (DicomForwardDestination) dest, attributes, p);
-                            } else if (dest instanceof WebForwardDestination) {
-                                transferOther(fwdNode, (WebForwardDestination) dest, attributes, p);
-                            }
-                        }
-                    }
-                } finally {
-                    if (files != null) {
-                        // Force to clean if tmp bulk files
-                        for (File file : files) {
-                            FileUtil.delete(file);
+                DicomObject dcm = DicomObject.newDicomObject();
+                ForwardDestination fistDest = destConList.get(0);
+                if (fistDest instanceof DicomForwardDestination) {
+                    transfer(fwdNode, (DicomForwardDestination) fistDest, dcm, p);
+                } else if (fistDest instanceof WebForwardDestination) {
+                    transfer(fwdNode, (WebForwardDestination) fistDest, null, p);
+                }
+                if (!dcm.isEmpty()) {
+                    for (int i = 1; i < destConList.size(); i++) {
+                        ForwardDestination dest = destConList.get(i);
+                        if (dest instanceof DicomForwardDestination) {
+                            transferOther(fwdNode, (DicomForwardDestination) dest, dcm, p);
+                        } else if (dest instanceof WebForwardDestination) {
+                            transferOther(fwdNode, (WebForwardDestination) dest, dcm, p);
                         }
                     }
                 }
@@ -184,7 +186,7 @@ public class ForwardUtil {
     }
 
     public static void storeOneDestination(ForwardDicomNode fwdNode, ForwardDestination destination, Params p)
-        throws Exception {
+        throws IOException {
         if (destination instanceof DicomForwardDestination) {
             DicomForwardDestination dest = (DicomForwardDestination) destination;
             prepareTransfer(dest, p.getCuid(), p.getTsuid());
@@ -195,82 +197,95 @@ public class ForwardUtil {
     }
 
     public static StoreFromStreamSCU prepareTransfer(DicomForwardDestination destination, String cuid, String tsuid)
-        throws Exception {
+        throws IOException {
         StoreFromStreamSCU streamSCU = destination.getStreamSCU();
-        if (streamSCU.getAssociation() == null) {
-            destination.getStreamSCUService().start();
+        if (streamSCU.getAssociation() == null || !streamSCU.getAssociation().isOpen()) {
+            // destination.getStreamSCUService().start();
             // Add Presentation Context for the association
             streamSCU.addData(cuid, tsuid);
+            streamSCU.addData(cuid, UID.ExplicitVRLittleEndian);
+          //  streamSCU.addData(cuid, UID.ImplicitVRLittleEndian);
             streamSCU.open();
         } else {
             // Handle dynamically new SOPClassUID
-            Set<String> tss = streamSCU.getAssociation().getTransferSyntaxesFor(cuid);
-            if (!tss.contains(tsuid)) {
-                streamSCU.close();
-            }
-
+            Stream<Byte> val = streamSCU.getAssociationRq().pcidsFor(cuid, tsuid);
+            boolean missingTsuid = val.findFirst().isEmpty();
             // Add Presentation Context for the association
             streamSCU.addData(cuid, tsuid);
-
-            if (!streamSCU.getAssociation().isReadyForDataTransfer()) {
-                // If connection has been closed just reopen
+            streamSCU.addData(cuid, UID.ExplicitVRLittleEndian);
+        //    streamSCU.addData(cuid, UID.ImplicitVRLittleEndian);
+            if (missingTsuid) {
+                streamSCU.close();
                 streamSCU.open();
+//                try {
+//                    streamSCU.getAssociation().onAAssociateRQ();
+//                } catch (AAssociateRJ e) {
+//                    // TODO Auto-generated catch block
+//                    e.printStackTrace();
+//                }
             }
         }
         return streamSCU;
     }
 
-    public static List<File> transfer(ForwardDicomNode sourceNode, DicomForwardDestination destination, Attributes copy,
-        Params p) {
+    public static void transfer(ForwardDicomNode sourceNode, DicomForwardDestination destination, DicomObject copy,
+        Params p) throws IOException {
         StoreFromStreamSCU streamSCU = destination.getStreamSCU();
         DicomInputStream in = null;
-        List<File> files = null;
         try {
-            if (!streamSCU.getAssociation().isReadyForDataTransfer()) {
+            if (!streamSCU.getAssociation().isOpen()) {
                 throw new IllegalStateException("Association not ready for transfer.");
             }
             DataWriter dataWriter;
             String tsuid = p.getTsuid();
             String iuid = p.getIuid();
-            String supportedTsuid = selectTransferSyntax(streamSCU.getAssociation(), p.getCuid(), tsuid);
+            Optional<Byte> pcid = selectTransferSyntax(streamSCU.getAssociation(), p);
+            if (pcid.isEmpty()) {
+                throw new IOException("The remote destination has no matching Presentation Context");
+            }
+            String supportedTsuid = streamSCU.getAssociation().getTransferSyntax(pcid.get());
             AttributeEditor editor = destination.getAttributesEditor();
 
             if (copy == null && editor == null && supportedTsuid.equals(tsuid)) {
-                dataWriter = new InputStreamDataWriter(p.getData());
+                dataWriter = new DataWriter() {
+                    @Override
+                    public void writeTo(OutputStream out, String tsuid) throws IOException {
+                        p.getData().transferTo(out);
+                    }
+                };
             } else {
-                AttributeEditorContext context = new AttributeEditorContext(tsuid, sourceNode,
-                    DicomNode.buildRemoteDicomNode(streamSCU.getAssociation()));
-                in = new DicomInputStream(p.getData(), tsuid);
-                in.setIncludeBulkData(IncludeBulkData.URI);
-                Attributes attributes = in.readDataset(-1, -1);
-                if (editor != null && editor.apply(attributes, context)) {
-                    iuid = attributes.getString(Tag.SOPInstanceUID);
+                AttributeEditorContext context = streamSCU.getContext();
+                DicomObject data = null;
+                try (DicomInputStream dis = new DicomInputStream(p.getData())) {
+                    data = dis.readDataSet();
+                    if (data == null) {
+                        throw new IllegalStateException("Cannot read DICOM dataset");
+                    }
+                }
+
+                if (editor != null && editor.apply(data, context)) {
+                    iuid = data.getString(Tag.SOPInstanceUID).orElse(null);
+                    // sopClassUID = data.getString(Tag.SOPClassUID).orElse(null);
                 }
 
                 if (context.getAbort() == Abort.FILE_EXCEPTION) {
-                    if (p.getData() instanceof PDVInputStream) {
-                        ((PDVInputStream) p.getData()).skipAll();
-                    }
+                    p.getData().transferTo(OutputStream.nullOutputStream());
                     throw new IllegalStateException(context.getAbortMessage());
                 } else if (context.getAbort() == Abort.CONNECTION_EXCEPTION) {
                     if (p.getAs() != null) {
-                        p.getAs().abort();
+                        p.getAs().release();
                     }
                     throw new AbortException("DICOM association abort: " + context.getAbortMessage());
                 }
 
                 if (copy != null) {
-                    copy.addAll(attributes);
+                    copy.forEach(data::add);
                 }
 
-                if (!supportedTsuid.equals(tsuid)) {
-                    Decompressor.decompress(attributes, tsuid);
-                }
-                dataWriter = new DataWriterAdapter(attributes);
+                dataWriter = imageTranscode(data, tsuid, supportedTsuid);
             }
 
-            streamSCU.getAssociation().cstore(p.getCuid(), iuid, p.getPriority(), dataWriter, supportedTsuid,
-                streamSCU.getRspHandlerFactory().createDimseRSPHandler());
+            streamSCU.getAssociation().cstore(p.getCuid(), iuid, dataWriter, supportedTsuid);
         } catch (AbortException e) {
             ServiceUtil.notifyProgession(streamSCU.getState(), p.getIuid(), p.getCuid(), Status.ProcessingFailure,
                 ProgressStatus.FAILED, streamSCU.getNumberOfSuboperations());
@@ -279,47 +294,45 @@ public class ForwardUtil {
             LOGGER.error(ERROR_WHEN_FORWARDING, e);
             ServiceUtil.notifyProgession(streamSCU.getState(), p.getIuid(), p.getCuid(), Status.ProcessingFailure,
                 ProgressStatus.FAILED, streamSCU.getNumberOfSuboperations());
-            throw new AbortException("StoreSCU abort: " + e.getMessage(), e);
+          //  throw new IOException("StoreSCU abort: " + e.getMessage(), e);
         } finally {
-            files = cleanOrGetBulkDataFiles(in, copy == null);
+            FileUtil.safeClose(in);
+            streamSCU.triggerCloseExecutor();
         }
-        return files;
     }
 
-    private static List<File> cleanOrGetBulkDataFiles(DicomInputStream in, boolean clean) {
-        FileUtil.safeClose(in);
-        if (clean) {
-            // Force to clean if tmp bulk files
-            ServiceUtil.safeClose(in);
-        } else if (in != null) {
-            // Return tmp bulk files
-            return in.getBulkDataFiles();
-        }
-        return null;
-    }
-
-    public static void transferOther(ForwardDicomNode fwdNode, DicomForwardDestination destination, Attributes copy,
-        Params p) {
+    public static void transferOther(ForwardDicomNode fwdNode, DicomForwardDestination destination, DicomObject copy,
+        Params p) throws IOException {
         StoreFromStreamSCU streamSCU = destination.getStreamSCU();
 
         try {
-            if (!streamSCU.getAssociation().isReadyForDataTransfer()) {
+            if (!streamSCU.getAssociation().isOpen()) {
                 throw new IllegalStateException("Association not ready for transfer.");
             }
 
             DataWriter dataWriter;
             String tsuid = p.getTsuid();
             String iuid = p.getIuid();
-            String supportedTsuid = selectTransferSyntax(streamSCU.getAssociation(), p.getCuid(), tsuid);
+            Optional<Byte> pcid = selectTransferSyntax(streamSCU.getAssociation(), p);
+            if (pcid.isEmpty()) {
+                throw new IOException("The remote destination has no matching Presentation Context");
+            }
+            String supportedTsuid = streamSCU.getAssociation().getTransferSyntax(pcid.get());
             AttributeEditor editor = destination.getAttributesEditor();
             if (editor == null && supportedTsuid.equals(tsuid)) {
-                dataWriter = new DataWriterAdapter(copy);
+                dataWriter = new DataWriter() {
+                    @Override
+                    public void writeTo(OutputStream out, String tsuid) throws IOException {
+                        p.getData().transferTo(out);
+                    }
+                };
             } else {
-                AttributeEditorContext context = new AttributeEditorContext(tsuid, fwdNode,
-                    DicomNode.buildRemoteDicomNode(streamSCU.getAssociation()));
-                Attributes attributes = new Attributes(copy);
-                if (editor != null && editor.apply(attributes, context)) {
-                    iuid = attributes.getString(Tag.SOPInstanceUID);
+                AttributeEditorContext context =
+                    new AttributeEditorContext(fwdNode, DicomNode.buildRemoteDicomNode(streamSCU.getAssociation()));
+                DicomObject dcm = DicomObject.newDicomObject();
+                copy.forEach(dcm::add);
+                if (editor != null && editor.apply(dcm, context)) {
+                    iuid = dcm.getString(Tag.SOPInstanceUID).orElse(null);
                 }
 
                 if (context.getAbort() == Abort.FILE_EXCEPTION) {
@@ -328,14 +341,10 @@ public class ForwardUtil {
                     throw new AbortException("DICOM associtation abort. " + context.getAbortMessage());
                 }
 
-                if (!supportedTsuid.equals(tsuid)) {
-                    Decompressor.decompress(attributes, tsuid);
-                }
-                dataWriter = new DataWriterAdapter(attributes);
+                dataWriter = imageTranscode(dcm, tsuid, supportedTsuid);
             }
 
-            streamSCU.getAssociation().cstore(p.getCuid(), iuid, p.getPriority(), dataWriter, supportedTsuid,
-                streamSCU.getRspHandlerFactory().createDimseRSPHandler());
+            streamSCU.getAssociation().cstore(p.getCuid(), iuid, dataWriter, supportedTsuid);
         } catch (AbortException e) {
             ServiceUtil.notifyProgession(streamSCU.getState(), p.getIuid(), p.getCuid(), Status.ProcessingFailure,
                 ProgressStatus.FAILED, streamSCU.getNumberOfSuboperations());
@@ -344,51 +353,127 @@ public class ForwardUtil {
             LOGGER.error(ERROR_WHEN_FORWARDING, e);
             ServiceUtil.notifyProgession(streamSCU.getState(), p.getIuid(), p.getCuid(), Status.ProcessingFailure,
                 ProgressStatus.FAILED, streamSCU.getNumberOfSuboperations());
-            throw new AbortException("StoreSCU abort: " + e.getMessage(), e);
+     //       throw new IOException("StoreSCU abort: " + e.getMessage(), e);
         }
     }
 
-    public static List<File> transfer(ForwardDicomNode fwdNode, WebForwardDestination destination, Attributes copy,
+    private static DataWriter imageTranscode(DicomObject data, String originalTsuid, String supportedTsuid)
+        throws Exception {
+        if (!supportedTsuid.equals(originalTsuid)
+            && TransferSyntaxType.forUID(originalTsuid) != TransferSyntaxType.NATIVE) {
+            Optional<DicomElement> pixdata = data.get(Tag.PixelData);
+            ImageDescriptor imdDesc = new ImageDescriptor(data);
+            BytesWithImageDescriptor desc = new BytesWithImageDescriptor() {
+
+                @Override
+                public ImageDescriptor getImageDescriptor() {
+                    return imdDesc;
+                }
+
+                @Override
+                public ByteBuffer getBytes(int frame) throws IOException {
+                    ImageDescriptor desc = getImageDescriptor();
+                    int bitsStored = desc.getBitsStored();
+                    if (pixdata.isEmpty() || bitsStored < 1) {
+                        return ByteBuffer.wrap(DicomElement.EMPTY_BYTES);
+                    } else {
+                        DicomElement pix = pixdata.get();
+                        int index = pix.getDataFragment(0).valueLength() == 0 ? frame + 1 : frame;
+                        DataFragment fragment = pix.getDataFragment(index);
+                        ByteArrayOutputStream out = new ByteArrayOutputStream(fragment.valueLength());
+                        fragment.writeTo(out);
+                        return ByteBuffer.wrap(out.toByteArray());
+                    }
+                }
+
+                @Override
+                public String getTransferSyntax() {
+                    return originalTsuid;
+                }
+
+                @Override
+                public boolean forceYbrToRgbConversion() {
+                    // TODO Auto-generated method stub
+                    return false;
+                }
+
+            };
+            DicomTranscodeParam tparams = new DicomTranscodeParam(supportedTsuid);
+            DicomOutputData imgData = Transcoder.dcm2dcm(desc, tparams);
+            return new DataWriter() {
+                @Override
+                public void writeTo(OutputStream out, String tsuid) throws IOException {
+                    DicomObject dataSet = DicomObject.newDicomObject();
+                    for (DicomElement el : data) {
+                        if (el.tag() == Tag.PixelData) {
+                            break;
+                        }
+                        dataSet.add(el);
+                    }
+                    try (DicomOutputStream dos =
+                        new DicomOutputStream(out).withEncoding(DicomEncoding.of(supportedTsuid))) {
+                        if (DicomOutputData.isNativeSyntax(supportedTsuid)) {
+                            imgData.writRawImageData(dos, dataSet);
+                        } else {
+                            int[] jpegWriteParams = DicomOutputData.adaptTagsToImage(dataSet,
+                                imgData.getImages().get(0), desc.getImageDescriptor(), tparams.getWriteJpegParam());
+                            dos.writeDataSet(dataSet);
+                            imgData.writCompressedImageData(dos, jpegWriteParams);
+                        }
+                    } catch (Exception e) {
+                        LOGGER.error("Transcoding image data", e);
+                    }
+                }
+            };
+        }
+        return new DataWriter() {
+            @Override
+            public void writeTo(OutputStream out, String tsuid) throws IOException {
+                try (DicomOutputStream writer = new DicomOutputStream(out).withEncoding(DicomEncoding.of(tsuid))) {
+                    writer.writeDataSet(data);
+                    writer.writeHeader(Tag.ItemDelimitationItem, VR.NONE, 0);
+                }
+            }
+        };
+    }
+
+    public static void transfer(ForwardDicomNode fwdNode, WebForwardDestination destination, DicomObject copy,
         Params p) {
         DicomInputStream in = null;
-        List<File> files = null;
         try {
             UploadSingleFile stow = destination.getStowrsSingleFile();
             String tsuid = p.getTsuid();
             boolean originalTsuid = true;
-            if(UID.ImplicitVRLittleEndian.equals(tsuid) || UID.ExplicitVRBigEndianRetired.equals(tsuid)) {
+            if (UID.ImplicitVRLittleEndian.equals(tsuid) || UID.ExplicitVRBigEndianRetired.equals(tsuid)) {
                 p.setOutputTsuid(UID.ExplicitVRLittleEndian);
                 originalTsuid = false;
             }
             if (originalTsuid && copy == null && destination.getAttributesEditor() == null) {
-                Attributes fmi = Attributes.createFileMetaInformation(p.getIuid(), p.getCuid(), p.getOutputTsuid());
+                DicomObject fmi = DicomObject.createFileMetaInformation(p.getCuid(), p.getIuid(), p.getOutputTsuid());
                 try (InputStream stream = p.getData()) {
                     stow.uploadDicom(p.getData(), fmi, p.getOutputTsuid(), p.getIuid());
                 }
             } else {
-                AttributeEditorContext context = new AttributeEditorContext(p.getOutputTsuid(), fwdNode, null);
-                in = new DicomInputStream(p.getData(), tsuid);
-                in.setIncludeBulkData(IncludeBulkData.URI);
-                Attributes attributes = in.readDataset(-1, -1);
-                destination.getAttributesEditor().apply(attributes, context);
+                AttributeEditorContext context = new AttributeEditorContext(fwdNode, null);
+                try (DicomInputStream dis = new DicomInputStream(p.getData())) {
+                    DicomObject data = dis.readDataSet();
+                    destination.getAttributesEditor().apply(data, context);
 
-                if (context.getAbort() == Abort.FILE_EXCEPTION) {
-                    if (p.getData() instanceof PDVInputStream) {
-                        ((PDVInputStream) p.getData()).skipAll();
+                    if (context.getAbort() == Abort.FILE_EXCEPTION) {
+                        p.getData().transferTo(OutputStream.nullOutputStream());
+                        throw new IllegalStateException(context.getAbortMessage());
+                    } else if (context.getAbort() == Abort.CONNECTION_EXCEPTION) {
+                        if (p.getAs() != null) {
+                            p.getAs().release();
+                        }
+                        throw new AbortException("STOW-RS abort: " + context.getAbortMessage());
                     }
-                    throw new IllegalStateException(context.getAbortMessage());
-                } else if (context.getAbort() == Abort.CONNECTION_EXCEPTION) {
-                    if (p.getAs() != null) {
-                        p.getAs().abort();
+
+                    if (copy != null) {
+                        copy.forEach(data::add);
                     }
-                    throw new AbortException("STOWRS abort: " + context.getAbortMessage());
+                    stow.uploadDicom(data, p.getOutputTsuid());
                 }
-
-                if (copy != null) {
-                    copy.addAll(attributes);
-                }
-
-                stow.uploadDicom(attributes, p.getOutputTsuid());
                 ServiceUtil.notifyProgession(destination.getState(), p.getIuid(), p.getCuid(), Status.Success,
                     ProgressStatus.COMPLETED, 0);
             }
@@ -402,12 +487,11 @@ public class ForwardUtil {
                 ProgressStatus.FAILED, 0);
             throw new AbortException("STOWRS abort: " + e.getMessage(), e);
         } finally {
-            files = cleanOrGetBulkDataFiles(in, copy == null);
+            FileUtil.safeClose(in);
         }
-        return files;
     }
 
-    public static void transferOther(ForwardDicomNode fwdNode, WebForwardDestination destination, Attributes copy,
+    public static void transferOther(ForwardDicomNode fwdNode, WebForwardDestination destination, DicomObject copy,
         Params p) {
         try {
             UploadSingleFile stow = destination.getStowrsSingleFile();
@@ -415,9 +499,10 @@ public class ForwardUtil {
             if (destination.getAttributesEditor() == null) {
                 stow.uploadDicom(copy, tsuid);
             } else {
-                AttributeEditorContext context = new AttributeEditorContext(tsuid, fwdNode, null);
-                Attributes attributes = new Attributes(copy);
-                destination.getAttributesEditor().apply(attributes, context);
+                AttributeEditorContext context = new AttributeEditorContext(fwdNode, null);
+                DicomObject dcm = DicomObject.newDicomObject();
+                copy.forEach(dcm::add);
+                destination.getAttributesEditor().apply(dcm, context);
 
                 if (context.getAbort() == Abort.FILE_EXCEPTION) {
                     throw new IllegalStateException(context.getAbortMessage());
@@ -425,7 +510,7 @@ public class ForwardUtil {
                     throw new AbortException("DICOM associtation abort. " + context.getAbortMessage());
                 }
 
-                stow.uploadDicom(attributes, tsuid);
+                stow.uploadDicom(dcm, tsuid);
                 ServiceUtil.notifyProgession(destination.getState(), p.getIuid(), p.getCuid(), Status.Success,
                     ProgressStatus.COMPLETED, 0);
             }
@@ -441,17 +526,12 @@ public class ForwardUtil {
         }
     }
 
-    public static String selectTransferSyntax(Association as, String cuid, String filets) {
-        Set<String> tss = as.getTransferSyntaxesFor(cuid);
-        if (tss.contains(filets)) {
-            return filets;
+    public static Optional<Byte> selectTransferSyntax(Association as, Params p) {
+        if (as.getAaac().acceptedTransferSyntax(p.getPcid(), p.getTsuid())) {
+            return Optional.of(p.getPcid());
         }
-
-        if (tss.contains(UID.ExplicitVRLittleEndian)) {
-            return UID.ExplicitVRLittleEndian;
-        }
-
-        return UID.ImplicitVRLittleEndian;
+        return as.getAarq().pcidsFor(p.getCuid())
+            .filter(b -> as.getAaac().acceptedTransferSyntax(b, UID.ExplicitVRLittleEndian))
+            .findFirst();
     }
-
 }

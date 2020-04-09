@@ -13,7 +13,7 @@ package org.weasis.dicom.param;
 import java.net.URL;
 
 public class CstoreParams {
-    private final DefaultAttributeEditor attributeEditor;
+    private final AttributeEditor attributeEditor;
     private final boolean extendNegociation;
     private final URL extendSopClassesURL;
 
@@ -25,13 +25,13 @@ public class CstoreParams {
      * @param extendSopClassesURL
      *            configuration file of the SOP classes negotiation extension
      */
-    public CstoreParams(DefaultAttributeEditor attributeEditor, boolean extendNegociation, URL extendSopClassesURL) {
+    public CstoreParams(AttributeEditor attributeEditor, boolean extendNegociation, URL extendSopClassesURL) {
         this.attributeEditor = attributeEditor;
         this.extendNegociation = extendNegociation;
         this.extendSopClassesURL = extendSopClassesURL;
     }
 
-    public DefaultAttributeEditor getAttributeEditor() {
+    public AttributeEditor getAttributeEditor() {
         return attributeEditor;
     }
 

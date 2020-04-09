@@ -10,6 +10,7 @@
  *******************************************************************************/
 package org.weasis.dicom;
 
+import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -23,7 +24,8 @@ import org.dcm4che6.data.VR;
 import org.dcm4che6.net.Status;
 import org.hamcrest.core.IsEqual;
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.weasis.dicom.op.CStore;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.ConnectOptions;
@@ -35,10 +37,14 @@ import org.weasis.dicom.param.DicomState;
 
 public class CstoreNetTest {
 
+    @BeforeAll
+    public static void setLogger() throws MalformedURLException {
+        BasicConfigurator.configure();
+    }
+
+
     @Test
     public void testProcess() {
-        BasicConfigurator.configure();
-
         AdvancedParams params = new AdvancedParams();
         ConnectOptions connectOptions = new ConnectOptions();
         connectOptions.setConnectTimeout(3000);
@@ -54,19 +60,21 @@ public class CstoreNetTest {
         });
 
         DicomNode calling = new DicomNode("WEASIS-SCU");
-        DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
-     //    DicomNode called = new DicomNode("DCM4CHEE", "localhost", 11117);
+       // DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
+        DicomNode called = new DicomNode("DCM4CHEE", "192.168.0.31", 11112);
+        // DicomNode called = new DicomNode("DCM4CHEE", "localhost", 11112);
         List<Path> files = new ArrayList<>();
         try {
+       //    files.add(Path.of("/home/nicolas/Images/ImagesTest/DICOM/Corrupted/no-dicom-mime-type.dcm"));
             files.add(Path.of(getClass().getResource("mr.dcm").toURI()));
         } catch (URISyntaxException e) {
             e.printStackTrace();
         }
 
-        DicomObject attrs = DicomObject.newDicomObject();
-        attrs.setString(Tag.PatientName, VR.PN, "Override^Patient^Name");
-        attrs.setString(Tag.PatientID, VR.LO, "ModifiedPatientID");
-        DefaultAttributeEditor editor = new DefaultAttributeEditor(true, attrs);
+        DicomObject dcm = DicomObject.newDicomObject();
+        dcm.setString(Tag.PatientName, VR.PN, "Override^Patient^Name");
+        dcm.setString(Tag.PatientID, VR.LO, "ModifiedPatientID");
+        DefaultAttributeEditor editor = new DefaultAttributeEditor(true, dcm);
         CstoreParams cstoreParams = new CstoreParams(editor, false, null);
 
         DicomState state = CStore.process(params, calling, called, files, progress, cstoreParams);
@@ -75,7 +83,8 @@ public class CstoreNetTest {
 
         // See server log at http://dicomserver.co.uk/logs/
         System.out.println("DicomState result: ");
-        System.out.println("\tDICOM Status: " + state.getStatus()); // see org.dcm4ch6.net.Status
+        // See org.dcm4ch6.net.Status
+        System.out.println("\tDICOM Status: " + String.format("0x%04X", state.getStatus().orElseThrow() & 0xFFFF));
         System.out.println("\t" + state.getMessage());
 
         Assert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(OptionalInt.of(Status.Success)));

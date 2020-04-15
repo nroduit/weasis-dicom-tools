@@ -18,7 +18,6 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.dcm4che6.data.DataFragment;
@@ -36,7 +35,6 @@ import org.dcm4che6.img.stream.ImageDescriptor;
 import org.dcm4che6.io.DicomEncoding;
 import org.dcm4che6.io.DicomInputStream;
 import org.dcm4che6.io.DicomOutputStream;
-import org.dcm4che6.net.AAssociateRJ;
 import org.dcm4che6.net.Association;
 import org.dcm4che6.net.Association.DataWriter;
 import org.dcm4che6.net.Status;
@@ -57,6 +55,7 @@ import org.weasis.dicom.web.WebForwardDestination;
 public class ForwardUtil {
     private static final String ERROR_WHEN_FORWARDING = "Error when forwarding to the final destination";
     private static final Logger LOGGER = LoggerFactory.getLogger(ForwardUtil.class);
+    protected static final byte[] EMPTY_BYTES = {};
 
     public static final class Params {
         private final String iuid;
@@ -375,7 +374,7 @@ public class ForwardUtil {
                     ImageDescriptor desc = getImageDescriptor();
                     int bitsStored = desc.getBitsStored();
                     if (pixdata.isEmpty() || bitsStored < 1) {
-                        return ByteBuffer.wrap(DicomElement.EMPTY_BYTES);
+                        return ByteBuffer.wrap(EMPTY_BYTES);
                     } else {
                         DicomElement pix = pixdata.get();
                         int index = pix.getDataFragment(0).valueLength() == 0 ? frame + 1 : frame;

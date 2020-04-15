@@ -169,8 +169,8 @@ public class AbstractStowrs implements AutoCloseable {
         metadata.setInt(Tag.InstanceNumber, VR.IS, 1);
         LocalDateTime dt = LocalDateTime.ofEpochSecond(bulkDataFile.toFile().lastModified(), 0, null);
         metadata.setString(Tag.ContentDate, VR.DA, DateTimeUtils.formatDA(dt));
-        metadata.setString(Tag.ContentTime, VR.TM, DateTimeUtils.formatDA(dt));
-        metadata.setString(Tag.AcquisitionDateTime, VR.DT, DateTimeUtils.formatDA(dt));
+        metadata.setString(Tag.ContentTime, VR.TM, DateTimeUtils.formatTM(dt));
+        metadata.setString(Tag.AcquisitionDateTime, VR.DT, DateTimeUtils.formatDT(dt));
         metadata.setString(Tag.BurnedInAnnotation, VR.CS, "YES");
         metadata.setNull(Tag.DocumentTitle, VR.ST);
         metadata.setNull(Tag.ConceptNameCodeSequence, VR.SQ);

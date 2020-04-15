@@ -200,4 +200,8 @@ public class DicomListener implements DimseHandler {
         uid = uid.trim();
         return (uid.equals("*") || Character.isDigit(uid.charAt(0))) ? uid : UID.forName(uid);
     }
+
+    public boolean isRunning() {
+        return tcp != null && tcp.getSelector().isOpen();
+    }
 }

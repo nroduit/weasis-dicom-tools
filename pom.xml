@@ -15,7 +15,6 @@
 		<junit.jupiter.version>5.5.2</junit.jupiter.version>
 		<junit.platform.version>1.5.2</junit.platform.version>
 		<dcm4che.version>6.0.0</dcm4che.version>
-		<weasis.version>3.6.0-rc1</weasis.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 	</properties>
@@ -275,11 +274,6 @@
 	</profiles>
 
 	<dependencies>
-		<dependency>
-			<groupId>org.weasis.core</groupId>
-			<artifactId>weasis-core-util</artifactId>
-			<version>${weasis.version}</version>
-		</dependency>
 		<dependency>
 			<groupId>org.dcm4che</groupId>
 			<artifactId>dcm4che-base</artifactId>

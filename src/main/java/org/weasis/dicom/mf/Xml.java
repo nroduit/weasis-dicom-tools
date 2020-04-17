@@ -18,9 +18,8 @@ import org.dcm4che3.data.ElementDictionary;
 import org.dcm4che3.util.TagUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.weasis.core.api.media.data.TagW;
-import org.weasis.core.api.util.EscapeChars;
-import org.weasis.core.api.util.StringUtil;
+import org.weasis.core.util.EscapeChars;
+import org.weasis.core.util.StringUtil;
 
 public interface Xml {
     static final Logger LOGGER = LoggerFactory.getLogger(Xml.class);
@@ -65,7 +64,7 @@ public interface Xml {
     }
 
     static void addXmlAttribute(String tag, String value, Writer result) throws IOException {
-        if (tag != null && StringUtil.hasText(value)) {
+        if (StringUtil.hasText(tag) && StringUtil.hasText(value)) {
             result.append(tag);
             result.append("=\"");
             result.append(EscapeChars.forXML(value));
@@ -94,12 +93,6 @@ public interface Xml {
                 result.append(EscapeChars.forXML(value.get(size - 1)));
             }
             result.append("\" ");
-        }
-    }
-
-    static void addXmlAttribute(TagW tag, String value, Writer result) throws IOException {
-        if (tag != null) {
-            addXmlAttribute(tag.getKeyword(), value, result);
         }
     }
 }

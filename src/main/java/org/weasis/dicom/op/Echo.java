@@ -21,7 +21,7 @@ import org.dcm4che3.net.Status;
 import org.dcm4che3.tool.storescu.StoreSCU;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.weasis.core.api.util.FileUtil;
+import org.weasis.core.util.FileUtil;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.DeviceOpService;
 import org.weasis.dicom.param.DicomNode;

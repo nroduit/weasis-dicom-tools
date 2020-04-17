@@ -25,8 +25,7 @@ import java.util.Set;
 import org.dcm4che3.data.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.weasis.core.api.media.data.TagW;
-import org.weasis.core.api.util.StringUtil;
+import org.weasis.core.util.StringUtil;
 
 public class Series implements Xml, Comparable<Series> {
     private static final Logger LOGGER = LoggerFactory.getLogger(Series.class);
@@ -158,9 +157,9 @@ public class Series implements Xml, Comparable<Series> {
             Xml.addXmlAttribute(Tag.SeriesDescription, seriesDescription, result);
             Xml.addXmlAttribute(Tag.SeriesNumber, seriesNumber, result);
             Xml.addXmlAttribute(Tag.Modality, modality, result);
-            Xml.addXmlAttribute(TagW.DirectDownloadThumbnail, thumbnail, result);
-            Xml.addXmlAttribute(TagW.WadoTransferSyntaxUID, wadoTransferSyntaxUID, result);
-            Xml.addXmlAttribute(TagW.WadoCompressionRate,
+            Xml.addXmlAttribute("DirectDownloadThumbnail", thumbnail, result);
+            Xml.addXmlAttribute("WadoTransferSyntaxUID", wadoTransferSyntaxUID, result);
+            Xml.addXmlAttribute("WadoCompressionRate",
                 wadoCompression < 1 ? null : Integer.toString(wadoCompression), result);
             result.append(">");
 

@@ -15,7 +15,7 @@ import java.util.List;
 
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.net.Status;
-import org.weasis.core.api.util.StringUtil;
+import org.weasis.core.util.StringUtil;
 
 public class DicomState {
     private volatile int status;

@@ -30,7 +30,7 @@ import org.dcm4che3.data.VR;
 import org.dcm4che3.io.DicomOutputStream;
 import org.dcm4che3.io.SAXTransformer;
 import org.dcm4che3.json.JSONWriter;
-import org.weasis.core.api.util.FileUtil;
+import org.weasis.core.util.FileUtil;
 
 public class StowrsSingleFile extends AbstractStowrs implements UploadSingleFile {
 

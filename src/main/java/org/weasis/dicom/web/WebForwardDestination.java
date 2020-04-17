@@ -13,7 +13,7 @@ package org.weasis.dicom.web;
 import java.io.IOException;
 import java.util.Map;
 
-import org.weasis.core.api.util.FileUtil;
+import org.weasis.core.util.FileUtil;
 import org.weasis.dicom.param.AttributeEditor;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;

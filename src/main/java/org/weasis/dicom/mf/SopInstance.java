@@ -17,8 +17,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import org.dcm4che3.data.Tag;
-import org.weasis.core.api.media.data.TagW;
-import org.weasis.core.api.util.StringUtil;
+import org.weasis.core.util.StringUtil;
 
 public class SopInstance implements Xml, Comparable<SopInstance> {
 
@@ -121,7 +120,7 @@ public class SopInstance implements Xml, Comparable<SopInstance> {
         Xml.addXmlAttribute(Tag.TransferSyntaxUID, transferSyntaxUID, result);
         Xml.addXmlAttribute(Tag.ImageComments, imageComments, result);
         Xml.addXmlAttribute(Tag.InstanceNumber, getStringInstanceNumber(), result);
-        Xml.addXmlAttribute(TagW.DirectDownloadFile, directDownloadFile, result);
+        Xml.addXmlAttribute("DirectDownloadFile", directDownloadFile, result);
         result.append("/>");
     }
 

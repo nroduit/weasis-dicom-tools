@@ -18,8 +18,7 @@ import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.weasis.core.api.media.data.TagW;
-import org.weasis.core.api.util.StringUtil;
+import org.weasis.core.util.StringUtil;
 
 public class ArcParameters {
     private static final Logger LOGGER = LoggerFactory.getLogger(ArcParameters.class);
@@ -107,17 +106,5 @@ public class ArcParameters {
             return IntStream.of(overrideDicomTagIDList).mapToObj(String::valueOf).collect(Collectors.joining(","));
         }
         return null;
-    }
-
-    public boolean isOverrideTag(TagW tagElement) {
-        if (overrideDicomTagIDList != null) {
-            int tagID = tagElement.getId();
-            for (int overTag : overrideDicomTagIDList) {
-                if (tagID == overTag) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 }

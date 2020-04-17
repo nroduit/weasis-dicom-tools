@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.weasis.core.api.util.LangUtil;
+import org.weasis.core.util.LangUtil;
 
 public abstract class AbstractQueryResult implements QueryResult {
 

@@ -16,23 +16,15 @@ import java.util.Map;
 import java.util.Set;
 
 public class GatewayParams extends AbstractListenerParams {
-    /**
-     * {@inheritDoc}
-     */
+
     public GatewayParams(boolean bindCallingAet) {
         super(null, bindCallingAet, null);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public GatewayParams(AdvancedParams params, boolean bindCallingAet) {
         super(params, bindCallingAet, null);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public GatewayParams(AdvancedParams params, boolean bindCallingAet, URL transferCapabilityFile,
         String... acceptedCallingAETitles) {
         super(params, bindCallingAet, transferCapabilityFile, acceptedCallingAETitles);

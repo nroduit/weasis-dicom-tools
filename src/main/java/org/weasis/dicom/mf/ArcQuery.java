@@ -54,7 +54,7 @@ public class ArcQuery implements XmlManifest {
             writeManifest(manifest, version);
             return manifest.toString();
         } catch (Exception e) {
-            LOGGER.error("Cann write manifest", e);
+            LOGGER.error("Cannot write manifest", e);
         }
         return null;
     }
@@ -102,7 +102,7 @@ public class ArcQuery implements XmlManifest {
             Xml.addXmlAttribute(ArcParameters.BASE_URL, wadoParameters.getBaseURL(), mf);
             Xml.addXmlAttribute(ArcParameters.WEB_LOGIN, wadoParameters.getWebLogin(), mf);
             Xml.addXmlAttribute(WadoParameters.WADO_ONLY_SOP_UID, wadoParameters.isRequireOnlySOPInstanceUID(), mf);
-            Xml.addXmlAttribute(ArcParameters.ADDITIONNAL_PARAMETERS, wadoParameters.getAdditionnalParameters(), mf);
+            Xml.addXmlAttribute(ArcParameters.ADDITIONNAL_PARAMETERS, wadoParameters.getAdditionalParameters(), mf);
             Xml.addXmlAttribute(ArcParameters.OVERRIDE_TAGS, wadoParameters.getOverrideDicomTagsList(), mf);
             mf.append(">");
 
@@ -129,7 +129,7 @@ public class ArcQuery implements XmlManifest {
             Xml.addXmlAttribute(WadoParameters.WADO_URL, wadoParameters.getBaseURL(), mf);
             Xml.addXmlAttribute(ArcParameters.WEB_LOGIN, wadoParameters.getWebLogin(), mf);
             Xml.addXmlAttribute(WadoParameters.WADO_ONLY_SOP_UID, wadoParameters.isRequireOnlySOPInstanceUID(), mf);
-            Xml.addXmlAttribute(ArcParameters.ADDITIONNAL_PARAMETERS, wadoParameters.getAdditionnalParameters(), mf);
+            Xml.addXmlAttribute(ArcParameters.ADDITIONNAL_PARAMETERS, wadoParameters.getAdditionalParameters(), mf);
             Xml.addXmlAttribute(ArcParameters.OVERRIDE_TAGS, wadoParameters.getOverrideDicomTagsList(), mf);
             mf.append(">");
 

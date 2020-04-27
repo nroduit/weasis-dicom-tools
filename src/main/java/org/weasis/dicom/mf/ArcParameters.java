@@ -63,7 +63,7 @@ public class ArcParameters {
                 try {
                     overrideDicomTagIDList[i] = Integer.decode(val[i].trim());
                 } catch (NumberFormatException e) {
-                    LOGGER.error("Cannot read dicom tag list", e); //$NON-NLS-1$
+                    LOGGER.error("Cannot read DICOM tag list", e); //$NON-NLS-1$
                 }
             }
         } else {
@@ -93,7 +93,7 @@ public class ArcParameters {
         return webLogin;
     }
 
-    public String getAdditionnalParameters() {
+    public String getAdditionalParameters() {
         return additionnalParameters;
     }
 

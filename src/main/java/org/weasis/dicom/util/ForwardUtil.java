@@ -49,6 +49,7 @@ import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.ForwardDestination;
 import org.weasis.dicom.param.ForwardDicomNode;
 import org.weasis.dicom.util.ServiceUtil.ProgressStatus;
+import org.weasis.dicom.web.DicomStowRS;
 import org.weasis.dicom.web.UploadSingleFile;
 import org.weasis.dicom.web.WebForwardDestination;
 
@@ -440,7 +441,7 @@ public class ForwardUtil {
         Params p) {
         DicomInputStream in = null;
         try {
-            UploadSingleFile stow = destination.getStowrsSingleFile();
+            DicomStowRS stow = destination.getStowrsSingleFile();
             String tsuid = p.getTsuid();
             boolean originalTsuid = true;
             if (UID.ImplicitVRLittleEndian.equals(tsuid) || UID.ExplicitVRBigEndianRetired.equals(tsuid)) {
@@ -450,7 +451,7 @@ public class ForwardUtil {
             if (originalTsuid && copy == null && destination.getAttributesEditor() == null) {
                 DicomObject fmi = DicomObject.createFileMetaInformation(p.getCuid(), p.getIuid(), p.getOutputTsuid());
                 try (InputStream stream = p.getData()) {
-                    stow.uploadDicom(p.getData(), fmi, p.getOutputTsuid(), p.getIuid());
+                    stow.uploadDicom(p.getData(), fmi);
                 }
             } else {
                 AttributeEditorContext context = new AttributeEditorContext(fwdNode, null);
@@ -493,7 +494,7 @@ public class ForwardUtil {
     public static void transferOther(ForwardDicomNode fwdNode, WebForwardDestination destination, DicomObject copy,
         Params p) {
         try {
-            UploadSingleFile stow = destination.getStowrsSingleFile();
+            DicomStowRS stow = destination.getStowrsSingleFile();
             String tsuid = p.getOutputTsuid();
             if (destination.getAttributesEditor() == null) {
                 stow.uploadDicom(copy, tsuid);

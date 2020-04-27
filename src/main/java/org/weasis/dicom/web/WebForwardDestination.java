@@ -24,7 +24,7 @@ public class WebForwardDestination extends ForwardDestination {
 
     private final ForwardDicomNode callingNode;
     private final DicomState state;
-    private final UploadSingleFile stowRS;
+    private final DicomStowRS stowRS;
 
     public WebForwardDestination(ForwardDicomNode fwdNode, String requestURL) {
         this(fwdNode, requestURL, null);
@@ -47,13 +47,13 @@ public class WebForwardDestination extends ForwardDestination {
         super(id, attributesEditor);
         this.callingNode = fwdNode;
         this.state = new DicomState(progress == null ? new DicomProgress() : progress);
-        this.stowRS = new StowrsSingleFile(requestURL, Multipart.ContentType.DICOM, null, headers);
+        this.stowRS = new DicomStowRS(requestURL, ContentType.APPLICATION_DICOM, null, headers);
     }
-    public WebForwardDestination(ForwardDicomNode fwdNode, UploadSingleFile uploadManager, DicomProgress progress,
+    public WebForwardDestination(ForwardDicomNode fwdNode, DicomStowRS uploadManager, DicomProgress progress,
         AttributeEditor attributesEditor) {
         this(null, fwdNode, uploadManager, progress, attributesEditor);
     }
-    public WebForwardDestination(Long id, ForwardDicomNode fwdNode, UploadSingleFile uploadManager, DicomProgress progress,
+    public WebForwardDestination(Long id, ForwardDicomNode fwdNode, DicomStowRS uploadManager, DicomProgress progress,
         AttributeEditor attributesEditor) {
         super(id, attributesEditor);
         this.callingNode = fwdNode;
@@ -70,7 +70,7 @@ public class WebForwardDestination extends ForwardDestination {
         return stowRS.getRequestURL();
     }
 
-    public UploadSingleFile getStowrsSingleFile() throws IOException {
+    public DicomStowRS getStowrsSingleFile() throws IOException {
         return stowRS;
     }
 

@@ -20,6 +20,8 @@ import org.junit.Assert;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.weasis.dicom.op.Echo;
+import org.weasis.dicom.param.AdvancedParams;
+import org.weasis.dicom.param.ConnectOptions;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomState;
 
@@ -32,9 +34,15 @@ public class EchoNetTest {
 
     @Test
     public void testProcess() {
+        AdvancedParams params = new AdvancedParams();
+        ConnectOptions connectOptions = new ConnectOptions();
+        connectOptions.setConnectTimeout(3000);
+        connectOptions.setAcceptTimeout(5000);
+        params.setConnectOptions(connectOptions);
+
         DicomNode calling = new DicomNode("WEASIS-SCU");
         DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
-        DicomState state = Echo.process(null, calling, called);
+        DicomState state = Echo.process(params, calling, called);
         // Should never happen
         Assert.assertNotNull(state);
 

@@ -50,7 +50,6 @@ import org.weasis.dicom.param.ForwardDestination;
 import org.weasis.dicom.param.ForwardDicomNode;
 import org.weasis.dicom.util.ServiceUtil.ProgressStatus;
 import org.weasis.dicom.web.DicomStowRS;
-import org.weasis.dicom.web.UploadSingleFile;
 import org.weasis.dicom.web.WebForwardDestination;
 
 public class ForwardUtil {
@@ -200,11 +199,9 @@ public class ForwardUtil {
         throws IOException {
         StoreFromStreamSCU streamSCU = destination.getStreamSCU();
         if (streamSCU.getAssociation() == null || !streamSCU.getAssociation().isOpen()) {
-            // destination.getStreamSCUService().start();
             // Add Presentation Context for the association
             streamSCU.addData(cuid, tsuid);
             streamSCU.addData(cuid, UID.ExplicitVRLittleEndian);
-          //  streamSCU.addData(cuid, UID.ImplicitVRLittleEndian);
             streamSCU.open();
         } else {
             // Handle dynamically new SOPClassUID
@@ -213,16 +210,9 @@ public class ForwardUtil {
             // Add Presentation Context for the association
             streamSCU.addData(cuid, tsuid);
             streamSCU.addData(cuid, UID.ExplicitVRLittleEndian);
-        //    streamSCU.addData(cuid, UID.ImplicitVRLittleEndian);
             if (missingTsuid) {
                 streamSCU.close();
                 streamSCU.open();
-//                try {
-//                    streamSCU.getAssociation().onAAssociateRQ();
-//                } catch (AAssociateRJ e) {
-//                    // TODO Auto-generated catch block
-//                    e.printStackTrace();
-//                }
             }
         }
         return streamSCU;

@@ -9,24 +9,34 @@
  */
 package org.weasis.dicom.web;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.SequenceInputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.*;
+import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Flow;
 import java.util.function.Supplier;
-import java.util.stream.Stream;
 
 import org.dcm4che6.data.DicomObject;
 import org.dcm4che6.data.Tag;
 import org.dcm4che6.data.VR;
-import org.dcm4che6.img.util.FileUtil;
 import org.dcm4che6.io.DicomEncoding;
 import org.dcm4che6.io.DicomOutputStream;
 import org.slf4j.Logger;
@@ -180,7 +190,39 @@ public class DicomStowRS implements AutoCloseable {
         return photo;
     }
 
+    public void uploadDicom(Path path) throws IOException {
+        multipartBody.reset();
+        Payload playload = new Payload() {
+            @Override
+            public long size() {
+                return -1;
+            }
 
+            @Override
+            public ByteBuffer newByteBuffer() {
+                return ByteBuffer.wrap(new byte[] {});
+            }
+
+            @Override
+            public InputStream newInputStream() {
+                try {
+                    return Files.newInputStream(path);
+                } catch (IOException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+                return new ByteArrayInputStream(new byte[] {});
+            }
+        };
+
+        try {
+            HttpRequest request = buildConnection(playload, () -> new SequenceInputStream(multipartBody.enumeration()));
+            send(client, request, HttpResponse.BodyHandlers.ofLines()).body().forEach(LOGGER::info);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
     public void uploadDicom(InputStream in, DicomObject fmi) throws IOException {
         multipartBody.reset();
         Payload playload = new Payload() {
@@ -191,8 +233,7 @@ public class DicomStowRS implements AutoCloseable {
 
             @Override
             public ByteBuffer newByteBuffer() {
-                ByteArrayOutputStream out = new ByteArrayOutputStream();
-                return ByteBuffer.wrap(out.toByteArray());
+                return ByteBuffer.wrap(new byte[] {});
             }
 
             @Override

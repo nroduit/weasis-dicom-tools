@@ -12,6 +12,8 @@ package org.weasis.dicom.op;
 
 import java.text.MessageFormat;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.dcm4che6.conf.model.Connection;
 import org.dcm4che6.data.UID;
@@ -23,7 +25,9 @@ import org.dcm4che6.net.Status;
 import org.dcm4che6.net.TCPConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.weasis.core.util.StringUtil;
 import org.weasis.dicom.param.AdvancedParams;
+import org.weasis.dicom.param.ConnectOptions;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomState;
 import org.weasis.dicom.util.ServiceUtil;
@@ -36,49 +40,46 @@ public class Echo {
     }
 
     /**
-     * @param callingAET
-     *            the calling AET
-     * @param calledNode
-     *            the called DICOM node configuration
+     * @param callingAET the calling AET
+     * @param calledNode the called DICOM node configuration
      * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error message and the
-     *         progression.
+     * progression.
      */
     public static DicomState process(String callingAET, DicomNode calledNode) {
         return process(new DicomNode(callingAET), calledNode);
     }
 
     /**
-     * @param callingNode
-     *            the calling DICOM node configuration
-     * @param calledNode
-     *            the called DICOM node configuration
+     * @param callingNode the calling DICOM node configuration
+     * @param calledNode  the called DICOM node configuration
      * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error message and the
-     *         progression.
+     * progression.
      */
     public static DicomState process(DicomNode callingNode, DicomNode calledNode) {
         return process(null, callingNode, calledNode);
     }
 
     /**
-     * @param params
-     *            the optional advanced parameters (proxy, authentication, connection and TLS)
-     * @param callingNode
-     *            the calling DICOM node configuration
-     * @param calledNode
-     *            the called DICOM node configuration
+     * @param params      the optional advanced parameters (proxy, authentication, connection and TLS)
+     * @param callingNode the calling DICOM node configuration
+     * @param calledNode  the called DICOM node configuration
      * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error message and the
-     *         progression.
+     * progression.
      */
     public static DicomState process(AdvancedParams params, DicomNode callingNode, DicomNode calledNode) {
         if (callingNode == null || calledNode == null) {
             throw new IllegalArgumentException("callingNode or calledNode cannot be null!");
         }
 
-        AdvancedParams options = params == null ? new AdvancedParams() : params;
         try {
+            AdvancedParams options = params == null ? new AdvancedParams() : params;
+            ConnectOptions connectOptions = options.getConnectOptions();
+            if(connectOptions == null){
+                connectOptions = new ConnectOptions();
+            }
             DicomServiceRegistry serviceRegistry = new DicomServiceRegistry();
             TCPConnector<Association> inst =
-                new TCPConnector<>((connector, role) -> new Association(connector, role, serviceRegistry));
+                    new TCPConnector<>((connector, role) -> new Association(connector, role, serviceRegistry));
             CompletableFuture<Void> task = CompletableFuture.runAsync(inst);
             AAssociate.RQ rq = new AAssociate.RQ();
             rq.setCallingAETitle(callingNode.getAet());
@@ -88,21 +89,24 @@ public class Echo {
             Connection remote = ServiceUtil.getConnection(calledNode);
             options.configureTLS(local, remote);
             long t1 = System.currentTimeMillis();
-            Association as = inst.connect(local, remote).thenCompose(as1 -> as1.open(rq)).join();
+            Association as = inst.connect(local, remote).thenCompose(as1 -> as1.open(rq)).get(connectOptions.getConnectTimeout(), TimeUnit.MILLISECONDS);
             long t2 = System.currentTimeMillis();
             CompletableFuture<DimseRSP> echo = as.cecho();
-            echo.join();
-            DimseRSP resp = echo.get();
-            as.release();
+            DimseRSP resp = echo.get(connectOptions.getResponseTimeout(), TimeUnit.MILLISECONDS);
+            as.release().get(connectOptions.getReleaseTimeout(), TimeUnit.MILLISECONDS);
             long t3 = System.currentTimeMillis();
-            as.onClose().join();
+            as.onClose().get(connectOptions.getReleaseTimeout(), TimeUnit.MILLISECONDS);
             task.cancel(true);
             String message = MessageFormat.format(
-                "Successful DICOM Echo. Connected in {2}ms from {0} to {1}. Service execution in {3}ms.",
-                rq.getCallingAETitle(), rq.getCalledAETitle(), t2 - t1, t3 - t2);
-            return new DicomState(ServiceUtil.getStatus(resp), message, null); 
+                    "Successful DICOM Echo. Connected in {2}ms from {0} to {1}. Service execution in {3}ms.",
+                    rq.getCallingAETitle(), rq.getCalledAETitle(), t2 - t1, t3 - t2);
+            return new DicomState(ServiceUtil.getStatus(resp), message, null);
         } catch (Exception e) {
-            String message = "DICOM Echo failed: " + e.getMessage();
+            String message = e.getMessage();
+            if(!StringUtil.hasText(message) && e.getClass() == TimeoutException.class){
+                message = "Timeout exception";
+            }
+            message = "DICOM Echo failed: " + message;
             LOGGER.error(message, e);
             return new DicomState(Status.UnableToProcess, message, null);
         }

@@ -22,9 +22,7 @@ import org.dcm4che6.data.DicomObject;
 import org.dcm4che6.data.Tag;
 import org.dcm4che6.data.VR;
 import org.dcm4che6.io.DicomInputStream;
-import org.dcm4che6.net.Status;
 import org.dcm4che6.util.UIDUtils;
-import org.hamcrest.core.IsEqual;
 import org.hamcrest.core.IsNull;
 import org.junit.Assert;
 import org.junit.jupiter.api.BeforeAll;
@@ -32,8 +30,6 @@ import org.junit.jupiter.api.Test;
 import org.weasis.dicom.param.DicomState;
 import org.weasis.dicom.web.ContentType;
 import org.weasis.dicom.web.DicomStowRS;
-import org.weasis.dicom.web.Multipart;
-import org.weasis.dicom.web.UploadSingleFile;
 
 public class StowNetTest {
     

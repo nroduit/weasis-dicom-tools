@@ -22,11 +22,11 @@ public class ConnectOptions {
 
     private boolean packPDV = true;
     private int backlog = 0;
-    private int connectTimeout = 0;
-    private int requestTimeout = 0;
-    private int acceptTimeout = 0;
-    private int releaseTimeout = 0;
-    private int responseTimeout = 0;
+    private int connectTimeout = 3000;
+    private int requestTimeout = 3000;
+    private int acceptTimeout = 3000;
+    private int releaseTimeout = 3000;
+    private int responseTimeout = 5000;
     private int retrieveTimeout = 0;
     private int idleTimeout = 0;
     private int socloseDelay = 0;

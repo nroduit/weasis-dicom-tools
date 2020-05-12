@@ -186,7 +186,7 @@ public class StoreFromStreamSCU {
         Connection remote = ServiceUtil.getConnection(calledNode);
         options.configureTLS(local, remote);
         try {
-            as = inst.connect(local, remote).thenCompose(as1 -> as1.open(rq)).get(1, TimeUnit.SECONDS);
+            as = inst.connect(local, remote).thenCompose(as1 -> as1.open(rq)).get(3000, TimeUnit.MILLISECONDS);
         } catch (Exception e) {
             as = null;
             LOGGER.trace("Connecting to remote destination", e);

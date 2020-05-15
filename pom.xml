@@ -6,7 +6,7 @@
 	<artifactId>weasis-dicom-tools</artifactId>
 	<packaging>jar</packaging>
 	<name>Weasis DICOM API (based on dcm4che3)</name>
-	<version>5.22.1</version>
+	<version>5.22.2</version>
 
 	<properties>
 		<java-version>1.8</java-version>
@@ -296,17 +296,6 @@
 			<groupId>org.dcm4che</groupId>
 			<artifactId>dcm4che-imageio-opencv</artifactId>
 			<version>${dcm4che.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.weasis.opencv</groupId>
-					<artifactId>weasis-opencv-core</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-		<dependency>
-			<groupId>org.weasis.core</groupId>
-			<artifactId>weasis-core-img</artifactId>
-			<version>4.2.0</version>
 		</dependency>
 		<dependency>
 			<groupId>org.dcm4che</groupId>

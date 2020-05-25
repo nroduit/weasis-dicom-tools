@@ -16,10 +16,7 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import org.apache.log4j.BasicConfigurator;
 import org.dcm4che6.data.DicomObject;
@@ -81,7 +78,7 @@ public class DicomGatewayOneDestNetTest {
             List<ForwardDestination> list = new ArrayList<>();
             ForwardDicomNode fwdSrcNode = new ForwardDicomNode(fwNode.getAet());
             fwdSrcNode.addAcceptedSourceNode(calling.getAet(), "localhost");
-            DicomForwardDestination dest = new DicomForwardDestination(null, fwdSrcNode, destination, editor);
+            DicomForwardDestination dest = new DicomForwardDestination(null, fwdSrcNode, destination, Arrays.asList(editor));
             list.add(dest);
             destinations.put(fwdSrcNode, list);
             gateway = new DicomGateway(destinations);

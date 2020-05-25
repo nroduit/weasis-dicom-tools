@@ -10,15 +10,12 @@
  *******************************************************************************/
 package org.weasis.dicom.web;
 
-import java.io.IOException;
-import java.util.Map;
-
 import org.weasis.core.util.FileUtil;
-import org.weasis.dicom.param.AttributeEditor;
-import org.weasis.dicom.param.DicomProgress;
-import org.weasis.dicom.param.DicomState;
-import org.weasis.dicom.param.ForwardDestination;
-import org.weasis.dicom.param.ForwardDicomNode;
+import org.weasis.dicom.param.*;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 
 public class WebForwardDestination extends ForwardDestination {
 
@@ -30,32 +27,36 @@ public class WebForwardDestination extends ForwardDestination {
         this(fwdNode, requestURL, null);
     }
 
-    public WebForwardDestination(ForwardDicomNode fwdNode, String requestURL, AttributeEditor attributesEditor) {
-        this(fwdNode, requestURL, null, attributesEditor);
+    public WebForwardDestination(ForwardDicomNode fwdNode, String requestURL, List<AttributeEditor> editors) {
+        this(fwdNode, requestURL, null, editors);
     }
 
     public WebForwardDestination(ForwardDicomNode fwdNode, String requestURL, DicomProgress progress,
-        AttributeEditor attributesEditor) {
-        this(fwdNode, requestURL, null, progress, attributesEditor);
+                                 List<AttributeEditor> editors) {
+        this(fwdNode, requestURL, null, progress, editors);
     }
+
     public WebForwardDestination(ForwardDicomNode fwdNode, String requestURL, Map<String, String> headers,
-        DicomProgress progress, AttributeEditor attributesEditor) {
-        this(null, fwdNode, requestURL, headers, progress, attributesEditor);
+                                 DicomProgress progress, List<AttributeEditor> editors) {
+        this(null, fwdNode, requestURL, headers, progress, editors);
     }
+
     public WebForwardDestination(Long id, ForwardDicomNode fwdNode, String requestURL, Map<String, String> headers,
-        DicomProgress progress, AttributeEditor attributesEditor) {
-        super(id, attributesEditor);
+                                 DicomProgress progress, List<AttributeEditor> editors) {
+        super(id, editors);
         this.callingNode = fwdNode;
         this.state = new DicomState(progress == null ? new DicomProgress() : progress);
         this.stowRS = new DicomStowRS(requestURL, ContentType.APPLICATION_DICOM, null, headers);
     }
+
     public WebForwardDestination(ForwardDicomNode fwdNode, DicomStowRS uploadManager, DicomProgress progress,
-        AttributeEditor attributesEditor) {
-        this(null, fwdNode, uploadManager, progress, attributesEditor);
+                                 List<AttributeEditor> editors) {
+        this(null, fwdNode, uploadManager, progress, editors);
     }
+
     public WebForwardDestination(Long id, ForwardDicomNode fwdNode, DicomStowRS uploadManager, DicomProgress progress,
-        AttributeEditor attributesEditor) {
-        super(id, attributesEditor);
+                                 List<AttributeEditor> editors) {
+        super(id, editors);
         this.callingNode = fwdNode;
         this.state = new DicomState(progress == null ? new DicomProgress() : progress);
         this.stowRS = uploadManager;

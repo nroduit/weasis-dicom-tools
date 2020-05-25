@@ -11,6 +11,7 @@
 package org.weasis.dicom.param;
 
 import java.io.IOException;
+import java.util.List;
 
 import org.weasis.dicom.util.StoreFromStreamSCU;
 
@@ -32,8 +33,8 @@ public class DicomForwardDestination extends ForwardDestination {
     }
 
     public DicomForwardDestination(AdvancedParams forwardParams, ForwardDicomNode fwdNode, DicomNode destinationNode,
-        AttributeEditor attributesEditor) throws IOException {
-        this(forwardParams, fwdNode, destinationNode, false, null, attributesEditor);
+                                   List<AttributeEditor> editors) throws IOException {
+        this(forwardParams, fwdNode, destinationNode, false, null, editors);
     }
 
     /**
@@ -45,22 +46,22 @@ public class DicomForwardDestination extends ForwardDestination {
      *            the DICOM destination node. Cannot be null.
      * @param useDestinationAetForKeyMap
      * @param progress
-     * @param attributesEditor
+     * @param editors
      * @throws IOException
      */
     public DicomForwardDestination(AdvancedParams forwardParams, ForwardDicomNode fwdNode, DicomNode destinationNode,
-        boolean useDestinationAetForKeyMap, DicomProgress progress, AttributeEditor attributesEditor)
+        boolean useDestinationAetForKeyMap, DicomProgress progress, List<AttributeEditor> editors)
         throws IOException {
-        this(null, forwardParams, fwdNode, destinationNode, useDestinationAetForKeyMap, progress, attributesEditor);
+        this(null, forwardParams, fwdNode, destinationNode, useDestinationAetForKeyMap, progress, editors);
     }
     
     public DicomForwardDestination(Long id, AdvancedParams forwardParams, ForwardDicomNode fwdNode, DicomNode destinationNode,
-        boolean useDestinationAetForKeyMap, DicomProgress progress, AttributeEditor attributesEditor)
+        boolean useDestinationAetForKeyMap, DicomProgress progress, List<AttributeEditor> editors)
         throws IOException {
-        super(id, attributesEditor);
+        super(id, editors);
         this.callingNode = fwdNode;
         this.destinationNode = destinationNode;
-        CstoreParams params = new CstoreParams(attributesEditor, false, null);
+        CstoreParams params = new CstoreParams(editors, false, null);
         this.streamSCU = new StoreFromStreamSCU(forwardParams, fwdNode, destinationNode, progress, params);
         this.useDestinationAetForKeyMap = useDestinationAetForKeyMap;
     }

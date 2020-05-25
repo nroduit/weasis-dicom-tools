@@ -234,9 +234,9 @@ public class ForwardUtil {
                 throw new IOException("The remote destination has no matching Presentation Context");
             }
             String supportedTsuid = streamSCU.getAssociation().getTransferSyntax(pcid.get());
-            AttributeEditor editor = destination.getAttributesEditor();
+            List<AttributeEditor> editors = destination.getDicomEditors();
 
-            if (copy == null && editor == null && supportedTsuid.equals(tsuid)) {
+            if (copy == null && editors.isEmpty() && supportedTsuid.equals(tsuid)) {
                 dataWriter = new DataWriter() {
                     @Override
                     public void writeTo(OutputStream out, String tsuid) throws IOException {
@@ -253,7 +253,9 @@ public class ForwardUtil {
                     }
                 }
 
-                if (editor != null && editor.apply(data, context)) {
+                if (!editors.isEmpty()) {
+                    DicomObject finalData = data;
+                    editors.forEach(e -> e.apply(finalData, context));
                     iuid = data.getString(Tag.SOPInstanceUID).orElse(null);
                     // sopClassUID = data.getString(Tag.SOPClassUID).orElse(null);
                 }
@@ -308,8 +310,8 @@ public class ForwardUtil {
                 throw new IOException("The remote destination has no matching Presentation Context");
             }
             String supportedTsuid = streamSCU.getAssociation().getTransferSyntax(pcid.get());
-            AttributeEditor editor = destination.getAttributesEditor();
-            if (editor == null && supportedTsuid.equals(tsuid)) {
+            List<AttributeEditor> editors = destination.getDicomEditors();
+            if (editors.isEmpty() && supportedTsuid.equals(tsuid)) {
                 dataWriter = new DataWriter() {
                     @Override
                     public void writeTo(OutputStream out, String tsuid) throws IOException {
@@ -321,7 +323,8 @@ public class ForwardUtil {
                     new AttributeEditorContext(fwdNode, DicomNode.buildRemoteDicomNode(streamSCU.getAssociation()));
                 DicomObject dcm = DicomObject.newDicomObject();
                 copy.forEach(dcm::add);
-                if (editor != null && editor.apply(dcm, context)) {
+                if (!editors.isEmpty()) {
+                    editors.forEach(e -> e.apply(dcm, context));
                     iuid = dcm.getString(Tag.SOPInstanceUID).orElse(null);
                 }
 
@@ -438,7 +441,7 @@ public class ForwardUtil {
                 p.setOutputTsuid(UID.ExplicitVRLittleEndian);
                 originalTsuid = false;
             }
-            if (originalTsuid && copy == null && destination.getAttributesEditor() == null) {
+            if (originalTsuid && copy == null && destination.getDicomEditors().isEmpty()) {
                 DicomObject fmi = DicomObject.createFileMetaInformation(p.getCuid(), p.getIuid(), p.getOutputTsuid());
                 try (InputStream stream = p.getData()) {
                     stow.uploadDicom(p.getData(), fmi);
@@ -447,7 +450,7 @@ public class ForwardUtil {
                 AttributeEditorContext context = new AttributeEditorContext(fwdNode, null);
                 try (DicomInputStream dis = new DicomInputStream(p.getData())) {
                     DicomObject data = dis.readDataSet();
-                    destination.getAttributesEditor().apply(data, context);
+                    destination.getDicomEditors().forEach(e -> e.apply(data, context));
 
                     if (context.getAbort() == Abort.FILE_EXCEPTION) {
                         p.getData().transferTo(OutputStream.nullOutputStream());
@@ -486,13 +489,13 @@ public class ForwardUtil {
         try {
             DicomStowRS stow = destination.getStowrsSingleFile();
             String tsuid = p.getOutputTsuid();
-            if (destination.getAttributesEditor() == null) {
+            if (destination.getDicomEditors().isEmpty()) {
                 stow.uploadDicom(copy, tsuid);
             } else {
                 AttributeEditorContext context = new AttributeEditorContext(fwdNode, null);
                 DicomObject dcm = DicomObject.newDicomObject();
                 copy.forEach(dcm::add);
-                destination.getAttributesEditor().apply(dcm, context);
+                destination.getDicomEditors().forEach(e -> e.apply(dcm, context));
 
                 if (context.getAbort() == Abort.FILE_EXCEPTION) {
                     throw new IllegalStateException(context.getAbortMessage());

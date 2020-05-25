@@ -42,9 +42,8 @@ public class DefaultAttributeEditor implements AttributeEditor {
     }
 
     @Override
-    public boolean apply(DicomObject data, AttributeEditorContext context) {
+    public void apply(DicomObject data, AttributeEditorContext context) {
         if (data != null) {
-            boolean update = false;
             if (generateUIDs) {
                 // New Study UID
                 String oldStudyUID = data.getString(Tag.StudyInstanceUID).orElseThrow();
@@ -59,16 +58,12 @@ public class DefaultAttributeEditor implements AttributeEditor {
                 // New Sop UID
                 String iuid = UIDUtils.randomUID();
                 data.setString(Tag.SOPInstanceUID, VR.UI, iuid);
-                update = true;
             }
             if (tagToOverride != null && !tagToOverride.isEmpty()) {
                 tagToOverride.elementStream().forEach(data::add);
              //   data.update(Attributes.UpdatePolicy.OVERWRITE, tagToOverride, null);
-                update = true;
             }
-            return update;
         }
-        return false;
     }
 
 }

@@ -14,6 +14,7 @@ import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.OptionalInt;
 
@@ -75,7 +76,7 @@ public class CstoreNetTest {
         dcm.setString(Tag.PatientName, VR.PN, "Override^Patient^Name");
         dcm.setString(Tag.PatientID, VR.LO, "ModifiedPatientID");
         DefaultAttributeEditor editor = new DefaultAttributeEditor(true, dcm);
-        CstoreParams cstoreParams = new CstoreParams(editor, false, null);
+        CstoreParams cstoreParams = new CstoreParams(Arrays.asList(editor), false, null);
 
         DicomState state = CStore.process(params, calling, called, files, progress, cstoreParams);
         // Should never happen

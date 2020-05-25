@@ -15,6 +15,6 @@ import org.dcm4che6.data.DicomObject;
 @FunctionalInterface
 public interface AttributeEditor {
 
-    boolean apply(DicomObject dcm, AttributeEditorContext context);
+    void apply(DicomObject dcm, AttributeEditorContext context);
 
 }

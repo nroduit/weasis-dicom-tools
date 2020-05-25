@@ -10,18 +10,20 @@
  *******************************************************************************/
 package org.weasis.dicom.param;
 
+import java.util.List;
+
 public abstract class ForwardDestination {
 
-    protected final AttributeEditor attributesEditor;
+    protected final List<AttributeEditor> dicomEditors;
     private final Long id;
 
-    public ForwardDestination(Long id, AttributeEditor attributesEditor) {
-        this.attributesEditor = attributesEditor;
+    public ForwardDestination(Long id, List<AttributeEditor> dicomEditors) {
+        this.dicomEditors = dicomEditors;
         this.id = id;
     }
 
-    public AttributeEditor getAttributesEditor() {
-        return attributesEditor;
+    public List<AttributeEditor> getDicomEditors() {
+        return dicomEditors;
     }
     
     public Long getId() {

@@ -11,10 +11,7 @@
 package org.weasis.dicom;
 
 import java.net.MalformedURLException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import org.apache.log4j.BasicConfigurator;
 import org.dcm4che6.data.DicomObject;
@@ -79,7 +76,7 @@ public class DicomGatewayMultiDestNetTest {
         ForwardDicomNode fwdSrcNode = new ForwardDicomNode(destination.getAet());
         fwdSrcNode.addAcceptedSourceNode(calling.getAet(), "localhost");
         WebForwardDestination web = new WebForwardDestination(fwdSrcNode,
-            "http://localhost:8080/dcm4chee-arc/aets/DCM4CHEE/rs/studies", progress, editor);
+            "http://localhost:8080/dcm4chee-arc/aets/DCM4CHEE/rs/studies", progress, Arrays.asList(editor));
         list.add(web);
         destinations.put(fwdSrcNode, list);
 

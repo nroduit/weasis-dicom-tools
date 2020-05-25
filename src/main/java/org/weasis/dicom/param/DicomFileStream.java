@@ -1,11 +1,5 @@
 package org.weasis.dicom.param;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-
 import org.dcm4che6.data.DicomElement;
 import org.dcm4che6.data.DicomObject;
 import org.dcm4che6.data.Tag;
@@ -19,11 +13,18 @@ import org.dcm4che6.net.Association;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+
 public class DicomFileStream implements Association.DataWriter, DicomInputHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(DicomFileStream.class);
 
     private final Path path;
-    private final AttributeEditor editor;
+    private final List<AttributeEditor> editors;
 
     private AttributeEditorContext context;
     private long position = 0;
@@ -36,9 +37,9 @@ public class DicomFileStream implements Association.DataWriter, DicomInputHandle
         this(path, null);
     }
 
-    public DicomFileStream(Path path, AttributeEditor editor) {
+    public DicomFileStream(Path path, List<AttributeEditor> editors) {
         this.path = path;
-        this.editor = editor;
+        this.editors = editors;
         if (Files.isRegularFile(path)) {
             try (DicomInputStream dis = new DicomInputStream(Files.newInputStream(path))) {
                 DicomObject fmi = dis.readFileMetaInformation();
@@ -112,8 +113,8 @@ public class DicomFileStream implements Association.DataWriter, DicomInputHandle
         this.context = context;
     }
 
-    public AttributeEditor getEditor() {
-        return editor;
+    public List<AttributeEditor> getDicomEditors() {
+        return editors;
     }
 
     public boolean isValid() {
@@ -122,7 +123,7 @@ public class DicomFileStream implements Association.DataWriter, DicomInputHandle
 
     @Override
     public void writeTo(OutputStream out, String tsuid) throws IOException {
-        if (editor == null) {
+        if (editors.isEmpty()) {
             try (InputStream in = Files.newInputStream(path)) {
                 in.skipNBytes(position);
                 in.transferTo(out);
@@ -135,11 +136,10 @@ public class DicomFileStream implements Association.DataWriter, DicomInputHandle
                 // Path tmp = Files.createTempFile("dcm", ".blk");
                 // dis.spoolBulkDataTo(tmp); // delete file
                 DicomObject data = dis.readDataSet();
-                if (editor.apply(data, context)) {
-                    sopInstanceUID = data.getString(Tag.SOPInstanceUID).orElse(null);
-                    sopClassUID = data.getString(Tag.SOPClassUID).orElse(null);
-                }
-                
+                editors.forEach(e -> e.apply(data, context));
+                sopInstanceUID = data.getString(Tag.SOPInstanceUID).orElse(null);
+                sopClassUID = data.getString(Tag.SOPClassUID).orElse(null);
+
                 // TODO handle transcoding
                 TransferSyntaxType.forUID(tsuid);
                 try (DicomOutputStream writer = new DicomOutputStream(out).withEncoding(DicomEncoding.of(tsuid))) {

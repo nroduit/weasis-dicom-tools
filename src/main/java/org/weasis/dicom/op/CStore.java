@@ -128,7 +128,7 @@ public class CStore {
             for (Path path : files) {
                 try (Stream<Path> walk = Files.walk(path)) {
                     walk.forEach(p -> {
-                        DicomFileStream fileInfo = new DicomFileStream(path, storeOptions.getAttributeEditor());
+                        DicomFileStream fileInfo = new DicomFileStream(path, storeOptions.getDicomEditors());
                         if (fileInfo.isValid()) {
                             fileInfo.setContext(context);
                             fileInfos.add(fileInfo);

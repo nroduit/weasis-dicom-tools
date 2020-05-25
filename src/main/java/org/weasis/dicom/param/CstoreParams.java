@@ -11,28 +11,29 @@
 package org.weasis.dicom.param;
 
 import java.net.URL;
+import java.util.List;
 
 public class CstoreParams {
-    private final AttributeEditor attributeEditor;
+    private final List<AttributeEditor> editors;
     private final boolean extendNegociation;
     private final URL extendSopClassesURL;
 
     /**
-     * @param attributeEditor
+     * @param editors
      *            a editor to modify DICOM attributes
      * @param extendNegociation
      *            extends SOP classes negotiation
      * @param extendSopClassesURL
      *            configuration file of the SOP classes negotiation extension
      */
-    public CstoreParams(AttributeEditor attributeEditor, boolean extendNegociation, URL extendSopClassesURL) {
-        this.attributeEditor = attributeEditor;
+    public CstoreParams(List<AttributeEditor> editors, boolean extendNegociation, URL extendSopClassesURL) {
+        this.editors = editors;
         this.extendNegociation = extendNegociation;
         this.extendSopClassesURL = extendSopClassesURL;
     }
 
-    public AttributeEditor getAttributeEditor() {
-        return attributeEditor;
+    public List<AttributeEditor> getDicomEditors() {
+        return editors;
     }
 
     public boolean isExtendNegociation() {

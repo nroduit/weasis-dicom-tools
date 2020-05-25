@@ -1,13 +1,11 @@
-/*******************************************************************************
- * Copyright (c) 2009-2019 Weasis Team and others.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v2.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v20.html
+/*
+ * Copyright (c) 2009-2020 Weasis Team and others. All rights reserved.
+ * This program and the accompanying materials are made available under the terms of the Eclipse Public License v2.0
+ * which accompanies this distribution, and is available at http://www.eclipse.org/legal/epl-v20.html
  *
- * Contributors:
- *     Nicolas Roduit - initial API and implementation
- *******************************************************************************/
+ * Contributors: Nicolas Roduit - initial API and implementation
+ */
+
 package org.weasis.dicom.mf;
 
 import java.io.IOException;
@@ -100,17 +98,7 @@ public class ArcQuery implements XmlManifest {
 
             Xml.addXmlAttribute(ArcParameters.ARCHIVE_ID, wadoParameters.getArchiveID(), mf);
             Xml.addXmlAttribute(ArcParameters.BASE_URL, wadoParameters.getBaseURL(), mf);
-            Xml.addXmlAttribute(ArcParameters.WEB_LOGIN, wadoParameters.getWebLogin(), mf);
-            Xml.addXmlAttribute(WadoParameters.WADO_ONLY_SOP_UID, wadoParameters.isRequireOnlySOPInstanceUID(), mf);
-            Xml.addXmlAttribute(ArcParameters.ADDITIONNAL_PARAMETERS, wadoParameters.getAdditionalParameters(), mf);
-            Xml.addXmlAttribute(ArcParameters.OVERRIDE_TAGS, wadoParameters.getOverrideDicomTagsList(), mf);
-            mf.append(">");
-
-            buildHttpTags(mf, wadoParameters.getHttpTaglist());
-            buildViewerMessage(mf, archive.getViewerMessage());
-            buildPatient(mf, new ArrayList<>(archive.getPatients().values()));
-
-            mf.append("\n</");
+            writeCommonAttributes(mf, archive);
             mf.append(ArcParameters.TAG_ARC_QUERY);
             mf.append(">");
         }
@@ -127,22 +115,26 @@ public class ArcQuery implements XmlManifest {
             mf.append(" xmlns=\"http://www.weasis.org/xsd\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" ");
 
             Xml.addXmlAttribute(WadoParameters.WADO_URL, wadoParameters.getBaseURL(), mf);
-            Xml.addXmlAttribute(ArcParameters.WEB_LOGIN, wadoParameters.getWebLogin(), mf);
-            Xml.addXmlAttribute(WadoParameters.WADO_ONLY_SOP_UID, wadoParameters.isRequireOnlySOPInstanceUID(), mf);
-            Xml.addXmlAttribute(ArcParameters.ADDITIONNAL_PARAMETERS, wadoParameters.getAdditionalParameters(), mf);
-            Xml.addXmlAttribute(ArcParameters.OVERRIDE_TAGS, wadoParameters.getOverrideDicomTagsList(), mf);
-            mf.append(">");
-
-            buildHttpTags(mf, wadoParameters.getHttpTaglist());
-            buildViewerMessage(mf, archive.getViewerMessage());
-            buildPatient(mf,  new ArrayList<>(archive.getPatients().values()));
-
-            mf.append("\n</");
+            writeCommonAttributes(mf, archive);
             mf.append(WadoParameters.TAG_WADO_QUERY);
             mf.append(">\n"); // Requires end of line
 
             break; // accept only one element
         }
+    }
+
+    private void writeCommonAttributes(Writer mf, QueryResult archive) throws IOException {
+        WadoParameters wadoParameters = archive.getWadoParameters();
+        Xml.addXmlAttribute(ArcParameters.WEB_LOGIN, wadoParameters.getWebLogin(), mf);
+        Xml.addXmlAttribute(WadoParameters.WADO_ONLY_SOP_UID, wadoParameters.isRequireOnlySOPInstanceUID(), mf);
+        Xml.addXmlAttribute(ArcParameters.ADDITIONNAL_PARAMETERS, wadoParameters.getAdditionalParameters(), mf);
+        Xml.addXmlAttribute(ArcParameters.OVERRIDE_TAGS, wadoParameters.getOverrideDicomTagsList(), mf);
+        mf.append(">");
+
+        buildHttpTags(mf, wadoParameters.getHttpTaglist());
+        buildViewerMessage(mf, archive.getViewerMessage());
+        buildPatient(mf, new ArrayList<>(archive.getPatients().values()));
+        mf.append("\n</");
     }
 
     public static void buildPatient(Writer mf, List<Patient> patientList) throws IOException {

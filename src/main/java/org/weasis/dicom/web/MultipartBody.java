@@ -121,11 +121,6 @@ public class MultipartBody implements Flow.Subscriber<ByteBuffer> {
                     }
 
                     @Override
-                    public ByteBuffer newByteBuffer() {
-                        return ByteBuffer.wrap(b);
-                    }
-
-                    @Override
                     public InputStream newInputStream() {
                         return new ByteArrayInputStream(b);
                     }
@@ -144,11 +139,6 @@ public class MultipartBody implements Flow.Subscriber<ByteBuffer> {
                         } catch (IOException e) {
                             throw new UncheckedIOException(e);
                         }
-                    }
-
-                    @Override
-                    public ByteBuffer newByteBuffer() {
-                        return null;
                     }
 
                     @Override
@@ -212,9 +202,7 @@ public class MultipartBody implements Flow.Subscriber<ByteBuffer> {
             this.location = location;
             this.payload = payload;
         }
-        public ByteBuffer newByteBuffer() {
-            return payload.newByteBuffer();
-        }
+
         public InputStream newInputStream() {
             return payload.newInputStream();
         }

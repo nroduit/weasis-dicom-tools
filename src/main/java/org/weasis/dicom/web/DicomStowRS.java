@@ -36,6 +36,7 @@ import java.util.function.Supplier;
 
 import org.dcm4che6.data.DicomObject;
 import org.dcm4che6.data.Tag;
+import org.dcm4che6.data.UID;
 import org.dcm4che6.data.VR;
 import org.dcm4che6.io.DicomEncoding;
 import org.dcm4che6.io.DicomOutputStream;
@@ -48,6 +49,7 @@ public class DicomStowRS implements AutoCloseable {
      * @see <a href="https://tools.ietf.org/html/rfc2387">multipart specifications</a>
      */
     protected static final String MULTIPART_BOUNDARY = "mimeTypeBoundary";
+    private static final ByteArrayInputStream emptyInputStream = new ByteArrayInputStream(new byte[] {});
 
     public enum HttpContentType {
         DICOM("application/dicom"), XML("application/dicom+xml"), JSON("application/dicom+json");
@@ -104,14 +106,7 @@ public class DicomStowRS implements AutoCloseable {
 
     protected HttpRequest buildConnection(Flow.Publisher<? extends ByteBuffer> multipartSubscriber) throws Exception {
         ContentType partType = ContentType.APPLICATION_DICOM;
-        HttpRequest.Builder builder = HttpRequest.newBuilder();
-        if (headers != null && !headers.isEmpty()) {
-            for (Entry<String, String> element : headers.entrySet()) {
-                builder.header(element.getKey(), element.getValue());
-            }
-        }
-        builder.header("Accept", type.toString());
-        builder.header("User-Agent", agentName == null ? "Weasis STOWRS" : agentName);
+        HttpRequest.Builder builder =buidDefaultConnection();
 
         HttpRequest request =
                 builder.header("Content-Type", "multipart/related;type=\"" + partType.type + "\";boundary=" + MULTIPART_BOUNDARY)
@@ -127,10 +122,7 @@ public class DicomStowRS implements AutoCloseable {
         return request;
     }
 
-    protected HttpRequest buildConnection(Payload firstPlayLoad, Supplier<? extends InputStream> streamSupplier) throws Exception {
-        ContentType partType = ContentType.APPLICATION_DICOM;
-        multipartBody.addPart(partType.type, firstPlayLoad, null);
-
+    private HttpRequest.Builder buidDefaultConnection() {
         HttpRequest.Builder builder = HttpRequest.newBuilder();
         if (headers != null && !headers.isEmpty()) {
             for (Entry<String, String> element : headers.entrySet()) {
@@ -139,6 +131,14 @@ public class DicomStowRS implements AutoCloseable {
         }
         builder.header("Accept", type.toString());
         builder.header("User-Agent", agentName == null ? "Weasis STOWRS" : agentName);
+        return builder;
+    }
+
+    protected HttpRequest buildConnection(Payload firstPlayLoad, Supplier<? extends InputStream> streamSupplier) throws Exception {
+        ContentType partType = ContentType.APPLICATION_DICOM;
+        multipartBody.addPart(partType.type, firstPlayLoad, null);
+
+        HttpRequest.Builder builder =buidDefaultConnection();
 
         HttpRequest request =
                 builder.header("Content-Type", multipartBody.contentType())
@@ -199,19 +199,13 @@ public class DicomStowRS implements AutoCloseable {
             }
 
             @Override
-            public ByteBuffer newByteBuffer() {
-                return ByteBuffer.wrap(new byte[] {});
-            }
-
-            @Override
             public InputStream newInputStream() {
                 try {
                     return Files.newInputStream(path);
                 } catch (IOException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
+                    LOGGER.error("Cannot read {}", path, e);
                 }
-                return new ByteArrayInputStream(new byte[] {});
+                return emptyInputStream;
             }
         };
 
@@ -219,7 +213,7 @@ public class DicomStowRS implements AutoCloseable {
             HttpRequest request = buildConnection(playload, () -> new SequenceInputStream(multipartBody.enumeration()));
             send(client, request, HttpResponse.BodyHandlers.ofLines()).body().forEach(LOGGER::info);
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error("Cannot post DICOM {}", path, e);
         }
     }
     
@@ -232,18 +226,14 @@ public class DicomStowRS implements AutoCloseable {
             }
 
             @Override
-            public ByteBuffer newByteBuffer() {
-                return ByteBuffer.wrap(new byte[] {});
-            }
-
-            @Override
             public InputStream newInputStream() {
                 List<InputStream> list = new ArrayList<>();
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
                 try (DicomOutputStream dos = new DicomOutputStream(out)) {
-                    dos.writeFileMetaInformation(fmi);
+                    dos.writeFileMetaInformation(fmi).withEncoding(fmi);
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    LOGGER.error("Cannot read DICOM InputStream", e);
+                    return emptyInputStream;
                 }
                 list.add(new ByteArrayInputStream(out.toByteArray()));
                 list.add(in);
@@ -255,7 +245,7 @@ public class DicomStowRS implements AutoCloseable {
             HttpRequest request = buildConnection(playload, () -> new SequenceInputStream(multipartBody.enumeration()));
             send(client, request, HttpResponse.BodyHandlers.ofLines()).body().forEach(LOGGER::info);
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error("Cannot post DICOM {}", e);
         }
     }
 
@@ -269,44 +259,17 @@ public class DicomStowRS implements AutoCloseable {
             }
 
             @Override
-            public ByteBuffer newByteBuffer() {
-                ByteArrayOutputStream out = new ByteArrayOutputStream();
-                try (DicomOutputStream dos = new DicomOutputStream(out).withEncoding(DicomEncoding.of(tsuid))) {
-                    dos.writeDataSet(metadata);
-                    dos.writeHeader(Tag.ItemDelimitationItem, VR.NONE, 0);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                return ByteBuffer.wrap(out.toByteArray());
-            }
-
-            @Override
             public InputStream newInputStream() {
-//                PipedInputStream in = new PipedInputStream();
-
+                DicomObject fmi = metadata.createFileMetaInformation(tsuid);
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
-                try (DicomOutputStream dos = new DicomOutputStream(out).withEncoding(DicomEncoding.of(tsuid))) {
+                try (DicomOutputStream dos = new DicomOutputStream(out)) {
+                    dos.writeFileMetaInformation(fmi).withEncoding(fmi);
                     dos.writeDataSet(metadata);
-                    dos.writeHeader(Tag.ItemDelimitationItem, VR.NONE, 0);
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    LOGGER.error("Cannot build InputStream", e);
+                    return emptyInputStream;
                 }
-
                 return new ByteArrayInputStream(out.toByteArray());
-//                new Thread(
-//                        new Runnable() {
-//                            public void run() {
-//                                try (PipedOutputStream out = new PipedOutputStream(in); DicomOutputStream dos = new DicomOutputStream(out).withEncoding(DicomEncoding.of(tsuid))) {
-//                                    dos.writeDataSet(metadata);
-//                                    dos.writeHeader(Tag.ItemDelimitationItem, VR.NONE, 0);
-//                                } catch (IOException e) {
-//                                    e.printStackTrace();
-//                                }
-//                            }
-//                        }
-//                ).start();
-//
-//                return in;
             }
         };
 
@@ -336,7 +299,7 @@ public class DicomStowRS implements AutoCloseable {
 //            response.body().forEach(LOGGER::info);
 
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error("Cannot post DICOM {}", e);
         }
     }
 

@@ -167,7 +167,7 @@ public class ForwardUtil {
                 if (fistDest instanceof DicomForwardDestination) {
                     transfer(fwdNode, (DicomForwardDestination) fistDest, dcm, p);
                 } else if (fistDest instanceof WebForwardDestination) {
-                    transfer(fwdNode, (WebForwardDestination) fistDest, null, p);
+                    transfer(fwdNode, (WebForwardDestination) fistDest, dcm, p);
                 }
                 if (!dcm.isEmpty()) {
                     for (int i = 1; i < destConList.size(); i++) {
@@ -237,12 +237,7 @@ public class ForwardUtil {
             List<AttributeEditor> editors = destination.getDicomEditors();
 
             if (copy == null && editors.isEmpty() && supportedTsuid.equals(tsuid)) {
-                dataWriter = new DataWriter() {
-                    @Override
-                    public void writeTo(OutputStream out, String tsuid) throws IOException {
-                        p.getData().transferTo(out);
-                    }
-                };
+                dataWriter = (out, t) -> p.getData().transferTo(out);
             } else {
                 AttributeEditorContext context = streamSCU.getContext();
                 DicomObject data = null;
@@ -251,6 +246,9 @@ public class ForwardUtil {
                     if (data == null) {
                         throw new IllegalStateException("Cannot read DICOM dataset");
                     }
+                }
+                if (copy != null) {
+                    copy.forEach(data::add);
                 }
 
                 if (!editors.isEmpty()) {
@@ -269,11 +267,6 @@ public class ForwardUtil {
                     }
                     throw new AbortException("DICOM association abort: " + context.getAbortMessage());
                 }
-
-                if (copy != null) {
-                    copy.forEach(data::add);
-                }
-
                 dataWriter = imageTranscode(data, tsuid, supportedTsuid);
             }
 
@@ -312,12 +305,7 @@ public class ForwardUtil {
             String supportedTsuid = streamSCU.getAssociation().getTransferSyntax(pcid.get());
             List<AttributeEditor> editors = destination.getDicomEditors();
             if (editors.isEmpty() && supportedTsuid.equals(tsuid)) {
-                dataWriter = new DataWriter() {
-                    @Override
-                    public void writeTo(OutputStream out, String tsuid) throws IOException {
-                        p.getData().transferTo(out);
-                    }
-                };
+                dataWriter = (out, t) -> p.getData().transferTo(out);
             } else {
                 AttributeEditorContext context =
                     new AttributeEditorContext(fwdNode, DicomNode.buildRemoteDicomNode(streamSCU.getAssociation()));
@@ -391,41 +379,36 @@ public class ForwardUtil {
                 }
 
             };
+
             DicomTranscodeParam tparams = new DicomTranscodeParam(supportedTsuid);
             DicomOutputData imgData = Transcoder.dcm2dcm(desc, tparams);
-            return new DataWriter() {
-                @Override
-                public void writeTo(OutputStream out, String tsuid) throws IOException {
-                    DicomObject dataSet = DicomObject.newDicomObject();
-                    for (DicomElement el : data) {
-                        if (el.tag() == Tag.PixelData) {
-                            break;
-                        }
-                        dataSet.add(el);
+            return (out, tsuid) -> {
+                DicomObject dataSet = DicomObject.newDicomObject();
+                for (DicomElement el : data) {
+                    if (el.tag() == Tag.PixelData) {
+                        break;
                     }
-                    try (DicomOutputStream dos =
-                        new DicomOutputStream(out).withEncoding(DicomEncoding.of(supportedTsuid))) {
-                        if (DicomOutputData.isNativeSyntax(supportedTsuid)) {
-                            imgData.writRawImageData(dos, dataSet);
-                        } else {
-                            int[] jpegWriteParams = DicomOutputData.adaptTagsToImage(dataSet,
-                                imgData.getImages().get(0), desc.getImageDescriptor(), tparams.getWriteJpegParam());
-                            dos.writeDataSet(dataSet);
-                            imgData.writCompressedImageData(dos, jpegWriteParams);
-                        }
-                    } catch (Exception e) {
-                        LOGGER.error("Transcoding image data", e);
+                    dataSet.add(el);
+                }
+                try (DicomOutputStream dos =
+                    new DicomOutputStream(out).withEncoding(DicomEncoding.of(supportedTsuid))) {
+                    if (DicomOutputData.isNativeSyntax(supportedTsuid)) {
+                        imgData.writRawImageData(dos, dataSet);
+                    } else {
+                        int[] jpegWriteParams = DicomOutputData.adaptTagsToImage(dataSet,
+                            imgData.getImages().get(0), desc.getImageDescriptor(), tparams.getWriteJpegParam());
+                        dos.writeDataSet(dataSet);
+                        imgData.writCompressedImageData(dos, jpegWriteParams);
                     }
+                } catch (Exception e) {
+                    LOGGER.error("Transcoding image data", e);
                 }
             };
         }
-        return new DataWriter() {
-            @Override
-            public void writeTo(OutputStream out, String tsuid) throws IOException {
-                try (DicomOutputStream writer = new DicomOutputStream(out).withEncoding(DicomEncoding.of(tsuid))) {
-                    writer.writeDataSet(data);
-                    writer.writeHeader(Tag.ItemDelimitationItem, VR.NONE, 0);
-                }
+        return (out, tsuid) -> {
+            try (DicomOutputStream writer = new DicomOutputStream(out).withEncoding(DicomEncoding.of(tsuid))) {
+                writer.writeDataSet(data);
+                writer.writeHeader(Tag.ItemDelimitationItem, VR.NONE, 0);
             }
         };
     }
@@ -444,12 +427,15 @@ public class ForwardUtil {
             if (originalTsuid && copy == null && destination.getDicomEditors().isEmpty()) {
                 DicomObject fmi = DicomObject.createFileMetaInformation(p.getCuid(), p.getIuid(), p.getOutputTsuid());
                 try (InputStream stream = p.getData()) {
-                    stow.uploadDicom(p.getData(), fmi);
+                    stow.uploadDicom(stream, fmi);
                 }
             } else {
                 AttributeEditorContext context = new AttributeEditorContext(fwdNode, null);
                 try (DicomInputStream dis = new DicomInputStream(p.getData())) {
                     DicomObject data = dis.readDataSet();
+                    if (copy != null) {
+                        copy.forEach(data::add);
+                    }
                     destination.getDicomEditors().forEach(e -> e.apply(data, context));
 
                     if (context.getAbort() == Abort.FILE_EXCEPTION) {
@@ -462,9 +448,6 @@ public class ForwardUtil {
                         throw new AbortException("STOW-RS abort: " + context.getAbortMessage());
                     }
 
-                    if (copy != null) {
-                        copy.forEach(data::add);
-                    }
                     stow.uploadDicom(data, p.getOutputTsuid());
                 }
                 ServiceUtil.notifyProgession(destination.getState(), p.getIuid(), p.getCuid(), Status.Success,

@@ -248,7 +248,7 @@ public class ForwardUtil {
                     }
                 }
                 if (copy != null) {
-                    copy.forEach(data::add);
+                    data.forEach(copy::add);
                 }
 
                 if (!editors.isEmpty()) {
@@ -434,7 +434,7 @@ public class ForwardUtil {
                 try (DicomInputStream dis = new DicomInputStream(p.getData())) {
                     DicomObject data = dis.readDataSet();
                     if (copy != null) {
-                        copy.forEach(data::add);
+                        data.forEach(copy::add);
                     }
                     destination.getDicomEditors().forEach(e -> e.apply(data, context));
 

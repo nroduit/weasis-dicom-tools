@@ -10,22 +10,7 @@
  *******************************************************************************/
 package org.weasis.dicom.util;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Stream;
-
-import org.dcm4che6.data.DataFragment;
-import org.dcm4che6.data.DicomElement;
-import org.dcm4che6.data.DicomObject;
-import org.dcm4che6.data.Tag;
-import org.dcm4che6.data.UID;
-import org.dcm4che6.data.VR;
+import org.dcm4che6.data.*;
 import org.dcm4che6.img.DicomOutputData;
 import org.dcm4che6.img.DicomTranscodeParam;
 import org.dcm4che6.img.Transcoder;
@@ -41,16 +26,21 @@ import org.dcm4che6.net.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.util.FileUtil;
-import org.weasis.dicom.param.AttributeEditor;
-import org.weasis.dicom.param.AttributeEditorContext;
+import org.weasis.dicom.param.*;
 import org.weasis.dicom.param.AttributeEditorContext.Abort;
-import org.weasis.dicom.param.DicomForwardDestination;
-import org.weasis.dicom.param.DicomNode;
-import org.weasis.dicom.param.ForwardDestination;
-import org.weasis.dicom.param.ForwardDicomNode;
 import org.weasis.dicom.util.ServiceUtil.ProgressStatus;
 import org.weasis.dicom.web.DicomStowRS;
 import org.weasis.dicom.web.WebForwardDestination;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
 
 public class ForwardUtil {
     private static final String ERROR_WHEN_FORWARDING = "Error when forwarding to the final destination";
@@ -506,8 +496,15 @@ public class ForwardUtil {
         if (as.getAaac().acceptedTransferSyntax(p.getPcid(), p.getTsuid())) {
             return Optional.of(p.getPcid());
         }
+
+        Optional<Byte> res = as.getAarq().pcidsFor(p.getCuid())
+                .filter(b -> as.getAaac().acceptedTransferSyntax(b, p.getTsuid()))
+                .findFirst();
+        if (res.isPresent()) {
+            return res;
+        }
         return as.getAarq().pcidsFor(p.getCuid())
-            .filter(b -> as.getAaac().acceptedTransferSyntax(b, UID.ExplicitVRLittleEndian))
-            .findFirst();
+                .filter(b -> as.getAaac().acceptedTransferSyntax(b, UID.ExplicitVRLittleEndian))
+                .findFirst();
     }
 }

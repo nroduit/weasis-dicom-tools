@@ -10,7 +10,10 @@
  *******************************************************************************/
 package org.weasis.dicom.param;
 
+import org.dcm4che6.img.op.MaskArea;
+
 public class AttributeEditorContext {
+
     /**
      * Abort status allows to skip the file transfer or abort the DICOM association
      *
@@ -29,6 +32,7 @@ public class AttributeEditorContext {
 
     private Abort abort;
     private String abortMessage;
+    private MaskArea maskArea;
 
     public AttributeEditorContext(DicomNode sourceNode, DicomNode destinationNode) {
         this.sourceNode = sourceNode;
@@ -60,4 +64,11 @@ public class AttributeEditorContext {
         return destinationNode;
     }
 
+    public MaskArea getMaskArea() {
+        return maskArea;
+    }
+
+    public void setMaskArea(MaskArea maskArea) {
+        this.maskArea = maskArea;
+    }
 }

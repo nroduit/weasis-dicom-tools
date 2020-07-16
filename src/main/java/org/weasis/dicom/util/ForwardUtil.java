@@ -10,13 +10,16 @@
  *******************************************************************************/
 package org.weasis.dicom.util;
 
+import org.dcm4che6.codec.JPEGParser;
 import org.dcm4che6.data.*;
+import org.dcm4che6.img.DicomImageUtils;
 import org.dcm4che6.img.DicomOutputData;
 import org.dcm4che6.img.DicomTranscodeParam;
 import org.dcm4che6.img.Transcoder;
 import org.dcm4che6.img.data.TransferSyntaxType;
 import org.dcm4che6.img.stream.BytesWithImageDescriptor;
 import org.dcm4che6.img.stream.ImageDescriptor;
+import org.dcm4che6.img.util.DicomObjectUtil;
 import org.dcm4che6.io.DicomEncoding;
 import org.dcm4che6.io.DicomInputStream;
 import org.dcm4che6.io.DicomOutputStream;
@@ -39,7 +42,9 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class ForwardUtil {
@@ -238,7 +243,7 @@ public class ForwardUtil {
                     }
                 }
                 if (copy != null) {
-                    copyDataset(data, copy);
+                    DicomObjectUtil.copyDataset(data, copy);
                 }
 
                 if (!editors.isEmpty()) {
@@ -257,7 +262,7 @@ public class ForwardUtil {
                     }
                     throw new AbortException("DICOM association abort: " + context.getAbortMessage());
                 }
-                dataWriter = imageTranscode(data, tsuid, supportedTsuid);
+                dataWriter = imageTranscode(data, tsuid, supportedTsuid, context);
             }
 
             streamSCU.getAssociation().cstore(p.getCuid(), iuid, dataWriter, supportedTsuid);
@@ -300,7 +305,7 @@ public class ForwardUtil {
                 AttributeEditorContext context =
                         new AttributeEditorContext(fwdNode, DicomNode.buildRemoteDicomNode(streamSCU.getAssociation()));
                 DicomObject dcm = DicomObject.newDicomObject();
-                copyDataset(copy, dcm);
+                DicomObjectUtil.copyDataset(copy, dcm);
                 if (!editors.isEmpty()) {
                     editors.forEach(e -> e.apply(dcm, context));
                     iuid = dcm.getString(Tag.SOPInstanceUID).orElse(null);
@@ -312,7 +317,7 @@ public class ForwardUtil {
                     throw new AbortException("DICOM associtation abort. " + context.getAbortMessage());
                 }
 
-                dataWriter = imageTranscode(dcm, tsuid, supportedTsuid);
+                dataWriter = imageTranscode(dcm, tsuid, supportedTsuid, context);
             }
 
             streamSCU.getAssociation().cstore(p.getCuid(), iuid, dataWriter, supportedTsuid);
@@ -328,12 +333,14 @@ public class ForwardUtil {
         }
     }
 
-    private static DataWriter imageTranscode(DicomObject data, String originalTsuid, String supportedTsuid)
+    private static DataWriter imageTranscode(DicomObject data, String originalTsuid, String supportedTsuid, AttributeEditorContext context)
             throws Exception {
-        if (!supportedTsuid.equals(originalTsuid)
-                && TransferSyntaxType.forUID(originalTsuid) != TransferSyntaxType.NATIVE) {
+        if (Objects.nonNull(context.getMaskArea()) || (!supportedTsuid.equals(originalTsuid)
+                && TransferSyntaxType.forUID(originalTsuid) != TransferSyntaxType.NATIVE)) {
             Optional<DicomElement> pixdata = data.get(Tag.PixelData);
             ImageDescriptor imdDesc = new ImageDescriptor(data);
+            ByteBuffer  byteBuffer= ByteBuffer.wrap(EMPTY_BYTES );
+            ArrayList<Integer> fragmentsPositions = new ArrayList<>();
             BytesWithImageDescriptor desc = new BytesWithImageDescriptor() {
 
                 @Override
@@ -349,11 +356,79 @@ public class ForwardUtil {
                         return ByteBuffer.wrap(EMPTY_BYTES);
                     } else {
                         DicomElement pix = pixdata.get();
-                        int index = pix.getDataFragment(0).valueLength() == 0 ? frame + 1 : frame;
-                        DataFragment fragment = pix.getDataFragment(index);
-                        ByteArrayOutputStream out = new ByteArrayOutputStream(fragment.valueLength());
-                        fragment.writeTo(out);
-                        return ByteBuffer.wrap(out.toByteArray());
+                        List<DataFragment> fragments = pixdata.get().fragmentStream().collect(Collectors.toList());
+                        if(fragments.isEmpty()) {
+                            int frameLength = desc.getPhotometricInterpretation().frameLength(desc.getColumns(), desc.getRows(),
+                                    desc.getSamples(), desc.getBitsAllocated());
+                            if(byteBuffer.limit() <= 0) {
+                                Optional<byte[]> bytes = DicomImageUtils.getByteData(pix);
+                                byteBuffer.put(bytes.isEmpty() ? EMPTY_BYTES : bytes.get());
+                            }
+
+                            if(byteBuffer.limit() < frame * frameLength + frameLength){
+                                throw new IOException ("Frame out of the stream limit");
+                            }
+
+                            byte[] bytes = new byte[frameLength];
+                            byteBuffer.get(bytes, frame * frameLength, frameLength);
+                            return ByteBuffer.wrap(bytes);
+                        }
+                        else {
+                            int nbFragments = fragments.size();
+                            int numberOfFrame = desc.getFrames();
+                            if (numberOfFrame == 1) {
+                                int length = 0;
+                                for (int i = 0; i < nbFragments -1; i++) {
+                                    DataFragment bulkData = fragments.get(i + frame + 1);
+                                    length += bulkData.valueLength();
+                                }
+                                ByteArrayOutputStream out = new ByteArrayOutputStream(length);
+                                for (int i = 0; i < nbFragments -1; i++) {
+                                    DataFragment fragment = pix.getDataFragment(frame + 1);
+                                    fragment.writeTo(out);
+                                }
+                                return ByteBuffer.wrap(out.toByteArray());
+                            }
+                            else {
+                                // Multi-frames where each frames can have multiple fragments.
+                                if (fragmentsPositions.isEmpty()) {
+                                        for (int i = 1; i < nbFragments; i++) {
+                                            DataFragment bulkData = fragments.get(i);
+                                            try {
+                                                ByteArrayOutputStream out = new ByteArrayOutputStream(bulkData.valueLength());
+                                                bulkData.writeTo(out);
+                                                SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel(out.toByteArray());
+                                                new JPEGParser(channel, bulkData.valueLength());
+                                                fragmentsPositions.add(i);
+                                            } catch (Exception e) {
+                                                // Not jpeg stream
+                                            }
+                                        }
+                                }
+
+                                if (fragmentsPositions.size() == numberOfFrame) {
+                                    int start = fragmentsPositions.get(frame);
+                                    int end = (frame+ 1) >= fragmentsPositions.size() ? nbFragments
+                                            : fragmentsPositions.get(frame + 1);
+
+                                    int length = 0;
+                                    for (int i = 0; i < end - start; i++) {
+                                        DataFragment bulkData = fragments.get(start + i);
+                                        length += bulkData.valueLength();
+                                    }
+                                    ByteArrayOutputStream out = new ByteArrayOutputStream(length);
+                                    for (int i = 0; i < end - start; i++) {
+                                        DataFragment fragment = pix.getDataFragment(start + i);
+                                        fragment.writeTo(out);
+                                    }
+                                    return ByteBuffer.wrap(out.toByteArray());
+                                } else {
+                                    throw new IOException("Cannot match all the fragments to all the frames!");
+                                }
+                            }
+
+
+                        }
                     }
                 }
 
@@ -371,6 +446,7 @@ public class ForwardUtil {
             };
 
             DicomTranscodeParam tparams = new DicomTranscodeParam(supportedTsuid);
+            tparams.addMask("*", context.getMaskArea());
             DicomOutputData imgData = Transcoder.dcm2dcm(desc, tparams);
             return (out, tsuid) -> {
                 DicomObject dataSet = DicomObject.newDicomObject();
@@ -380,12 +456,13 @@ public class ForwardUtil {
                     }
                     dataSet.add(el);
                 }
+                String outTsuid = supportedTsuid.equals(UID.RLELossless) ? UID.ExplicitVRLittleEndian : supportedTsuid;
                 try (DicomOutputStream dos =
-                             new DicomOutputStream(out).withEncoding(DicomEncoding.of(supportedTsuid))) {
-                    if (DicomOutputData.isNativeSyntax(supportedTsuid)) {
+                             new DicomOutputStream(out).withEncoding(DicomEncoding.of(outTsuid))) {
+                    if (DicomOutputData.isNativeSyntax(outTsuid)) {
                         imgData.writRawImageData(dos, dataSet);
                     } else {
-                        int[] jpegWriteParams = DicomOutputData.adaptTagsToImage(dataSet,
+                        int[] jpegWriteParams = imgData.adaptTagsToImage(dataSet,
                                 imgData.getImages().get(0), desc.getImageDescriptor(), tparams.getWriteJpegParam());
                         dos.writeDataSet(dataSet);
                         imgData.writCompressedImageData(dos, jpegWriteParams);
@@ -424,7 +501,7 @@ public class ForwardUtil {
                 try (DicomInputStream dis = new DicomInputStream(p.getData())) {
                     DicomObject data = dis.readDataSet();
                     if (copy != null) {
-                        copyDataset(data, copy);
+                        DicomObjectUtil.copyDataset(data, copy);
                     }
                     destination.getDicomEditors().forEach(e -> e.apply(data, context));
 
@@ -467,7 +544,7 @@ public class ForwardUtil {
             } else {
                 AttributeEditorContext context = new AttributeEditorContext(fwdNode, null);
                 DicomObject dcm = DicomObject.newDicomObject();
-                copyDataset(copy, dcm);
+                DicomObjectUtil.copyDataset(copy, dcm);
                 destination.getDicomEditors().forEach(e -> e.apply(dcm, context));
 
                 if (context.getAbort() == Abort.FILE_EXCEPTION) {
@@ -506,20 +583,5 @@ public class ForwardUtil {
         return as.getAarq().pcidsFor(p.getCuid())
                 .filter(b -> as.getAaac().acceptedTransferSyntax(b, UID.ExplicitVRLittleEndian))
                 .findFirst();
-    }
-
-    public static void copyDataset(DicomObject dicom, DicomObject copy) {
-        dicom.forEach(i -> {
-            if (i.vr() == VR.SQ) {
-                DicomElement seq = copy.newDicomSequence(i.tag());
-                i.itemStream().forEach(d -> {
-                    DicomObject c = DicomObject.newDicomObject();
-                    copyDataset(d, c);
-                    seq.addItem(c);
-                });
-            } else {
-                copy.add(i);
-            }
-        });
     }
 }

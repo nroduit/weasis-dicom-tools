@@ -108,18 +108,25 @@ public class ForwardUtil {
 
     private static final class AbortException extends IllegalStateException {
         private static final long serialVersionUID = 3993065212756372490L;
+        private final Abort abort;
 
-        public AbortException(String s) {
+        public AbortException(Abort abort, String s) {
             super(s);
+            this.abort = abort;
         }
 
-        public AbortException(String string, Exception e) {
+        public AbortException(Abort abort, String string, Exception e) {
             super(string, e);
+            this.abort = abort;
         }
 
         @Override
         public String toString() {
             return getMessage();
+        }
+
+        public Abort getAbort() {
+            return abort;
         }
     }
 
@@ -254,13 +261,12 @@ public class ForwardUtil {
                 }
 
                 if (context.getAbort() == Abort.FILE_EXCEPTION) {
-                    p.getData().transferTo(OutputStream.nullOutputStream());
-                    throw new IllegalStateException(context.getAbortMessage());
+                    throw new AbortException(context.getAbort(), context.getAbortMessage());
                 } else if (context.getAbort() == Abort.CONNECTION_EXCEPTION) {
                     if (p.getAs() != null) {
                         p.getAs().release();
                     }
-                    throw new AbortException("DICOM association abort: " + context.getAbortMessage());
+                    throw new AbortException(context.getAbort(), "DICOM association abort: " + context.getAbortMessage());
                 }
                 dataWriter = imageTranscode(data, tsuid, supportedTsuid, context);
             }
@@ -269,7 +275,9 @@ public class ForwardUtil {
         } catch (AbortException e) {
             ServiceUtil.notifyProgession(streamSCU.getState(), p.getIuid(), p.getCuid(), Status.ProcessingFailure,
                     ProgressStatus.FAILED, streamSCU.getNumberOfSuboperations());
-            throw e;
+            if (e.getAbort() == Abort.CONNECTION_EXCEPTION) {
+                throw e;
+            }
         } catch (Exception e) {
             LOGGER.error(ERROR_WHEN_FORWARDING, e);
             ServiceUtil.notifyProgession(streamSCU.getState(), p.getIuid(), p.getCuid(), Status.ProcessingFailure,
@@ -312,9 +320,9 @@ public class ForwardUtil {
                 }
 
                 if (context.getAbort() == Abort.FILE_EXCEPTION) {
-                    throw new IllegalStateException(context.getAbortMessage());
+                    throw new AbortException(context.getAbort(), context.getAbortMessage());
                 } else if (context.getAbort() == Abort.CONNECTION_EXCEPTION) {
-                    throw new AbortException("DICOM associtation abort. " + context.getAbortMessage());
+                    throw new AbortException(context.getAbort(),"DICOM associtation abort. " + context.getAbortMessage());
                 }
 
                 dataWriter = imageTranscode(dcm, tsuid, supportedTsuid, context);
@@ -324,7 +332,9 @@ public class ForwardUtil {
         } catch (AbortException e) {
             ServiceUtil.notifyProgession(streamSCU.getState(), p.getIuid(), p.getCuid(), Status.ProcessingFailure,
                     ProgressStatus.FAILED, streamSCU.getNumberOfSuboperations());
-            throw e;
+            if (e.getAbort() == Abort.CONNECTION_EXCEPTION) {
+                throw e;
+            }
         } catch (Exception e) {
             LOGGER.error(ERROR_WHEN_FORWARDING, e);
             ServiceUtil.notifyProgession(streamSCU.getState(), p.getIuid(), p.getCuid(), Status.ProcessingFailure,
@@ -506,13 +516,12 @@ public class ForwardUtil {
                     destination.getDicomEditors().forEach(e -> e.apply(data, context));
 
                     if (context.getAbort() == Abort.FILE_EXCEPTION) {
-                        p.getData().transferTo(OutputStream.nullOutputStream());
-                        throw new IllegalStateException(context.getAbortMessage());
+                        throw new AbortException(context.getAbort(), context.getAbortMessage());
                     } else if (context.getAbort() == Abort.CONNECTION_EXCEPTION) {
                         if (p.getAs() != null) {
                             p.getAs().release();
                         }
-                        throw new AbortException("STOW-RS abort: " + context.getAbortMessage());
+                        throw new AbortException(context.getAbort(), "STOW-RS abort: " + context.getAbortMessage());
                     }
 
                     stow.uploadDicom(data, p.getOutputTsuid());
@@ -523,12 +532,14 @@ public class ForwardUtil {
         } catch (AbortException e) {
             ServiceUtil.notifyProgession(destination.getState(), p.getIuid(), p.getCuid(), Status.ProcessingFailure,
                     ProgressStatus.FAILED, 0);
-            throw e;
+            if (e.getAbort() == Abort.CONNECTION_EXCEPTION) {
+                throw e;
+            }
         } catch (Exception e) {
             LOGGER.error(ERROR_WHEN_FORWARDING, e);
             ServiceUtil.notifyProgession(destination.getState(), p.getIuid(), p.getCuid(), Status.ProcessingFailure,
                     ProgressStatus.FAILED, 0);
-            throw new AbortException("STOWRS abort: " + e.getMessage(), e);
+         //   throw new AbortException("STOWRS abort: " + e.getMessage(), e);
         } finally {
             FileUtil.safeClose(in);
         }
@@ -548,9 +559,9 @@ public class ForwardUtil {
                 destination.getDicomEditors().forEach(e -> e.apply(dcm, context));
 
                 if (context.getAbort() == Abort.FILE_EXCEPTION) {
-                    throw new IllegalStateException(context.getAbortMessage());
+                    throw new AbortException(context.getAbort(),context.getAbortMessage());
                 } else if (context.getAbort() == Abort.CONNECTION_EXCEPTION) {
-                    throw new AbortException("DICOM associtation abort. " + context.getAbortMessage());
+                    throw new AbortException(context.getAbort(), "DICOM associtation abort. " + context.getAbortMessage());
                 }
 
                 stow.uploadDicom(dcm, tsuid);
@@ -560,12 +571,14 @@ public class ForwardUtil {
         } catch (AbortException e) {
             ServiceUtil.notifyProgession(destination.getState(), p.getIuid(), p.getCuid(), Status.ProcessingFailure,
                     ProgressStatus.FAILED, 0);
-            throw e;
+            if (e.getAbort() == Abort.CONNECTION_EXCEPTION) {
+                throw e;
+            }
         } catch (Exception e) {
             LOGGER.error(ERROR_WHEN_FORWARDING, e);
             ServiceUtil.notifyProgession(destination.getState(), p.getIuid(), p.getCuid(), Status.ProcessingFailure,
                     ProgressStatus.FAILED, 0);
-            throw new AbortException("STOWRS abort: " + e.getMessage(), e);
+      //      throw new AbortException("STOWRS abort: " + e.getMessage(), e);
         }
     }
 

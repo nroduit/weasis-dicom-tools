@@ -15,7 +15,9 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
@@ -178,6 +180,7 @@ public class StoreFromStreamSCU {
     }
 
     public synchronized void open() throws IOException {
+        countdown.set(false);
         DicomServiceRegistry serviceRegistry = new DicomServiceRegistry();
         TCPConnector<Association> inst =
             new TCPConnector<>((connector, role) -> new Association(connector, role, serviceRegistry));

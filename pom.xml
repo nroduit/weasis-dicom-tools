@@ -6,7 +6,7 @@
 	<artifactId>weasis-dicom-tools</artifactId>
 	<packaging>jar</packaging>
 	<name>Weasis DICOM API (based on dcm4che3)</name>
-	<version>5.22.2</version>
+	<version>5.22.4</version>
 
 	<properties>
 		<java-version>1.8</java-version>
@@ -211,7 +211,7 @@
 									<version>${dcm4che.version}</version>
 									<type>jar</type>
 									<overWrite>false</overWrite>
-									<includes>**/*.xml</includes>
+									<includes>uids.xml,dataelements.xml</includes>
 									<excludes>META-INF/**</excludes>
 								</artifactItem>
 							</artifactItems>

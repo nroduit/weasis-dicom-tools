@@ -213,7 +213,7 @@
 									<version>${dcm4che.version}</version>
 									<type>jar</type>
 									<overWrite>false</overWrite>
-									<includes>**/*.xml</includes>
+									<includes>uids.xml,dataelements.xml</includes>
 									<excludes>META-INF/**</excludes>
 								</artifactItem>
 							</artifactItems>
@@ -327,7 +327,7 @@
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-log4j12</artifactId>
-			<version>1.7.29</version>
+			<version>1.7.30</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>

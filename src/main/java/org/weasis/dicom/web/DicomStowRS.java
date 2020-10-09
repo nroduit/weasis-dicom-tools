@@ -100,7 +100,7 @@ public class DicomStowRS implements AutoCloseable {
         this.executorService = Executors.newFixedThreadPool(5);
         this.client = HttpClient.newBuilder()
                 .executor(executorService).followRedirects(HttpClient.Redirect.NORMAL)
-                .version(HttpClient.Version.HTTP_2).connectTimeout(Duration.ofSeconds(10))
+                .version(HttpClient.Version.HTTP_2).connectTimeout(Duration.ofSeconds(10)) // Timeout should be an option
                 .build();
     }
 
@@ -190,8 +190,7 @@ public class DicomStowRS implements AutoCloseable {
         return photo;
     }
 
-    public void uploadDicom(Path path) throws IOException {
-        multipartBody.reset();
+    public void uploadDicom(Path path) {
         Payload playload = new Payload() {
             @Override
             public long size() {
@@ -208,17 +207,10 @@ public class DicomStowRS implements AutoCloseable {
                 return emptyInputStream;
             }
         };
-
-        try {
-            HttpRequest request = buildConnection(playload, () -> new SequenceInputStream(multipartBody.enumeration()));
-            send(client, request, HttpResponse.BodyHandlers.ofLines()).body().forEach(LOGGER::info);
-        } catch (Exception e) {
-            LOGGER.error("Cannot post DICOM {}", path, e);
-        }
+        uploadPayload(playload);
     }
     
-    public void uploadDicom(InputStream in, DicomObject fmi) throws IOException {
-        multipartBody.reset();
+    public void uploadDicom(InputStream in, DicomObject fmi) {
         Payload playload = new Payload() {
             @Override
             public long size() {
@@ -232,7 +224,7 @@ public class DicomStowRS implements AutoCloseable {
                 try (DicomOutputStream dos = new DicomOutputStream(out)) {
                     dos.writeFileMetaInformation(fmi).withEncoding(fmi);
                 } catch (IOException e) {
-                    LOGGER.error("Cannot read DICOM InputStream", e);
+                    LOGGER.error("Cannot write fmi", e);
                     return emptyInputStream;
                 }
                 list.add(new ByteArrayInputStream(out.toByteArray()));
@@ -240,18 +232,11 @@ public class DicomStowRS implements AutoCloseable {
                 return new SequenceInputStream(Collections.enumeration(list));
             }
         };
-
-        try {
-            HttpRequest request = buildConnection(playload, () -> new SequenceInputStream(multipartBody.enumeration()));
-            send(client, request, HttpResponse.BodyHandlers.ofLines()).body().forEach(LOGGER::info);
-        } catch (Exception e) {
-            LOGGER.error("Cannot post DICOM {}", e);
-        }
+        uploadPayload(playload);
     }
 
 
-    public void uploadDicom(DicomObject metadata, String tsuid) throws IOException {
-        multipartBody.reset();
+    public void uploadDicom(DicomObject metadata, String tsuid) {
         Payload playload = new Payload() {
             @Override
             public long size() {
@@ -266,15 +251,18 @@ public class DicomStowRS implements AutoCloseable {
                     dos.writeFileMetaInformation(fmi).withEncoding(fmi);
                     dos.writeDataSet(metadata);
                 } catch (IOException e) {
-                    LOGGER.error("Cannot build InputStream", e);
+                    LOGGER.error("Cannot write DICOM", e);
                     return emptyInputStream;
                 }
                 return new ByteArrayInputStream(out.toByteArray());
             }
         };
+        uploadPayload(playload);
+    }
 
+    public void uploadPayload(Payload playload) {
+        multipartBody.reset();
         try {
-
             HttpRequest request = buildConnection(playload, () -> new SequenceInputStream(multipartBody.enumeration()));
             send(client, request, HttpResponse.BodyHandlers.ofLines()).body().forEach(LOGGER::info);
 
@@ -299,8 +287,7 @@ public class DicomStowRS implements AutoCloseable {
 //            response.body().forEach(LOGGER::info);
 
         } catch (Exception e) {
-            LOGGER.error("Cannot post DICOM {}", e);
+            LOGGER.error("Cannot post DICOM", e);
         }
     }
-
 }

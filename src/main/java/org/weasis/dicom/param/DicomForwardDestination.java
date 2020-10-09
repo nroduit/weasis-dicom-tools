@@ -85,8 +85,7 @@ public class DicomForwardDestination extends ForwardDestination {
 
     @Override
     public void stop() {
-        streamSCU.triggerCloseExecutor();
-        streamSCU.close();
+        streamSCU.close(true);
     }
 
     @Override

@@ -13,12 +13,14 @@ package org.weasis.dicom.util;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
@@ -47,6 +49,7 @@ public class StoreFromStreamSCU {
     private int nbStatusLog = 0;
     private int numberOfSuboperations = 0;
     private final DicomState state;
+    private final TCPConnector<Association> inst;
 
     private DicomNode callingNode;
 
@@ -140,6 +143,10 @@ public class StoreFromStreamSCU {
         rq.setCallingAETitle(callingNode.getAet());
         rq.setCalledAETitle(calledNode.getAet());
 
+        DicomServiceRegistry serviceRegistry = new DicomServiceRegistry();
+        this.inst = new TCPConnector<>((connector, role) -> new Association(connector, role, serviceRegistry));
+        this.task = CompletableFuture.runAsync(inst);
+
         this.state = new DicomState(progress);
     }
 
@@ -181,10 +188,7 @@ public class StoreFromStreamSCU {
 
     public synchronized void open() throws IOException {
         countdown.set(false);
-        DicomServiceRegistry serviceRegistry = new DicomServiceRegistry();
-        TCPConnector<Association> inst =
-            new TCPConnector<>((connector, role) -> new Association(connector, role, serviceRegistry));
-        this.task = CompletableFuture.runAsync(inst);
+
         Connection local = ServiceUtil.getConnection(callingNode);
         Connection remote = ServiceUtil.getConnection(calledNode);
         options.configureTLS(local, remote);
@@ -199,18 +203,24 @@ public class StoreFromStreamSCU {
         }
     }
 
-    public synchronized void close() {
-        if (countdown.get()) {
+    public synchronized void close(boolean force) {
+        if (force || countdown.get()) {
+            countdown.set(false);
             if (as != null) {
                 try {
                     as.release();
                     as.onClose().get(3000, TimeUnit.MILLISECONDS);
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    LOGGER.trace("Cannot close association", e);
+                    try {
+                        as.onClose().get(5000, TimeUnit.MILLISECONDS);
+                    } catch (Exception e2) {
+                        LOGGER.trace("Cannot close association (second attempt)", e2);
+                    }
                 }
                 as = null;
             }
-            task.cancel(true);
+        //    task.cancel(true);
         }
     }
 
@@ -221,6 +231,6 @@ public class StoreFromStreamSCU {
 
     public void triggerCloseExecutor() {
         countdown.set(true);
-        CompletableFuture.delayedExecutor(5000, TimeUnit.MILLISECONDS).execute(this::close);
+        CompletableFuture.delayedExecutor(5000, TimeUnit.MILLISECONDS).execute(() -> close(false));
     }
 }

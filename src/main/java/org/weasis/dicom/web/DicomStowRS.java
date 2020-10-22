@@ -93,7 +93,7 @@ public class DicomStowRS implements AutoCloseable {
             String agentName,
             Map<String, String> headers) {
         this.contentType = Objects.requireNonNull(contentType);
-        this.requestURL = Objects.requireNonNull(requestURL, "requestURL cannot be null");
+        this.requestURL = Objects.requireNonNull(getFinalUrl(requestURL), "requestURL cannot be null");
         this.headers = headers;
         this.agentName = agentName;
         this.multipartBody = new MultipartBody(ContentType.APPLICATION_DICOM, MULTIPART_BOUNDARY);
@@ -102,6 +102,17 @@ public class DicomStowRS implements AutoCloseable {
                 .executor(executorService).followRedirects(HttpClient.Redirect.NORMAL)
                 .version(HttpClient.Version.HTTP_2).connectTimeout(Duration.ofSeconds(10)) // Timeout should be an option
                 .build();
+    }
+
+    private String getFinalUrl(String requestURL){
+        String url = requestURL.trim();
+        if(url.endsWith("/")) {
+            url = url.substring(0, url.length() - 1 );
+        }
+        if(!url.endsWith("/studies")) {
+            url += "/studies" ;
+        }
+        return url;
     }
 
     protected HttpRequest buildConnection(Flow.Publisher<? extends ByteBuffer> multipartSubscriber) throws Exception {

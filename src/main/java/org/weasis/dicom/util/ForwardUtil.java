@@ -665,8 +665,7 @@ public class ForwardUtil {
             public InputStream newInputStream() {
                 DicomObject fmi = dataSet.createFileMetaInformation(outputTsuid);
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
-                try (DicomOutputStream dos = new DicomOutputStream(out)
-                    .withEncoding(DicomEncoding.of(outputTsuid))) {
+                try (DicomOutputStream dos = new DicomOutputStream(out)) {
                     dos.writeFileMetaInformation(fmi).withEncoding(fmi);
                     if (DicomOutputData.isNativeSyntax(outputTsuid)) {
                         imgData.writRawImageData(dos, dataSet);

@@ -12,18 +12,13 @@ package org.weasis.dicom.util;
 
 import java.io.IOException;
 import java.util.Objects;
+import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-import java.util.concurrent.FutureTask;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Stream;
-
 import org.dcm4che6.conf.model.Connection;
 import org.dcm4che6.net.AAssociate;
 import org.dcm4che6.net.Association;
@@ -44,85 +39,22 @@ public class StoreFromStreamSCU {
 
     private final AAssociate.RQ rq = new AAssociate.RQ();
     private Association as;
-
-    private int lastStatusCode = Integer.MIN_VALUE;
-    private int nbStatusLog = 0;
     private int numberOfSuboperations = 0;
+    private DicomNode callingNode;
+    private DicomNode calledNode;
     private final DicomState state;
     private final TCPConnector<Association> inst;
-
-    private DicomNode callingNode;
-
-    private DicomNode calledNode;
-
-    private CompletableFuture<Void> task;
-
     private final AdvancedParams options;
-
     private final AttributeEditorContext context;
-
     private final AtomicBoolean countdown = new AtomicBoolean(false);
 
-    // private final RSPHandlerFactory rspHandlerFactory = () -> new DimseRSPHandler(as.nextMessageID()) {
-    //
-    // @Override
-    // public void onDimseRSP(Association as, Attributes cmd, Attributes data) {
-    // super.onDimseRSP(as, cmd, data);
-    // onCStoreRSP(cmd);
-    //
-    // DicomProgress progress = state.getProgress();
-    // if (progress != null) {
-    // progress.setAttributes(cmd);
-    // }
-    // }
-    //
-    // /**
-    // * @see <a
-    // * href="ERROR CODE
-    // STATUS">https://github.com/dcm4che/dcm4che/blob/master/dcm4che-net/src/main/java/org/dcm4che3/net/Status.java</a>
-    // */
-    // private void onCStoreRSP(Attributes cmd) {
-    // int status = cmd.getInt(Tag.Status, -1);
-    // state.setStatus(status);
-    // ProgressStatus ps;
-    //
-    // switch (status) {
-    // case Status.Success:
-    // ps = ProgressStatus.COMPLETED;
-    // break;
-    // case Status.CoercionOfDataElements:
-    // case Status.ElementsDiscarded:
-    //
-    // case Status.DataSetDoesNotMatchSOPClassWarning:
-    // ps = ProgressStatus.WARNING;
-    // if (lastStatusCode != status && nbStatusLog < 3) {
-    // nbStatusLog++;
-    // lastStatusCode = status;
-    // if (LOGGER.isDebugEnabled()) {
-    // LOGGER.warn("Received C-STORE-RSP with Status {}H{}", TagUtils.shortToHexString(status),
-    // "\r\n" + cmd.toString());
-    // } else {
-    // LOGGER.warn("Received C-STORE-RSP with Status {}H", TagUtils.shortToHexString(status));
-    // }
-    // }
-    // break;
-    //
-    // default:
-    // ps = ProgressStatus.FAILED;
-    // if (lastStatusCode != status && nbStatusLog < 3) {
-    // nbStatusLog++;
-    // lastStatusCode = status;
-    // if (LOGGER.isDebugEnabled()) {
-    // LOGGER.error("Received C-STORE-RSP with Status {}H{}", TagUtils.shortToHexString(status),
-    // "\r\n" + cmd.toString());
-    // } else {
-    // LOGGER.error("Received C-STORE-RSP with Status {}H", TagUtils.shortToHexString(status));
-    // }
-    // }
-    // }
-    // ServiceUtil.notifyProgession(state.getProgress(), cmd, ps, numberOfSuboperations);
-    // }
-    // };
+    private final TimerTask closeAssociationTask = new TimerTask() {
+        public void run() {
+            close(false);
+        }
+    };
+    private final ScheduledExecutorService closeAssociationExecutor = Executors.newSingleThreadScheduledExecutor();
+    private volatile ScheduledFuture<?> scheduledFuture;
 
     public StoreFromStreamSCU(DicomNode callingNode, DicomNode calledNode) throws IOException {
         this(null, callingNode, calledNode, null, null);
@@ -145,8 +77,7 @@ public class StoreFromStreamSCU {
 
         DicomServiceRegistry serviceRegistry = new DicomServiceRegistry();
         this.inst = new TCPConnector<>((connector, role) -> new Association(connector, role, serviceRegistry));
-        this.task = CompletableFuture.runAsync(inst);
-
+        CompletableFuture.runAsync(inst);
         this.state = new DicomState(progress);
     }
 
@@ -204,10 +135,10 @@ public class StoreFromStreamSCU {
     }
 
     public synchronized void close(boolean force) {
-        if (force || countdown.get()) {
-            countdown.set(false);
+        if (force || countdown.compareAndSet(true,false)) {
             if (as != null) {
                 try {
+                    LOGGER.info("Closing DICOM association");
                     as.release();
                     as.onClose().get(3000, TimeUnit.MILLISECONDS);
                 } catch (Exception e) {
@@ -220,7 +151,6 @@ public class StoreFromStreamSCU {
                 }
                 as = null;
             }
-        //    task.cancel(true);
         }
     }
 
@@ -229,8 +159,9 @@ public class StoreFromStreamSCU {
         countdown.set(false);
     }
 
-    public void triggerCloseExecutor() {
-        countdown.set(true);
-        CompletableFuture.delayedExecutor(5000, TimeUnit.MILLISECONDS).execute(() -> close(false));
+    public synchronized void triggerCloseExecutor() {
+        if ((scheduledFuture == null || scheduledFuture.isDone()) && countdown.compareAndSet(false,true)) {
+            scheduledFuture = closeAssociationExecutor.schedule(closeAssociationTask, 15, TimeUnit.SECONDS);
+        }
     }
 }

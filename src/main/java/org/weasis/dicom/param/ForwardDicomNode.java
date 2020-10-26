@@ -20,6 +20,11 @@ public class ForwardDicomNode extends DicomNode {
     private final Set<DicomNode> acceptedSourceNodes;
     private final Long id;
 
+
+    public ForwardDicomNode(DicomNode dicomNode) {
+        this(dicomNode.getAet(), dicomNode.getHostname());
+    }
+
     public ForwardDicomNode(String fwdAeTitle) {
         this(fwdAeTitle, null);
     }

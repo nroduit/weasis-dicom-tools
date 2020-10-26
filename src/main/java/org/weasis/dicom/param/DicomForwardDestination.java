@@ -89,6 +89,11 @@ public class DicomForwardDestination extends ForwardDestination {
     }
 
     @Override
+    public DicomState getState() {
+        return streamSCU.getState();
+    }
+
+    @Override
     public String toString() {
         return destinationNode.toString();
     }

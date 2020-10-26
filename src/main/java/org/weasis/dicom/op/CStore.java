@@ -19,7 +19,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
-
 import org.dcm4che6.conf.model.Connection;
 import org.dcm4che6.net.AAssociate;
 import org.dcm4che6.net.Association;
@@ -32,7 +31,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.util.FileUtil;
 import org.weasis.core.util.StringUtil;
-import org.weasis.dicom.param.*;
+import org.weasis.dicom.param.AdvancedParams;
+import org.weasis.dicom.param.AttributeEditorContext;
+import org.weasis.dicom.param.ConnectOptions;
+import org.weasis.dicom.param.CstoreParams;
+import org.weasis.dicom.param.DicomFileStream;
+import org.weasis.dicom.param.DicomForwardDestination;
+import org.weasis.dicom.param.DicomNode;
+import org.weasis.dicom.param.DicomProgress;
+import org.weasis.dicom.param.DicomState;
+import org.weasis.dicom.param.ForwardDicomNode;
 import org.weasis.dicom.util.ServiceUtil;
 import org.weasis.dicom.util.ServiceUtil.ProgressStatus;
 
@@ -120,17 +128,18 @@ public class CStore {
         if (connectOptions == null) {
             connectOptions = new ConnectOptions();
         }
-        AttributeEditorContext context = new AttributeEditorContext(callingNode, calledNode);
 
         List<DicomFileStream> fileInfos = new ArrayList<>();
         long totalSize = 0;
         try {
+            AttributeEditorContext context = new AttributeEditorContext(
+                new DicomForwardDestination(options, new ForwardDicomNode(callingNode), calledNode, false, progress,
+                    storeOptions.getDicomEditors()));
             for (Path path : files) {
                 try (Stream<Path> walk = Files.walk(path)) {
                     walk.forEach(p -> {
-                        DicomFileStream fileInfo = new DicomFileStream(path, storeOptions.getDicomEditors());
+                        DicomFileStream fileInfo = new DicomFileStream(path, context);
                         if (fileInfo.isValid()) {
-                            fileInfo.setContext(context);
                             fileInfos.add(fileInfo);
                         }
                     });

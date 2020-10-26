@@ -1,5 +1,6 @@
 package org.weasis.dicom.param;
 
+import java.util.Objects;
 import org.dcm4che6.data.DicomElement;
 import org.dcm4che6.data.DicomObject;
 import org.dcm4che6.data.Tag;
@@ -24,9 +25,8 @@ public class DicomFileStream implements Association.DataWriter, DicomInputHandle
     private static final Logger LOGGER = LoggerFactory.getLogger(DicomFileStream.class);
 
     private final Path path;
-    private final List<AttributeEditor> editors;
-
-    private AttributeEditorContext context;
+    private final AttributeEditorContext context;
+    
     private long position = 0;
     private long length = 0;
     private String transferSyntax;
@@ -37,9 +37,9 @@ public class DicomFileStream implements Association.DataWriter, DicomInputHandle
         this(path, null);
     }
 
-    public DicomFileStream(Path path, List<AttributeEditor> editors) {
-        this.path = path;
-        this.editors = editors;
+    public DicomFileStream(Path path, AttributeEditorContext context) {
+        this.path = Objects.requireNonNull(path);
+        this.context = Objects.requireNonNull(context);
         if (Files.isRegularFile(path)) {
             try (DicomInputStream dis = new DicomInputStream(Files.newInputStream(path))) {
                 DicomObject fmi = dis.readFileMetaInformation();
@@ -108,13 +108,9 @@ public class DicomFileStream implements Association.DataWriter, DicomInputHandle
     public AttributeEditorContext getContext() {
         return context;
     }
-
-    public void setContext(AttributeEditorContext context) {
-        this.context = context;
-    }
-
+    
     public List<AttributeEditor> getDicomEditors() {
-        return editors;
+        return context.getDestination().getDicomEditors();
     }
 
     public boolean isValid() {
@@ -123,6 +119,7 @@ public class DicomFileStream implements Association.DataWriter, DicomInputHandle
 
     @Override
     public void writeTo(OutputStream out, String tsuid) throws IOException {
+        List<AttributeEditor> editors = context.getDestination().getDicomEditors();
         if (editors.isEmpty()) {
             try (InputStream in = Files.newInputStream(path)) {
                 in.skipNBytes(position);

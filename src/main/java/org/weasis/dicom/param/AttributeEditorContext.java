@@ -27,16 +27,14 @@ public class AttributeEditorContext {
         CONNECTION_EXCEPTION
     }
     
-    private final DicomNode sourceNode;
-    private final DicomNode destinationNode;
+    private final ForwardDestination destination;
 
     private Abort abort;
     private String abortMessage;
     private MaskArea maskArea;
 
-    public AttributeEditorContext(DicomNode sourceNode, DicomNode destinationNode) {
-        this.sourceNode = sourceNode;
-        this.destinationNode = destinationNode;
+    public AttributeEditorContext(ForwardDestination destination) {
+        this.destination = destination;
         this.abort = Abort.NONE;
     }
 
@@ -56,12 +54,8 @@ public class AttributeEditorContext {
         this.abortMessage = abortMessage;
     }
 
-    public DicomNode getSourceNode() {
-        return sourceNode;
-    }
-
-    public DicomNode getDestinationNode() {
-        return destinationNode;
+    public ForwardDestination getDestination() {
+        return destination;
     }
 
     public MaskArea getMaskArea() {

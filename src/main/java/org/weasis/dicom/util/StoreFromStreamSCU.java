@@ -45,7 +45,6 @@ public class StoreFromStreamSCU {
     private final DicomState state;
     private final TCPConnector<Association> inst;
     private final AdvancedParams options;
-    private final AttributeEditorContext context;
     private final AtomicBoolean countdown = new AtomicBoolean(false);
 
     private final TimerTask closeAssociationTask = new TimerTask() {
@@ -70,7 +69,6 @@ public class StoreFromStreamSCU {
         this.calledNode = Objects.requireNonNull(calledNode);
 
         this.options = params == null ? new AdvancedParams() : params;
-        this.context = new AttributeEditorContext(callingNode, calledNode);
 
         rq.setCallingAETitle(callingNode.getAet());
         rq.setCalledAETitle(calledNode.getAet());
@@ -111,10 +109,6 @@ public class StoreFromStreamSCU {
 
     public AdvancedParams getOptions() {
         return options;
-    }
-
-    public AttributeEditorContext getContext() {
-        return context;
     }
 
     public synchronized void open() throws IOException {

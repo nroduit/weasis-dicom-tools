@@ -33,4 +33,6 @@ public abstract class ForwardDestination {
     public abstract ForwardDicomNode getForwardDicomNode();
 
     public abstract void stop();
+
+    public abstract DicomState getState();
 }

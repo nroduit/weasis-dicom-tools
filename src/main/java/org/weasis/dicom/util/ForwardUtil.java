@@ -52,7 +52,6 @@ import org.weasis.dicom.param.AttributeEditor;
 import org.weasis.dicom.param.AttributeEditorContext;
 import org.weasis.dicom.param.AttributeEditorContext.Abort;
 import org.weasis.dicom.param.DicomForwardDestination;
-import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.ForwardDestination;
 import org.weasis.dicom.param.ForwardDicomNode;
 import org.weasis.dicom.util.ServiceUtil.ProgressStatus;
@@ -227,6 +226,7 @@ public class ForwardUtil {
     public static void transfer(ForwardDicomNode sourceNode, DicomForwardDestination destination, DicomObject copy,
                                 Params p) throws IOException {
         StoreFromStreamSCU streamSCU = destination.getStreamSCU();
+        String iuid = p.getIuid();
         DicomInputStream in = null;
         try {
             if (!streamSCU.getAssociation().isOpen()) {
@@ -234,7 +234,7 @@ public class ForwardUtil {
             }
             DataWriter dataWriter;
             String tsuid = p.getTsuid();
-            String iuid = p.getIuid();
+
             Optional<Byte> pcid = selectTransferSyntax(streamSCU.getAssociation(), p);
             if (pcid.isEmpty()) {
                 throw new IOException("The remote destination has no matching Presentation Context");
@@ -245,8 +245,8 @@ public class ForwardUtil {
             if (copy == null && editors.isEmpty() && supportedTsuid.equals(tsuid)) {
                 dataWriter = (out, t) -> p.getData().transferTo(out);
             } else {
-                AttributeEditorContext context = streamSCU.getContext();
-                DicomObject data = null;
+                AttributeEditorContext context = new AttributeEditorContext(destination);
+                DicomObject data;
                 try (DicomInputStream dis = new DicomInputStream(p.getData())) {
                     data = dis.readDataSet();
                     if (data == null) {
@@ -261,7 +261,6 @@ public class ForwardUtil {
                     DicomObject finalData = data;
                     editors.forEach(e -> e.apply(finalData, context));
                     iuid = data.getString(Tag.SOPInstanceUID).orElse(null);
-                    // sopClassUID = data.getString(Tag.SOPClassUID).orElse(null);
                 }
 
                 if (context.getAbort() == Abort.FILE_EXCEPTION) {
@@ -277,17 +276,15 @@ public class ForwardUtil {
             }
 
             streamSCU.getAssociation().cstore(p.getCuid(), iuid, dataWriter, supportedTsuid);
+            progressNotify(destination, iuid, p.getCuid(), false);
         } catch (AbortException e) {
-            ServiceUtil.notifyProgession(streamSCU.getState(), p.getIuid(), p.getCuid(), Status.ProcessingFailure,
-                    ProgressStatus.FAILED, streamSCU.getNumberOfSuboperations());
+            progressNotify(destination, iuid, p.getCuid(), true);
             if (e.getAbort() == Abort.CONNECTION_EXCEPTION) {
                 throw e;
             }
         } catch (Exception e) {
+            progressNotify(destination, iuid, p.getCuid(), true);
             LOGGER.error(ERROR_WHEN_FORWARDING, e);
-            ServiceUtil.notifyProgession(streamSCU.getState(), p.getIuid(), p.getCuid(), Status.ProcessingFailure,
-                    ProgressStatus.FAILED, streamSCU.getNumberOfSuboperations());
-            //  throw new IOException("StoreSCU abort: " + e.getMessage(), e);
         } finally {
             FileUtil.safeClose(in);
             streamSCU.triggerCloseExecutor();
@@ -297,7 +294,7 @@ public class ForwardUtil {
     public static void transferOther(ForwardDicomNode fwdNode, DicomForwardDestination destination, DicomObject copy,
                                      Params p) throws IOException {
         StoreFromStreamSCU streamSCU = destination.getStreamSCU();
-
+        String iuid = p.getIuid();
         try {
             if (!streamSCU.getAssociation().isOpen()) {
                 throw new IllegalStateException("Association not ready for transfer.");
@@ -305,7 +302,6 @@ public class ForwardUtil {
 
             DataWriter dataWriter;
             String tsuid = p.getTsuid();
-            String iuid = p.getIuid();
             Optional<Byte> pcid = selectTransferSyntax(streamSCU.getAssociation(), p);
             if (pcid.isEmpty()) {
                 throw new IOException("The remote destination has no matching Presentation Context");
@@ -315,8 +311,7 @@ public class ForwardUtil {
             if (editors.isEmpty() && supportedTsuid.equals(tsuid)) {
                 dataWriter = (out, t) -> p.getData().transferTo(out);
             } else {
-                AttributeEditorContext context =
-                        new AttributeEditorContext(fwdNode, DicomNode.buildRemoteDicomNode(streamSCU.getAssociation()));
+                AttributeEditorContext context = new AttributeEditorContext(destination);
                 DicomObject dcm = DicomObject.newDicomObject();
                 DicomObjectUtil.copyDataset(copy, dcm);
                 if (!editors.isEmpty()) {
@@ -334,17 +329,17 @@ public class ForwardUtil {
             }
 
             streamSCU.getAssociation().cstore(p.getCuid(), iuid, dataWriter, supportedTsuid);
+            progressNotify(destination, iuid, p.getCuid(), false);
         } catch (AbortException e) {
-            ServiceUtil.notifyProgession(streamSCU.getState(), p.getIuid(), p.getCuid(), Status.ProcessingFailure,
-                    ProgressStatus.FAILED, streamSCU.getNumberOfSuboperations());
+            progressNotify(destination, iuid, p.getCuid(), true);
             if (e.getAbort() == Abort.CONNECTION_EXCEPTION) {
                 throw e;
             }
         } catch (Exception e) {
+            progressNotify(destination, iuid, p.getCuid(), true);
             LOGGER.error(ERROR_WHEN_FORWARDING, e);
-            ServiceUtil.notifyProgession(streamSCU.getState(), p.getIuid(), p.getCuid(), Status.ProcessingFailure,
-                    ProgressStatus.FAILED, streamSCU.getNumberOfSuboperations());
-            //       throw new IOException("StoreSCU abort: " + e.getMessage(), e);
+        } finally {
+            streamSCU.triggerCloseExecutor();
         }
     }
 
@@ -533,27 +528,32 @@ public class ForwardUtil {
 
     public static void transfer(ForwardDicomNode fwdNode, WebForwardDestination destination, DicomObject copy,
                                 Params p) {
+        String iuid = p.getIuid();
         DicomInputStream in = null;
         try {
+            List<AttributeEditor> editors = destination.getDicomEditors();
             DicomStowRS stow = destination.getStowrsSingleFile();
             String outputTsuid = p.getTsuid();
             boolean originalTsuid = !(UID.ImplicitVRLittleEndian.equals(outputTsuid) || UID.ExplicitVRBigEndianRetired.equals(outputTsuid));
             if (!originalTsuid) {
                 outputTsuid = UID.ExplicitVRLittleEndian;
             }
-            if (originalTsuid && copy == null && destination.getDicomEditors().isEmpty()) {
+            if (originalTsuid && copy == null && editors.isEmpty()) {
                 DicomObject fmi = DicomObject.createFileMetaInformation(p.getCuid(), p.getIuid(), outputTsuid);
                 try (InputStream stream = p.getData()) {
                     stow.uploadDicom(stream, fmi);
                 }
             } else {
-                AttributeEditorContext context = new AttributeEditorContext(fwdNode, null);
+                AttributeEditorContext context = new AttributeEditorContext(destination);
                 try (DicomInputStream dis = new DicomInputStream(p.getData())) {
                     DicomObject data = dis.readDataSet();
                     if (copy != null) {
                         DicomObjectUtil.copyDataset(data, copy);
                     }
-                    destination.getDicomEditors().forEach(e -> e.apply(data, context));
+                    if (!editors.isEmpty()) {
+                        editors.forEach(e -> e.apply(data, context));
+                        iuid = data.getString(Tag.SOPInstanceUID).orElse(null);
+                    }
 
                     if (context.getAbort() == Abort.FILE_EXCEPTION) {
                         throw new AbortException(context.getAbort(), context.getAbortMessage());
@@ -575,20 +575,16 @@ public class ForwardUtil {
                         stow.uploadPayload(preparePlayload(data, outputTsuid, desc, context));
                     }
                 }
-                ServiceUtil.notifyProgession(destination.getState(), p.getIuid(), p.getCuid(), Status.Success,
-                        ProgressStatus.COMPLETED, 0);
+                progressNotify(destination, iuid, p.getCuid(), false);
             }
         } catch (AbortException e) {
-            ServiceUtil.notifyProgession(destination.getState(), p.getIuid(), p.getCuid(), Status.ProcessingFailure,
-                    ProgressStatus.FAILED, 0);
+            progressNotify(destination, iuid, p.getCuid(), true);
             if (e.getAbort() == Abort.CONNECTION_EXCEPTION) {
                 throw e;
             }
         } catch (Exception e) {
+            progressNotify(destination, iuid, p.getCuid(), true);
             LOGGER.error(ERROR_WHEN_FORWARDING, e);
-            ServiceUtil.notifyProgession(destination.getState(), p.getIuid(), p.getCuid(), Status.ProcessingFailure,
-                    ProgressStatus.FAILED, 0);
-         //   throw new AbortException("STOWRS abort: " + e.getMessage(), e);
         } finally {
             FileUtil.safeClose(in);
         }
@@ -596,19 +592,22 @@ public class ForwardUtil {
 
     public static void transferOther(ForwardDicomNode fwdNode, WebForwardDestination destination, DicomObject copy,
                                      Params p) {
+        String iuid = p.getIuid();
         try {
+            List<AttributeEditor> editors = destination.getDicomEditors();
             DicomStowRS stow = destination.getStowrsSingleFile();
             String outputTsuid = p.getTsuid();
             if (UID.ImplicitVRLittleEndian.equals(outputTsuid) || UID.ExplicitVRBigEndianRetired.equals(outputTsuid)) {
                 outputTsuid = UID.ExplicitVRLittleEndian;
             }
-            if (destination.getDicomEditors().isEmpty()) {
+            if (editors.isEmpty()) {
                 stow.uploadDicom(copy, outputTsuid);
             } else {
-                AttributeEditorContext context = new AttributeEditorContext(fwdNode, null);
+                AttributeEditorContext context = new AttributeEditorContext(destination);
                 DicomObject dcm = DicomObject.newDicomObject();
                 DicomObjectUtil.copyDataset(copy, dcm);
-                destination.getDicomEditors().forEach(e -> e.apply(dcm, context));
+                editors.forEach(e -> e.apply(dcm, context));
+                iuid = dcm.getString(Tag.SOPInstanceUID).orElse(null);
 
                 if (context.getAbort() == Abort.FILE_EXCEPTION) {
                     throw new AbortException(context.getAbort(),context.getAbortMessage());
@@ -625,21 +624,23 @@ public class ForwardUtil {
                 else {
                     stow.uploadPayload(preparePlayload(dcm, outputTsuid, desc, context));
                 }
-                ServiceUtil.notifyProgession(destination.getState(), p.getIuid(), p.getCuid(), Status.Success,
-                        ProgressStatus.COMPLETED, 0);
+                progressNotify(destination, iuid, p.getCuid(), false);
             }
         } catch (AbortException e) {
-            ServiceUtil.notifyProgession(destination.getState(), p.getIuid(), p.getCuid(), Status.ProcessingFailure,
-                    ProgressStatus.FAILED, 0);
+            progressNotify(destination, iuid, p.getCuid(), true);
             if (e.getAbort() == Abort.CONNECTION_EXCEPTION) {
                 throw e;
             }
         } catch (Exception e) {
+            progressNotify(destination, iuid, p.getCuid(), true);
             LOGGER.error(ERROR_WHEN_FORWARDING, e);
-            ServiceUtil.notifyProgession(destination.getState(), p.getIuid(), p.getCuid(), Status.ProcessingFailure,
-                    ProgressStatus.FAILED, 0);
-      //      throw new AbortException("STOWRS abort: " + e.getMessage(), e);
         }
+    }
+
+    private static void progressNotify(ForwardDestination destination, String iuid, String cuid, boolean failed) {
+        ServiceUtil.notifyProgession(destination.getState(), iuid, cuid,
+            failed ? Status.ProcessingFailure : Status.Success,
+            failed ? ProgressStatus.FAILED : ProgressStatus.COMPLETED, 0);
     }
 
     public static Payload preparePlayload(DicomObject data, String outputTsuid, BytesWithImageDescriptor desc,

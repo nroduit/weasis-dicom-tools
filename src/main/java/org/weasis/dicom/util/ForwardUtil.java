@@ -185,7 +185,6 @@ public class ForwardUtil {
                 }
             }
         }
-
     }
 
     public static void storeOneDestination(ForwardDicomNode fwdNode, ForwardDestination destination, Params p)
@@ -227,7 +226,6 @@ public class ForwardUtil {
                                 Params p) throws IOException {
         StoreFromStreamSCU streamSCU = destination.getStreamSCU();
         String iuid = p.getIuid();
-        DicomInputStream in = null;
         try {
             if (!streamSCU.getAssociation().isOpen()) {
                 throw new IllegalStateException("Association not ready for transfer.");
@@ -286,7 +284,6 @@ public class ForwardUtil {
             progressNotify(destination, iuid, p.getCuid(), true);
             LOGGER.error(ERROR_WHEN_FORWARDING, e);
         } finally {
-            FileUtil.safeClose(in);
             streamSCU.triggerCloseExecutor();
         }
     }
@@ -529,7 +526,6 @@ public class ForwardUtil {
     public static void transfer(ForwardDicomNode fwdNode, WebForwardDestination destination, DicomObject copy,
                                 Params p) {
         String iuid = p.getIuid();
-        DicomInputStream in = null;
         try {
             List<AttributeEditor> editors = destination.getDicomEditors();
             DicomStowRS stow = destination.getStowrsSingleFile();
@@ -585,8 +581,6 @@ public class ForwardUtil {
         } catch (Exception e) {
             progressNotify(destination, iuid, p.getCuid(), true);
             LOGGER.error(ERROR_WHEN_FORWARDING, e);
-        } finally {
-            FileUtil.safeClose(in);
         }
     }
 

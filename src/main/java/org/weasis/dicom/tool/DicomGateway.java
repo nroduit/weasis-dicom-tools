@@ -157,22 +157,23 @@ public class DicomGateway implements DimseHandler {
                 return;
             }
 
-            // try (DicomOutputStream dos = new DicomOutputStream(Files.newOutputStream(file))) {
-            // dos.writeFileMetaInformation(
-            // DicomObject.createFileMetaInformation(commandSet.getStringOrElseThrow(Tag.AffectedSOPClassUID),
-            // commandSet.getStringOrElseThrow(Tag.AffectedSOPInstanceUID), as.getTransferSyntax(pcid)));
-            // dataStream.transferTo(dos);
-            // }
-
-            // rsp.setInt(Tag.Status, VR.US, status);
-
             Params p = new Params(iuid, commandSet.getStringOrElseThrow(Tag.AffectedSOPClassUID), pcid, dataStream, as);
             ForwardUtil.storeMulitpleDestination(fwdNode, destList, p);
         } catch (IOException e) {
             throw e;
         } finally {
+            if(dataStream != null){
+                while(true) {
+                    try {
+                        if ((dataStream.read() < 0))
+                            break;
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        break;
+                    }
+                }
+            }
             as.writeDimse(pcid, Dimse.C_STORE_RSP, dimse.mkRSP(commandSet));
         }
-
     }
 }

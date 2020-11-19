@@ -15,7 +15,7 @@
 		<dcm4che.version>${project.version}</dcm4che.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-		<sonar.projectKey>nroduit_weasis-core-img</sonar.projectKey>
+		<sonar.projectKey>org.weasis%3Aweasis-dicom-tools</sonar.projectKey>
   		<sonar.organization>nroduit-github</sonar.organization>
   		<sonar.host.url>https://sonarcloud.io</sonar.host.url>
 	</properties>

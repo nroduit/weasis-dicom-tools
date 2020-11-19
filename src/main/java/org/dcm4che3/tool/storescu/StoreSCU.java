@@ -142,7 +142,7 @@ public class StoreSCU implements AutoCloseable {
     public StoreSCU(ApplicationEntity ae, DicomProgress progress, AttributeEditor attributesEditor) throws IOException {
         this.remote = new Connection();
         this.ae = ae;
-        rq.addPresentationContext(new PresentationContext(1, UID.VerificationSOPClass, UID.ImplicitVRLittleEndian));
+        rq.addPresentationContext(new PresentationContext(1, UID.Verification, UID.ImplicitVRLittleEndian));
         this.state = new DicomState(progress);
         this.attributesEditor = attributesEditor;
     }

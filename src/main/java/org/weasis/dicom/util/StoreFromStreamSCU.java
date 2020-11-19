@@ -143,7 +143,7 @@ public class StoreFromStreamSCU {
 
         this.remote = new Connection();
 
-        rq.addPresentationContext(new PresentationContext(1, UID.VerificationSOPClass, UID.ImplicitVRLittleEndian));
+        rq.addPresentationContext(new PresentationContext(1, UID.Verification, UID.ImplicitVRLittleEndian));
 
         options.configureConnect(rq, remote, calledNode);
         options.configureBind(ae, conn, callingNode);

@@ -11,6 +11,7 @@
 package org.weasis.dicom.util;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.util.Collections;
 import java.util.HashMap;
@@ -164,7 +165,9 @@ public class StoreScpForward {
 
         try {
             if (transferCapabilityFile != null) {
-                p.load(transferCapabilityFile.openStream());
+                try (InputStream in = transferCapabilityFile.openStream()) {
+                    p.load(in);
+                }
             } else {
                 p.load(this.getClass().getResourceAsStream("sop-classes.properties"));
             }

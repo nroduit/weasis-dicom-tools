@@ -85,7 +85,7 @@ public class Dicomizer {
 
                 setCreationDate(attrs);
                 
-                dos.writeDataset(attrs.createFileMetaInformation(mpeg ? UID.MPEG2 : UID.JPEGBaseline1), attrs);
+                dos.writeDataset(attrs.createFileMetaInformation(mpeg ? UID.MPEG2MPML : UID.JPEGBaseline8Bit), attrs);
                 dos.writeHeader(Tag.PixelData, VR.OB, -1);
                 dos.writeHeader(Tag.Item, null, 0);
                 if (p.jpegHeader != null && noAPPn) {

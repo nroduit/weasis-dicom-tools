@@ -12,6 +12,7 @@ package org.weasis.dicom.op;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.text.MessageFormat;
 import java.util.Map.Entry;
@@ -161,7 +162,9 @@ public class CGet {
             if (url == null) {
                 p.load(getSCU.getClass().getResourceAsStream("store-tcs.properties"));
             } else {
-                p.load(url.openStream());
+                try (InputStream in = url.openStream()) {
+                    p.load(in);
+                }
             }
             for (Entry<Object, Object> entry : p.entrySet()) {
                 configureStorageSOPClass(getSCU, (String) entry.getKey(), (String) entry.getValue());

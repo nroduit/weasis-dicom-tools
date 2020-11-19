@@ -356,7 +356,7 @@ public class ForwardUtil {
             UploadSingleFile stow = destination.getStowrsSingleFile();
             String tsuid = p.getTsuid();
             boolean originalTsuid = true;
-            if(UID.ImplicitVRLittleEndian.equals(tsuid) || UID.ExplicitVRBigEndianRetired.equals(tsuid)) {
+            if(UID.ImplicitVRLittleEndian.equals(tsuid) || UID.ExplicitVRBigEndian.equals(tsuid)) {
                 p.setOutputTsuid(UID.ExplicitVRLittleEndian);
                 originalTsuid = false;
             }

@@ -95,13 +95,13 @@ public class FindSCU implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(FindSCU.class);
 
     public enum InformationModel {
-        PatientRoot(UID.PatientRootQueryRetrieveInformationModelFIND, "STUDY"),
-        StudyRoot(UID.StudyRootQueryRetrieveInformationModelFIND, "STUDY"),
-        PatientStudyOnly(UID.PatientStudyOnlyQueryRetrieveInformationModelFINDRetired, "STUDY"),
-        MWL(UID.ModalityWorklistInformationModelFIND, null), UPSPull(UID.UnifiedProcedureStepPullSOPClass, null),
-        UPSWatch(UID.UnifiedProcedureStepWatchSOPClass, null),
-        HangingProtocol(UID.HangingProtocolInformationModelFIND, null),
-        ColorPalette(UID.ColorPaletteQueryRetrieveInformationModelFIND, null);
+        PatientRoot(UID.PatientRootQueryRetrieveInformationModelFind, "STUDY"),
+        StudyRoot(UID.StudyRootQueryRetrieveInformationModelFind, "STUDY"),
+        PatientStudyOnly(UID.PatientStudyOnlyQueryRetrieveInformationModelFind, "STUDY"),
+        MWL(UID.ModalityWorklistInformationModelFind, null), UPSPull(UID.UnifiedProcedureStepPull, null),
+        UPSWatch(UID.UnifiedProcedureStepWatch, null),
+        HangingProtocol(UID.HangingProtocolInformationModelFind, null),
+        ColorPalette(UID.ColorPaletteQueryRetrieveInformationModelFind, null);
 
         final String cuid;
         final String level;

@@ -10,6 +10,7 @@
  *******************************************************************************/
 package org.weasis.dicom;
 
+import java.util.EnumSet;
 import org.apache.log4j.BasicConfigurator;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.net.QueryOption;
@@ -54,7 +55,7 @@ public class CMoveNetTest {
         DicomNode calling = new DicomNode("WEASIS-SCU");
         DicomNode called = new DicomNode("DCM4CHEE", "localhost", 11112);
         AdvancedParams options = new AdvancedParams();
-        options.getQueryOptions().add(QueryOption.RELATIONAL); // Required for QueryRetrieveLevel other than study
+        options.setQueryOptions(EnumSet.of(QueryOption.RELATIONAL)); // Required for QueryRetrieveLevel other than study
         DicomState state = CMove.process(options, calling, called, "WEASIS-SCU", progress, params);
 
         // Should never happen

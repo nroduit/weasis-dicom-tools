@@ -55,13 +55,13 @@ public class RelatedGeneralSOPClasses {
 
     public void init(Properties props) {
         for (String cuid : props.stringPropertyNames()) {
-            commonExtNegs.put(cuid, new CommonExtendedNegotiation(cuid, UID.StorageServiceClass,
+            commonExtNegs.put(cuid, new CommonExtendedNegotiation(cuid, UID.Storage,
                 StringUtils.split(props.getProperty(cuid), ',')));
         }
     }
 
     public CommonExtendedNegotiation getCommonExtendedNegotiation(String cuid) {
         CommonExtendedNegotiation commonExtNeg = commonExtNegs.get(cuid);
-        return commonExtNeg != null ? commonExtNeg : new CommonExtendedNegotiation(cuid, UID.StorageServiceClass);
+        return commonExtNeg != null ? commonExtNeg : new CommonExtendedNegotiation(cuid, UID.Storage);
     }
 }

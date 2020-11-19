@@ -11,6 +11,7 @@
 package org.weasis.dicom.op;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.text.MessageFormat;
 import java.util.List;
@@ -208,7 +209,9 @@ public class CStore {
             if (url == null) {
                 p.load(storescu.getClass().getResourceAsStream("rel-sop-classes.properties"));
             } else {
-                p.load(url.openStream());
+                try (InputStream in = url.openStream()) {
+                    p.load(in);
+                }
             }
         } catch (Exception e) {
             LOGGER.error("Read sop classes", e);

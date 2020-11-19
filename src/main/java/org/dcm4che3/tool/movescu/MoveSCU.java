@@ -70,12 +70,12 @@ public class MoveSCU extends Device implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(MoveSCU.class);
 
     public enum InformationModel {
-        PatientRoot(UID.PatientRootQueryRetrieveInformationModelMOVE, "STUDY"),
-        StudyRoot(UID.StudyRootQueryRetrieveInformationModelMOVE, "STUDY"),
-        PatientStudyOnly(UID.PatientStudyOnlyQueryRetrieveInformationModelMOVERetired, "STUDY"),
-        CompositeInstanceRoot(UID.CompositeInstanceRootRetrieveMOVE, "IMAGE"),
-        HangingProtocol(UID.HangingProtocolInformationModelMOVE, null),
-        ColorPalette(UID.ColorPaletteQueryRetrieveInformationModelMOVE, null);
+        PatientRoot(UID.PatientRootQueryRetrieveInformationModelMove, "STUDY"),
+        StudyRoot(UID.StudyRootQueryRetrieveInformationModelMove, "STUDY"),
+        PatientStudyOnly(UID.PatientStudyOnlyQueryRetrieveInformationModelMove, "STUDY"),
+        CompositeInstanceRoot(UID.CompositeInstanceRootRetrieveMove, "IMAGE"),
+        HangingProtocol(UID.HangingProtocolInformationModelMove, null),
+        ColorPalette(UID.ColorPaletteQueryRetrieveInformationModelMove, null);
 
         final String cuid;
         final String level;

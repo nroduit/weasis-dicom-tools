@@ -62,11 +62,8 @@ public class CLIUtils {
         if (p == null) {
             p = new Properties();
         }
-        InputStream in = StreamUtils.openFileOrURL(url);
-        try {
+        try (InputStream in = StreamUtils.openFileOrURL(url)) {
             p.load(in);
-        } finally {
-            SafeClose.close(in);
         }
         return p;
     }

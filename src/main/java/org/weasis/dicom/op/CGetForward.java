@@ -11,6 +11,7 @@
 package org.weasis.dicom.op;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.security.GeneralSecurityException;
 import java.text.MessageFormat;
@@ -70,13 +71,13 @@ public class CGetForward implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(CGetForward.class);
 
     public enum InformationModel {
-        PatientRoot(UID.PatientRootQueryRetrieveInformationModelGET, "STUDY"),
-        StudyRoot(UID.StudyRootQueryRetrieveInformationModelGET, "STUDY"),
-        PatientStudyOnly(UID.PatientStudyOnlyQueryRetrieveInformationModelGETRetired, "STUDY"),
-        CompositeInstanceRoot(UID.CompositeInstanceRootRetrieveGET, "IMAGE"),
-        WithoutBulkData(UID.CompositeInstanceRetrieveWithoutBulkDataGET, null),
-        HangingProtocol(UID.HangingProtocolInformationModelGET, null),
-        ColorPalette(UID.ColorPaletteQueryRetrieveInformationModelGET, null);
+        PatientRoot(UID.PatientRootQueryRetrieveInformationModelGet, "STUDY"),
+        StudyRoot(UID.StudyRootQueryRetrieveInformationModelGet, "STUDY"),
+        PatientStudyOnly(UID.PatientStudyOnlyQueryRetrieveInformationModelGet, "STUDY"),
+        CompositeInstanceRoot(UID.CompositeInstanceRootRetrieveGet, "IMAGE"),
+        WithoutBulkData(UID.CompositeInstanceRetrieveWithoutBulkDataGet, null),
+        HangingProtocol(UID.HangingProtocolInformationModelGet, null),
+        ColorPalette(UID.ColorPaletteQueryRetrieveInformationModelGet, null);
 
         final String cuid;
         final String level;
@@ -582,7 +583,9 @@ public class CGetForward implements AutoCloseable {
             if (url == null) {
                 p.load(GetSCU.class.getResourceAsStream("store-tcs.properties"));
             } else {
-                p.load(url.openStream());
+                try (InputStream in = url.openStream()) {
+                    p.load(in);
+                }
             }
             for (Entry<Object, Object> entry : p.entrySet()) {
                 configureStorageSOPClass(getSCU, (String) entry.getKey(), (String) entry.getValue());

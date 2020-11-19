@@ -40,6 +40,7 @@ package org.dcm4che3.tool.storescp;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.util.List;
 import java.util.Objects;
@@ -68,6 +69,7 @@ import org.dcm4che3.net.service.DicomServiceRegistry;
 import org.dcm4che3.tool.common.CLIUtils;
 import org.dcm4che3.util.AttributesFormat;
 import org.dcm4che3.util.SafeClose;
+import org.dcm4che3.util.StreamUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.util.FileUtil;
@@ -232,7 +234,9 @@ public class StoreSCP {
 
         try {
             if (transferCapabilityFile != null) {
-                p.load(transferCapabilityFile.openStream());
+                try (InputStream in = transferCapabilityFile.openStream()) {
+                    p.load(in);
+                }
             } else {
                 p.load(this.getClass().getResourceAsStream("sop-classes.properties"));
             }

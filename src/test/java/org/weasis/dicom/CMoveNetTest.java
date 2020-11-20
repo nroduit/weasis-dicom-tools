@@ -15,6 +15,7 @@ import org.apache.log4j.BasicConfigurator;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.net.QueryOption;
 import org.dcm4che3.net.Status;
+import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.IsEqual;
 import org.junit.Assert;
 import org.junit.Test;
@@ -45,13 +46,13 @@ public class CMoveNetTest {
          */
 
         // Move study
-        DicomParam[] params = { new DicomParam(Tag.StudyInstanceUID, "1.3.46.670589.16.5.100.20091127134147.64690") };
+        DicomParam[] params = { new DicomParam(Tag.StudyInstanceUID, "1.2.528.1.1001.100.2.3865.6101.93503564261.20070711142700372") };
         // // Move series
         // DicomParam[] params = { new DicomParam(Tag.QueryRetrieveLevel, "SERIES"),
-        // new DicomParam(Tag.SeriesInstanceUID, "2.25.62689877621998739235261278936628920157") };
+        // new DicomParam(Tag.SeriesInstanceUID, "1.2.528.1.1001.100.3.3865.6101.93503564261.20070711142700388") };
         // // Move image
         // DicomParam[] params = { new DicomParam(Tag.QueryRetrieveLevel, "IMAGE"),
-        // new DicomParam(Tag.SOPInstanceUID, "1.2.840.113543.6.6.3.4.637463244096141531813342472862196132286") };
+        // new DicomParam(Tag.SOPInstanceUID, "1.2.528.1.1001.100.4.3865.6101.93503564261.20070711142700497") };
         DicomNode calling = new DicomNode("WEASIS-SCU");
         DicomNode called = new DicomNode("DCM4CHEE", "localhost", 11112);
         AdvancedParams options = new AdvancedParams();
@@ -70,7 +71,7 @@ public class CMoveNetTest {
 
         // see org.dcm4che3.net.Status
         // See server log at http://dicomserver.co.uk/logs/
-        Assert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(Status.Success));
+        MatcherAssert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(Status.Success));
         // Assert.assertFalse("No DICOM RSP Object", state.getDicomRSP().isEmpty());
     }
 

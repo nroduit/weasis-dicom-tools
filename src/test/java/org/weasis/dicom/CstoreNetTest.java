@@ -66,7 +66,7 @@ public class CstoreNetTest {
         Attributes attrs = new Attributes();
         attrs.setString(Tag.PatientName, VR.PN, "Override^Patient^Name");
         attrs.setString(Tag.PatientID, VR.LO, "ModifiedPatientID");
-        DefaultAttributeEditor editor = new DefaultAttributeEditor(true, attrs);
+        DefaultAttributeEditor editor = new DefaultAttributeEditor(false, attrs);
         CstoreParams  cstoreParams = new CstoreParams(editor, false, null);
 
         DicomState state = CStore.process(params, calling, called, files, progress, cstoreParams);

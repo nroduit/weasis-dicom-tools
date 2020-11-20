@@ -24,6 +24,7 @@ import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.io.DicomInputStream.IncludeBulkData;
 import org.dcm4che3.net.Status;
 import org.dcm4che3.util.UIDUtils;
+import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.IsEqual;
 import org.hamcrest.core.IsNull;
 import org.junit.Assert;
@@ -57,8 +58,8 @@ public class StowNetTest {
             System.out.println("StowRS error: " + e.getMessage());
         }
 
-        Assert.assertThat("DicomState cannot be null", state, IsNull.notNullValue());
-        Assert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(Status.Success));
+        MatcherAssert.assertThat("DicomState cannot be null", state, IsNull.notNullValue());
+        MatcherAssert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(Status.Success));
         
         String message = null;
         // Upload a modify file
@@ -76,7 +77,7 @@ public class StowNetTest {
         } catch (Exception e) {
             message = e.getMessage();
         }
-        Assert.assertThat(message, message, IsNull.nullValue());
+        MatcherAssert.assertThat(message, message, IsNull.nullValue());
     }
 
 }

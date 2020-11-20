@@ -16,6 +16,7 @@ import org.apache.log4j.BasicConfigurator;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.net.Status;
+import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.IsEqual;
 import org.junit.Assert;
 import org.junit.Test;
@@ -53,7 +54,7 @@ public class CFindNetTest {
         System.out.println(state.getMessage());
         // see org.dcm4che3.net.Status
         // See server log at http://dicomserver.co.uk/logs/
-        Assert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(Status.Success));
+        MatcherAssert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(Status.Success));
         Assert.assertFalse("No DICOM RSP Object", state.getDicomRSP().isEmpty());
     }
 

@@ -15,6 +15,7 @@ import java.io.IOException;
 import org.apache.log4j.BasicConfigurator;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.net.Status;
+import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.IsEqual;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -47,7 +48,7 @@ public class CGetNetTest {
          * The following parameters must be changed to get a successful test.
          */
 
-        DicomParam[] params = { new DicomParam(Tag.StudyInstanceUID, "1.2.826.0.1.3680043.11.111") };
+        DicomParam[] params = { new DicomParam(Tag.StudyInstanceUID, "1.2.528.1.1001.100.2.3865.6101.93503564261.20070711142700372") };
         DicomNode calling = new DicomNode("WEASIS-SCU");
         DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
 
@@ -65,7 +66,7 @@ public class CGetNetTest {
 
         // see org.dcm4che3.net.Status
         // See server log at http://dicomserver.co.uk/logs/
-        Assert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(Status.Success));
+        MatcherAssert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(Status.Success));
     }
 
 }

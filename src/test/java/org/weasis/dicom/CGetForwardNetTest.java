@@ -15,6 +15,7 @@ import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.net.Status;
+import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.IsEqual;
 import org.junit.Assert;
 import org.junit.Test;
@@ -53,7 +54,7 @@ public class CGetForwardNetTest {
         DicomNode calling = new DicomNode("WEASIS-SCU");
         DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
         DicomNode destination = new DicomNode("DCM4CHEE", "localhost", 11112);
-        String studyUID = "1.2.826.0.1.3680043.11.120.1";
+        String studyUID = "1.2.528.1.1001.100.2.3865.6101.93503564261.20070711142700372";
 
         Attributes attrs = new Attributes();
         attrs.setString(Tag.PatientName, VR.PN, "Override^Patient^Name");
@@ -74,7 +75,7 @@ public class CGetForwardNetTest {
 
         // see org.dcm4che3.net.Status
         // See server log at http://dicomserver.co.uk/logs/
-        Assert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(Status.Pending));
+        MatcherAssert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(Status.Success));
     }
 
 }

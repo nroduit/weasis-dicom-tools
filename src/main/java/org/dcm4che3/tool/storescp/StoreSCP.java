@@ -47,7 +47,6 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
@@ -58,6 +57,7 @@ import org.dcm4che3.net.ApplicationEntity;
 import org.dcm4che3.net.Association;
 import org.dcm4che3.net.Connection;
 import org.dcm4che3.net.Device;
+import org.dcm4che3.net.Dimse;
 import org.dcm4che3.net.PDVInputStream;
 import org.dcm4che3.net.Status;
 import org.dcm4che3.net.TransferCapability;
@@ -69,7 +69,6 @@ import org.dcm4che3.net.service.DicomServiceRegistry;
 import org.dcm4che3.tool.common.CLIUtils;
 import org.dcm4che3.util.AttributesFormat;
 import org.dcm4che3.util.SafeClose;
-import org.dcm4che3.util.StreamUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.util.FileUtil;
@@ -91,9 +90,11 @@ public class StoreSCP {
     private final Connection conn = new Connection();
     private final File storageDir;
     private final List<DicomNode> authorizedCallingNodes;
-    private volatile AttributesFormat filePathFormat;
-    private volatile Pattern regex;
+    private AttributesFormat filePathFormat;
+    private Pattern regex;
     private volatile int status = Status.Success;
+    private int[] receiveDelays;
+    private int[] responseDelays;
 
     private final BasicCStoreSCP cstoreSCP = new BasicCStoreSCP("*") {
 
@@ -111,46 +112,61 @@ public class StoreSCP {
                     return;
                 }
             }
-
-            rsp.setInt(Tag.Status, VR.US, status);
-
-            String cuid = rq.getString(Tag.AffectedSOPClassUID);
-            String iuid = rq.getString(Tag.AffectedSOPInstanceUID);
-            String tsuid = pc.getTransferSyntax();
-            File file = new File(storageDir, TMP_DIR + File.separator + iuid);
+            sleep(as, receiveDelays);
             try {
-                Attributes fmi = as.createFileMetaInformation(iuid, cuid, tsuid);
-                storeTo(as, fmi, data, file);
-                String filename;
-                if (filePathFormat == null) {
-                    filename = iuid;
-                } else {
-                    Attributes a = fmi;
-                    Matcher regexMatcher = regex.matcher(filePathFormat.toString());
-                    while (regexMatcher.find()) {
-                        if (!regexMatcher.group(1).startsWith("0002")) {
-                            a = parse(file);
-                            a.addAll(fmi);
-                            break;
+                rsp.setInt(Tag.Status, VR.US, status);
+
+                String cuid = rq.getString(Tag.AffectedSOPClassUID);
+                String iuid = rq.getString(Tag.AffectedSOPInstanceUID);
+                String tsuid = pc.getTransferSyntax();
+                File file = new File(storageDir, TMP_DIR + File.separator + iuid);
+                try {
+                    Attributes fmi = as.createFileMetaInformation(iuid, cuid, tsuid);
+                    storeTo(as, fmi, data, file);
+                    String filename;
+                    if (filePathFormat == null) {
+                        filename = iuid;
+                    } else {
+                        Attributes a = fmi;
+                        Matcher regexMatcher = regex.matcher(filePathFormat.toString());
+                        while (regexMatcher.find()) {
+                            if (!regexMatcher.group(1).startsWith("0002")) {
+                                a = parse(file);
+                                a.addAll(fmi);
+                                break;
+                            }
                         }
+                        filename = filePathFormat.format(a);
                     }
-                    filename = filePathFormat.format(a);
+                    renameTo(as, file, new File(storageDir, filename));
+                } catch (Exception e) {
+                    FileUtil.delete(file);
+                    throw new DicomServiceException(Status.ProcessingFailure, e);
                 }
-                renameTo(as, file, new File(storageDir, filename));
-            } catch (Exception e) {
-                deleteFile(as, file);
-                throw new DicomServiceException(Status.ProcessingFailure, e);
+            } finally {
+                sleep(as, responseDelays);
             }
         }
-
     };
+
+    private void sleep(Association as, int[] delays) {
+        int responseDelay = delays != null
+            ? delays[(as.getNumberOfReceived(Dimse.C_STORE_RQ) - 1) % delays.length]
+            : 0;
+        if (responseDelay > 0) {
+            try {
+                Thread.sleep(responseDelay);
+            } catch (InterruptedException ignore) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
 
     /**
      * @param storageDir
      *            the base path of storage folder
-     * @throws IOException
      */
-    public StoreSCP(File storageDir) throws IOException {
+    public StoreSCP(File storageDir) {
         this(storageDir, null);
     }
 
@@ -160,9 +176,8 @@ public class StoreSCP {
      * @param authorizedCallingNodes
      *            the list of authorized nodes to call store files (authorizedCallingNodes allow to check hostname
      *            unlike acceptedCallingAETitles)
-     * @throws IOException
      */
-    public StoreSCP(File storageDir, List<DicomNode> authorizedCallingNodes) throws IOException {
+    public StoreSCP(File storageDir, List<DicomNode> authorizedCallingNodes) {
         this.storageDir = Objects.requireNonNull(storageDir);
         device.setDimseRQHandler(createServiceRegistry());
         device.addConnection(conn);
@@ -175,12 +190,9 @@ public class StoreSCP {
     private void storeTo(Association as, Attributes fmi, PDVInputStream data, File file) throws IOException {
         LOGGER.debug("{}: M-WRITE {}", as, file);
         file.getParentFile().mkdirs();
-        DicomOutputStream out = new DicomOutputStream(file);
-        try {
+        try (DicomOutputStream out = new DicomOutputStream(file)) {
             out.writeFileMetaInformation(fmi);
             data.copyTo(out);
-        } finally {
-            SafeClose.close(out);
         }
     }
 
@@ -192,20 +204,10 @@ public class StoreSCP {
     }
 
     private static Attributes parse(File file) throws IOException {
-        DicomInputStream in = new DicomInputStream(file);
-        try {
+        try (DicomInputStream in = new DicomInputStream(file)) {
             in.setIncludeBulkData(IncludeBulkData.NO);
             return in.readDataset(-1, Tag.PixelData);
-        } finally {
-            SafeClose.close(in);
         }
-    }
-
-    private static void deleteFile(Association as, File file) {
-        if (file.delete())
-            LOGGER.info("{}: M-DELETE {}", as, file);
-        else
-            LOGGER.warn("{}: M-DELETE {} failed!", as, file);
     }
 
     private DicomServiceRegistry createServiceRegistry() {
@@ -229,6 +231,13 @@ public class StoreSCP {
         this.status = status;
     }
 
+    public void setReceiveDelays(int[] receiveDelays) {
+        this.receiveDelays = receiveDelays;
+    }
+
+    public void setResponseDelays(int[] responseDelays) {
+        this.responseDelays = responseDelays;
+    }
     public void loadDefaultTransferCapability(URL transferCapabilityFile) {
         Properties p = new Properties();
 

@@ -103,7 +103,7 @@ public class CLIUtils {
         }
         int tag = tags[tags.length - 1];
         VR vr = ElementDictionary.vrOf(tag, item.getPrivateCreator(tag));
-        if (ss.length == 0) {
+        if (ss.length == 0 || ss.length == 1 && ss[0].isEmpty()) {
             if (vr == VR.SQ) {
                 item.newSequence(tag, 1).add(new Attributes(0));
             } else {
@@ -115,12 +115,18 @@ public class CLIUtils {
     }
 
     public static void addAttributes(Attributes attrs, String[] optVals) {
-        if (optVals != null) {
-            for (int i = 1; i < optVals.length; i++, i++) {
-                addAttributes(attrs, toTags(StringUtils.split(optVals[i - 1], '/')),
-                    StringUtils.split(optVals[i], '/'));
+        if (optVals != null)
+            for (String optVal : optVals) {
+                int delim = optVal.indexOf('=');
+                if (delim < 0) {
+                    addAttributes(attrs,
+                            toTags(StringUtils.split(optVal, '/')));
+                } else {
+                    addAttributes(attrs,
+                            toTags(StringUtils.split(optVal.substring(0, delim), '/')),
+                            optVal.substring(delim + 1));
+                }
             }
-        }
     }
 
     public static void addEmptyAttributes(Attributes attrs, String[] optVals) {

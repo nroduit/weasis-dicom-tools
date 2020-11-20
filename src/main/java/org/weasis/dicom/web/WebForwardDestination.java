@@ -64,7 +64,7 @@ public class WebForwardDestination extends ForwardDestination {
         return stowRS.getRequestURL();
     }
 
-    public UploadSingleFile getStowrsSingleFile() throws IOException {
+    public UploadSingleFile getStowrsSingleFile() {
         return stowRS;
     }
 

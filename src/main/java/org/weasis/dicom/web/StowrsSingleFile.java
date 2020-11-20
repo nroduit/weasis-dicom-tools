@@ -34,7 +34,7 @@ import org.weasis.core.util.FileUtil;
 
 public class StowrsSingleFile extends AbstractStowrs implements UploadSingleFile {
 
-    public StowrsSingleFile(String requestURL, Multipart.ContentType contentType) throws IOException {
+    public StowrsSingleFile(String requestURL, Multipart.ContentType contentType) {
         this(requestURL, contentType, null, null);
     }
 

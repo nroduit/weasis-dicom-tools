@@ -43,6 +43,7 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.concurrent.ExecutorService;
 
+import java.util.concurrent.TimeUnit;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.ElementDictionary;
 import org.dcm4che3.data.Tag;
@@ -118,6 +119,7 @@ public class GetSCU implements AutoCloseable {
     private Attributes keys = new Attributes();
     private int[] inFilter = DEF_IN_FILTER;
     private Association as;
+    private int cancelAfter;
     private final DicomState state;
     private DimseRSPHandler rspHandler;
 
@@ -220,6 +222,10 @@ public class GetSCU implements AutoCloseable {
         this.priority = priority;
     }
 
+    public void setCancelAfter(int cancelAfter) {
+        this.cancelAfter = cancelAfter;
+    }
+
     public final void setInformationModel(InformationModel model, String[] tss, boolean relational) {
         this.model = model;
         rq.addPresentationContext(new PresentationContext(1, model.cuid, tss));
@@ -278,7 +284,7 @@ public class GetSCU implements AutoCloseable {
     }
 
     private void retrieve(Attributes keys) throws IOException, InterruptedException {
-        DimseRSPHandler rspHandler = new DimseRSPHandler(as.nextMessageID()) {
+        final DimseRSPHandler rspHandler = new DimseRSPHandler(as.nextMessageID()) {
 
             @Override
             public void onDimseRSP(Association as, Attributes cmd, Attributes data) {
@@ -288,6 +294,17 @@ public class GetSCU implements AutoCloseable {
         };
 
         retrieve(keys, rspHandler);
+        if (cancelAfter > 0) {
+            device.schedule(() -> {
+                    try {
+                        rspHandler.cancel(as);
+                    } catch (IOException e) {
+                         LOGGER.error("Cancel C-GET", e);
+                    }
+                },
+                cancelAfter,
+                TimeUnit.MILLISECONDS);
+        }
     }
 
     public void retrieve(DimseRSPHandler rspHandler) throws IOException, InterruptedException {

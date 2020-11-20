@@ -98,8 +98,10 @@ public class FindSCU implements AutoCloseable {
         PatientRoot(UID.PatientRootQueryRetrieveInformationModelFind, "STUDY"),
         StudyRoot(UID.StudyRootQueryRetrieveInformationModelFind, "STUDY"),
         PatientStudyOnly(UID.PatientStudyOnlyQueryRetrieveInformationModelFind, "STUDY"),
-        MWL(UID.ModalityWorklistInformationModelFind, null), UPSPull(UID.UnifiedProcedureStepPull, null),
+        MWL(UID.ModalityWorklistInformationModelFind, null),
+        UPSPull(UID.UnifiedProcedureStepPull, null),
         UPSWatch(UID.UnifiedProcedureStepWatch, null),
+        UPSQuery(UID.UnifiedProcedureStepQuery, null),
         HangingProtocol(UID.HangingProtocolInformationModelFind, null),
         ColorPalette(UID.ColorPaletteQueryRetrieveInformationModelFind, null);
 

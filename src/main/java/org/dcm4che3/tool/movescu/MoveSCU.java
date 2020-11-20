@@ -42,6 +42,7 @@ import java.io.File;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 
+import java.util.concurrent.TimeUnit;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.ElementDictionary;
 import org.dcm4che3.data.Tag;
@@ -103,6 +104,8 @@ public class MoveSCU extends Device implements AutoCloseable {
     private Attributes keys = new Attributes();
     private int[] inFilter = DEF_IN_FILTER;
     private transient Association as;
+    private int cancelAfter;
+    private boolean releaseEager;
     private final transient DicomState state;
 
     public MoveSCU() throws IOException {
@@ -121,6 +124,14 @@ public class MoveSCU extends Device implements AutoCloseable {
         this.priority = priority;
     }
 
+    public void setCancelAfter(int cancelAfter) {
+        this.cancelAfter = cancelAfter;
+    }
+
+    public void setReleaseEager(boolean releaseEager) {
+        this.releaseEager = releaseEager;
+    }
+
     public final void setInformationModel(InformationModel model, String[] tss, boolean relational) {
         this.model = model;
         rq.addPresentationContext(new PresentationContext(1, model.cuid, tss));
@@ -131,7 +142,6 @@ public class MoveSCU extends Device implements AutoCloseable {
             addLevel(model.level);
         }
     }
-    
 
     public void addLevel(String s) {
         keys.setString(Tag.QueryRetrieveLevel, VR.CS, s);
@@ -217,6 +227,20 @@ public class MoveSCU extends Device implements AutoCloseable {
             }
         };
         as.cmove(model.cuid, priority, keys, null, destination, rspHandler);
+        if (cancelAfter > 0) {
+            schedule(() -> {
+                try {
+                    rspHandler.cancel(as);
+                    if (releaseEager) {
+                        as.release();
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            },
+                cancelAfter,
+                TimeUnit.MILLISECONDS);
+        }
     }
 
     public Connection getConnection() {

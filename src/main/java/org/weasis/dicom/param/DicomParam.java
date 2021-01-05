@@ -1,47 +1,45 @@
-/*******************************************************************************
- * Copyright (c) 2009-2019 Weasis Team and others.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v2.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v20.html
+/*
+ * Copyright (c) 2014-2019 Weasis Team and other contributors.
  *
- * Contributors:
- *     Nicolas Roduit - initial API and implementation
- *******************************************************************************/
+ * This program and the accompanying materials are made available under the terms of the Eclipse
+ * Public License 2.0 which is available at http://www.eclipse.org/legal/epl-2.0, or the Apache
+ * License, Version 2.0 which is available at https://www.apache.org/licenses/LICENSE-2.0.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
+ */
 package org.weasis.dicom.param;
 
 import org.dcm4che3.data.ElementDictionary;
 
 public class DicomParam {
 
-    private final int tag;
-    private final String[] values;
-    private final int[] parentSeqTags;
+  private final int tag;
+  private final String[] values;
+  private final int[] parentSeqTags;
 
-    public DicomParam(int tag, String... values) {
-        this(null, tag, values);
-    }
+  public DicomParam(int tag, String... values) {
+    this(null, tag, values);
+  }
 
-    public DicomParam(int[] parentSeqTags, int tag, String... values) {
-        this.tag = tag;
-        this.values = values;
-        this.parentSeqTags = parentSeqTags;
-    }
+  public DicomParam(int[] parentSeqTags, int tag, String... values) {
+    this.tag = tag;
+    this.values = values;
+    this.parentSeqTags = parentSeqTags;
+  }
 
-    public int getTag() {
-        return tag;
-    }
+  public int getTag() {
+    return tag;
+  }
 
-    public String[] getValues() {
-        return values;
-    }
+  public String[] getValues() {
+    return values;
+  }
 
-    public int[] getParentSeqTags() {
-        return parentSeqTags;
-    }
+  public int[] getParentSeqTags() {
+    return parentSeqTags;
+  }
 
-    public String getTagName() {
-        return ElementDictionary.keywordOf(tag, null);
-    }
-
+  public String getTagName() {
+    return ElementDictionary.keywordOf(tag, null);
+  }
 }

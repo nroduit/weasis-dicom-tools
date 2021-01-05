@@ -1,37 +1,32 @@
-/*******************************************************************************
- * Copyright (c) 2009-2019 Weasis Team and others.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v2.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v20.html
+/*
+ * Copyright (c) 2017-2020 Weasis Team and other contributors.
  *
- * Contributors:
- *     Nicolas Roduit - initial API and implementation
- *******************************************************************************/
+ * This program and the accompanying materials are made available under the terms of the Eclipse
+ * Public License 2.0 which is available at http://www.eclipse.org/legal/epl-2.0, or the Apache
+ * License, Version 2.0 which is available at https://www.apache.org/licenses/LICENSE-2.0.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
+ */
 package org.weasis.dicom.util;
 
-import java.io.InputStream;
 import java.util.Set;
 import org.dcm4che3.data.UID;
 import org.dcm4che3.net.Association;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class ForwardUtil {
 
-    private ForwardUtil() {
+  private ForwardUtil() {}
+
+  public static String selectTransferSyntax(Association as, String cuid, String filets) {
+    Set<String> tss = as.getTransferSyntaxesFor(cuid);
+    if (tss.contains(filets)) {
+      return filets;
     }
 
-    public static String selectTransferSyntax(Association as, String cuid, String filets) {
-        Set<String> tss = as.getTransferSyntaxesFor(cuid);
-        if (tss.contains(filets)) {
-            return filets;
-        }
-
-        if (tss.contains(UID.ExplicitVRLittleEndian)) {
-            return UID.ExplicitVRLittleEndian;
-        }
-
-        return UID.ImplicitVRLittleEndian;
+    if (tss.contains(UID.ExplicitVRLittleEndian)) {
+      return UID.ExplicitVRLittleEndian;
     }
+
+    return UID.ImplicitVRLittleEndian;
+  }
 }

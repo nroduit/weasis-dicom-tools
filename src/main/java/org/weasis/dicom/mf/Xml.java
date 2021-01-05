@@ -1,19 +1,17 @@
-/*******************************************************************************
- * Copyright (c) 2009-2019 Weasis Team and others.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v2.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v20.html
+/*
+ * Copyright (c) 2017-2020 Weasis Team and other contributors.
  *
- * Contributors:
- *     Nicolas Roduit - initial API and implementation
- *******************************************************************************/
+ * This program and the accompanying materials are made available under the terms of the Eclipse
+ * Public License 2.0 which is available at http://www.eclipse.org/legal/epl-2.0, or the Apache
+ * License, Version 2.0 which is available at https://www.apache.org/licenses/LICENSE-2.0.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
+ */
 package org.weasis.dicom.mf;
 
 import java.io.IOException;
 import java.io.Writer;
 import java.util.List;
-
 import org.dcm4che3.data.ElementDictionary;
 import org.dcm4che3.util.TagUtils;
 import org.slf4j.Logger;
@@ -22,77 +20,77 @@ import org.weasis.core.util.EscapeChars;
 import org.weasis.core.util.StringUtil;
 
 public interface Xml {
-    static final Logger LOGGER = LoggerFactory.getLogger(Xml.class);
+  static final Logger LOGGER = LoggerFactory.getLogger(Xml.class);
 
-    enum Level {
-        PATIENT("Patient"), //$NON-NLS-1$
-        STUDY("Study"), //$NON-NLS-1$
-        SERIES("Series"), //$NON-NLS-1$
-        INSTANCE("Instance"), //$NON-NLS-1$
-        FRAME("Frame"); //$NON-NLS-1$
+  enum Level {
+    PATIENT("Patient"), // $NON-NLS-1$
+    STUDY("Study"), // $NON-NLS-1$
+    SERIES("Series"), // $NON-NLS-1$
+    INSTANCE("Instance"), // $NON-NLS-1$
+    FRAME("Frame"); // $NON-NLS-1$
 
-        private final String tag;
+    private final String tag;
 
-        Level(String tag) {
-            this.tag = tag;
-        }
-
-        public String getTagName() {
-            return tag;
-        }
-
-        @Override
-        public String toString() {
-            return tag;
-        }
+    Level(String tag) {
+      this.tag = tag;
     }
 
-    void toXml(Writer result) throws IOException;
-
-    static void addXmlAttribute(int tagID, String value, Writer result) throws IOException {
-        if (StringUtil.hasText(value)) {
-            String key = ElementDictionary.getStandardElementDictionary().keywordOf(tagID);
-            if (key == null) {
-                LOGGER.error("Cannot find keyword of tagID {}", TagUtils.toString(tagID));
-            } else {
-                result.append(key);
-                result.append("=\"");
-                result.append(EscapeChars.forXML(value));
-                result.append("\" ");
-            }
-        }
+    public String getTagName() {
+      return tag;
     }
 
-    static void addXmlAttribute(String tag, String value, Writer result) throws IOException {
-        if (StringUtil.hasText(tag) && StringUtil.hasText(value)) {
-            result.append(tag);
-            result.append("=\"");
-            result.append(EscapeChars.forXML(value));
-            result.append("\" ");
-        }
+    @Override
+    public String toString() {
+      return tag;
     }
+  }
 
-    static void addXmlAttribute(String tag, Boolean value, Writer result) throws IOException {
-        if (tag != null && value != null) {
-            result.append(tag);
-            result.append("=\"");
-            result.append(value.toString());
-            result.append("\" ");
-        }
-    }
+  void toXml(Writer result) throws IOException;
 
-    static void addXmlAttribute(String tag, List<String> value, Writer result) throws IOException {
-        if (tag != null && value != null) {
-            result.append(tag);
-            result.append("=\"");
-            int size = value.size();
-            for (int i = 0; i < size - 1; i++) {
-                result.append(EscapeChars.forXML(value.get(i))).append(",");
-            }
-            if (size > 0) {
-                result.append(EscapeChars.forXML(value.get(size - 1)));
-            }
-            result.append("\" ");
-        }
+  static void addXmlAttribute(int tagID, String value, Writer result) throws IOException {
+    if (StringUtil.hasText(value)) {
+      String key = ElementDictionary.getStandardElementDictionary().keywordOf(tagID);
+      if (key == null) {
+        LOGGER.error("Cannot find keyword of tagID {}", TagUtils.toString(tagID));
+      } else {
+        result.append(key);
+        result.append("=\"");
+        result.append(EscapeChars.forXML(value));
+        result.append("\" ");
+      }
     }
+  }
+
+  static void addXmlAttribute(String tag, String value, Writer result) throws IOException {
+    if (StringUtil.hasText(tag) && StringUtil.hasText(value)) {
+      result.append(tag);
+      result.append("=\"");
+      result.append(EscapeChars.forXML(value));
+      result.append("\" ");
+    }
+  }
+
+  static void addXmlAttribute(String tag, Boolean value, Writer result) throws IOException {
+    if (tag != null && value != null) {
+      result.append(tag);
+      result.append("=\"");
+      result.append(value.toString());
+      result.append("\" ");
+    }
+  }
+
+  static void addXmlAttribute(String tag, List<String> value, Writer result) throws IOException {
+    if (tag != null && value != null) {
+      result.append(tag);
+      result.append("=\"");
+      int size = value.size();
+      for (int i = 0; i < size - 1; i++) {
+        result.append(EscapeChars.forXML(value.get(i))).append(",");
+      }
+      if (size > 0) {
+        result.append(EscapeChars.forXML(value.get(size - 1)));
+      }
+      result.append("\" ");
+    }
+  }
 }

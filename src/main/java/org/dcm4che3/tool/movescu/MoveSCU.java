@@ -1,47 +1,17 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+/*
+ * Copyright (c) 2014-2020 Weasis Team and other contributors.
  *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
+ * This program and the accompanying materials are made available under the terms of the Eclipse
+ * Public License 2.0 which is available at http://www.eclipse.org/legal/epl-2.0, or the Apache
+ * License, Version 2.0 which is available at https://www.apache.org/licenses/LICENSE-2.0.
  *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is part of dcm4che, an implementation of DICOM(TM) in
- * Java(TM), hosted at https://github.com/dcm4che.
- *
- * The Initial Developer of the Original Code is
- * Agfa Healthcare.
- * Portions created by the Initial Developer are Copyright (C) 2011
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- * See @authors listed below
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
-
+ * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
+ */
 package org.dcm4che3.tool.movescu;
 
 import java.io.File;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-
 import java.util.concurrent.TimeUnit;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.ElementDictionary;
@@ -63,192 +33,191 @@ import org.slf4j.LoggerFactory;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
 
-/**
- * @author Gunter Zeilinger <gunterze@gmail.com>
- * 
- */
+/** @author Gunter Zeilinger <gunterze@gmail.com> */
 public class MoveSCU extends Device implements AutoCloseable {
-    private static final Logger LOGGER = LoggerFactory.getLogger(MoveSCU.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(MoveSCU.class);
 
-    public enum InformationModel {
-        PatientRoot(UID.PatientRootQueryRetrieveInformationModelMove, "STUDY"),
-        StudyRoot(UID.StudyRootQueryRetrieveInformationModelMove, "STUDY"),
-        PatientStudyOnly(UID.PatientStudyOnlyQueryRetrieveInformationModelMove, "STUDY"),
-        CompositeInstanceRoot(UID.CompositeInstanceRootRetrieveMove, "IMAGE"),
-        HangingProtocol(UID.HangingProtocolInformationModelMove, null),
-        ColorPalette(UID.ColorPaletteQueryRetrieveInformationModelMove, null);
+  public enum InformationModel {
+    PatientRoot(UID.PatientRootQueryRetrieveInformationModelMove, "STUDY"),
+    StudyRoot(UID.StudyRootQueryRetrieveInformationModelMove, "STUDY"),
+    PatientStudyOnly(UID.PatientStudyOnlyQueryRetrieveInformationModelMove, "STUDY"),
+    CompositeInstanceRoot(UID.CompositeInstanceRootRetrieveMove, "IMAGE"),
+    HangingProtocol(UID.HangingProtocolInformationModelMove, null),
+    ColorPalette(UID.ColorPaletteQueryRetrieveInformationModelMove, null);
 
-        final String cuid;
-        final String level;
+    final String cuid;
+    final String level;
 
-        InformationModel(String cuid, String level) {
-            this.cuid = cuid;
-            this.level = level;
-        }
-
-        public String getCuid() {
-            return cuid;
-        }
-
+    InformationModel(String cuid, String level) {
+      this.cuid = cuid;
+      this.level = level;
     }
 
-    private static final int[] DEF_IN_FILTER = { Tag.SOPInstanceUID, Tag.StudyInstanceUID, Tag.SeriesInstanceUID };
-
-    private final ApplicationEntity ae = new ApplicationEntity("MOVESCU");
-    private final Connection conn = new Connection();
-    private final Connection remote = new Connection();
-    private final transient AAssociateRQ rq = new AAssociateRQ();
-    private int priority;
-    private String destination;
-    private InformationModel model;
-    private Attributes keys = new Attributes();
-    private int[] inFilter = DEF_IN_FILTER;
-    private transient Association as;
-    private int cancelAfter;
-    private boolean releaseEager;
-    private final transient DicomState state;
-
-    public MoveSCU() throws IOException {
-        this(null);
+    public String getCuid() {
+      return cuid;
     }
+  }
 
-    public MoveSCU(DicomProgress progress) throws IOException {
-        super("movescu");
-        addConnection(conn);
-        addApplicationEntity(ae);
-        ae.addConnection(conn);
-        state = new DicomState(progress);
+  private static final int[] DEF_IN_FILTER = {
+    Tag.SOPInstanceUID, Tag.StudyInstanceUID, Tag.SeriesInstanceUID
+  };
+
+  private final ApplicationEntity ae = new ApplicationEntity("MOVESCU");
+  private final Connection conn = new Connection();
+  private final Connection remote = new Connection();
+  private final transient AAssociateRQ rq = new AAssociateRQ();
+  private int priority;
+  private String destination;
+  private InformationModel model;
+  private Attributes keys = new Attributes();
+  private int[] inFilter = DEF_IN_FILTER;
+  private transient Association as;
+  private int cancelAfter;
+  private boolean releaseEager;
+  private final transient DicomState state;
+
+  public MoveSCU() throws IOException {
+    this(null);
+  }
+
+  public MoveSCU(DicomProgress progress) throws IOException {
+    super("movescu");
+    addConnection(conn);
+    addApplicationEntity(ae);
+    ae.addConnection(conn);
+    state = new DicomState(progress);
+  }
+
+  public final void setPriority(int priority) {
+    this.priority = priority;
+  }
+
+  public void setCancelAfter(int cancelAfter) {
+    this.cancelAfter = cancelAfter;
+  }
+
+  public void setReleaseEager(boolean releaseEager) {
+    this.releaseEager = releaseEager;
+  }
+
+  public final void setInformationModel(InformationModel model, String[] tss, boolean relational) {
+    this.model = model;
+    rq.addPresentationContext(new PresentationContext(1, model.cuid, tss));
+    if (relational) {
+      rq.addExtendedNegotiation(new ExtendedNegotiation(model.cuid, new byte[] {1}));
     }
-
-    public final void setPriority(int priority) {
-        this.priority = priority;
+    if (model.level != null) {
+      addLevel(model.level);
     }
+  }
 
-    public void setCancelAfter(int cancelAfter) {
-        this.cancelAfter = cancelAfter;
+  public void addLevel(String s) {
+    keys.setString(Tag.QueryRetrieveLevel, VR.CS, s);
+  }
+
+  public final void setDestination(String destination) {
+    this.destination = destination;
+  }
+
+  public void addKey(int tag, String... ss) {
+    VR vr = ElementDictionary.vrOf(tag, keys.getPrivateCreator(tag));
+    keys.setString(tag, vr, ss);
+  }
+
+  public final void setInputFilter(int[] inFilter) {
+    this.inFilter = inFilter;
+  }
+
+  public ApplicationEntity getApplicationEntity() {
+    return ae;
+  }
+
+  public Connection getRemoteConnection() {
+    return remote;
+  }
+
+  public AAssociateRQ getAAssociateRQ() {
+    return rq;
+  }
+
+  public Association getAssociation() {
+    return as;
+  }
+
+  public Attributes getKeys() {
+    return keys;
+  }
+
+  public void open()
+      throws IOException, InterruptedException, IncompatibleConnectionException,
+          GeneralSecurityException {
+    as = ae.connect(conn, remote, rq);
+  }
+
+  @Override
+  public void close() throws IOException, InterruptedException {
+    if (as != null && as.isReadyForDataTransfer()) {
+      as.waitForOutstandingRSP();
+      as.release();
     }
+  }
 
-    public void setReleaseEager(boolean releaseEager) {
-        this.releaseEager = releaseEager;
+  public void retrieve(File f) throws IOException, InterruptedException {
+    Attributes attrs = new Attributes();
+    try (DicomInputStream dis = new DicomInputStream(f)) {
+      attrs.addSelected(dis.readDataset(-1, -1), inFilter);
     }
+    attrs.addAll(keys);
+    retrieve(attrs);
+  }
 
-    public final void setInformationModel(InformationModel model, String[] tss, boolean relational) {
-        this.model = model;
-        rq.addPresentationContext(new PresentationContext(1, model.cuid, tss));
-        if (relational) {
-            rq.addExtendedNegotiation(new ExtendedNegotiation(model.cuid, new byte[] { 1 }));
-        }
-        if (model.level != null) {
-            addLevel(model.level);
-        }
-    }
+  public void retrieve() throws IOException, InterruptedException {
+    retrieve(keys);
+  }
 
-    public void addLevel(String s) {
-        keys.setString(Tag.QueryRetrieveLevel, VR.CS, s);
-    }
+  private void retrieve(Attributes keys) throws IOException, InterruptedException {
+    DimseRSPHandler rspHandler =
+        new DimseRSPHandler(as.nextMessageID()) {
 
-    public final void setDestination(String destination) {
-        this.destination = destination;
-    }
-
-    public void addKey(int tag, String... ss) {
-        VR vr = ElementDictionary.vrOf(tag, keys.getPrivateCreator(tag));
-        keys.setString(tag, vr, ss);
-    }
-
-    public final void setInputFilter(int[] inFilter) {
-        this.inFilter = inFilter;
-    }
-
-    public ApplicationEntity getApplicationEntity() {
-        return ae;
-    }
-
-    public Connection getRemoteConnection() {
-        return remote;
-    }
-
-    public AAssociateRQ getAAssociateRQ() {
-        return rq;
-    }
-
-    public Association getAssociation() {
-        return as;
-    }
-
-    public Attributes getKeys() {
-        return keys;
-    }
-
-
-    public void open()
-        throws IOException, InterruptedException, IncompatibleConnectionException, GeneralSecurityException {
-        as = ae.connect(conn, remote, rq);
-    }
-
-    @Override
-    public void close() throws IOException, InterruptedException {
-        if (as != null && as.isReadyForDataTransfer()) {
-            as.waitForOutstandingRSP();
-            as.release();
-        }
-    }
-
-    public void retrieve(File f) throws IOException, InterruptedException {
-        Attributes attrs = new Attributes();
-        try (DicomInputStream dis = new DicomInputStream(f)) {
-            attrs.addSelected(dis.readDataset(-1, -1), inFilter);
-        }
-        attrs.addAll(keys);
-        retrieve(attrs);
-    }
-
-    public void retrieve() throws IOException, InterruptedException {
-        retrieve(keys);
-    }
-
-    private void retrieve(Attributes keys) throws IOException, InterruptedException {
-        DimseRSPHandler rspHandler = new DimseRSPHandler(as.nextMessageID()) {
-
-            @Override
-            public void onDimseRSP(Association as, Attributes cmd, Attributes data) {
-                super.onDimseRSP(as, cmd, data);
-                DicomProgress p = state.getProgress();
-                if (p != null) {
-                    p.setAttributes(cmd);
-                    if (p.isCancel()) {
-                        try {
-                            this.cancel(as);
-                        } catch (IOException e) {
-                            LOGGER.error("Cancel C-MOVE", e);
-                        }
-                    }
-                }
-            }
-        };
-        as.cmove(model.cuid, priority, keys, null, destination, rspHandler);
-        if (cancelAfter > 0) {
-            schedule(() -> {
+          @Override
+          public void onDimseRSP(Association as, Attributes cmd, Attributes data) {
+            super.onDimseRSP(as, cmd, data);
+            DicomProgress p = state.getProgress();
+            if (p != null) {
+              p.setAttributes(cmd);
+              if (p.isCancel()) {
                 try {
-                    rspHandler.cancel(as);
-                    if (releaseEager) {
-                        as.release();
-                    }
+                  this.cancel(as);
                 } catch (IOException e) {
-                    e.printStackTrace();
+                  LOGGER.error("Cancel C-MOVE", e);
                 }
-            },
-                cancelAfter,
-                TimeUnit.MILLISECONDS);
-        }
+              }
+            }
+          }
+        };
+    as.cmove(model.cuid, priority, keys, null, destination, rspHandler);
+    if (cancelAfter > 0) {
+      schedule(
+          () -> {
+            try {
+              rspHandler.cancel(as);
+              if (releaseEager) {
+                as.release();
+              }
+            } catch (IOException e) {
+              e.printStackTrace();
+            }
+          },
+          cancelAfter,
+          TimeUnit.MILLISECONDS);
     }
+  }
 
-    public Connection getConnection() {
-        return conn;
-    }
+  public Connection getConnection() {
+    return conn;
+  }
 
-    public DicomState getState() {
-        return state;
-    }
-
+  public DicomState getState() {
+    return state;
+  }
 }

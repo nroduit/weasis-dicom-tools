@@ -17,6 +17,9 @@
 		<dcm4che.version>6.0.0</dcm4che.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+		<sonar.projectKey>weasis-dicom-tools</sonar.projectKey>
+		<sonar.organization>nroduit-github</sonar.organization>
+		<sonar.host.url>https://sonarcloud.io</sonar.host.url>
 	</properties>
 
 	<licenses>
@@ -304,7 +307,7 @@
 			<artifactId>dcm4che-codec</artifactId>
 			<version>${dcm4che.version}</version>
 		</dependency>
-		<!-- dcm4che-img packages are linked to native libraries not located in this package. Only required by storeSCU, Dicomizer 
+		<!-- dcm4che-img packages are linked to native libraries not located in this package. Only required by storeSCU, Dicomizer
 			and ForwardUtil (DicomGateway) for uncompressing data not supported by the destination. -->
 		<dependency>
 			<groupId>org.dcm4che</groupId>

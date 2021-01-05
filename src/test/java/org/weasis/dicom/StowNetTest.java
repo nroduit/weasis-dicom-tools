@@ -1,13 +1,12 @@
-/*******************************************************************************
- * Copyright (c) 2009-2019 Weasis Team and others.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v2.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v20.html
+/*
+ * Copyright (c) 2018-2020 Weasis Team and other contributors.
  *
- * Contributors:
- *     Nicolas Roduit - initial API and implementation
- *******************************************************************************/
+ * This program and the accompanying materials are made available under the terms of the Eclipse
+ * Public License 2.0 which is available at http://www.eclipse.org/legal/epl-2.0, or the Apache
+ * License, Version 2.0 which is available at https://www.apache.org/licenses/LICENSE-2.0.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
+ */
 package org.weasis.dicom;
 
 import java.net.MalformedURLException;
@@ -16,7 +15,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.log4j.BasicConfigurator;
 import org.dcm4che6.data.DicomObject;
 import org.dcm4che6.data.Tag;
@@ -32,51 +30,54 @@ import org.weasis.dicom.web.ContentType;
 import org.weasis.dicom.web.DicomStowRS;
 
 public class StowNetTest {
-    
-    @BeforeAll
-    public static void setLogger() throws MalformedURLException {
-        BasicConfigurator.configure();
+
+  @BeforeAll
+  public static void setLogger() throws MalformedURLException {
+    BasicConfigurator.configure();
+  }
+
+  @Test
+  public void testProcess() {
+    List<Path> files = new ArrayList<>();
+    try {
+      files.add(Path.of(getClass().getResource("mr.dcm").toURI()));
+    } catch (URISyntaxException e) {
+      e.printStackTrace();
     }
 
-    @Test
-    public void testProcess() {
-        List<Path> files = new ArrayList<>();
-        try {
-            files.add(Path.of(getClass().getResource("mr.dcm").toURI()));
-        } catch (URISyntaxException e) {
-            e.printStackTrace();
-        }
+    String stowService = "http://192.168.0.31:8080/dcm4chee-arc/aets/DCM4CHEE/rs/studies";
+    DicomState state = null;
 
-        String stowService = "http://192.168.0.31:8080/dcm4chee-arc/aets/DCM4CHEE/rs/studies";
-        DicomState state = null;
+    // Upload files
+    //        try (DicomStowRS stowRS = new DicomStowRS(stowService, ContentType.APPLICATION_DICOM,
+    // null, null)) {
+    //            state = stowRS.uploadDicom(files, true);
+    //        } catch (Exception e) {
+    //            System.out.println("StowRS error: " + e.getMessage());
+    //        }
+    //
+    //        Assert.assertThat("DicomState cannot be null", state, IsNull.notNullValue());
+    //        Assert.assertThat(state.getMessage(), state.getStatus(),
+    // IsEqual.equalTo(Status.Success));
 
-        // Upload files
-//        try (DicomStowRS stowRS = new DicomStowRS(stowService, ContentType.APPLICATION_DICOM, null, null)) {
-//            state = stowRS.uploadDicom(files, true);
-//        } catch (Exception e) {
-//            System.out.println("StowRS error: " + e.getMessage());
-//        }
-//
-//        Assert.assertThat("DicomState cannot be null", state, IsNull.notNullValue());
-//        Assert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(Status.Success));
+    String message = null;
+    // Upload a modify file
+    Path p1 = files.get(0);
+    try (DicomStowRS stowRS =
+            new DicomStowRS(stowService, ContentType.APPLICATION_DICOM, null, null);
+        DicomInputStream dis = new DicomInputStream(Files.newInputStream(p1))) {
+      dis.withBulkData(DicomInputStream::isBulkData).withBulkDataURI(p1);
+      DicomObject data = dis.readDataSet();
+      data.setString(Tag.PatientName, VR.PN, "Override^Patient^Name");
+      data.setString(Tag.PatientID, VR.LO, "ModifiedPatientID");
+      data.setString(Tag.StudyInstanceUID, VR.UI, UIDUtils.randomUID());
+      data.setString(Tag.SeriesInstanceUID, VR.UI, UIDUtils.randomUID());
+      data.setString(Tag.SOPInstanceUID, VR.UI, UIDUtils.randomUID());
 
-        String message = null;
-        // Upload a modify file
-        Path p1 = files.get(0);
-        try (DicomStowRS stowRS = new DicomStowRS(stowService, ContentType.APPLICATION_DICOM, null, null);
-                        DicomInputStream dis = new DicomInputStream(Files.newInputStream(p1))) {
-            dis.withBulkData(DicomInputStream::isBulkData).withBulkDataURI(p1);
-            DicomObject data = dis.readDataSet();
-            data.setString(Tag.PatientName, VR.PN, "Override^Patient^Name");
-            data.setString(Tag.PatientID, VR.LO, "ModifiedPatientID");
-            data.setString(Tag.StudyInstanceUID, VR.UI, UIDUtils.randomUID());
-            data.setString(Tag.SeriesInstanceUID, VR.UI, UIDUtils.randomUID());
-            data.setString(Tag.SOPInstanceUID, VR.UI, UIDUtils.randomUID());
-
-            stowRS.uploadDicom(data, dis.getEncoding().transferSyntaxUID);
-        } catch (Exception e) {
-            message = e.getMessage();
-        }
-        Assert.assertThat(message, message, IsNull.nullValue());
+      stowRS.uploadDicom(data, dis.getEncoding().transferSyntaxUID);
+    } catch (Exception e) {
+      message = e.getMessage();
     }
+    Assert.assertThat(message, message, IsNull.nullValue());
+  }
 }

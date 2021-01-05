@@ -1,18 +1,16 @@
-/*******************************************************************************
- * Copyright (c) 2009-2019 Weasis Team and others.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v2.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v20.html
+/*
+ * Copyright (c) 2014-2020 Weasis Team and other contributors.
  *
- * Contributors:
- *     Nicolas Roduit - initial API and implementation
- *******************************************************************************/
+ * This program and the accompanying materials are made available under the terms of the Eclipse
+ * Public License 2.0 which is available at http://www.eclipse.org/legal/epl-2.0, or the Apache
+ * License, Version 2.0 which is available at https://www.apache.org/licenses/LICENSE-2.0.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
+ */
 package org.weasis.dicom;
 
 import java.net.MalformedURLException;
 import java.util.OptionalInt;
-
 import org.apache.log4j.BasicConfigurator;
 import org.dcm4che6.net.Status;
 import org.hamcrest.core.IsEqual;
@@ -27,31 +25,33 @@ import org.weasis.dicom.param.DicomState;
 
 public class EchoNetTest {
 
-    @BeforeAll
-    public static void setLogger() throws MalformedURLException {
-        BasicConfigurator.configure();
-    }
+  @BeforeAll
+  public static void setLogger() throws MalformedURLException {
+    BasicConfigurator.configure();
+  }
 
-    @Test
-    public void testProcess() {
-        AdvancedParams params = new AdvancedParams();
-        ConnectOptions connectOptions = new ConnectOptions();
-        connectOptions.setConnectTimeout(3000);
-        connectOptions.setAcceptTimeout(5000);
-        params.setConnectOptions(connectOptions);
+  @Test
+  public void testProcess() {
+    AdvancedParams params = new AdvancedParams();
+    ConnectOptions connectOptions = new ConnectOptions();
+    connectOptions.setConnectTimeout(3000);
+    connectOptions.setAcceptTimeout(5000);
+    params.setConnectOptions(connectOptions);
 
-        DicomNode calling = new DicomNode("WEASIS-SCU");
-        DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
-        DicomState state = Echo.process(params, calling, called);
-        // Should never happen
-        Assert.assertNotNull(state);
+    DicomNode calling = new DicomNode("WEASIS-SCU");
+    DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
+    DicomState state = Echo.process(params, calling, called);
+    // Should never happen
+    Assert.assertNotNull(state);
 
-        // See server log at http://dicomserver.co.uk/logs/
-        System.out.println("DicomState result: ");
-        // See org.dcm4ch6.net.Status
-        System.out.println("\tDICOM Status: " + String.format("0x%04X", state.getStatus().orElseThrow() & 0xFFFF));
-        System.out.println("\t" + state.getMessage());
+    // See server log at http://dicomserver.co.uk/logs/
+    System.out.println("DicomState result: ");
+    // See org.dcm4ch6.net.Status
+    System.out.println(
+        "\tDICOM Status: " + String.format("0x%04X", state.getStatus().orElseThrow() & 0xFFFF));
+    System.out.println("\t" + state.getMessage());
 
-        Assert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(OptionalInt.of(Status.Success)));
-    }
+    Assert.assertThat(
+        state.getMessage(), state.getStatus(), IsEqual.equalTo(OptionalInt.of(Status.Success)));
+  }
 }

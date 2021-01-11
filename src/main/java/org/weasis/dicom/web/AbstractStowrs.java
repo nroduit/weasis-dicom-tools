@@ -57,10 +57,21 @@ public class AbstractStowrs implements AutoCloseable {
       String agentName,
       Map<String, String> headers) {
     this.contentType = Objects.requireNonNull(contentType);
-    this.requestURL = Objects.requireNonNull(requestURL, "requestURL cannot be null");
+    this.requestURL = Objects.requireNonNull(getFinalUrl(requestURL), "requestURL cannot be null");
     this.headers = headers;
     this.agentName = agentName;
     this.connections = new ArrayList<>();
+  }
+
+  private String getFinalUrl(String requestURL) {
+    String url = requestURL.trim();
+    if (url.endsWith("/")) {
+      url = url.substring(0, url.length() - 1);
+    }
+    if (!url.endsWith("/studies")) {
+      url += "/studies";
+    }
+    return url;
   }
 
   protected HttpURLConnection buildConnection() throws IOException {

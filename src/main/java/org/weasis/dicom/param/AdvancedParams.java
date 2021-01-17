@@ -11,6 +11,7 @@ package org.weasis.dicom.param;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.util.Arrays;
 import java.util.EnumSet;
 import org.dcm4che3.data.UID;
 import org.dcm4che3.net.ApplicationEntity;
@@ -23,20 +24,20 @@ import org.dcm4che3.net.pdu.AAssociateRQ;
 import org.dcm4che3.net.pdu.UserIdentityRQ;
 
 public class AdvancedParams {
-  public static String[] IVR_LE_FIRST = {
+  public static final String[] IVR_LE_FIRST = {
     UID.ImplicitVRLittleEndian, UID.ExplicitVRLittleEndian, UID.ExplicitVRBigEndian
   };
-  public static String[] EVR_LE_FIRST = {
+  public static final String[] EVR_LE_FIRST = {
     UID.ExplicitVRLittleEndian, UID.ExplicitVRBigEndian, UID.ImplicitVRLittleEndian
   };
-  public static String[] EVR_BE_FIRST = {
+  public static final String[] EVR_BE_FIRST = {
     UID.ExplicitVRBigEndian, UID.ExplicitVRLittleEndian, UID.ImplicitVRLittleEndian
   };
-  public static String[] IVR_LE_ONLY = {UID.ImplicitVRLittleEndian};
+  public static final String[] IVR_LE_ONLY = {UID.ImplicitVRLittleEndian};
 
   private Object informationModel;
   private EnumSet<QueryOption> queryOptions = EnumSet.noneOf(QueryOption.class);
-  private String[] tsuidOrder = IVR_LE_FIRST;
+  private String[] tsuidOrder = Arrays.copyOf(IVR_LE_FIRST, IVR_LE_FIRST.length);
 
   /*
    * Configure proxy <[user:password@]host:port> specify host and port of the HTTP Proxy to tunnel the DICOM

@@ -93,7 +93,7 @@ public class HeaderFieldValues {
     List<HashMap<String, String>> hvals = new ArrayList<>();
     if (StringUtil.hasText(content)) {
       // Split except inside double quotes
-      String[] elements = content.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
+      String[] elements = content.split(",(?=(?:[^\"]*\"[^\"]*+\")*[^\"]*$)");
       for (String element : elements) {
         HashMap<String, String> params = new HashMap<>();
         hvals.add(params);
@@ -113,8 +113,7 @@ public class HeaderFieldValues {
           }
 
           if (StringUtil.hasText(name)) {
-            params.put(
-                name.toLowerCase(), value); // NOSONAR hasText(name) already check if name is null
+            params.put(name.toLowerCase(), value);
           }
         }
       }

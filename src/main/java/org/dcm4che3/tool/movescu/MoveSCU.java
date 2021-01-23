@@ -205,7 +205,7 @@ public class MoveSCU extends Device implements AutoCloseable {
                 as.release();
               }
             } catch (IOException e) {
-              e.printStackTrace();
+              LOGGER.error("Cancel after C-MOVE", e);
             }
           },
           cancelAfter,

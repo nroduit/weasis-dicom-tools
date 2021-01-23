@@ -15,7 +15,7 @@
     <enforcer.maven-version>[3.0.5,)</enforcer.maven-version>
     <junit.jupiter.version>5.5.2</junit.jupiter.version>
     <junit.platform.version>1.5.2</junit.platform.version>
-    <dcm4che.version>6.0.0</dcm4che.version>
+    <dcm4che.version>6.0.0-SNAPSHOT</dcm4che.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <sonar.projectKey>weasis-dicom-tools</sonar.projectKey>
@@ -57,15 +57,6 @@
     <repository>
       <id>mvn-repo-master</id>
       <url>https://raw.github.com/nroduit/mvn-repo/master/</url>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-    </repository>
-    <repository>
-      <id>www.dcm4che.org</id>
-      <name>dcm4che Repository</name>
-      <url>http://maven.dcm4che.org</url>
-      <!-- <url>http://www.dcm4che.org/maven2</url> (which will redirected to https://www.dcm4che.org/maven2). -->
     </repository>
   </repositories>
   <build>

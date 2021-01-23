@@ -1,0 +1,53 @@
+name: Build dcm4che 6 branch
+on:
+  push:
+    branches:
+      - dcm4che6
+  workflow_dispatch:
+jobs:
+  build:
+    name: Maven Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: dcm4che6
+          path: main
+      - name: Set up JDK 15
+        uses: actions/setup-java@v1
+        with:
+          java-version: 15.0.1
+      - name: Cache Maven packages
+        uses: actions/cache@v1
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+      - name: Build weasis-dicom-tools
+        run: mvn -B clean install -f main
+      - name: Checkout mvn-repo repository
+        uses: actions/checkout@v2
+        with:
+          repository: nroduit/mvn-repo
+          path: mvn-repo
+          token: ${{ secrets.API_TOKEN_GITHUB }}
+      - name: Commit the maven packages
+        run: |
+          cd mvn-repo
+          REPO=$(pwd)
+          PKGFOLDER="org/weasis/weasis-dicom-tools"
+          cd ~/.m2/repository/${PKGFOLDER}
+          find . -name "*.jar" -o -name "*.pom" | cpio -updm ${REPO}/${PKGFOLDER}
+          cd ${REPO}/${PKGFOLDER}
+          IFS=$'\n'
+          paths=($(find . -name "*.jar" -o -name "*.pom"))
+          for file in ${paths[@]}; do
+            $(sha1sum "${file}" | awk '{printf $1}' > "${file}".sha1)
+            $(md5sum "${file}" | awk '{printf $1}' > "${file}".md5)
+          done
+
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add .
+          git commit -m "update weasis-dicom-tools"
+          git push

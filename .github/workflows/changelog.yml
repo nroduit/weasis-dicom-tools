@@ -16,9 +16,7 @@ jobs:
         uses: nroduit/changelog-generator-action@v2.2.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          bugLabels: 'Type: Bug'
-          enhancementLabels: 'Type: Enhancement,Type: Feature,Type: Security'
-          issueLineLabels: 'Priority: Critical,Priority: High,Priority: Low,Priority: Medium,Type: Feature,Type: Security'
+          enhancementLabels: 'Type: Enhancement,Type: Feature'
           excludeLabels: 'duplicate,question,invalid,wontfix,Type: Help Needed,Type: Idea,Type: Question,Status: Invalid,Status: Wontfix'
       - name: create commit
         id: commit

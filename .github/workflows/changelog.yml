@@ -15,6 +15,7 @@ jobs:
         uses: heinrichreimer/github-changelog-generator-action@v2.2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          compareLink: true
           # Get config from .github_changelog_generator file
       - name: create commit
         id: commit

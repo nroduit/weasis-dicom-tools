@@ -1,8 +1,38 @@
 # Changelog
 
-## [v5.15.0](https://github.com/nroduit/weasis-dicom-tools/tree/v5.15.0) (2018-12-20)
+## [v5.23.0.2](https://github.com/nroduit/weasis-dicom-tools/tree/v5.23.0.2) (2021-01-24)
 
-[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.14.1...v5.15.0)
+## [v5.23.0.1](https://github.com/nroduit/weasis-dicom-tools/tree/v5.23.0.1) (2021-01-11)
+
+## [v5.23.0](https://github.com/nroduit/weasis-dicom-tools/tree/v5.23.0) (2021-01-05)
+
+**Implemented enhancements:**
+
+- Update to dcm4che 5.22.6 [\#12](https://github.com/nroduit/weasis-dicom-tools/issues/12)
+
+## [v5.22.6](https://github.com/nroduit/weasis-dicom-tools/tree/v5.22.6) (2020-11-23)
+
+## [v5.22.4](https://github.com/nroduit/weasis-dicom-tools/tree/v5.22.4) (2020-08-21)
+
+## [v5.22.2](https://github.com/nroduit/weasis-dicom-tools/tree/v5.22.2) (2020-05-15)
+
+## [v5.20.0](https://github.com/nroduit/weasis-dicom-tools/tree/v5.20.0) (2020-01-10)
+
+## [v5.19.1](https://github.com/nroduit/weasis-dicom-tools/tree/v5.19.1) (2019-11-22)
+
+## [v5.18.1](https://github.com/nroduit/weasis-dicom-tools/tree/v5.18.1) (2019-09-17)
+
+## [v5.17.1](https://github.com/nroduit/weasis-dicom-tools/tree/v5.17.1) (2019-07-12)
+
+## [v5.17.0](https://github.com/nroduit/weasis-dicom-tools/tree/v5.17.0) (2019-06-14)
+
+## [v5.16.2](https://github.com/nroduit/weasis-dicom-tools/tree/v5.16.2) (2019-05-24)
+
+## [v5.16.1](https://github.com/nroduit/weasis-dicom-tools/tree/v5.16.1) (2019-05-03)
+
+## [v5.15.1](https://github.com/nroduit/weasis-dicom-tools/tree/v5.15.1) (2019-01-31)
+
+## [v5.15.0](https://github.com/nroduit/weasis-dicom-tools/tree/v5.15.0) (2018-12-20)
 
 **Implemented enhancements:**
 
@@ -10,11 +40,9 @@
 
 **Fixed bugs:**
 
-- Cannot dicomize some jpeg images [\#9](https://github.com/nroduit/weasis-dicom-tools/issues/9) [[Priority: High](https://github.com/nroduit/weasis-dicom-tools/labels/Priority:%20High)]
+- Cannot dicomize some jpeg images [\#9](https://github.com/nroduit/weasis-dicom-tools/issues/9)
 
 ## [v5.14.1](https://github.com/nroduit/weasis-dicom-tools/tree/v5.14.1) (2018-11-02)
-
-[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/5.13.5...v5.14.1)
 
 **Implemented enhancements:**
 
@@ -22,39 +50,25 @@
 
 **Fixed bugs:**
 
-- TransferSyntaxUID is duplicated in Dicomizer [\#7](https://github.com/nroduit/weasis-dicom-tools/issues/7) [[Priority: High](https://github.com/nroduit/weasis-dicom-tools/labels/Priority:%20High)]
+- TransferSyntaxUID is duplicated in Dicomizer [\#7](https://github.com/nroduit/weasis-dicom-tools/issues/7)
 
 ## [5.13.5](https://github.com/nroduit/weasis-dicom-tools/tree/5.13.5) (2018-09-17)
 
-[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/5.13.4...5.13.5)
-
 ## [5.13.4](https://github.com/nroduit/weasis-dicom-tools/tree/5.13.4) (2018-08-16)
-
-[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/5.13.3...5.13.4)
 
 ## [5.13.3](https://github.com/nroduit/weasis-dicom-tools/tree/5.13.3) (2018-07-31)
 
-[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/5.13.0...5.13.3)
-
 ## [5.13.0](https://github.com/nroduit/weasis-dicom-tools/tree/5.13.0) (2018-04-27)
-
-[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/1.2.2...5.13.0)
 
 ## [1.2.2](https://github.com/nroduit/weasis-dicom-tools/tree/1.2.2) (2017-11-01)
 
-[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/1.2.1...1.2.2)
-
 ## [1.2.1](https://github.com/nroduit/weasis-dicom-tools/tree/1.2.1) (2017-08-25)
-
-[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/1.2.0...1.2.1)
 
 ## [1.2.0](https://github.com/nroduit/weasis-dicom-tools/tree/1.2.0) (2017-08-07)
 
-[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/1.0.4...1.2.0)
+## [1.1.0-rc1](https://github.com/nroduit/weasis-dicom-tools/tree/1.1.0-rc1) (2017-07-03)
 
 ## [1.0.4](https://github.com/nroduit/weasis-dicom-tools/tree/1.0.4) (2017-05-09)
-
-[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/1.0.3...1.0.4)
 
 **Implemented enhancements:**
 
@@ -62,15 +76,11 @@
 
 ## [1.0.3](https://github.com/nroduit/weasis-dicom-tools/tree/1.0.3) (2017-04-29)
 
-[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/1.0.2...1.0.3)
-
 **Fixed bugs:**
 
 - CStore returned success code despite failing [\#4](https://github.com/nroduit/weasis-dicom-tools/issues/4)
 
 ## [1.0.2](https://github.com/nroduit/weasis-dicom-tools/tree/1.0.2) (2016-11-15)
-
-[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/1.0.1...1.0.2)
 
 **Fixed bugs:**
 
@@ -78,27 +88,15 @@
 
 ## [1.0.1](https://github.com/nroduit/weasis-dicom-tools/tree/1.0.1) (2016-10-23)
 
-[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/1.0.0...1.0.1)
-
 ## [1.0.0](https://github.com/nroduit/weasis-dicom-tools/tree/1.0.0) (2016-08-19)
-
-[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/0.9.8...1.0.0)
 
 ## [0.9.8](https://github.com/nroduit/weasis-dicom-tools/tree/0.9.8) (2015-07-14)
 
-[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/0.9.7...0.9.8)
-
 ## [0.9.7](https://github.com/nroduit/weasis-dicom-tools/tree/0.9.7) (2015-02-23)
-
-[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/0.9.6...0.9.7)
 
 ## [0.9.6](https://github.com/nroduit/weasis-dicom-tools/tree/0.9.6) (2015-01-03)
 
-[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/0.9.5...0.9.6)
-
 ## [0.9.5](https://github.com/nroduit/weasis-dicom-tools/tree/0.9.5) (2014-11-08)
-
-[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/88bab871fc3d920f96009d46ea10c26b076841b1...0.9.5)
 
 
 

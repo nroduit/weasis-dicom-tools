@@ -26,7 +26,6 @@ import org.dcm4che6.data.DicomElement;
 import org.dcm4che6.data.DicomObject;
 import org.dcm4che6.data.Tag;
 import org.dcm4che6.data.UID;
-import org.dcm4che6.data.VR;
 import org.dcm4che6.img.DicomImageReader;
 import org.dcm4che6.img.DicomImageUtils;
 import org.dcm4che6.img.DicomOutputData;
@@ -199,12 +198,19 @@ public class ForwardUtil {
 
   public static synchronized StoreFromStreamSCU prepareTransfer(
       DicomForwardDestination destination, String cuid, String tsuid) throws IOException {
-    String outTsuid = tsuid.equals(UID.RLELossless) ? UID.ExplicitVRLittleEndian : tsuid;
+    String outTsuid =
+        tsuid.equals(UID.RLELossless)
+                || tsuid.equals(UID.ImplicitVRLittleEndian)
+                || tsuid.equals(UID.ExplicitVRBigEndianRetired)
+            ? UID.ExplicitVRLittleEndian
+            : tsuid;
     StoreFromStreamSCU streamSCU = destination.getStreamSCU();
     if (streamSCU.getAssociation() == null || !streamSCU.getAssociation().isOpen()) {
       // Add Presentation Context for the association
       streamSCU.addData(cuid, outTsuid);
-      streamSCU.addData(cuid, UID.ExplicitVRLittleEndian);
+      if (!outTsuid.equals(UID.ExplicitVRLittleEndian)) {
+        streamSCU.addData(cuid, UID.ExplicitVRLittleEndian);
+      }
       streamSCU.open();
     } else {
       // Handle dynamically new SOPClassUID
@@ -212,7 +218,9 @@ public class ForwardUtil {
       boolean missingTsuid = val.findFirst().isEmpty();
       // Add Presentation Context for the association
       streamSCU.addData(cuid, outTsuid);
-      streamSCU.addData(cuid, UID.ExplicitVRLittleEndian);
+      if (!outTsuid.equals(UID.ExplicitVRLittleEndian)) {
+        streamSCU.addData(cuid, UID.ExplicitVRLittleEndian);
+      }
       if (missingTsuid) {
         streamSCU.close(true);
         streamSCU.open();
@@ -354,7 +362,6 @@ public class ForwardUtil {
         try (DicomOutputStream writer =
             new DicomOutputStream(out).withEncoding(DicomEncoding.of(tsuid))) {
           writer.writeDataSet(data);
-          writer.writeHeader(Tag.ItemDelimitationItem, VR.NONE, 0);
         }
       };
     }
@@ -444,12 +451,12 @@ public class ForwardUtil {
               if (numberOfFrame == 1) {
                 int length = 0;
                 for (int i = 0; i < nbFragments - 1; i++) {
-                  DataFragment bulkData = fragments.get(i + frame + 1);
+                  DataFragment bulkData = fragments.get(i + 1);
                   length += bulkData.valueLength();
                 }
                 ByteArrayOutputStream out = new ByteArrayOutputStream(length);
                 for (int i = 0; i < nbFragments - 1; i++) {
-                  DataFragment fragment = pix.getDataFragment(frame + 1);
+                  DataFragment fragment = pix.getDataFragment(i + 1);
                   fragment.writeTo(out);
                 }
                 return ByteBuffer.wrap(out.toByteArray());

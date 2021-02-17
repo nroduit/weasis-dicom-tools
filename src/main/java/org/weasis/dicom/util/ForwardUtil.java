@@ -45,6 +45,7 @@ import org.dcm4che6.net.Association.DataWriter;
 import org.dcm4che6.net.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.weasis.dicom.exception.HttpException;
 import org.weasis.dicom.param.AttributeEditor;
 import org.weasis.dicom.param.AttributeEditorContext;
 import org.weasis.dicom.param.AttributeEditorContext.Abort;
@@ -570,6 +571,9 @@ public class ForwardUtil {
             DicomObject.createFileMetaInformation(p.getCuid(), p.getIuid(), outputTsuid);
         try (InputStream stream = p.getData()) {
           stow.uploadDicom(stream, fmi);
+        } catch (HttpException httpException) {
+          LOGGER.error(httpException.getMessage(), httpException);
+          throw new AbortException(Abort.FILE_EXCEPTION, httpException.getMessage());
         }
       } else {
         AttributeEditorContext context = new AttributeEditorContext(destination);
@@ -602,6 +606,9 @@ public class ForwardUtil {
           } else {
             stow.uploadPayload(preparePlayload(data, outputTsuid, desc, context));
           }
+        } catch (HttpException httpException) {
+          LOGGER.error(httpException.getMessage(), httpException);
+          throw new AbortException(Abort.FILE_EXCEPTION, httpException.getMessage());
         }
         progressNotify(destination, iuid, p.getCuid(), false);
       }
@@ -653,6 +660,9 @@ public class ForwardUtil {
         }
         progressNotify(destination, iuid, p.getCuid(), false);
       }
+    } catch (HttpException httpException) {
+      LOGGER.error(httpException.getMessage(), httpException);
+      throw new AbortException(Abort.FILE_EXCEPTION, httpException.getMessage());
     } catch (AbortException e) {
       progressNotify(destination, iuid, p.getCuid(), true);
       if (e.getAbort() == Abort.CONNECTION_EXCEPTION) {

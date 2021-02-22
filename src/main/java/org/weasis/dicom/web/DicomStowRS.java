@@ -37,6 +37,7 @@ import org.dcm4che6.data.DicomObject;
 import org.dcm4che6.io.DicomOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.weasis.dicom.exception.HttpException;
 
 public class DicomStowRS implements AutoCloseable {
   private static final Logger LOGGER = LoggerFactory.getLogger(DicomStowRS.class);
@@ -182,6 +183,11 @@ public class DicomStowRS implements AutoCloseable {
       LOGGER.debug("< {} response code: {}", response.version(), response.statusCode());
       promptHeaders("< ", response.headers());
     }
+
+    if (response.statusCode() >= 400 && response.statusCode() <= 599) {
+      throw new HttpException("Error response, status code " + response.statusCode());
+    }
+
     return response;
   }
 
@@ -211,7 +217,7 @@ public class DicomStowRS implements AutoCloseable {
     return photo;
   }
 
-  public void uploadDicom(Path path) {
+  public void uploadDicom(Path path) throws HttpException {
     Payload playload =
         new Payload() {
           @Override
@@ -232,7 +238,7 @@ public class DicomStowRS implements AutoCloseable {
     uploadPayload(playload);
   }
 
-  public void uploadDicom(InputStream in, DicomObject fmi) {
+  public void uploadDicom(InputStream in, DicomObject fmi) throws HttpException {
     Payload playload =
         new Payload() {
           @Override
@@ -258,7 +264,7 @@ public class DicomStowRS implements AutoCloseable {
     uploadPayload(playload);
   }
 
-  public void uploadDicom(DicomObject metadata, String tsuid) {
+  public void uploadDicom(DicomObject metadata, String tsuid) throws HttpException {
     Payload playload =
         new Payload() {
           @Override
@@ -283,7 +289,7 @@ public class DicomStowRS implements AutoCloseable {
     uploadPayload(playload);
   }
 
-  public void uploadPayload(Payload playload) {
+  public void uploadPayload(Payload playload) throws HttpException {
     multipartBody.reset();
     try {
       HttpRequest request =
@@ -312,6 +318,8 @@ public class DicomStowRS implements AutoCloseable {
       //            }
       //            response.body().forEach(LOGGER::info);
 
+    } catch (HttpException httpException) {
+      throw httpException;
     } catch (Exception e) {
       LOGGER.error("Cannot post DICOM", e);
     }

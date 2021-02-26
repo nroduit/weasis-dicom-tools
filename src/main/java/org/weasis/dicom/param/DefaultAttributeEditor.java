@@ -35,9 +35,8 @@ public class DefaultAttributeEditor implements AttributeEditor {
   }
 
   @Override
-  public boolean apply(Attributes data, AttributeEditorContext context) {
+  public void apply(Attributes data, AttributeEditorContext context) {
     if (data != null) {
-      boolean update = false;
       if (generateUIDs) {
         if ("2.25".equals(UIDUtils.getRoot())) {
           UIDUtils.setRoot("2.25.35");
@@ -55,14 +54,10 @@ public class DefaultAttributeEditor implements AttributeEditor {
         // New Sop UID
         String iuid = UIDUtils.createUID();
         data.setString(Tag.SOPInstanceUID, VR.UI, iuid);
-        update = true;
       }
       if (tagToOverride != null && !tagToOverride.isEmpty()) {
         data.update(Attributes.UpdatePolicy.OVERWRITE, tagToOverride, null);
-        update = true;
       }
-      return update;
     }
-    return false;
   }
 }

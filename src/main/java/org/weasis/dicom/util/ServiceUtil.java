@@ -12,6 +12,8 @@ package org.weasis.dicom.util;
 import java.io.File;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
@@ -32,6 +34,14 @@ public class ServiceUtil {
   }
 
   private ServiceUtil() {}
+
+  public static final ThreadFactory getThreadFactory(String name) {
+    return r -> {
+      Thread t = Executors.defaultThreadFactory().newThread(r);
+      t.setName(name + "-" + t.getName());
+      return t;
+    };
+  }
 
   public static void shutdownService(ExecutorService executorService) {
     if (executorService != null) {

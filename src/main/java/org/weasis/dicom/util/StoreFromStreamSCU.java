@@ -10,17 +10,24 @@
 package org.weasis.dicom.util;
 
 import java.io.IOException;
-import java.security.GeneralSecurityException;
+import java.util.Collections;
 import java.util.Objects;
+import java.util.Set;
+import java.util.TimerTask;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
 import org.dcm4che3.net.ApplicationEntity;
 import org.dcm4che3.net.Association;
 import org.dcm4che3.net.Connection;
+import org.dcm4che3.net.DataWriter;
 import org.dcm4che3.net.Device;
 import org.dcm4che3.net.DimseRSPHandler;
-import org.dcm4che3.net.IncompatibleConnectionException;
 import org.dcm4che3.net.Status;
 import org.dcm4che3.net.pdu.AAssociateRQ;
 import org.dcm4che3.net.pdu.PresentationContext;
@@ -57,6 +64,18 @@ public class StoreFromStreamSCU {
   private int nbStatusLog = 0;
   private int numberOfSuboperations = 0;
   private final DicomState state;
+  private final AdvancedParams options;
+  private final AtomicBoolean countdown = new AtomicBoolean(false);
+
+  private final TimerTask closeAssociationTask =
+      new TimerTask() {
+        public void run() {
+          close(false);
+        }
+      };
+  private final ScheduledExecutorService closeAssociationExecutor =
+      Executors.newSingleThreadScheduledExecutor();
+  private volatile ScheduledFuture<?> scheduledFuture;
 
   private final RSPHandlerFactory rspHandlerFactory =
       () ->
@@ -142,7 +161,7 @@ public class StoreFromStreamSCU {
       throws IOException {
     Objects.requireNonNull(callingNode);
     Objects.requireNonNull(calledNode);
-    AdvancedParams options = params == null ? new AdvancedParams() : params;
+    this.options = params == null ? new AdvancedParams() : params;
     this.state = new DicomState(progress);
     this.device = new Device("storescu");
     this.conn = new Connection();
@@ -166,12 +185,38 @@ public class StoreFromStreamSCU {
     setAttributes(new Attributes());
   }
 
+  public void cstore(String cuid, String iuid, int priority, DataWriter dataWriter, String tsuid)
+      throws IOException, InterruptedException {
+    if (as == null) {
+      throw new IllegalStateException("Association is null!");
+    }
+    as.cstore(cuid, iuid, priority, dataWriter, tsuid, rspHandlerFactory.createDimseRSPHandler());
+  }
+
   public DicomNode getCallingNode() {
     return new DicomNode(ae.getAETitle(), conn.getHostname(), conn.getPort());
   }
 
   public DicomNode getCalledNode() {
     return new DicomNode(rq.getCalledAET(), remote.getHostname(), remote.getPort());
+  }
+
+  public DicomNode getLocalDicomNode() {
+    if (as == null) {
+      return null;
+    }
+    return DicomNode.buildLocalDicomNode(as);
+  }
+
+  public DicomNode getRemoteDicomNode() {
+    if (as == null) {
+      return null;
+    }
+    return DicomNode.buildRemoteDicomNode(as);
+  }
+
+  public String selectTransferSyntax(String cuid, String tsuid) {
+    return selectTransferSyntax(as, cuid, tsuid);
   }
 
   public Device getDevice() {
@@ -198,7 +243,76 @@ public class StoreFromStreamSCU {
     relExtNeg = enable;
   }
 
+  public AdvancedParams getOptions() {
+    return options;
+  }
+
+  public boolean hasAssociation() {
+    return as != null;
+  }
+
+  public boolean isReadyForDataTransfer() {
+    if (as == null) {
+      return false;
+    }
+    return as.isReadyForDataTransfer();
+  }
+
+  public Set<String> getTransferSyntaxesFor(String cuid) {
+    if (as == null) {
+      return Collections.emptySet();
+    }
+    return as.getTransferSyntaxesFor(cuid);
+  }
+
+  public int getNumberOfSuboperations() {
+    return numberOfSuboperations;
+  }
+
+  public void setNumberOfSuboperations(int numberOfSuboperations) {
+    this.numberOfSuboperations = numberOfSuboperations;
+  }
+
+  public DicomState getState() {
+    return state;
+  }
+
+  public RSPHandlerFactory getRspHandlerFactory() {
+    return rspHandlerFactory;
+  }
+
+  public synchronized void open() throws IOException {
+    countdown.set(false);
+    try {
+      as = ae.connect(remote, rq);
+    } catch (Exception e) {
+      as = null;
+      LOGGER.trace("Connecting to remote destination", e);
+    }
+    if (as == null) {
+      throw new IOException("Cannot connect to the remote destination");
+    }
+  }
+
+  public synchronized void close(boolean force) {
+    if (force || countdown.compareAndSet(true, false)) {
+      if (as != null) {
+        try {
+          LOGGER.info("Closing DICOM association");
+          if (as.isReadyForDataTransfer()) {
+            as.release();
+          }
+          as.waitForSocketClose();
+        } catch (Exception e) {
+          LOGGER.trace("Cannot close association", e);
+        }
+        as = null;
+      }
+    }
+  }
+
   public boolean addData(String cuid, String tsuid) {
+    countdown.set(false);
     if (cuid == null || tsuid == null) {
       return false;
     }
@@ -227,39 +341,24 @@ public class StoreFromStreamSCU {
     return true;
   }
 
-  public void close() throws IOException, InterruptedException {
-    if (as != null) {
-      if (as.isReadyForDataTransfer()) {
-        as.release();
-      }
-      as.waitForSocketClose();
+  public synchronized void triggerCloseExecutor() {
+    if ((scheduledFuture == null || scheduledFuture.isDone())
+        && countdown.compareAndSet(false, true)) {
+      scheduledFuture =
+          closeAssociationExecutor.schedule(closeAssociationTask, 15, TimeUnit.SECONDS);
     }
   }
 
-  public void open()
-      throws IOException, InterruptedException, IncompatibleConnectionException,
-          GeneralSecurityException {
-    as = ae.connect(remote, rq);
-    // TODO check inactivity of 30 sec and close
-  }
+  public static String selectTransferSyntax(Association as, String cuid, String filets) {
+    Set<String> tss = as.getTransferSyntaxesFor(cuid);
+    if (tss.contains(filets)) {
+      return filets;
+    }
 
-  public Association getAssociation() {
-    return as;
-  }
+    if (tss.contains(UID.ExplicitVRLittleEndian)) {
+      return UID.ExplicitVRLittleEndian;
+    }
 
-  public int getNumberOfSuboperations() {
-    return numberOfSuboperations;
-  }
-
-  public void setNumberOfSuboperations(int numberOfSuboperations) {
-    this.numberOfSuboperations = numberOfSuboperations;
-  }
-
-  public DicomState getState() {
-    return state;
-  }
-
-  public RSPHandlerFactory getRspHandlerFactory() {
-    return rspHandlerFactory;
+    return UID.ImplicitVRLittleEndian;
   }
 }

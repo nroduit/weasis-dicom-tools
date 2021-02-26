@@ -12,6 +12,7 @@ package org.weasis.dicom;
 import java.io.File;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.apache.log4j.BasicConfigurator;
 import org.dcm4che3.data.Attributes;
@@ -65,7 +66,7 @@ public class CstoreNetTest {
     attrs.setString(Tag.PatientName, VR.PN, "Override^Patient^Name");
     attrs.setString(Tag.PatientID, VR.LO, "ModifiedPatientID");
     DefaultAttributeEditor editor = new DefaultAttributeEditor(false, attrs);
-    CstoreParams cstoreParams = new CstoreParams(editor, false, null);
+    CstoreParams cstoreParams = new CstoreParams(Arrays.asList(editor), false, null);
 
     DicomState state = CStore.process(params, calling, called, files, progress, cstoreParams);
     // Should never happen

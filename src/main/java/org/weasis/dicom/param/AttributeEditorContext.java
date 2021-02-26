@@ -27,6 +27,7 @@ public class AttributeEditorContext {
 
   private Abort abort;
   private String abortMessage;
+  private MaskArea maskArea;
 
   public AttributeEditorContext(String tsuid, DicomNode sourceNode, DicomNode destinationNode) {
     this.tsuid = tsuid;
@@ -61,5 +62,13 @@ public class AttributeEditorContext {
 
   public DicomNode getDestinationNode() {
     return destinationNode;
+  }
+
+  public MaskArea getMaskArea() {
+    return maskArea;
+  }
+
+  public void setMaskArea(MaskArea maskArea) {
+    this.maskArea = maskArea;
   }
 }

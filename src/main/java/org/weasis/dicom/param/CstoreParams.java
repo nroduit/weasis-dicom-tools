@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 Weasis Team and other contributors.
+ * Copyright (c) 2017-2020 Weasis Team and other contributors.
  *
  * This program and the accompanying materials are made available under the terms of the Eclipse
  * Public License 2.0 which is available at http://www.eclipse.org/legal/epl-2.0, or the Apache
@@ -10,26 +10,31 @@
 package org.weasis.dicom.param;
 
 import java.net.URL;
+import java.util.List;
 
 public class CstoreParams {
-  private final DefaultAttributeEditor attributeEditor;
+  private final List<AttributeEditor> editors;
   private final boolean extendNegociation;
   private final URL extendSopClassesURL;
 
   /**
-   * @param attributeEditor a editor to modify DICOM attributes
+   * @param editors a editor to modify DICOM attributes
    * @param extendNegociation extends SOP classes negotiation
    * @param extendSopClassesURL configuration file of the SOP classes negotiation extension
    */
   public CstoreParams(
-      DefaultAttributeEditor attributeEditor, boolean extendNegociation, URL extendSopClassesURL) {
-    this.attributeEditor = attributeEditor;
+      List<AttributeEditor> editors, boolean extendNegociation, URL extendSopClassesURL) {
+    this.editors = editors;
     this.extendNegociation = extendNegociation;
     this.extendSopClassesURL = extendSopClassesURL;
   }
 
-  public DefaultAttributeEditor getAttributeEditor() {
-    return attributeEditor;
+  public List<AttributeEditor> getDicomEditors() {
+    return editors;
+  }
+
+  public boolean hasDicomEditors() {
+    return editors != null && !editors.isEmpty();
   }
 
   public boolean isExtendNegociation() {

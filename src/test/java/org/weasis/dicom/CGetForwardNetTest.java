@@ -9,6 +9,7 @@
  */
 package org.weasis.dicom;
 
+import java.util.Arrays;
 import org.apache.log4j.BasicConfigurator;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
@@ -21,6 +22,7 @@ import org.junit.Test;
 import org.weasis.dicom.op.CGetForward;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.ConnectOptions;
+import org.weasis.dicom.param.CstoreParams;
 import org.weasis.dicom.param.DefaultAttributeEditor;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomProgress;
@@ -64,10 +66,11 @@ public class CGetForwardNetTest {
     attrs.setString(Tag.PatientName, VR.PN, "Override^Patient^Name");
     attrs.setString(Tag.PatientID, VR.LO, "ModifiedPatientID");
     DefaultAttributeEditor editor = new DefaultAttributeEditor(true, attrs);
+    CstoreParams cstoreParams = new CstoreParams(Arrays.asList(editor), false, null);
 
     DicomState state =
         CGetForward.processStudy(
-            params, params, calling, called, destination, progress, studyUID, editor);
+            params, params, calling, called, destination, progress, studyUID, cstoreParams);
     // Should never happen
     Assert.assertNotNull(state);
 

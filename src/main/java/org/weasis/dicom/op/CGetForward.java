@@ -52,14 +52,13 @@ import org.slf4j.LoggerFactory;
 import org.weasis.core.util.FileUtil;
 import org.weasis.core.util.StringUtil;
 import org.weasis.dicom.param.AdvancedParams;
-import org.weasis.dicom.param.AttributeEditor;
 import org.weasis.dicom.param.AttributeEditorContext;
 import org.weasis.dicom.param.AttributeEditorContext.Abort;
+import org.weasis.dicom.param.CstoreParams;
 import org.weasis.dicom.param.DeviceOpService;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
-import org.weasis.dicom.util.ForwardUtil;
 import org.weasis.dicom.util.ServiceUtil;
 import org.weasis.dicom.util.ServiceUtil.ProgressStatus;
 import org.weasis.dicom.util.StoreFromStreamSCU;
@@ -99,7 +98,7 @@ public class CGetForward implements AutoCloseable {
 
   private final StoreFromStreamSCU streamSCU;
   private final DeviceOpService streamSCUService;
-  private final AttributeEditor attributesEditor;
+  private final CstoreParams cstoreParams;
 
   private final BasicCStoreSCP storageSCP =
       new BasicCStoreSCP("*") {
@@ -133,48 +132,48 @@ public class CGetForward implements AutoCloseable {
             String iuid = rq.getString(Tag.AffectedSOPInstanceUID);
             String tsuid = pc.getTransferSyntax();
 
-            if (streamSCU.getAssociation() == null) {
+            if (streamSCU.hasAssociation()) {
+              // Handle dynamically new SOPClassUID
+              Set<String> tss = streamSCU.getTransferSyntaxesFor(cuid);
+              if (!tss.contains(tsuid)) {
+                streamSCU.close(true);
+              }
+
+              // Add Presentation Context for the association
+              streamSCU.addData(cuid, tsuid);
+
+              if (!streamSCU.isReadyForDataTransfer()) {
+                // If connection has been closed just reopen
+                streamSCU.open();
+              }
+            } else {
               streamSCUService.start();
               // Add Presentation Context for the association
               streamSCU.addData(cuid, tsuid);
               streamSCU.open();
-            } else {
-              // Handle dynamically new SOPClassUID
-              Set<String> tss = streamSCU.getAssociation().getTransferSyntaxesFor(cuid);
-              if (!tss.contains(tsuid)) {
-                streamSCU.close();
-              }
-
-              // Add Presentation Context for the association
-              streamSCU.addData(cuid, tsuid);
-
-              if (!streamSCU.getAssociation().isReadyForDataTransfer()) {
-                // If connection has been closed just reopen
-                streamSCU.open();
-              }
             }
 
             DicomInputStream in = null;
             try {
-              if (!streamSCU.getAssociation().isReadyForDataTransfer()) {
+              if (!streamSCU.isReadyForDataTransfer()) {
                 throw new IllegalStateException("Association not ready for transfer.");
               }
               DataWriter dataWriter;
-              String supportedTsuid =
-                  ForwardUtil.selectTransferSyntax(streamSCU.getAssociation(), cuid, tsuid);
-              if (attributesEditor == null && supportedTsuid.equals(tsuid)) {
+              String supportedTsuid = streamSCU.selectTransferSyntax(cuid, tsuid);
+              if ((cstoreParams == null || !cstoreParams.hasDicomEditors())
+                  && supportedTsuid.equals(tsuid)) {
                 dataWriter = new InputStreamDataWriter(data);
               } else {
                 AttributeEditorContext context =
                     new AttributeEditorContext(
-                        tsuid,
-                        DicomNode.buildRemoteDicomNode(as),
-                        DicomNode.buildRemoteDicomNode(streamSCU.getAssociation()));
+                        tsuid, DicomNode.buildRemoteDicomNode(as), streamSCU.getRemoteDicomNode());
                 in = new DicomInputStream(data, tsuid);
                 in.setIncludeBulkData(IncludeBulkData.URI);
                 Attributes attributes = in.readDataset(-1, -1);
-                if (attributesEditor != null && attributesEditor.apply(attributes, context)) {
+                if (cstoreParams != null && cstoreParams.hasDicomEditors()) {
+                  cstoreParams.getDicomEditors().forEach(e -> e.apply(attributes, context));
                   iuid = attributes.getString(Tag.SOPInstanceUID);
+                  cuid = attributes.getString(Tag.SOPClassUID);
                 }
 
                 if (context.getAbort() == Abort.FILE_EXCEPTION) {
@@ -192,15 +191,7 @@ public class CGetForward implements AutoCloseable {
                 dataWriter = new DataWriterAdapter(attributes);
               }
 
-              streamSCU
-                  .getAssociation()
-                  .cstore(
-                      cuid,
-                      iuid,
-                      priority,
-                      dataWriter,
-                      tsuid,
-                      streamSCU.getRspHandlerFactory().createDimseRSPHandler());
+              streamSCU.cstore(cuid, iuid, priority, dataWriter, tsuid);
             } catch (AbortException e) {
               ServiceUtil.notifyProgession(
                   streamSCU.getState(),
@@ -240,9 +231,9 @@ public class CGetForward implements AutoCloseable {
       DicomNode callingNode,
       DicomNode destinationNode,
       DicomProgress progress,
-      AttributeEditor attributesEditor)
+      CstoreParams cstoreParams)
       throws IOException {
-    this(null, callingNode, destinationNode, progress, attributesEditor);
+    this(null, callingNode, destinationNode, progress, cstoreParams);
   }
 
   /**
@@ -251,7 +242,7 @@ public class CGetForward implements AutoCloseable {
    * @param callingNode the calling DICOM node configuration
    * @param destinationNode the final DICOM node configuration
    * @param progress the progress handler
-   * @param attributesEditor the editor for modifying attributes on the fly (can be Null)
+   * @param cstoreParams the cstore parameters
    * @throws IOException
    */
   public CGetForward(
@@ -259,9 +250,9 @@ public class CGetForward implements AutoCloseable {
       DicomNode callingNode,
       DicomNode destinationNode,
       DicomProgress progress,
-      AttributeEditor attributesEditor)
+      CstoreParams cstoreParams)
       throws IOException {
-    this.attributesEditor = attributesEditor;
+    this.cstoreParams = cstoreParams;
     this.ae = new ApplicationEntity("GETSCU");
     device.addConnection(conn);
     device.addApplicationEntity(ae);
@@ -346,7 +337,7 @@ public class CGetForward implements AutoCloseable {
       as.waitForOutstandingRSP();
       as.release();
     }
-    streamSCU.close();
+    streamSCU.close(true);
   }
 
   public void retrieve() throws IOException, InterruptedException {
@@ -463,7 +454,7 @@ public class CGetForward implements AutoCloseable {
    * @param destinationNode the final destination DICOM node configuration
    * @param progress the progress handler
    * @param studyUID the study instance UID to retrieve
-   * @param attributesEditor the editor for modifying attributes on the fly. IT can be null.
+   * @param cstoreParams
    * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error
    *     message and the progression.
    */
@@ -475,7 +466,7 @@ public class CGetForward implements AutoCloseable {
       DicomNode destinationNode,
       DicomProgress progress,
       String studyUID,
-      AttributeEditor attributesEditor) {
+      CstoreParams cstoreParams) {
     return process(
         getParams,
         forwardParams,
@@ -485,7 +476,7 @@ public class CGetForward implements AutoCloseable {
         progress,
         "STUDY",
         studyUID,
-        attributesEditor);
+        cstoreParams);
   }
 
   /**
@@ -550,7 +541,7 @@ public class CGetForward implements AutoCloseable {
    * @param destinationNode the final destination DICOM node configuration
    * @param progress the progress handler
    * @param seriesUID the series instance UID to retrieve
-   * @param attributesEditor the editor for modifying attributes on the fly (can be Null)
+   * @param cstoreParams
    * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error
    *     message and the progression.
    */
@@ -562,7 +553,7 @@ public class CGetForward implements AutoCloseable {
       DicomNode destinationNode,
       DicomProgress progress,
       String seriesUID,
-      AttributeEditor attributesEditor) {
+      CstoreParams cstoreParams) {
     return process(
         getParams,
         forwardParams,
@@ -572,7 +563,7 @@ public class CGetForward implements AutoCloseable {
         progress,
         "SERIES",
         seriesUID,
-        attributesEditor);
+        cstoreParams);
   }
 
   private static DicomState process(
@@ -584,7 +575,7 @@ public class CGetForward implements AutoCloseable {
       DicomProgress progress,
       String queryRetrieveLevel,
       String queryUID,
-      AttributeEditor attributesEditor) {
+      CstoreParams cstoreParams) {
     if (callingNode == null || calledNode == null || destinationNode == null) {
       throw new IllegalArgumentException(
           "callingNode, calledNode or destinationNode cannot be null!");
@@ -594,7 +585,7 @@ public class CGetForward implements AutoCloseable {
 
     try {
       forward =
-          new CGetForward(forwardParams, callingNode, destinationNode, progress, attributesEditor);
+          new CGetForward(forwardParams, callingNode, destinationNode, progress, cstoreParams);
       Connection remote = forward.getRemoteConnection();
       Connection conn = forward.getConnection();
       options.configureConnect(forward.getAAssociateRQ(), remote, calledNode);

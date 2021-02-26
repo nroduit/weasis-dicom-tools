@@ -129,7 +129,7 @@ public class CStore {
       ApplicationEntity ae = new ApplicationEntity(callingNode.getAet());
       device.addApplicationEntity(ae);
       ae.addConnection(conn);
-      storeSCU = new StoreSCU(ae, progress, storeOptions.getAttributeEditor());
+      storeSCU = new StoreSCU(ae, progress, storeOptions.getDicomEditors());
       Connection remote = storeSCU.getRemoteConnection();
       DeviceOpService service = new DeviceOpService(device);
 

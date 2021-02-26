@@ -24,6 +24,7 @@ public class DicomNode {
   private final String hostname;
   private final Integer port;
   private final boolean validateHostname;
+  private final Long id;
 
   public DicomNode(String aet) {
     this(aet, null, null);
@@ -34,10 +35,14 @@ public class DicomNode {
   }
 
   public DicomNode(String aet, String hostname, Integer port) {
-    this(aet, hostname, port, false);
+    this(null, aet, hostname, port, false);
   }
 
-  public DicomNode(String aet, String hostname, Integer port, boolean validateHostname) {
+  public DicomNode(Long id, String aet, String hostname, Integer port) {
+    this(id, aet, hostname, port, false);
+  }
+
+  public DicomNode(Long id, String aet, String hostname, Integer port, boolean validateHostname) {
     if (!StringUtil.hasText(aet)) {
       throw new IllegalArgumentException("Missing AETitle");
     }
@@ -47,10 +52,15 @@ public class DicomNode {
     if (port != null && (port < 1 || port > 65535)) {
       throw new IllegalArgumentException("Port is out of bound");
     }
+    this.id = id;
     this.aet = aet;
     this.hostname = hostname;
     this.port = port;
     this.validateHostname = validateHostname;
+  }
+
+  public Long getId() {
+    return id;
   }
 
   public String getAet() {

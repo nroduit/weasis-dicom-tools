@@ -53,9 +53,9 @@ import org.weasis.dicom.param.AttributeEditorContext;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
-import org.weasis.dicom.util.ForwardUtil;
 import org.weasis.dicom.util.ServiceUtil;
 import org.weasis.dicom.util.ServiceUtil.ProgressStatus;
+import org.weasis.dicom.util.StoreFromStreamSCU;
 import org.xml.sax.SAXException;
 
 /**
@@ -86,7 +86,7 @@ public class StoreSCU implements AutoCloseable {
   private long totalSize = 0;
   private int filesScanned;
 
-  private final AttributeEditor attributesEditor;
+  private final List<AttributeEditor> dicomEditors;
   private final DicomState state;
 
   private RSPHandlerFactory rspHandlerFactory =
@@ -110,14 +110,14 @@ public class StoreSCU implements AutoCloseable {
     this(ae, progress, null);
   }
 
-  public StoreSCU(ApplicationEntity ae, DicomProgress progress, AttributeEditor attributesEditor)
+  public StoreSCU(ApplicationEntity ae, DicomProgress progress, List<AttributeEditor> dicomEditors)
       throws IOException {
     this.remote = new Connection();
     this.ae = ae;
     rq.addPresentationContext(
         new PresentationContext(1, UID.Verification, UID.ImplicitVRLittleEndian));
     this.state = new DicomState(progress);
-    this.attributesEditor = attributesEditor;
+    this.dicomEditors = dicomEditors;
   }
 
   public void setRspHandlerFactory(RSPHandlerFactory rspHandlerFactory) {
@@ -276,10 +276,10 @@ public class StoreSCU implements AutoCloseable {
 
   public void send(final File f, long fmiEndPos, String cuid, String iuid, String filets)
       throws IOException, InterruptedException, ParserConfigurationException, SAXException {
-    String ts = ForwardUtil.selectTransferSyntax(as, cuid, filets);
+    String ts = StoreFromStreamSCU.selectTransferSyntax(as, cuid, filets);
 
     boolean noChange =
-        uidSuffix == null && attrs.isEmpty() && ts.equals(filets) && attributesEditor == null;
+        uidSuffix == null && attrs.isEmpty() && ts.equals(filets) && dicomEditors == null;
     DataWriter dataWriter = null;
     InputStream in = null;
     Attributes data = null;
@@ -299,13 +299,14 @@ public class StoreSCU implements AutoCloseable {
       }
 
       if (!noChange) {
-        if (attributesEditor != null) {
+        if (dicomEditors != null && !dicomEditors.isEmpty()) {
           AttributeEditorContext context =
               new AttributeEditorContext(
                   ts, DicomNode.buildLocalDicomNode(as), DicomNode.buildRemoteDicomNode(as));
-          if (attributesEditor.apply(data, context)) {
-            iuid = data.getString(Tag.SOPInstanceUID);
-          }
+          final Attributes attributes = data;
+          dicomEditors.forEach(e -> e.apply(attributes, context));
+          iuid = data.getString(Tag.SOPInstanceUID);
+          cuid = data.getString(Tag.SOPClassUID);
         }
         if (CLIUtils.updateAttributes(data, attrs, uidSuffix)) {
           iuid = data.getString(Tag.SOPInstanceUID);

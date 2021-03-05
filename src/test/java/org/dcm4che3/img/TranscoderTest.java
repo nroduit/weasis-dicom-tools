@@ -164,7 +164,7 @@ public class TranscoderTest {
     @Parameter(value = 0)
     public String lossyUID;
 
-    @Parameters(name = "{index}: testUIDs - {0}")
+    @Parameters(name = "{index}: testLossy - {0}")
     public static Object[] data() {
       return new Object[] {UID.JPEG2000, UID.JPEGBaseline8Bit, UID.JPEGLSNearLossless};
     }
@@ -175,12 +175,11 @@ public class TranscoderTest {
       Map<ImageContentHash, Consumer<Double>> enumMap = new EnumMap<>(ImageContentHash.class);
       enumMap.put(ImageContentHash.AVERAGE, zeroDiff);
       enumMap.put(ImageContentHash.PHASH, zeroDiff);
-      enumMap.put(
-          ImageContentHash.COLOR_MOMENT,
-          hasDiff); // JPEG compression mainly reduce the color information
+      // JPEG compression mainly reduce the color information
+      enumMap.put(ImageContentHash.COLOR_MOMENT, hasDiff);
 
       DicomTranscodeParam params = new DicomTranscodeParam(lossyUID);
-      if (lossyUID == UID.JPEGLSNearLossless) {
+      if (lossyUID.equals(UID.JPEGLSNearLossless)) {
         params.getWriteJpegParam().setNearLosslessError(3);
       } else {
         params.getWriteJpegParam().setCompressionQuality(80);

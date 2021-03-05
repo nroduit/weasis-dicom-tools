@@ -9,6 +9,8 @@
  */
 package org.weasis.dicom.param;
 
+import org.dcm4che3.img.op.MaskArea;
+
 public class AttributeEditorContext {
   /** Abort status allows to skip the file transfer or abort the DICOM association */
   public enum Abort {

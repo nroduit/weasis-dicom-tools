@@ -32,7 +32,7 @@ import org.weasis.core.util.StringUtil;
 public class DicomUtils {
   private static final Logger LOGGER = LoggerFactory.getLogger(DicomUtils.class);
 
-  public static boolean isLVideo(String uid) {
+  public static boolean isVideo(String uid) {
     switch (uid) {
       case UID.MPEG2MPML:
       case UID.MPEG2MPHL:

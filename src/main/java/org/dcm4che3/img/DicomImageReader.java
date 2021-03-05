@@ -417,13 +417,12 @@ public class DicomImageReader extends ImageReader implements Closeable {
       throw new IllegalStateException("No pixel data in this DICOM object");
     }
 
-    int numberOfFrame = dcm.getInt(Tag.NumberOfFrames, 1);
     Fragments pixeldataFragments = null;
     BulkData bulkData = null;
     boolean bigendian = false;
     if (pixdata instanceof BulkData) {
-      bigendian = dis.bigEndian();
       bulkData = (BulkData) pixdata;
+      bigendian = bulkData.bigEndian();
     } else if (dcm.getString(Tag.PixelDataProviderURL) != null) {
       // TODO Handle JPIP
       // always little endian:

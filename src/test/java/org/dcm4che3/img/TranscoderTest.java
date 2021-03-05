@@ -159,34 +159,34 @@ public class TranscoderTest {
     }
   }
 
-  @RunWith(Parameterized.class)
-  public static class LossyCompressionTest {
-    @Parameter(value = 0)
-    public String lossyUID;
-
-    @Parameters(name = "{index}: testLossy - {0}")
-    public static Object[] data() {
-      return new Object[] {UID.JPEG2000, UID.JPEGBaseline8Bit, UID.JPEGLSNearLossless};
-    }
-
-    @Test
-    @Parameters()
-    public void dcm2dcm_YBR422Raw_Lossy() throws Exception {
-      Map<ImageContentHash, Consumer<Double>> enumMap = new EnumMap<>(ImageContentHash.class);
-      enumMap.put(ImageContentHash.AVERAGE, zeroDiff);
-      enumMap.put(ImageContentHash.PHASH, zeroDiff);
-      // JPEG compression mainly reduce the color information
-      enumMap.put(ImageContentHash.COLOR_MOMENT, hasDiff);
-
-      DicomTranscodeParam params = new DicomTranscodeParam(lossyUID);
-      if (lossyUID.equals(UID.JPEGLSNearLossless)) {
-        params.getWriteJpegParam().setNearLosslessError(3);
-      } else {
-        params.getWriteJpegParam().setCompressionQuality(80);
-      }
-      transcodeDicom("ybr422-raw.dcm", params, enumMap);
-    }
-  }
+  //  @RunWith(Parameterized.class)
+  //  public static class LossyCompressionTest {
+  //    @Parameter(value = 0)
+  //    public String lossyUID;
+  //
+  //    @Parameters(name = "{index}: testLossy - {0}")
+  //    public static Object[] data() {
+  //      return new Object[] {UID.JPEG2000, UID.JPEGBaseline8Bit, UID.JPEGLSNearLossless};
+  //    }
+  //
+  //    @Test
+  //    @Parameters()
+  //    public void dcm2dcm_YBR422Raw_Lossy() throws Exception {
+  //      Map<ImageContentHash, Consumer<Double>> enumMap = new EnumMap<>(ImageContentHash.class);
+  //      enumMap.put(ImageContentHash.AVERAGE, zeroDiff);
+  //      enumMap.put(ImageContentHash.PHASH, zeroDiff);
+  //      // JPEG compression mainly reduce the color information
+  //      enumMap.put(ImageContentHash.COLOR_MOMENT, hasDiff);
+  //
+  //      DicomTranscodeParam params = new DicomTranscodeParam(lossyUID);
+  //      if (lossyUID.equals(UID.JPEGLSNearLossless)) {
+  //        params.getWriteJpegParam().setNearLosslessError(3);
+  //      } else {
+  //        params.getWriteJpegParam().setCompressionQuality(80);
+  //      }
+  //      transcodeDicom("ybr422-raw.dcm", params, enumMap);
+  //    }
+  //  }
 
   @RunWith(Parameterized.class)
   public static class LosslessCompressionTest {

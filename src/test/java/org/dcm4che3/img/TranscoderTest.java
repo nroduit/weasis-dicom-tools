@@ -195,7 +195,7 @@ public class TranscoderTest {
 
     @Parameters(name = "{index}: testLossless - {0}")
     public static Object[] data() {
-      return new Object[] {UID.JPEG2000Lossless, UID.JPEGLossless, UID.JPEGLSLossless};
+      return new Object[] {UID.JPEG2000Lossless, UID.JPEGLosslessSV1, UID.JPEGLSLossless};
     }
 
     @Test

@@ -323,13 +323,13 @@ public class DicomOutputData {
       case UID.JPEGBaseline8Bit:
         return type <= CvType.CV_8S
             ? dstTsuid
-            : type <= CvType.CV_16S ? UID.JPEGLossless : UID.ExplicitVRLittleEndian;
+            : type <= CvType.CV_16S ? UID.JPEGLosslessSV1 : UID.ExplicitVRLittleEndian;
       case UID.JPEGExtended12Bit:
       case UID.JPEGSpectralSelectionNonHierarchical68:
       case UID.JPEGFullProgressionNonHierarchical1012:
         return type <= CvType.CV_16U && bitStored <= 12
             ? dstTsuid
-            : type <= CvType.CV_16S ? UID.JPEGLossless : UID.ExplicitVRLittleEndian;
+            : type <= CvType.CV_16S ? UID.JPEGLosslessSV1 : UID.ExplicitVRLittleEndian;
       case UID.JPEGLossless:
       case UID.JPEGLosslessSV1:
       case UID.JPEGLSLossless:

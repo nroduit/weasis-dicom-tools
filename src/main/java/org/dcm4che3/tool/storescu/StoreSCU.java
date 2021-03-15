@@ -25,7 +25,8 @@ import javax.xml.parsers.ParserConfigurationException;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
-import org.dcm4che3.imageio.codec.Decompressor;
+import org.dcm4che3.img.stream.BytesWithImageDescriptor;
+import org.dcm4che3.img.stream.ImageAdapter;
 import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.io.DicomInputStream.IncludeBulkData;
 import org.dcm4che3.io.SAXReader;
@@ -33,7 +34,6 @@ import org.dcm4che3.net.ApplicationEntity;
 import org.dcm4che3.net.Association;
 import org.dcm4che3.net.Connection;
 import org.dcm4che3.net.DataWriter;
-import org.dcm4che3.net.DataWriterAdapter;
 import org.dcm4che3.net.DimseRSP;
 import org.dcm4che3.net.DimseRSPHandler;
 import org.dcm4che3.net.IncompatibleConnectionException;
@@ -299,10 +299,10 @@ public class StoreSCU implements AutoCloseable {
       }
 
       if (!noChange) {
+        AttributeEditorContext context =
+            new AttributeEditorContext(
+                ts, DicomNode.buildLocalDicomNode(as), DicomNode.buildRemoteDicomNode(as));
         if (dicomEditors != null && !dicomEditors.isEmpty()) {
-          AttributeEditorContext context =
-              new AttributeEditorContext(
-                  ts, DicomNode.buildLocalDicomNode(as), DicomNode.buildRemoteDicomNode(as));
           final Attributes attributes = data;
           dicomEditors.forEach(e -> e.apply(attributes, context));
           iuid = data.getString(Tag.SOPInstanceUID);
@@ -311,10 +311,9 @@ public class StoreSCU implements AutoCloseable {
         if (CLIUtils.updateAttributes(data, attrs, uidSuffix)) {
           iuid = data.getString(Tag.SOPInstanceUID);
         }
-        if (!ts.equals(filets)) {
-          Decompressor.decompress(data, filets);
-        }
-        dataWriter = new DataWriterAdapter(data);
+
+        BytesWithImageDescriptor desc = ImageAdapter.imageTranscode(data, filets, ts, context);
+        dataWriter = ImageAdapter.buildDataWriter(data, ts, context, desc);
       }
       as.cstore(cuid, iuid, priority, dataWriter, ts, rspHandlerFactory.createDimseRSPHandler(f));
     } finally {

@@ -43,6 +43,7 @@ public class PresetWindowLevel {
   private final Double window;
   private final Double level;
   private final LutShape shape;
+  private int keyCode = 0;
 
   public PresetWindowLevel(String name, Double window, Double level, LutShape shape) {
     this.name = Objects.requireNonNull(name);
@@ -67,12 +68,24 @@ public class PresetWindowLevel {
     return shape;
   }
 
+  public int getKeyCode() {
+    return keyCode;
+  }
+
   public double getMinBox() {
     return level - window / 2.0;
   }
 
   public double getMaxBox() {
     return level + window / 2.0;
+  }
+
+  public void setKeyCode(int keyCode) {
+    this.keyCode = keyCode;
+  }
+
+  public boolean isAutoLevel() {
+    return keyCode == 0x30;
   }
 
   @Override
@@ -141,6 +154,12 @@ public class PresetWindowLevel {
         PresetWindowLevel preset =
             new PresetWindowLevel(
                 explanation + dicomKeyWord, windowList.get(i), levelList.get(i), defaultLutShape);
+        // Only set shortcuts for the two first presets
+        if (k == 1) {
+          preset.setKeyCode(0x31);
+        } else if (k == 2) {
+          preset.setKeyCode(0x32);
+        }
         if (!presetList.contains(preset)) {
           presetList.add(preset);
           k++;
@@ -157,7 +176,7 @@ public class PresetWindowLevel {
       for (int i = 0; i < voiLUTsData.size(); i++) {
         String explanation = defaultExplanation + " " + i;
 
-        if (voiLUTsExplanation != null && i < voiLUTsExplanation.size()) {
+        if (i < voiLUTsExplanation.size()) {
           String exp = voiLUTsExplanation.get(i);
           if (StringUtil.hasText(exp)) {
             explanation = exp;
@@ -168,6 +187,13 @@ public class PresetWindowLevel {
             buildPresetFromLutData(adapter, voiLUTsData.get(i), wl, explanation + dicomKeyWord);
         if (preset == null) {
           continue;
+        }
+        // Only set shortcuts for the two first presets
+        int k = presetList.size();
+        if (k == 0) {
+          preset.setKeyCode(0x31);
+        } else if (k == 1) {
+          preset.setKeyCode(0x32);
         }
         presetList.add(preset);
       }
@@ -197,9 +223,7 @@ public class PresetWindowLevel {
     PresentationStateLut pr = wl.getPresentationState();
     if (pr instanceof PrDicomObject) {
       Optional<VoiLutModule> vlut = ((PrDicomObject) pr).getVoiLUT();
-      if (vlut.isPresent()) {
-        luts.addAll(vlut.get().getLut());
-      }
+      vlut.ifPresent(voiLutModule -> luts.addAll(voiLutModule.getLut()));
     }
     if (!desc.getVoiLUT().getLut().isEmpty()) {
       luts.addAll(desc.getVoiLUT().getLut());
@@ -212,9 +236,7 @@ public class PresetWindowLevel {
     PresentationStateLut pr = wl.getPresentationState();
     if (pr instanceof PrDicomObject) {
       Optional<VoiLutModule> vlut = ((PrDicomObject) pr).getVoiLUT();
-      if (vlut.isPresent()) {
-        luts.addAll(vlut.get().getLutExplanation());
-      }
+      vlut.ifPresent(voiLutModule -> luts.addAll(voiLutModule.getLutExplanation()));
     }
     if (!desc.getVoiLUT().getLut().isEmpty()) {
       luts.addAll(desc.getVoiLUT().getLutExplanation());
@@ -267,8 +289,13 @@ public class PresetWindowLevel {
     XMLStreamReader xmler = null;
     InputStream stream = null;
     try {
-      // TODO convert in Path. Allow to override with a System property
-      File file = new File(PresetWindowLevel.class.getResource("presets.xml").getFile());
+      File file;
+      String path = System.getProperty("dicom.presets.path");
+      if (StringUtil.hasText(path)) {
+        file = new File(path);
+      } else {
+        file = new File(PresetWindowLevel.class.getResource("presets.xml").getFile());
+      }
       if (!file.canRead()) {
         return Collections.emptyMap();
       }
@@ -276,7 +303,7 @@ public class PresetWindowLevel {
       // disable external entities for security
       factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, Boolean.FALSE);
       factory.setProperty(XMLInputFactory.SUPPORT_DTD, Boolean.FALSE);
-      stream = new FileInputStream(file); // $NON-NLS-1$
+      stream = new FileInputStream(file);
       xmler = factory.createXMLStreamReader(stream);
 
       int eventType;
@@ -298,6 +325,21 @@ public class PresetWindowLevel {
     return presets;
   }
 
+  public static Integer getIntegerTagAttribute(
+      XMLStreamReader xmler, String attribute, Integer defaultValue) {
+    if (attribute != null) {
+      String val = xmler.getAttributeValue(null, attribute);
+      try {
+        if (val != null) {
+          return Integer.valueOf(val);
+        }
+      } catch (NumberFormatException e) {
+        LOGGER.error("Cannot parse integer {} of {}", val, attribute);
+      }
+    }
+    return defaultValue;
+  }
+
   private static void readPresetListByModality(
       XMLStreamReader xmler, Map<String, List<PresetWindowLevel>> presets)
       throws XMLStreamException {
@@ -312,10 +354,14 @@ public class PresetWindowLevel {
           double window = Double.parseDouble(xmler.getAttributeValue(null, "window"));
           double level = Double.parseDouble(xmler.getAttributeValue(null, "level"));
           String shape = xmler.getAttributeValue(null, "shape");
+          Integer keyCode = getIntegerTagAttribute(xmler, "key", null);
           LutShape lutShape = LutShape.getLutShape(shape);
           PresetWindowLevel preset =
               new PresetWindowLevel(
                   name, window, level, lutShape == null ? LutShape.LINEAR : lutShape);
+          if (keyCode != null) {
+            preset.setKeyCode(keyCode);
+          }
           List<PresetWindowLevel> presetList =
               presets.computeIfAbsent(modality, k -> new ArrayList<>());
           presetList.add(preset);

@@ -22,14 +22,14 @@ import org.dcm4che3.data.ElementDictionary;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
 import org.dcm4che3.data.VR;
-import org.dcm4che3.imageio.codec.Decompressor;
+import org.dcm4che3.img.stream.BytesWithImageDescriptor;
+import org.dcm4che3.img.stream.ImageAdapter;
 import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.io.DicomInputStream.IncludeBulkData;
 import org.dcm4che3.net.ApplicationEntity;
 import org.dcm4che3.net.Association;
 import org.dcm4che3.net.Connection;
 import org.dcm4che3.net.DataWriter;
-import org.dcm4che3.net.DataWriterAdapter;
 import org.dcm4che3.net.Device;
 import org.dcm4che3.net.DimseRSPHandler;
 import org.dcm4che3.net.IncompatibleConnectionException;
@@ -185,10 +185,10 @@ public class CGetForward implements AutoCloseable {
                       "DICOM associtation abort. " + context.getAbortMessage());
                 }
 
-                if (!supportedTsuid.equals(tsuid)) {
-                  Decompressor.decompress(attributes, tsuid);
-                }
-                dataWriter = new DataWriterAdapter(attributes);
+                BytesWithImageDescriptor desc =
+                    ImageAdapter.imageTranscode(attributes, tsuid, supportedTsuid, context);
+                dataWriter =
+                    ImageAdapter.buildDataWriter(attributes, supportedTsuid, context, desc);
               }
 
               streamSCU.cstore(cuid, iuid, priority, dataWriter, tsuid);

@@ -115,7 +115,7 @@ public class DateTimeUtils {
           .toFormatter();
 
   public static LocalDate parseDA(String value) {
-    return LocalDate.from(DA_PARSER.parse(value));
+    return LocalDate.from(DA_PARSER.parse(value.trim()));
   }
 
   public static String formatDA(Temporal value) {
@@ -123,7 +123,7 @@ public class DateTimeUtils {
   }
 
   public static LocalTime parseTM(String value) {
-    return LocalTime.from(TM_PARSER.parse(value));
+    return LocalTime.from(TM_PARSER.parse(value.trim()));
   }
 
   public static LocalTime parseTMMax(String value) {
@@ -135,7 +135,7 @@ public class DateTimeUtils {
   }
 
   public static Temporal parseDT(String value) {
-    TemporalAccessor temporal = DT_PARSER.parse(value);
+    TemporalAccessor temporal = DT_PARSER.parse(value.trim());
     LocalDate date =
         temporal.isSupported(DAY_OF_MONTH)
             ? LocalDate.from(temporal)

@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
-import java.util.function.Supplier;
+import java.util.function.BooleanSupplier;
 import javax.imageio.ImageReadParam;
 import javax.imageio.ImageReader;
 import javax.imageio.ImageTypeSpecifier;
@@ -260,27 +260,12 @@ public class DicomImageReader extends ImageReader implements Closeable {
       ExtendSegmentedInputImageStream seg,
       int frame,
       DicomImageReadParam param) {
-    Supplier<Boolean> isYbrModel =
+    BooleanSupplier isYbrModel =
         () -> {
           try (SeekableByteChannel channel =
               Files.newByteChannel(dis.getPath(), StandardOpenOption.READ)) {
             channel.position(seg.getSegmentPositions()[frame]);
-            channel.truncate(seg.getSegmentLengths()[frame]);
-            JPEGParser parser = new JPEGParser(channel);
-            Attributes attributes = parser.getAttributes(null);
-            if (!TransferSyntaxType.isLossyCompression(
-                attributes.getString(Tag.TransferSyntaxUID, ""))) {
-              return false;
-            }
-            if (pmi == PhotometricInterpretation.RGB
-                && !param.getKeepRgbForLossyJpeg().orElse(false)) {
-              // Force JPEG Baseline (1.2.840.10008.1.2.4.50) to YBR_FULL_422 color model when RGB
-              // with JFIF
-              // header (error made by some constructors). RGB color model doesn't make sense for
-              // lossy jpeg with
-              // JFIF header.
-              return !"RGB".equals(attributes.getString(Tag.PhotometricInterpretation));
-            }
+            return isYbrModel(channel, pmi, param);
           } catch (IOException e) {
             LOG.error("Cannot read jpeg header", e);
           }
@@ -289,23 +274,30 @@ public class DicomImageReader extends ImageReader implements Closeable {
     return ybr2rgb(pmi, tsuid, isYbrModel);
   }
 
+  private static boolean isYbrModel(
+      SeekableByteChannel channel, PhotometricInterpretation pmi, DicomImageReadParam param)
+      throws IOException {
+    JPEGParser parser = new JPEGParser(channel);
+    Attributes attributes = parser.getAttributes(null);
+    if (!TransferSyntaxType.isLossyCompression(attributes.getString(Tag.TransferSyntaxUID, ""))) {
+      return false;
+    }
+    if (pmi == PhotometricInterpretation.RGB && !param.getKeepRgbForLossyJpeg().orElse(false)) {
+      // Force JPEG Baseline (1.2.840.10008.1.2.4.50) to YBR_FULL_422 color model when RGB with
+      // JFIF header (error made by some constructors). RGB color model doesn't make sense for
+      // lossy jpeg with JFIF header.
+      return !"RGB".equals(attributes.getString(Tag.PhotometricInterpretation));
+    }
+    return false;
+  }
+
   private boolean byteYbr2rgb(
       PhotometricInterpretation pmi, String tsuid, int frame, DicomImageReadParam param) {
-    Supplier<Boolean> isYbrModel =
+    BooleanSupplier isYbrModel =
         () -> {
-          try {
-            byte[] b = bdis.getBytes(frame).array();
-            SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel(b);
-            JPEGParser parser = new JPEGParser(channel);
-            Attributes attributes = parser.getAttributes(null);
-            if (!TransferSyntaxType.isLossyCompression(
-                attributes.getString(Tag.TransferSyntaxUID, ""))) {
-              return false;
-            }
-            if (pmi == PhotometricInterpretation.RGB
-                && !param.getKeepRgbForLossyJpeg().orElse(false)) {
-              return !"RGB".equals(attributes.getString(Tag.PhotometricInterpretation));
-            }
+          try (SeekableInMemoryByteChannel channel =
+              new SeekableInMemoryByteChannel(bdis.getBytes(frame).array())) {
+            return isYbrModel(channel, pmi, param);
           } catch (Exception e) {
             LOG.error("Cannot read jpeg header", e);
           }
@@ -315,7 +307,7 @@ public class DicomImageReader extends ImageReader implements Closeable {
   }
 
   private static boolean ybr2rgb(
-      PhotometricInterpretation pmi, String tsuid, Supplier<Boolean> isYbrModel) {
+      PhotometricInterpretation pmi, String tsuid, BooleanSupplier isYbrModel) {
     // Option only for IJG native decoder
     switch (pmi) {
       case MONOCHROME1:
@@ -334,7 +326,7 @@ public class DicomImageReader extends ImageReader implements Closeable {
       case UID.JPEGSpectralSelectionNonHierarchical68:
       case UID.JPEGFullProgressionNonHierarchical1012:
         if (pmi == PhotometricInterpretation.RGB) {
-          return isYbrModel.get();
+          return isYbrModel.getAsBoolean();
         }
         return true;
       default:
@@ -576,7 +568,7 @@ public class DicomImageReader extends ImageReader implements Closeable {
                   desc.getColumns(), desc.getRows(), desc.getSamples(), desc.getBitsAllocated());
       offsets = new long[1];
       length = new int[offsets.length];
-      offsets[0] = bulkData.offset() + frameIndex * frameLength;
+      offsets[0] = bulkData.offset() + (long) frameIndex * frameLength;
       length[0] = frameLength;
     } else if (hasFragments) {
       int nbFragments = fragments.size();
@@ -607,7 +599,6 @@ public class DicomImageReader extends ImageReader implements Closeable {
               for (int i = 1; i < nbFragments; i++) {
                 BulkData b = (BulkData) fragments.get(i);
                 channel.position(b.offset());
-                channel.truncate(b.length());
                 try {
                   new JPEGParser(channel);
                   fragmentsPositions.add(i);

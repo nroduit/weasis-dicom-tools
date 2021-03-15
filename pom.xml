@@ -10,7 +10,7 @@
   <version>5.23.1-SNAPSHOT</version>
 
   <properties>
-    <java-version>1.8</java-version>
+    <java-version>11</java-version>
     <enforcer.jdk-version>[${java-version},)</enforcer.jdk-version>
     <enforcer.maven-version>[3.0.5,)</enforcer.maven-version>
     <dcm4che.version>5.23.1</dcm4che.version>
@@ -20,8 +20,8 @@
     <sonar.organization>nroduit-github</sonar.organization>
     <sonar.host.url>https://sonarcloud.io</sonar.host.url>
 
-    <weasis.core.img.version>4.5.0</weasis.core.img.version>
-    <weasis.opencv.native.version>4.5.0-dcm</weasis.opencv.native.version>
+    <weasis.core.img.version>4.5.1</weasis.core.img.version>
+    <weasis.opencv.native.version>4.5.1-dcm</weasis.opencv.native.version>
     <skipTests>false</skipTests>
   </properties>
 
@@ -469,26 +469,17 @@
       <artifactId>dcm4che-json</artifactId>
       <version>${dcm4che.version}</version>
     </dependency>
-
-    <!-- dcm4che-imageio packages are linked to native libraries not located in this package (see dcm4che-imageio-opencv).
-      Only required by storeSCU, Dicomizer and ForwardUtil (DicomGateway) for uncompressing data not supported by the destination. -->
-    <dependency>
-      <groupId>org.dcm4che</groupId>
-      <artifactId>dcm4che-imageio</artifactId>
-      <version>${dcm4che.version}</version>
-    </dependency>
     <dependency>
       <groupId>org.dcm4che</groupId>
       <artifactId>dcm4che-image</artifactId>
       <version>${dcm4che.version}</version>
     </dependency>
-    <!-- End of dcm4che-imageio packages -->
-
     <dependency>
       <groupId>org.weasis.core</groupId>
       <artifactId>weasis-core-img</artifactId>
       <version>${weasis.core.img.version}</version>
     </dependency>
+
     <dependency>
       <groupId>org.weasis.thirdparty.org.opencv</groupId>
       <artifactId>libopencv_java</artifactId>
@@ -514,7 +505,7 @@
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <version>4.13.1</version>
-      <scope>provided</scope>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 </project>

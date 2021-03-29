@@ -202,6 +202,9 @@ public class CGetForward implements AutoCloseable {
                   streamSCU.getNumberOfSuboperations());
               throw e;
             } catch (Exception e) {
+              if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+              }
               LOGGER.error("Error when forwarding to the final destination", e);
               ServiceUtil.notifyProgession(
                   streamSCU.getState(),
@@ -634,6 +637,9 @@ public class CGetForward implements AutoCloseable {
                 t3 - t2);
         return DicomState.buildMessage(dcmState, timeMsg, null);
       } catch (Exception e) {
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
         LOGGER.error("getscu", e);
         ServiceUtil.forceGettingAttributes(forward.getState(), forward);
         return DicomState.buildMessage(forward.getState(), null, e);

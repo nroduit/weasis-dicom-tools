@@ -311,10 +311,10 @@ public class GetSCU implements AutoCloseable {
   public void stop() {
     try {
       close();
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-    } catch (IOException e) {
-      // Do nothing
+    } catch (Exception e) {
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
     }
     ServiceUtil.shutdownService((ExecutorService) device.getExecutor());
     ServiceUtil.shutdownService(device.getScheduledExecutor());

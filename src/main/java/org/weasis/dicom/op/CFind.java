@@ -157,11 +157,10 @@ public class CFind {
         dcmState = DicomState.buildMessage(dcmState, timeMsg, null);
         dcmState.addProcessTime(t1, t3);
         return dcmState;
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        ServiceUtil.forceGettingAttributes(findSCU.getState(), findSCU);
-        return DicomState.buildMessage(findSCU.getState(), null, e);
       } catch (Exception e) {
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
         LOGGER.error("findscu", e);
         ServiceUtil.forceGettingAttributes(findSCU.getState(), findSCU);
         return DicomState.buildMessage(findSCU.getState(), null, e);
@@ -170,6 +169,9 @@ public class CFind {
         service.stop();
       }
     } catch (Exception e) {
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
       LOGGER.error("findscu", e);
       return DicomState.buildMessage(
           new DicomState(

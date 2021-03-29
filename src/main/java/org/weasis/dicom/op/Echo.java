@@ -108,6 +108,9 @@ public class Echo {
         service.stop();
       }
     } catch (Exception e) {
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
       String message = "DICOM Echo failed, storescu: " + e.getMessage();
       LOGGER.error(message, e);
       return DicomState.buildMessage(

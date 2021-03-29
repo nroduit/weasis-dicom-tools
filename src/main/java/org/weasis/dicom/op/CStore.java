@@ -177,6 +177,9 @@ public class CStore {
           dcmState.setBytesSize(storeSCU.getTotalSize());
           return dcmState;
         } catch (Exception e) {
+          if (e instanceof InterruptedException) {
+            Thread.currentThread().interrupt();
+          }
           LOGGER.error("storescu", e);
           ServiceUtil.forceGettingAttributes(storeSCU.getState(), storeSCU);
           return DicomState.buildMessage(storeSCU.getState(), null, e);

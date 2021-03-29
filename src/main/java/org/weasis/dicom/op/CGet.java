@@ -123,13 +123,17 @@ public class CGet {
 
       configureRelatedSOPClass(getSCU, sopClassURL);
 
+      DicomState dcmState = getSCU.getState();
       for (DicomParam p : keys) {
-        getSCU.addKey(p.getTag(), p.getValues());
+        String[] values = p.getValues();
+        getSCU.addKey(p.getTag(), values);
+        if (values != null && values.length > 0) {
+          dcmState.addDicomMatchingKeys(p);
+        }
       }
 
       service.start();
       try {
-        DicomState dcmState = getSCU.getState();
         long t1 = System.currentTimeMillis();
         getSCU.open();
         long t2 = System.currentTimeMillis();
@@ -143,7 +147,10 @@ public class CGet {
                 getSCU.getAAssociateRQ().getCalledAET(),
                 t2 - t1,
                 t3 - t2);
-        return DicomState.buildMessage(dcmState, timeMsg, null);
+        dcmState = DicomState.buildMessage(dcmState, timeMsg, null);
+        dcmState.addProcessTime(t1, t3);
+        dcmState.setBytesSize(getSCU.getTotalSize());
+        return dcmState;
       } catch (Exception e) {
         LOGGER.error("getscu", e);
         ServiceUtil.forceGettingAttributes(getSCU.getState(), getSCU);
@@ -154,10 +161,13 @@ public class CGet {
       }
     } catch (Exception e) {
       LOGGER.error("getscu", e);
-      return new DicomState(
-          Status.UnableToProcess,
-          "DICOM Get failed" + StringUtil.COLON_AND_SPACE + e.getMessage(),
-          null);
+      return DicomState.buildMessage(
+          new DicomState(
+              Status.UnableToProcess,
+              "DICOM Get failed" + StringUtil.COLON_AND_SPACE + e.getMessage(),
+              null),
+          null,
+          e);
     }
   }
 

@@ -128,15 +128,19 @@ public class CFind {
         findSCU.addLevel(level.name());
       }
 
+      DicomState dcmState = findSCU.getState();
       for (DicomParam p : keys) {
         addAttributes(findSCU.getKeys(), p);
+        String[] values = p.getValues();
+        if (values != null && values.length > 0) {
+          dcmState.addDicomMatchingKeys(p);
+        }
       }
       findSCU.setCancelAfter(cancelAfter);
       findSCU.setPriority(options.getPriority());
 
       service.start();
       try {
-        DicomState dcmState = findSCU.getState();
         long t1 = System.currentTimeMillis();
         findSCU.open();
         long t2 = System.currentTimeMillis();
@@ -150,7 +154,9 @@ public class CFind {
                 findSCU.getAAssociateRQ().getCalledAET(),
                 t2 - t1,
                 t3 - t2);
-        return DicomState.buildMessage(dcmState, timeMsg, null);
+        dcmState = DicomState.buildMessage(dcmState, timeMsg, null);
+        dcmState.addProcessTime(t1, t3);
+        return dcmState;
       } catch (Exception e) {
         LOGGER.error("findscu", e);
         ServiceUtil.forceGettingAttributes(findSCU.getState(), findSCU);
@@ -161,10 +167,13 @@ public class CFind {
       }
     } catch (Exception e) {
       LOGGER.error("findscu", e);
-      return new DicomState(
-          Status.UnableToProcess,
-          "DICOM Find failed" + StringUtil.COLON_AND_SPACE + e.getMessage(),
-          null);
+      return DicomState.buildMessage(
+          new DicomState(
+              Status.UnableToProcess,
+              "DICOM Find failed" + StringUtil.COLON_AND_SPACE + e.getMessage(),
+              null),
+          null,
+          e);
     }
   }
 

@@ -9,6 +9,9 @@
  */
 package org.weasis.dicom.param;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import org.dcm4che3.data.Attributes;
@@ -16,10 +19,16 @@ import org.dcm4che3.net.Status;
 import org.weasis.core.util.StringUtil;
 
 public class DicomState {
-  private volatile int status;
-  private String message;
   private final List<Attributes> dicomRSP;
   private final DicomProgress progress;
+  private final List<DicomParam> dicomMatchingKeys;
+
+  private volatile int status;
+  private String message;
+  private String errorMessage;
+  private LocalDateTime startTransferDateTime;
+  private LocalDateTime endTransferDateTime;
+  private long bytesSize;
 
   public DicomState() {
     this(Status.Pending, null, null);
@@ -34,6 +43,8 @@ public class DicomState {
     this.message = message;
     this.progress = progress;
     this.dicomRSP = new ArrayList<>();
+    this.dicomMatchingKeys = new ArrayList<>();
+    this.bytesSize = -1;
   }
 
   /**
@@ -73,10 +84,55 @@ public class DicomState {
     return dicomRSP;
   }
 
+  public List<DicomParam> getDicomMatchingKeys() {
+    return dicomMatchingKeys;
+  }
+
+  public LocalDateTime getStartTransferDateTime() {
+    return startTransferDateTime;
+  }
+
+  public void setStartTransferDateTime(LocalDateTime startTransferDateTime) {
+    this.startTransferDateTime = startTransferDateTime;
+  }
+
+  public LocalDateTime getEndTransferDateTime() {
+    return endTransferDateTime;
+  }
+
+  public void setEndTransferDateTime(LocalDateTime endTransferDateTime) {
+    this.endTransferDateTime = endTransferDateTime;
+  }
+
+  public String getErrorMessage() {
+    return errorMessage;
+  }
+
+  public void setErrorMessage(String errorMessage) {
+    this.errorMessage = errorMessage;
+  }
+
+  public long getBytesSize() {
+    return bytesSize;
+  }
+
+  public void setBytesSize(long bytesSize) {
+    this.bytesSize = bytesSize;
+  }
+
   public void addDicomRSP(Attributes dicomRSP) {
-    if (dicomRSP != null) {
-      this.dicomRSP.add(dicomRSP);
-    }
+    this.dicomRSP.add(dicomRSP);
+  }
+
+  public void addDicomMatchingKeys(DicomParam param) {
+    this.dicomMatchingKeys.add(param);
+  }
+
+  public void addProcessTime(long startTimeStamp, long endTimeStamp) {
+    setStartTransferDateTime(
+        Instant.ofEpochMilli(startTimeStamp).atZone(ZoneId.systemDefault()).toLocalDateTime());
+    setEndTransferDateTime(
+        Instant.ofEpochMilli(endTimeStamp).atZone(ZoneId.systemDefault()).toLocalDateTime());
   }
 
   public static DicomState buildMessage(DicomState dcmState, String timeMessage, Exception e) {
@@ -112,7 +168,8 @@ public class DicomState {
       if (msg.length() > 0) {
         msg.append(" ");
       }
-      msg.append(e.getLocalizedMessage());
+      msg.append(e.getMessage());
+      state.setErrorMessage(e.getMessage());
     }
 
     if (p != null && p.getAttributes() != null) {

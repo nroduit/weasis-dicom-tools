@@ -172,7 +172,10 @@ public class CStore {
                   t2 - t1,
                   t3 - t2,
                   FileUtil.humanReadableByte(storeSCU.getTotalSize(), false));
-          return DicomState.buildMessage(dcmState, timeMsg, null);
+          dcmState = DicomState.buildMessage(dcmState, timeMsg, null);
+          dcmState.addProcessTime(t1, t3);
+          dcmState.setBytesSize(storeSCU.getTotalSize());
+          return dcmState;
         } catch (Exception e) {
           LOGGER.error("storescu", e);
           ServiceUtil.forceGettingAttributes(storeSCU.getState(), storeSCU);
@@ -184,10 +187,13 @@ public class CStore {
       }
     } catch (Exception e) {
       LOGGER.error("storescu", e);
-      return new DicomState(
-          Status.UnableToProcess,
-          "DICOM Store failed" + StringUtil.COLON_AND_SPACE + e.getMessage(),
-          null);
+      return DicomState.buildMessage(
+          new DicomState(
+              Status.UnableToProcess,
+              "DICOM Store failed" + StringUtil.COLON_AND_SPACE + e.getMessage(),
+              null),
+          null,
+          e);
     } finally {
       FileUtil.safeClose(storeSCU);
     }

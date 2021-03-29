@@ -100,7 +100,9 @@ public class Echo {
                 storeSCU.getAAssociateRQ().getCalledAET(),
                 t2 - t1,
                 t3 - t2);
-        return new DicomState(rsp.getInt(Tag.Status, Status.Success), message, null);
+        DicomState dcmState = new DicomState(rsp.getInt(Tag.Status, Status.Success), message, null);
+        dcmState.addProcessTime(t1, t3);
+        return dcmState;
       } finally {
         FileUtil.safeClose(storeSCU);
         service.stop();
@@ -108,7 +110,8 @@ public class Echo {
     } catch (Exception e) {
       String message = "DICOM Echo failed, storescu: " + e.getMessage();
       LOGGER.error(message, e);
-      return new DicomState(Status.UnableToProcess, message, null);
+      return DicomState.buildMessage(
+          new DicomState(Status.UnableToProcess, message, null), null, e);
     }
   }
 }

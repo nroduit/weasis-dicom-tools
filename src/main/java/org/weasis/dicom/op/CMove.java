@@ -118,6 +118,10 @@ public class CMove {
         dcmState = DicomState.buildMessage(dcmState, timeMsg, null);
         dcmState.addProcessTime(t1, t3);
         return dcmState;
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        ServiceUtil.forceGettingAttributes(moveSCU.getState(), moveSCU);
+        return DicomState.buildMessage(moveSCU.getState(), null, e);
       } catch (Exception e) {
         LOGGER.error("movescu", e);
         ServiceUtil.forceGettingAttributes(moveSCU.getState(), moveSCU);

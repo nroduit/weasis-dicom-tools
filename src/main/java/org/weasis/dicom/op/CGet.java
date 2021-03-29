@@ -151,10 +151,11 @@ public class CGet {
         dcmState.addProcessTime(t1, t3);
         dcmState.setBytesSize(getSCU.getTotalSize());
         return dcmState;
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        ServiceUtil.forceGettingAttributes(getSCU.getState(), getSCU);
+        return DicomState.buildMessage(getSCU.getState(), null, e);
       } catch (Exception e) {
-        if (e instanceof InterruptedException) {
-          Thread.currentThread().interrupt();
-        }
         LOGGER.error("getscu", e);
         ServiceUtil.forceGettingAttributes(getSCU.getState(), getSCU);
         return DicomState.buildMessage(getSCU.getState(), null, e);

@@ -157,6 +157,10 @@ public class CFind {
         dcmState = DicomState.buildMessage(dcmState, timeMsg, null);
         dcmState.addProcessTime(t1, t3);
         return dcmState;
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        ServiceUtil.forceGettingAttributes(findSCU.getState(), findSCU);
+        return DicomState.buildMessage(findSCU.getState(), null, e);
       } catch (Exception e) {
         LOGGER.error("findscu", e);
         ServiceUtil.forceGettingAttributes(findSCU.getState(), findSCU);

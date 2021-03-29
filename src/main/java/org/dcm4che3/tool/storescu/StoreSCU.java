@@ -208,6 +208,8 @@ public class StoreSCU implements AutoCloseable {
         String[] ss = StringUtils.split(line, '\t');
         try {
           send(new File(ss[4]), Long.parseLong(ss[3]), ss[1], ss[0], ss[2]);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
         } catch (Exception e) {
           LOG.error("Cannot send file", e);
         }

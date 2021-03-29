@@ -286,6 +286,9 @@ public class StoreFromStreamSCU {
     try {
       as = ae.connect(remote, rq);
     } catch (Exception e) {
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
       as = null;
       LOGGER.trace("Connecting to remote destination", e);
     }
@@ -304,6 +307,9 @@ public class StoreFromStreamSCU {
           }
           as.waitForSocketClose();
         } catch (Exception e) {
+          if (e instanceof InterruptedException) {
+            Thread.currentThread().interrupt();
+          }
           LOGGER.trace("Cannot close association", e);
         }
         as = null;

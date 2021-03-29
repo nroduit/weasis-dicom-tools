@@ -181,6 +181,9 @@ public class ModalityWorklist {
                 t3 - t2);
         return DicomState.buildMessage(dcmState, timeMsg, null);
       } catch (Exception e) {
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
         LOGGER.error("findscu", e);
         ServiceUtil.forceGettingAttributes(findSCU.getState(), findSCU);
         return DicomState.buildMessage(findSCU.getState(), null, e);
@@ -189,6 +192,9 @@ public class ModalityWorklist {
         service.stop();
       }
     } catch (Exception e) {
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
       LOGGER.error("findscu", e);
       return new DicomState(
           Status.UnableToProcess,

@@ -119,6 +119,9 @@ public class CMove {
         dcmState.addProcessTime(t1, t3);
         return dcmState;
       } catch (Exception e) {
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
         LOGGER.error("movescu", e);
         ServiceUtil.forceGettingAttributes(moveSCU.getState(), moveSCU);
         return DicomState.buildMessage(moveSCU.getState(), null, e);
@@ -127,6 +130,9 @@ public class CMove {
         service.stop();
       }
     } catch (Exception e) {
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
       LOGGER.error("movescu", e);
       return DicomState.buildMessage(
           new DicomState(

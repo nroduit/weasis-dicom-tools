@@ -90,6 +90,7 @@ public class GetSCU implements AutoCloseable {
   private int cancelAfter;
   private final DicomState state;
   private DimseRSPHandler rspHandler;
+  private long totalSize = 0;
 
   private BasicCStoreSCP storageSCP =
       new BasicCStoreSCP("*") {
@@ -112,6 +113,7 @@ public class GetSCU implements AutoCloseable {
           File file = new File(storageDir, TMP_DIR + File.separator + iuid);
           try {
             storeTo(as, as.createFileMetaInformation(iuid, cuid, tsuid), data, file);
+            totalSize += file.length();
             renameTo(as, file, new File(storageDir, iuid));
           } catch (Exception e) {
             throw new DicomServiceException(Status.ProcessingFailure, e);
@@ -300,6 +302,10 @@ public class GetSCU implements AutoCloseable {
 
   public DicomState getState() {
     return state;
+  }
+
+  public long getTotalSize() {
+    return totalSize;
   }
 
   public void stop() {

@@ -90,14 +90,18 @@ public class CMove {
           options.getTsuidOrder(),
           options.getQueryOptions().contains(QueryOption.RELATIONAL));
 
+      DicomState dcmState = moveSCU.getState();
       for (DicomParam p : keys) {
-        moveSCU.addKey(p.getTag(), p.getValues());
+        String[] values = p.getValues();
+        moveSCU.addKey(p.getTag(), values);
+        if (values != null && values.length > 0) {
+          dcmState.addDicomMatchingKeys(p);
+        }
       }
       moveSCU.setDestination(destinationAet);
 
       service.start();
       try {
-        DicomState dcmState = moveSCU.getState();
         long t1 = System.currentTimeMillis();
         moveSCU.open();
         long t2 = System.currentTimeMillis();
@@ -111,7 +115,9 @@ public class CMove {
                 moveSCU.getAAssociateRQ().getCalledAET(),
                 t2 - t1,
                 t3 - t2);
-        return DicomState.buildMessage(dcmState, timeMsg, null);
+        dcmState = DicomState.buildMessage(dcmState, timeMsg, null);
+        dcmState.addProcessTime(t1, t3);
+        return dcmState;
       } catch (Exception e) {
         LOGGER.error("movescu", e);
         ServiceUtil.forceGettingAttributes(moveSCU.getState(), moveSCU);
@@ -122,10 +128,13 @@ public class CMove {
       }
     } catch (Exception e) {
       LOGGER.error("movescu", e);
-      return new DicomState(
-          Status.UnableToProcess,
-          "DICOM Move failed" + StringUtil.COLON_AND_SPACE + e.getMessage(),
-          null);
+      return DicomState.buildMessage(
+          new DicomState(
+              Status.UnableToProcess,
+              "DICOM Move failed" + StringUtil.COLON_AND_SPACE + e.getMessage(),
+              null),
+          null,
+          e);
     }
   }
 

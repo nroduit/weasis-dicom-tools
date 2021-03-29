@@ -41,14 +41,12 @@ public class CFindNetTest {
     Assert.assertNotNull(state);
 
     List<Attributes> items = state.getDicomRSP();
-    if (items != null) {
-      for (int i = 0; i < items.size(); i++) {
-        Attributes item = items.get(i);
-        System.out.println("===========================================");
-        System.out.println("CFind Item " + (i + 1));
-        System.out.println("===========================================");
-        System.out.println(item.toString(100, 150));
-      }
+    for (int i = 0; i < items.size(); i++) {
+      Attributes item = items.get(i);
+      System.out.println("===========================================");
+      System.out.println("CFind Item " + (i + 1));
+      System.out.println("===========================================");
+      System.out.println(item.toString(100, 150));
     }
 
     System.out.println("DICOM Status:" + state.getStatus());

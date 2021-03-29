@@ -152,6 +152,9 @@ public class CGet {
         dcmState.setBytesSize(getSCU.getTotalSize());
         return dcmState;
       } catch (Exception e) {
+        if(e instanceof  InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
         LOGGER.error("getscu", e);
         ServiceUtil.forceGettingAttributes(getSCU.getState(), getSCU);
         return DicomState.buildMessage(getSCU.getState(), null, e);

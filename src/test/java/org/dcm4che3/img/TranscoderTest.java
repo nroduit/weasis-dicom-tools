@@ -15,7 +15,6 @@ import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.List;
@@ -29,9 +28,7 @@ import org.dcm4che3.img.Transcoder.Format;
 import org.dcm4che3.img.data.ImageContentHash;
 import org.dcm4che3.img.data.PrDicomObject;
 import org.dcm4che3.img.stream.DicomFileInputStream;
-import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
@@ -45,9 +42,10 @@ import org.weasis.opencv.op.ImageProcessor;
 @RunWith(Enclosed.class)
 public class TranscoderTest {
 
-  static Path IN_DIR  = FileSystems.getDefault().getPath("target/test-classes/org/dcm4che3/img");
+  static Path IN_DIR = FileSystems.getDefault().getPath("target/test-classes/org/dcm4che3/img");
   static final Path OUT_DIR = FileSystems.getDefault().getPath("target/test-out/");
   private static DicomImageReader reader = new DicomImageReader(new DicomImageReaderSpi());
+
   static {
     BasicConfigurator.configure();
     FileUtil.delete(OUT_DIR);
@@ -68,7 +66,6 @@ public class TranscoderTest {
           Assert.assertTrue(
               "The hash result of the image input is exactly the same as the output image",
               val != 0.0);
-
 
   public static class GeneralTest {
     @Test
@@ -152,34 +149,34 @@ public class TranscoderTest {
     }
   }
 
-    @RunWith(Parameterized.class)
-    public static class LossyCompressionTest {
-      @Parameter(value = 0)
-      public String lossyUID;
+  @RunWith(Parameterized.class)
+  public static class LossyCompressionTest {
+    @Parameter(value = 0)
+    public String lossyUID;
 
-      @Parameters(name = "{index}: testLossy - {0}")
-      public static Object[] data() {
-        return new Object[] {UID.JPEG2000, UID.JPEGBaseline8Bit, UID.JPEGLSNearLossless};
-      }
-
-      @Test
-      @Parameters()
-      public void dcm2dcm_YBR422Raw_Lossy() throws Exception {
-        Map<ImageContentHash, Consumer<Double>> enumMap = new EnumMap<>(ImageContentHash.class);
-        enumMap.put(ImageContentHash.AVERAGE, zeroDiff);
-        enumMap.put(ImageContentHash.PHASH, zeroDiff);
-        // JPEG compression mainly reduce the color information
-        enumMap.put(ImageContentHash.COLOR_MOMENT, hasDiff);
-
-        DicomTranscodeParam params = new DicomTranscodeParam(lossyUID);
-        if (lossyUID.equals(UID.JPEGLSNearLossless)) {
-          params.getWriteJpegParam().setNearLosslessError(3);
-        } else {
-          params.getWriteJpegParam().setCompressionQuality(80);
-        }
-        transcodeDicom("ybr422-raw.dcm", params, enumMap);
-      }
+    @Parameters(name = "{index}: testLossy - {0}")
+    public static Object[] data() {
+      return new Object[] {UID.JPEG2000, UID.JPEGBaseline8Bit, UID.JPEGLSNearLossless};
     }
+
+    @Test
+    @Parameters()
+    public void dcm2dcm_YBR422Raw_Lossy() throws Exception {
+      Map<ImageContentHash, Consumer<Double>> enumMap = new EnumMap<>(ImageContentHash.class);
+      enumMap.put(ImageContentHash.AVERAGE, zeroDiff);
+      enumMap.put(ImageContentHash.PHASH, zeroDiff);
+      // JPEG compression mainly reduce the color information
+      enumMap.put(ImageContentHash.COLOR_MOMENT, hasDiff);
+
+      DicomTranscodeParam params = new DicomTranscodeParam(lossyUID);
+      if (lossyUID.equals(UID.JPEGLSNearLossless)) {
+        params.getWriteJpegParam().setNearLosslessError(3);
+      } else {
+        params.getWriteJpegParam().setCompressionQuality(80);
+      }
+      transcodeDicom("ybr422-raw.dcm", params, enumMap);
+    }
+  }
 
   @RunWith(Parameterized.class)
   public static class LosslessCompressionTest {

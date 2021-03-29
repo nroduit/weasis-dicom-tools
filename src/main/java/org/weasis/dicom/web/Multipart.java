@@ -11,7 +11,6 @@ package org.weasis.dicom.web;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -81,8 +80,7 @@ public class Multipart {
   private Multipart() {}
 
   public static void parseMultipartRelated(
-      URLConnection urlConnection, InputStream inputStream, Handler handler) throws IOException {
-    String contentType = urlConnection.getContentType();
+      String contentType, InputStream inputStream, Handler handler) throws IOException {
     byte[] boundary = getBoundary(contentType, MULTIPART_RELATED);
     if (boundary == null) {
       throw new IllegalStateException("Cannot find boundary of multipart");

@@ -26,6 +26,7 @@ public class DicomState {
   private volatile int status;
   private String message;
   private String errorMessage;
+  private LocalDateTime startConnectionDateTime;
   private LocalDateTime startTransferDateTime;
   private LocalDateTime endTransferDateTime;
   private long bytesSize;
@@ -104,6 +105,14 @@ public class DicomState {
     this.endTransferDateTime = endTransferDateTime;
   }
 
+  public LocalDateTime getStartConnectionDateTime() {
+    return startConnectionDateTime;
+  }
+
+  public void setStartConnectionDateTime(LocalDateTime startConnectionDateTime) {
+    this.startConnectionDateTime = startConnectionDateTime;
+  }
+
   public String getErrorMessage() {
     return errorMessage;
   }
@@ -129,10 +138,24 @@ public class DicomState {
   }
 
   public void addProcessTime(long startTimeStamp, long endTimeStamp) {
-    setStartTransferDateTime(
-        Instant.ofEpochMilli(startTimeStamp).atZone(ZoneId.systemDefault()).toLocalDateTime());
-    setEndTransferDateTime(
-        Instant.ofEpochMilli(endTimeStamp).atZone(ZoneId.systemDefault()).toLocalDateTime());
+    addProcessTime(0, startTimeStamp, endTimeStamp);
+  }
+
+  public void addProcessTime(long connectionTimeStamp, long startTimeStamp, long endTimeStamp) {
+    if (connectionTimeStamp > 0) {
+      setStartConnectionDateTime(
+          Instant.ofEpochMilli(connectionTimeStamp)
+              .atZone(ZoneId.systemDefault())
+              .toLocalDateTime());
+    }
+    if (startTimeStamp > 0) {
+      setStartTransferDateTime(
+          Instant.ofEpochMilli(startTimeStamp).atZone(ZoneId.systemDefault()).toLocalDateTime());
+    }
+    if (endTimeStamp > 0) {
+      setEndTransferDateTime(
+          Instant.ofEpochMilli(endTimeStamp).atZone(ZoneId.systemDefault()).toLocalDateTime());
+    }
   }
 
   public static DicomState buildMessage(DicomState dcmState, String timeMessage, Exception e) {

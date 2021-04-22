@@ -148,7 +148,7 @@ public class CGet {
                 t2 - t1,
                 t3 - t2);
         dcmState = DicomState.buildMessage(dcmState, timeMsg, null);
-        dcmState.addProcessTime(t1, t3);
+        dcmState.addProcessTime(t1, t2, t3);
         dcmState.setBytesSize(getSCU.getTotalSize());
         return dcmState;
       } catch (Exception e) {

@@ -173,7 +173,7 @@ public class CStore {
                   t3 - t2,
                   FileUtil.humanReadableByte(storeSCU.getTotalSize(), false));
           dcmState = DicomState.buildMessage(dcmState, timeMsg, null);
-          dcmState.addProcessTime(t1, t3);
+          dcmState.addProcessTime(t1, t2, t3);
           dcmState.setBytesSize(storeSCU.getTotalSize());
           return dcmState;
         } catch (Exception e) {

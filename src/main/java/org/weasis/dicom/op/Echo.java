@@ -101,7 +101,7 @@ public class Echo {
                 t2 - t1,
                 t3 - t2);
         DicomState dcmState = new DicomState(rsp.getInt(Tag.Status, Status.Success), message, null);
-        dcmState.addProcessTime(t1, t3);
+        dcmState.addProcessTime(t1, t2, t3);
         return dcmState;
       } finally {
         FileUtil.safeClose(storeSCU);

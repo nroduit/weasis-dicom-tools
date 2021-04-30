@@ -297,7 +297,7 @@ public class StoreSCU implements AutoCloseable {
       } else {
         in = new DicomInputStream(f);
         ((DicomInputStream) in).setIncludeBulkData(IncludeBulkData.URI);
-        data = ((DicomInputStream) in).readDataset(-1, -1);
+        data = ((DicomInputStream) in).readDataset();
       }
 
       if (!noChange) {
@@ -315,7 +315,7 @@ public class StoreSCU implements AutoCloseable {
         }
 
         BytesWithImageDescriptor desc = ImageAdapter.imageTranscode(data, filets, ts, context);
-        dataWriter = ImageAdapter.buildDataWriter(data, ts, context, desc);
+        dataWriter = ImageAdapter.buildDataWriter(data, ts, context.getEditable(), desc);
       }
       as.cstore(cuid, iuid, priority, dataWriter, ts, rspHandlerFactory.createDimseRSPHandler(f));
     } finally {

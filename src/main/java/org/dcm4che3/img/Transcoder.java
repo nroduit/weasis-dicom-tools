@@ -9,6 +9,7 @@
  */
 package org.dcm4che3.img;
 
+import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,9 +18,10 @@ import java.util.List;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.img.op.MaskArea;
-import org.dcm4che3.img.stream.BytesWithImageDescriptor;
 import org.dcm4che3.img.stream.DicomFileInputStream;
 import org.dcm4che3.img.stream.ImageDescriptor;
+import org.dcm4che3.img.util.Editable;
+import org.dcm4che3.img.util.SupplierEx;
 import org.dcm4che3.io.DicomOutputStream;
 import org.opencv.core.CvType;
 import org.opencv.core.MatOfInt;
@@ -79,12 +81,13 @@ public class Transcoder {
       throws Exception {
     List<Path> outFiles = new ArrayList<>();
     Format format = params.getFormat();
-    try (DicomImageReader reader = new DicomImageReader(dicomImageReaderSpi)) {
+    DicomImageReader reader = new DicomImageReader(dicomImageReaderSpi);
+    try (DicomFileInputStream inputStream = new DicomFileInputStream(srcPath)) {
       MatOfInt map =
           format == Format.JPEG
               ? new MatOfInt(Imgcodecs.IMWRITE_JPEG_QUALITY, getCompressionRatio(params))
               : null;
-      reader.setInput(new DicomFileInputStream(srcPath));
+      reader.setInput(inputStream);
       int nbFrames = reader.getImageDescriptor().getFrames();
       int indexSize = (int) Math.log10(nbFrames);
       indexSize = nbFrames > 1 ? indexSize + 1 : 0;
@@ -105,6 +108,8 @@ public class Transcoder {
                 img, FileUtil.getOutputPath(srcPath, dstPath), format, map, i + 1, indexSize);
         outFiles.add(outPath);
       }
+    } finally {
+      reader.dispose();
     }
     return outFiles;
   }
@@ -121,74 +126,61 @@ public class Transcoder {
   public static Path dcm2dcm(Path srcPath, Path dstPath, DicomTranscodeParam params)
       throws Exception {
     Path outPath;
-    try (DicomImageReader reader = new DicomImageReader(dicomImageReaderSpi)) {
-      reader.setInput(new DicomFileInputStream(srcPath));
+    DicomImageReader reader = new DicomImageReader(dicomImageReaderSpi);
+    reader.setInput(new DicomFileInputStream(srcPath));
 
-      DicomMetaData dicomMetaData = reader.getStreamMetadata();
-      Attributes dataSet = new Attributes(dicomMetaData.getDicomObject());
-      dataSet.remove(Tag.PixelData);
+    DicomMetaData dicomMetaData = reader.getStreamMetadata();
+    Attributes dataSet = new Attributes(dicomMetaData.getDicomObject());
+    dataSet.remove(Tag.PixelData);
 
-      outPath = adaptFileExtension(FileUtil.getOutputPath(srcPath, dstPath), ".dcm", ".dcm");
-      String stationName = dataSet.getString(Tag.StationName, "*");
-      List<PlanarImage> images = reader.getPlanarImages(params.getReadParam());
-      applyMaskAreas(images, params, stationName);
-      String dstTsuid = params.getOutputTsuid();
-      DicomJpegWriteParam writeParams = params.getWriteJpegParam();
-      int type = CvType.depth(images.get(0).type());
-      ImageDescriptor desc = dicomMetaData.getImageDescriptor();
-      String convertibleSyntax =
-          DicomOutputData.adaptSuitableSyntax(desc.getBitsStored(), type, dstTsuid);
-      if (!dstTsuid.equals(convertibleSyntax)) {
-        dstTsuid = convertibleSyntax;
-        if (!DicomOutputData.isNativeSyntax(dstTsuid)) {
-          writeParams = DicomJpegWriteParam.buildDicomImageWriteParam(dstTsuid);
-        }
-        LOGGER.warn("Transcoding into {} is not possible, decompressing {}", dstTsuid, srcPath);
+    outPath = adaptFileExtension(FileUtil.getOutputPath(srcPath, dstPath), ".dcm", ".dcm");
+    Editable<PlanarImage> mask = getMask(dataSet, params);
+    List<SupplierEx<PlanarImage, IOException>> images =
+        reader.getLazyPlanarImages(params.getReadParam(), mask);
+    PlanarImage firstImage = images.get(0).get();
+    images.set(0, () -> firstImage);
+    String dstTsuid = params.getOutputTsuid();
+    DicomJpegWriteParam writeParams = params.getWriteJpegParam();
+    int type = CvType.depth(firstImage.type());
+    ImageDescriptor desc = dicomMetaData.getImageDescriptor();
+    String convertibleSyntax =
+        DicomOutputData.adaptSuitableSyntax(desc.getBitsStored(), type, dstTsuid);
+    if (!dstTsuid.equals(convertibleSyntax)) {
+      dstTsuid = convertibleSyntax;
+      if (!DicomOutputData.isNativeSyntax(dstTsuid)) {
+        writeParams = DicomJpegWriteParam.buildDicomImageWriteParam(dstTsuid);
       }
+      LOGGER.warn("Transcoding into {} is not possible, decompressing {}", dstTsuid, srcPath);
+    }
 
-      DicomOutputData imgData = new DicomOutputData(images, desc, dstTsuid);
-      try (DicomOutputStream dos =
-          new DicomOutputStream(Files.newOutputStream(outPath), dstTsuid)) {
-        dos.writeFileMetaInformation(
-            dicomMetaData.getDicomObject().createFileMetaInformation(dstTsuid));
+    DicomOutputData imgData = new DicomOutputData(images, desc, dstTsuid);
+    try (DicomOutputStream dos = new DicomOutputStream(Files.newOutputStream(outPath), dstTsuid)) {
+      dos.writeFileMetaInformation(
+          dicomMetaData.getDicomObject().createFileMetaInformation(dstTsuid));
 
-        if (DicomOutputData.isNativeSyntax(dstTsuid)) {
-          imgData.writRawImageData(dos, dataSet);
-        } else {
-          int[] jpegWriteParams =
-              imgData.adaptTagsToCompressedImage(dataSet, images.get(0), desc, writeParams);
-          imgData.writCompressedImageData(dos, dataSet, jpegWriteParams);
-        }
-      } catch (Exception e) {
-        FileUtil.delete(outPath);
-        LOGGER.error("Transcoding image data", e);
+      if (DicomOutputData.isNativeSyntax(dstTsuid)) {
+        imgData.writRawImageData(dos, dataSet);
+      } else {
+        int[] jpegWriteParams =
+            imgData.adaptTagsToCompressedImage(dataSet, firstImage, desc, writeParams);
+        imgData.writCompressedImageData(dos, dataSet, jpegWriteParams);
       }
+    } catch (Exception e) {
+      FileUtil.delete(outPath);
+      LOGGER.error("Transcoding image data", e);
+    } finally {
+      reader.dispose();
     }
     return outPath;
   }
 
-  public static DicomOutputData dcm2dcm(BytesWithImageDescriptor desc, DicomTranscodeParam params)
-      throws Exception {
-    try (DicomImageReader reader = new DicomImageReader(dicomImageReaderSpi)) {
-      reader.setInput(desc);
-
-      List<PlanarImage> images = reader.getPlanarImages(params.getReadParam());
-      applyMaskAreas(images, params, desc.getImageDescriptor().getStationName());
-      String dstTsuid = params.getOutputTsuid();
-      return new DicomOutputData(images, desc.getImageDescriptor(), dstTsuid);
+  private static Editable<PlanarImage> getMask(Attributes dataSet, DicomTranscodeParam params) {
+    String stationName = dataSet.getString(Tag.StationName, "*");
+    MaskArea m = params.getMask(stationName);
+    if (m != null) {
+      return img -> MaskArea.drawShape(img.toMat(), m);
     }
-  }
-
-  private static void applyMaskAreas(
-      List<PlanarImage> images, DicomTranscodeParam params, String key) {
-    if (!params.getMaskMap().isEmpty()) {
-      MaskArea mask = params.getMask(key);
-      if (mask != null) {
-        for (int i = 0; i < images.size(); i++) {
-          images.set(i, MaskArea.drawShape(images.get(i).toMat(), mask));
-        }
-      }
-    }
+    return null;
   }
 
   private static int getCompressionRatio(ImageTranscodeParam params) {

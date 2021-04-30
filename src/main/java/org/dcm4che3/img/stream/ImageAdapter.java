@@ -15,7 +15,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.BulkData;
@@ -29,8 +28,8 @@ import org.dcm4che3.img.DicomImageReader;
 import org.dcm4che3.img.DicomOutputData;
 import org.dcm4che3.img.DicomTranscodeParam;
 import org.dcm4che3.img.Transcoder;
-import org.dcm4che3.img.op.MaskArea;
 import org.dcm4che3.img.util.DicomUtils;
+import org.dcm4che3.img.util.Editable;
 import org.dcm4che3.io.DicomOutputStream;
 import org.dcm4che3.net.DataWriter;
 import org.slf4j.Logger;
@@ -44,10 +43,12 @@ public class ImageAdapter {
 
   protected static final byte[] EMPTY_BYTES = {};
 
+  private ImageAdapter() {}
+
   public static DataWriter buildDataWriter(
       Attributes data,
       String supportedTsuid,
-      AttributeEditorContext context,
+      Editable<PlanarImage> editable,
       BytesWithImageDescriptor desc)
       throws IOException {
     if (desc == null) {
@@ -60,7 +61,9 @@ public class ImageAdapter {
     }
 
     DicomTranscodeParam tparams = new DicomTranscodeParam(supportedTsuid);
-    DicomOutputData imgData = geDicomOutputData(tparams, desc, context);
+    DicomImageReader reader = new DicomImageReader(Transcoder.dicomImageReaderSpi);
+    DicomOutputData imgData = geDicomOutputData(reader, tparams, desc, editable);
+
     return (out, tsuid) -> {
       Attributes dataSet = new Attributes(data);
       dataSet.remove(Tag.PixelData);
@@ -71,20 +74,24 @@ public class ImageAdapter {
           int[] jpegWriteParams =
               imgData.adaptTagsToCompressedImage(
                   dataSet,
-                  imgData.getImages().get(0),
+                  imgData.getFistImage().get(),
                   desc.getImageDescriptor(),
                   tparams.getWriteJpegParam());
           imgData.writCompressedImageData(dos, dataSet, jpegWriteParams);
         }
       } catch (Exception e) {
         LOGGER.error("Transcoding image data", e);
+      } finally {
+        reader.dispose();
       }
     };
   }
 
   public static BytesWithImageDescriptor imageTranscode(
-      Attributes data, String originalTsuid, String supportedTsuid, AttributeEditorContext context)
-      throws IOException {
+      Attributes data,
+      String originalTsuid,
+      String supportedTsuid,
+      AttributeEditorContext context) {
 
     Holder pixeldataVR = new Holder();
     Object pixdata = data.getValue(Tag.PixelData, pixeldataVR);
@@ -252,10 +259,11 @@ public class ImageAdapter {
       Attributes data,
       String outputTsuid,
       BytesWithImageDescriptor desc,
-      AttributeEditorContext context)
+      Editable<PlanarImage> editable)
       throws IOException {
     DicomTranscodeParam tparams = new DicomTranscodeParam(outputTsuid);
-    DicomOutputData imgData = ImageAdapter.geDicomOutputData(tparams, desc, context);
+    DicomImageReader reader = new DicomImageReader(Transcoder.dicomImageReaderSpi);
+    DicomOutputData imgData = geDicomOutputData(reader, tparams, desc, editable);
     Attributes dataSet = new Attributes(data);
     dataSet.remove(Tag.PixelData);
 
@@ -276,7 +284,7 @@ public class ImageAdapter {
             int[] jpegWriteParams =
                 imgData.adaptTagsToCompressedImage(
                     dataSet,
-                    imgData.getImages().get(0),
+                    imgData.getFistImage().get(),
                     desc.getImageDescriptor(),
                     tparams.getWriteJpegParam());
             imgData.writCompressedImageData(dos, dataSet, jpegWriteParams);
@@ -284,6 +292,8 @@ public class ImageAdapter {
         } catch (IOException e) {
           LOGGER.error("Cannot write DICOM", e);
           return new ByteArrayInputStream(new byte[] {});
+        } finally {
+          reader.dispose();
         }
         return new ByteArrayInputStream(out.toByteArray());
       }
@@ -291,19 +301,13 @@ public class ImageAdapter {
   }
 
   private static DicomOutputData geDicomOutputData(
-      DicomTranscodeParam tparams, BytesWithImageDescriptor desc, AttributeEditorContext context)
+      DicomImageReader reader,
+      DicomTranscodeParam tparams,
+      BytesWithImageDescriptor desc,
+      Editable<PlanarImage> editable)
       throws IOException {
-    try (DicomImageReader reader = new DicomImageReader(Transcoder.dicomImageReaderSpi)) {
-      reader.setInput(desc);
-      List<PlanarImage> images = new ArrayList<>();
-      for (int i = 0; i < reader.getImageDescriptor().getFrames(); i++) {
-        PlanarImage img = reader.getRawImage(i, tparams.getReadParam());
-        if (context.getMaskArea() != null) {
-          img = MaskArea.drawShape(img.toMat(), context.getMaskArea());
-        }
-        images.add(img);
-      }
-      return new DicomOutputData(images, desc.getImageDescriptor(), tparams.getOutputTsuid());
-    }
+    reader.setInput(desc);
+    var images = reader.getLazyPlanarImages(tparams.getReadParam(), editable);
+    return new DicomOutputData(images, desc.getImageDescriptor(), tparams.getOutputTsuid());
   }
 }

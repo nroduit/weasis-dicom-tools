@@ -113,8 +113,7 @@ public class HeaderFieldValues {
           }
 
           if (StringUtil.hasText(name)) {
-            params.put(
-                name.toLowerCase(), value); // NOSONAR hasText(name) already check if name is null
+            params.put(name.toLowerCase(), value);
           }
         }
       }

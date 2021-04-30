@@ -71,7 +71,7 @@ public class DicomUtils {
     if (value instanceof String) {
       str = (String) value;
     } else if (value instanceof String[]) {
-      str = Arrays.asList((String[]) value).stream().collect(Collectors.joining("\\"));
+      str = String.join("\\", Arrays.asList((String[]) value));
     } else if (value instanceof TemporalAccessor) {
       str = DateTimeUtils.formatDateTime((TemporalAccessor) value);
     } else if (value instanceof TemporalAccessor[]) {
@@ -173,7 +173,7 @@ public class DicomUtils {
     }
     StringBuilder sb = new StringBuilder(s[0]);
     for (int i = 1; i < s.length; i++) {
-      sb.append("\\" + s[i]);
+      sb.append("\\").append(s[i]);
     }
     return sb.toString();
   }

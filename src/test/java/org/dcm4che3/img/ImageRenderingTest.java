@@ -50,34 +50,32 @@ public class ImageRenderingTest {
     if (!StringUtil.hasText(srcPath)) {
       throw new IllegalStateException("Path cannot be empty");
     }
-    try (DicomImageReader reader = new DicomImageReader(Transcoder.dicomImageReaderSpi)) {
-      reader.setInput(new DicomFileInputStream(srcPath));
-      ImageDescriptor desc = reader.getImageDescriptor();
-      for (int i = 0; i < desc.getFrames(); i++) {
-        PlanarImage img = reader.getPlanarImage(i, params);
-        img = ImageRendering.getRawRenderedImage(img, desc, params);
+    DicomImageReader reader = new DicomImageReader(Transcoder.dicomImageReaderSpi);
+    reader.setInput(new DicomFileInputStream(srcPath));
+    ImageDescriptor desc = reader.getImageDescriptor();
 
-        double[][] val =
-            ImageProcessor.meanStdDev(
-                img.toMat(), shape, desc.getPixelPaddingValue(), desc.getPixelPaddingRangeLimit());
-        if (val != null) {
-          DecimalFormat df = new DecimalFormat("#.00");
-          StringBuilder b = new StringBuilder("Image path: ");
-          b.append(srcPath);
-          b.append("\nPixel statistics of real values:");
-          b.append("\n\tMin: ");
-          b.append(DoubleStream.of(val[0]).mapToObj(df::format).collect(Collectors.joining(" ")));
-          b.append("\n\tMax: ");
-          b.append(DoubleStream.of(val[1]).mapToObj(df::format).collect(Collectors.joining(" ")));
-          b.append("\n\tMean: ");
-          b.append(DoubleStream.of(val[2]).mapToObj(df::format).collect(Collectors.joining(" ")));
-          b.append("\n\tStd: ");
-          b.append(DoubleStream.of(val[3]).mapToObj(df::format).collect(Collectors.joining(" ")));
-          System.out.print(b.toString());
-        }
-        return val;
-      }
+    PlanarImage img = reader.getPlanarImage(0, params);
+    img = ImageRendering.getRawRenderedImage(img, desc, params);
+
+    double[][] val =
+        ImageProcessor.meanStdDev(
+            img.toMat(), shape, desc.getPixelPaddingValue(), desc.getPixelPaddingRangeLimit());
+    if (val != null) {
+      DecimalFormat df = new DecimalFormat("#.00");
+      StringBuilder b = new StringBuilder("Image path: ");
+      b.append(srcPath);
+      b.append("\nPixel statistics of real values:");
+      b.append("\n\tMin: ");
+      b.append(DoubleStream.of(val[0]).mapToObj(df::format).collect(Collectors.joining(" ")));
+      b.append("\n\tMax: ");
+      b.append(DoubleStream.of(val[1]).mapToObj(df::format).collect(Collectors.joining(" ")));
+      b.append("\n\tMean: ");
+      b.append(DoubleStream.of(val[2]).mapToObj(df::format).collect(Collectors.joining(" ")));
+      b.append("\n\tStd: ");
+      b.append(DoubleStream.of(val[3]).mapToObj(df::format).collect(Collectors.joining(" ")));
+      System.out.print(b);
     }
-    return null;
+    reader.dispose();
+    return val;
   }
 }

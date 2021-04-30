@@ -169,7 +169,7 @@ public class CGetForward implements AutoCloseable {
                         tsuid, DicomNode.buildRemoteDicomNode(as), streamSCU.getRemoteDicomNode());
                 in = new DicomInputStream(data, tsuid);
                 in.setIncludeBulkData(IncludeBulkData.URI);
-                Attributes attributes = in.readDataset(-1, -1);
+                Attributes attributes = in.readDataset();
                 if (cstoreParams != null && cstoreParams.hasDicomEditors()) {
                   cstoreParams.getDicomEditors().forEach(e -> e.apply(attributes, context));
                   iuid = attributes.getString(Tag.SOPInstanceUID);
@@ -188,7 +188,8 @@ public class CGetForward implements AutoCloseable {
                 BytesWithImageDescriptor desc =
                     ImageAdapter.imageTranscode(attributes, tsuid, supportedTsuid, context);
                 dataWriter =
-                    ImageAdapter.buildDataWriter(attributes, supportedTsuid, context, desc);
+                    ImageAdapter.buildDataWriter(
+                        attributes, supportedTsuid, context.getEditable(), desc);
               }
 
               streamSCU.cstore(cuid, iuid, priority, dataWriter, tsuid);

@@ -11,7 +11,6 @@ package org.dcm4che3.img;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.Raster;
-import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
@@ -41,6 +40,8 @@ import org.dcm4che3.img.stream.DicomFileInputStream;
 import org.dcm4che3.img.stream.ExtendSegmentedInputImageStream;
 import org.dcm4che3.img.stream.ImageDescriptor;
 import org.dcm4che3.img.stream.SeekableInMemoryByteChannel;
+import org.dcm4che3.img.util.Editable;
+import org.dcm4che3.img.util.SupplierEx;
 import org.dcm4che3.io.BulkDataDescriptor;
 import org.dcm4che3.io.DicomInputStream.IncludeBulkData;
 import org.dcm4che3.util.TagUtils;
@@ -68,7 +69,7 @@ import org.weasis.opencv.op.ImageProcessor;
  * @author Nicolas Roduit
  * @since Jan 2020
  */
-public class DicomImageReader extends ImageReader implements Closeable {
+public class DicomImageReader extends ImageReader {
 
   private static final Logger LOG = LoggerFactory.getLogger(DicomImageReader.class);
 
@@ -249,11 +250,6 @@ public class DicomImageReader extends ImageReader implements Closeable {
     resetInternalState();
   }
 
-  @Override
-  public void close() {
-    dispose();
-  }
-
   private boolean fileYbr2rgb(
       PhotometricInterpretation pmi,
       String tsuid,
@@ -332,6 +328,24 @@ public class DicomImageReader extends ImageReader implements Closeable {
       default:
         return false;
     }
+  }
+
+  public List<SupplierEx<PlanarImage, IOException>> getLazyPlanarImages(
+      DicomImageReadParam param, Editable<PlanarImage> editor) {
+    int size = getImageDescriptor().getFrames();
+    List<SupplierEx<PlanarImage, IOException>> suppliers = new ArrayList<>(size);
+    for (int i = 0; i < size; i++) {
+      final int index = i;
+      suppliers.add(
+          () -> {
+            PlanarImage img = getPlanarImage(index, param);
+            if (editor == null) {
+              return img;
+            }
+            return editor.process(img);
+          });
+    }
+    return suppliers;
   }
 
   public List<PlanarImage> getPlanarImages() throws IOException {

@@ -512,7 +512,6 @@ public class DicomImageReader extends ImageReader {
 
     ImageDescriptor desc = getImageDescriptor();
     int bitsStored = desc.getBitsStored();
-    //   boolean floatPixData = false; // TODO getFloatPixel
 
     String tsuid = bdis.getTransferSyntax();
     TransferSyntaxType type = TransferSyntaxType.forUID(tsuid);
@@ -524,13 +523,12 @@ public class DicomImageReader extends ImageReader {
     if (!rawData && byteYbr2rgb(desc.getPhotometricInterpretation(), tsuid, frame, param)) {
       dcmFlags |= Imgcodecs.DICOM_FLAG_YBR;
     }
-    //    boolean bigendian = false; // TODO is always false
-    //    if (bigendian) {
-    //      dcmFlags |= Imgcodecs.DICOM_FLAG_BIGENDIAN;
-    //    }
-    //    if (floatPixData) {
-    //      dcmFlags |= Imgcodecs.DICOM_FLAG_FLOAT;
-    //    }
+    if (bdis.bigEndian()) {
+      dcmFlags |= Imgcodecs.DICOM_FLAG_BIGENDIAN;
+    }
+    if (bdis.floatPixelData()) {
+      dcmFlags |= Imgcodecs.DICOM_FLAG_FLOAT;
+    }
     if (UID.RLELossless.equals(tsuid)) {
       dcmFlags |= Imgcodecs.DICOM_FLAG_RLE;
     }
@@ -542,6 +540,7 @@ public class DicomImageReader extends ImageReader {
       buf.put(0, 0, b.array());
       if (rawData) {
         int bits = bitsStored <= 8 && desc.getBitsAllocated() > 8 ? 9 : bitsStored; // Fix #94
+        int streamVR = bdis.getPixelDataVR().numEndianBytes();
         MatOfInt dicomparams =
             new MatOfInt(
                 Imgcodecs.IMREAD_UNCHANGED,
@@ -551,7 +550,8 @@ public class DicomImageReader extends ImageReader {
                 Imgcodecs.DICOM_CP_UNKNOWN,
                 desc.getSamples(),
                 bits,
-                desc.isBanded() ? Imgcodecs.ILV_NONE : Imgcodecs.ILV_SAMPLE);
+                desc.isBanded() ? Imgcodecs.ILV_NONE : Imgcodecs.ILV_SAMPLE,
+                streamVR);
         return ImageCV.toImageCV(
             Imgcodecs.dicomRawMatRead(
                 buf, dicomparams, desc.getPhotometricInterpretation().name()));

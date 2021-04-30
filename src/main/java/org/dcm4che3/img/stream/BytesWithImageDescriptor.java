@@ -12,6 +12,7 @@ package org.dcm4che3.img.stream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import org.dcm4che3.data.Attributes;
+import org.dcm4che3.data.VR;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
@@ -21,6 +22,16 @@ public interface BytesWithImageDescriptor extends ImageReaderDescriptor {
   ByteBuffer getBytes(int frame) throws IOException;
 
   String getTransferSyntax();
+
+  default boolean bigEndian() {
+    return false;
+  }
+
+  default boolean floatPixelData() {
+    return false;
+  }
+
+  VR getPixelDataVR();
 
   Attributes getPaletteColorLookupTable();
 }

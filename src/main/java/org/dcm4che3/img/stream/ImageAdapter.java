@@ -21,6 +21,7 @@ import org.dcm4che3.data.BulkData;
 import org.dcm4che3.data.Fragments;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
+import org.dcm4che3.data.VR;
 import org.dcm4che3.data.VR.Holder;
 import org.dcm4che3.imageio.codec.jpeg.JPEGParser;
 import org.dcm4che3.img.DicomImageReader;
@@ -33,6 +34,7 @@ import org.dcm4che3.io.DicomOutputStream;
 import org.dcm4che3.net.DataWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.weasis.core.util.StringUtil;
 import org.weasis.dicom.param.AttributeEditorContext;
 import org.weasis.dicom.web.Payload;
 import org.weasis.opencv.data.PlanarImage;
@@ -44,23 +46,32 @@ public class ImageAdapter {
 
   public static class AdaptTransferSyntax {
     private final String original;
-    private String adapted;
+    private final String requested;
+    private String suitable;
 
-    public AdaptTransferSyntax(String original) {
-      this.original = Objects.requireNonNull(original);
-      this.adapted = original;
+    public AdaptTransferSyntax(String original, String requested) {
+      if (!StringUtil.hasText(original) || !StringUtil.hasText(requested)) {
+        throw new IllegalArgumentException("A non empty value is required");
+      }
+      this.original = original;
+      this.requested = requested;
+      this.suitable = requested;
     }
 
     public String getOriginal() {
       return original;
     }
 
-    public String getAdapted() {
-      return adapted;
+    public String getRequested() {
+      return requested;
     }
 
-    public void setAdapted(String adapted) {
-      this.adapted = adapted;
+    public String getSuitable() {
+      return suitable;
+    }
+
+    public void setSuitable(String suitable) {
+      this.suitable = suitable;
     }
   }
 
@@ -73,6 +84,7 @@ public class ImageAdapter {
       BytesWithImageDescriptor desc)
       throws IOException {
     if (desc == null) {
+      syntax.suitable = syntax.original;
       return (out, tsuid) -> {
         try (DicomOutputStream writer = new DicomOutputStream(out, tsuid)) {
           writer.writeDataset(null, data);
@@ -82,18 +94,20 @@ public class ImageAdapter {
     }
 
     DicomImageReader reader = new DicomImageReader(Transcoder.dicomImageReaderSpi);
-    DicomOutputData imgData = geDicomOutputData(reader, syntax.original, desc, editable);
-    if (!syntax.original.equals(imgData.getTsuid())) {
-      syntax.adapted = imgData.getTsuid();
+    DicomOutputData imgData = geDicomOutputData(reader, syntax.requested, desc, editable);
+    if (!syntax.requested.equals(imgData.getTsuid())) {
+      syntax.suitable = imgData.getTsuid();
       LOGGER.warn(
-          "Transcoding into {} is not possible, used instead {}", syntax.original, syntax.adapted);
+          "Transcoding into {} is not possible, used instead {}",
+          syntax.requested,
+          syntax.suitable);
     }
 
     return (out, tsuid) -> {
       Attributes dataSet = new Attributes(data);
       dataSet.remove(Tag.PixelData);
-      try (DicomOutputStream dos = new DicomOutputStream(out, imgData.getTsuid())) {
-        if (DicomOutputData.isNativeSyntax(imgData.getTsuid())) {
+      try (DicomOutputStream dos = new DicomOutputStream(out, tsuid)) {
+        if (DicomOutputData.isNativeSyntax(tsuid)) {
           imgData.writRawImageData(dos, dataSet);
         } else {
           int[] jpegWriteParams =
@@ -101,7 +115,7 @@ public class ImageAdapter {
                   dataSet,
                   imgData.getFistImage().get(),
                   desc.getImageDescriptor(),
-                  DicomJpegWriteParam.buildDicomImageWriteParam(imgData.getTsuid()));
+                  DicomJpegWriteParam.buildDicomImageWriteParam(tsuid));
           imgData.writCompressedImageData(dos, dataSet, jpegWriteParams);
         }
       } catch (Exception e) {
@@ -120,27 +134,38 @@ public class ImageAdapter {
   }
 
   public static BytesWithImageDescriptor imageTranscode(
-      Attributes data,
-      String originalTsuid,
-      String supportedTsuid,
-      AttributeEditorContext context) {
+      Attributes data, AdaptTransferSyntax syntax, AttributeEditorContext context) {
 
     Holder pixeldataVR = new Holder();
     Object pixdata = data.getValue(Tag.PixelData, pixeldataVR);
     if (pixdata != null
-        && DicomImageReader.isSupportedSyntax(originalTsuid)
-        && DicomOutputData.isSupportedSyntax(supportedTsuid)
+        && DicomImageReader.isSupportedSyntax(syntax.original)
+        && DicomOutputData.isSupportedSyntax(syntax.requested)
         && (Objects.nonNull(context.getMaskArea())
-            || isTranscodable(originalTsuid, supportedTsuid))) {
+            || isTranscodable(syntax.original, syntax.requested))) {
 
       ImageDescriptor imdDesc = new ImageDescriptor(data);
       ByteBuffer[] mfByteBuffer = new ByteBuffer[1];
       ArrayList<Integer> fragmentsPositions = new ArrayList<>();
       return new BytesWithImageDescriptor() {
-
         @Override
         public ImageDescriptor getImageDescriptor() {
           return imdDesc;
+        }
+
+        @Override
+        public boolean bigEndian() {
+          if (pixdata instanceof BulkData) {
+            return ((BulkData) pixdata).bigEndian();
+          } else if (pixdata instanceof Fragments) {
+            return ((Fragments) pixdata).bigEndian();
+          }
+          return false;
+        }
+
+        @Override
+        public VR getPixelDataVR() {
+          return pixeldataVR.vr;
         }
 
         @Override
@@ -152,18 +177,11 @@ public class ImageAdapter {
           } else {
             Fragments fragments = null;
             BulkData bulkData = null;
-            boolean bigendian = false;
+            boolean bigEndian = bigEndian();
             if (pixdata instanceof BulkData) {
               bulkData = (BulkData) pixdata;
-              bigendian = bulkData.bigEndian();
-              //            } else if (data.getString(Tag.PixelDataProviderURL) != null) {
-              //              // TODO Handle JPIP
-              //              // always little endian:
-              //              //
-              // http://dicom.nema.org/medical/dicom/2017b/output/chtml/part05/sect_A.6.html
             } else if (pixdata instanceof Fragments) {
               fragments = (Fragments) pixdata;
-              bigendian = fragments.bigEndian();
             }
 
             boolean hasFragments = fragments != null;
@@ -176,7 +194,7 @@ public class ImageAdapter {
                           desc.getSamples(),
                           desc.getBitsAllocated());
               if (mfByteBuffer[0] == null) {
-                mfByteBuffer[0] = ByteBuffer.wrap(bulkData.toBytes(pixeldataVR.vr, bigendian));
+                mfByteBuffer[0] = ByteBuffer.wrap(bulkData.toBytes(pixeldataVR.vr, bigEndian));
               }
 
               if (mfByteBuffer[0].limit() < frame * frameLength + frameLength) {
@@ -199,14 +217,14 @@ public class ImageAdapter {
                 ByteArrayOutputStream out = new ByteArrayOutputStream(length);
                 for (int i = 0; i < nbFragments - 1; i++) {
                   BulkData b = (BulkData) fragments.get(i + 1);
-                  byte[] bytes = b.toBytes(pixeldataVR.vr, bigendian);
+                  byte[] bytes = b.toBytes(pixeldataVR.vr, bigEndian);
                   out.write(bytes, 0, bytes.length);
                 }
                 return ByteBuffer.wrap(out.toByteArray());
               } else {
                 // Multi-frames where each frames can have multiple fragments.
                 if (fragmentsPositions.isEmpty()) {
-                  if (UID.RLELossless.equals(originalTsuid)) {
+                  if (UID.RLELossless.equals(syntax.original)) {
                     for (int i = 1; i < nbFragments; i++) {
                       fragmentsPositions.add(i);
                     }
@@ -214,7 +232,7 @@ public class ImageAdapter {
                     for (int i = 1; i < nbFragments; i++) {
                       BulkData b = (BulkData) fragments.get(i);
                       try (ByteArrayOutputStream out = new ByteArrayOutputStream(b.length())) {
-                        byte[] bytes = b.toBytes(pixeldataVR.vr, bigendian);
+                        byte[] bytes = b.toBytes(pixeldataVR.vr, bigEndian);
                         out.write(bytes, 0, bytes.length);
                         try (SeekableInMemoryByteChannel channel =
                             new SeekableInMemoryByteChannel(out.toByteArray())) {
@@ -243,7 +261,7 @@ public class ImageAdapter {
                   ByteArrayOutputStream out = new ByteArrayOutputStream(length);
                   for (int i = 0; i < end - start; i++) {
                     BulkData b = (BulkData) fragments.get(start + i);
-                    byte[] bytes = b.toBytes(pixeldataVR.vr, bigendian);
+                    byte[] bytes = b.toBytes(pixeldataVR.vr, bigEndian);
                     out.write(bytes, 0, bytes.length);
                   }
                   return ByteBuffer.wrap(out.toByteArray());
@@ -258,7 +276,7 @@ public class ImageAdapter {
 
         @Override
         public String getTransferSyntax() {
-          return originalTsuid;
+          return syntax.original;
         }
 
         @Override
@@ -294,11 +312,13 @@ public class ImageAdapter {
       Editable<PlanarImage> editable)
       throws IOException {
     DicomImageReader reader = new DicomImageReader(Transcoder.dicomImageReaderSpi);
-    DicomOutputData imgData = geDicomOutputData(reader, syntax.original, desc, editable);
-    if (!syntax.original.equals(imgData.getTsuid())) {
-      syntax.adapted = imgData.getTsuid();
+    DicomOutputData imgData = geDicomOutputData(reader, syntax.requested, desc, editable);
+    if (!syntax.requested.equals(imgData.getTsuid())) {
+      syntax.suitable = imgData.getTsuid();
       LOGGER.warn(
-          "Transcoding into {} is not possible, used instead {}", syntax.original, syntax.adapted);
+          "Transcoding into {} is not possible, used instead {}",
+          syntax.requested,
+          syntax.suitable);
     }
     Attributes dataSet = new Attributes(data);
     dataSet.remove(Tag.PixelData);

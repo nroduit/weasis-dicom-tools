@@ -277,12 +277,15 @@ public class StoreSCU implements AutoCloseable {
     return response.getCommand();
   }
 
-  public void send(final File f, long fmiEndPos, String cuid, String iuid, String filets)
+  public void send(final File f, long fmiEndPos, String cuid, String iuid, String tsuid)
       throws IOException, InterruptedException, ParserConfigurationException, SAXException {
-    String ts = StoreFromStreamSCU.selectTransferSyntax(as, cuid, filets);
-
+    AdaptTransferSyntax syntax =
+        new AdaptTransferSyntax(tsuid, StoreFromStreamSCU.selectTransferSyntax(as, cuid, tsuid));
     boolean noChange =
-        uidSuffix == null && attrs.isEmpty() && ts.equals(filets) && dicomEditors == null;
+        uidSuffix == null
+            && attrs.isEmpty()
+            && syntax.getRequested().equals(tsuid)
+            && dicomEditors == null;
     DataWriter dataWriter = null;
     InputStream in = null;
     Attributes data = null;
@@ -301,11 +304,12 @@ public class StoreSCU implements AutoCloseable {
         data = ((DicomInputStream) in).readDataset();
       }
 
-      AdaptTransferSyntax syntax = new AdaptTransferSyntax(ts);
       if (!noChange) {
         AttributeEditorContext context =
             new AttributeEditorContext(
-                ts, DicomNode.buildLocalDicomNode(as), DicomNode.buildRemoteDicomNode(as));
+                syntax.getOriginal(),
+                DicomNode.buildLocalDicomNode(as),
+                DicomNode.buildRemoteDicomNode(as));
         if (dicomEditors != null && !dicomEditors.isEmpty()) {
           final Attributes attributes = data;
           dicomEditors.forEach(e -> e.apply(attributes, context));
@@ -316,7 +320,7 @@ public class StoreSCU implements AutoCloseable {
           iuid = data.getString(Tag.SOPInstanceUID);
         }
 
-        BytesWithImageDescriptor desc = ImageAdapter.imageTranscode(data, filets, ts, context);
+        BytesWithImageDescriptor desc = ImageAdapter.imageTranscode(data, syntax, context);
         dataWriter = ImageAdapter.buildDataWriter(data, syntax, context.getEditable(), desc);
       }
       as.cstore(
@@ -324,7 +328,7 @@ public class StoreSCU implements AutoCloseable {
           iuid,
           priority,
           dataWriter,
-          syntax.getAdapted(),
+          syntax.getSuitable(),
           rspHandlerFactory.createDimseRSPHandler(f));
     } finally {
       SafeClose.close(in);

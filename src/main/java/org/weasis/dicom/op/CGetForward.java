@@ -161,14 +161,16 @@ public class CGetForward implements AutoCloseable {
               }
               DataWriter dataWriter;
               AdaptTransferSyntax syntax =
-                  new AdaptTransferSyntax(streamSCU.selectTransferSyntax(cuid, tsuid));
+                  new AdaptTransferSyntax(tsuid, streamSCU.selectTransferSyntax(cuid, tsuid));
               if ((cstoreParams == null || !cstoreParams.hasDicomEditors())
-                  && syntax.getOriginal().equals(tsuid)) {
+                  && syntax.getRequested().equals(tsuid)) {
                 dataWriter = new InputStreamDataWriter(data);
               } else {
                 AttributeEditorContext context =
                     new AttributeEditorContext(
-                        tsuid, DicomNode.buildRemoteDicomNode(as), streamSCU.getRemoteDicomNode());
+                        syntax.getOriginal(),
+                        DicomNode.buildRemoteDicomNode(as),
+                        streamSCU.getRemoteDicomNode());
                 in = new DicomInputStream(data, tsuid);
                 in.setIncludeBulkData(IncludeBulkData.URI);
                 Attributes attributes = in.readDataset();
@@ -188,12 +190,12 @@ public class CGetForward implements AutoCloseable {
                 }
 
                 BytesWithImageDescriptor desc =
-                    ImageAdapter.imageTranscode(attributes, tsuid, syntax.getOriginal(), context);
+                    ImageAdapter.imageTranscode(attributes, syntax, context);
                 dataWriter =
                     ImageAdapter.buildDataWriter(attributes, syntax, context.getEditable(), desc);
               }
 
-              streamSCU.cstore(cuid, iuid, priority, dataWriter, syntax.getAdapted());
+              streamSCU.cstore(cuid, iuid, priority, dataWriter, syntax.getSuitable());
             } catch (AbortException e) {
               ServiceUtil.notifyProgession(
                   streamSCU.getState(),

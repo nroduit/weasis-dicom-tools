@@ -647,4 +647,28 @@ public class DicomImageReader extends ImageReader {
     }
     return new ExtendSegmentedInputImageStream(dis.getPath(), offsets, length, desc);
   }
+
+  public static boolean isSupportedSyntax(String uid) {
+    switch (uid) {
+      case UID.ImplicitVRLittleEndian:
+      case UID.ExplicitVRLittleEndian:
+      case UID.ExplicitVRBigEndian:
+      case UID.RLELossless:
+      case UID.JPEGBaseline8Bit:
+      case UID.JPEGExtended12Bit:
+      case UID.JPEGSpectralSelectionNonHierarchical68:
+      case UID.JPEGFullProgressionNonHierarchical1012:
+      case UID.JPEGLossless:
+      case UID.JPEGLosslessSV1:
+      case UID.JPEGLSLossless:
+      case UID.JPEGLSNearLossless:
+      case UID.JPEG2000Lossless:
+      case UID.JPEG2000:
+      case UID.JPEG2000MCLossless:
+      case UID.JPEG2000MC:
+        return true;
+      default:
+        return false;
+    }
+  }
 }

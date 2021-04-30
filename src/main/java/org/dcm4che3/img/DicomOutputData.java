@@ -54,9 +54,12 @@ public class DicomOutputData {
     this.images = new ArrayList<>(Objects.requireNonNull(images));
     this.images.set(0, () -> firstImage);
     this.desc = Objects.requireNonNull(desc);
-    this.tsuid = Objects.requireNonNull(tsuid);
-    if (!isSupportedSyntax(tsuid)) {
-      throw new IllegalStateException(tsuid + " is not supported as encoding syntax!");
+    int type = CvType.depth(firstImage.type());
+    this.tsuid =
+        DicomOutputData.adaptSuitableSyntax(
+            desc.getBitsStored(), type, Objects.requireNonNull(tsuid));
+    if (!isSupportedSyntax(this.tsuid)) {
+      throw new IllegalStateException(this.tsuid + " is not supported as encoding syntax!");
     }
   }
 
@@ -359,6 +362,18 @@ public class DicomOutputData {
         return type <= CvType.CV_16S ? dstTsuid : UID.ExplicitVRLittleEndian;
       default:
         return dstTsuid;
+    }
+  }
+
+  public static boolean isAdaptableSyntax(String uid) {
+    switch (uid) {
+      case UID.JPEGBaseline8Bit:
+      case UID.JPEGExtended12Bit:
+      case UID.JPEGSpectralSelectionNonHierarchical68:
+      case UID.JPEGFullProgressionNonHierarchical1012:
+        return true;
+      default:
+        return false;
     }
   }
 

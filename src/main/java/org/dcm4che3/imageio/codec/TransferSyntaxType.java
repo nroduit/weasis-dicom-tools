@@ -123,8 +123,9 @@ public enum TransferSyntaxType {
         return MPEG;
       case UID.RLELossless:
         return RLE;
+      default:
+        return UNKNOWN;
     }
-    return UNKNOWN;
   }
 
   public static boolean isLossyCompression(String uid) {
@@ -146,8 +147,9 @@ public enum TransferSyntaxType {
       case UID.HEVCMP51:
       case UID.HEVCM10P51:
         return true;
+      default:
+        return false;
     }
-    return false;
   }
 
   public static boolean isYBRCompression(String uid) {
@@ -159,7 +161,8 @@ public enum TransferSyntaxType {
       case UID.JPEG2000Lossless:
       case UID.JPEG2000:
         return true;
+      default:
+        return false;
     }
-    return false;
   }
 }

@@ -24,6 +24,7 @@ import org.dcm4che3.data.UID;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.img.stream.BytesWithImageDescriptor;
 import org.dcm4che3.img.stream.ImageAdapter;
+import org.dcm4che3.img.stream.ImageAdapter.AdaptTransferSyntax;
 import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.io.DicomInputStream.IncludeBulkData;
 import org.dcm4che3.net.ApplicationEntity;
@@ -159,9 +160,10 @@ public class CGetForward implements AutoCloseable {
                 throw new IllegalStateException("Association not ready for transfer.");
               }
               DataWriter dataWriter;
-              String supportedTsuid = streamSCU.selectTransferSyntax(cuid, tsuid);
+              AdaptTransferSyntax syntax =
+                  new AdaptTransferSyntax(streamSCU.selectTransferSyntax(cuid, tsuid));
               if ((cstoreParams == null || !cstoreParams.hasDicomEditors())
-                  && supportedTsuid.equals(tsuid)) {
+                  && syntax.getOriginal().equals(tsuid)) {
                 dataWriter = new InputStreamDataWriter(data);
               } else {
                 AttributeEditorContext context =
@@ -186,13 +188,12 @@ public class CGetForward implements AutoCloseable {
                 }
 
                 BytesWithImageDescriptor desc =
-                    ImageAdapter.imageTranscode(attributes, tsuid, supportedTsuid, context);
+                    ImageAdapter.imageTranscode(attributes, tsuid, syntax.getOriginal(), context);
                 dataWriter =
-                    ImageAdapter.buildDataWriter(
-                        attributes, supportedTsuid, context.getEditable(), desc);
+                    ImageAdapter.buildDataWriter(attributes, syntax, context.getEditable(), desc);
               }
 
-              streamSCU.cstore(cuid, iuid, priority, dataWriter, tsuid);
+              streamSCU.cstore(cuid, iuid, priority, dataWriter, syntax.getAdapted());
             } catch (AbortException e) {
               ServiceUtil.notifyProgession(
                   streamSCU.getState(),

@@ -141,19 +141,16 @@ public class Transcoder {
     images.set(0, () -> firstImage);
     String dstTsuid = params.getOutputTsuid();
     DicomJpegWriteParam writeParams = params.getWriteJpegParam();
-    int type = CvType.depth(firstImage.type());
     ImageDescriptor desc = dicomMetaData.getImageDescriptor();
-    String convertibleSyntax =
-        DicomOutputData.adaptSuitableSyntax(desc.getBitsStored(), type, dstTsuid);
-    if (!dstTsuid.equals(convertibleSyntax)) {
-      dstTsuid = convertibleSyntax;
+
+    DicomOutputData imgData = new DicomOutputData(images, desc, dstTsuid);
+    if (!dstTsuid.equals(imgData.getTsuid())) {
+      dstTsuid = imgData.getTsuid();
       if (!DicomOutputData.isNativeSyntax(dstTsuid)) {
         writeParams = DicomJpegWriteParam.buildDicomImageWriteParam(dstTsuid);
       }
       LOGGER.warn("Transcoding into {} is not possible, decompressing {}", dstTsuid, srcPath);
     }
-
-    DicomOutputData imgData = new DicomOutputData(images, desc, dstTsuid);
     try (DicomOutputStream dos = new DicomOutputStream(Files.newOutputStream(outPath), dstTsuid)) {
       dos.writeFileMetaInformation(
           dicomMetaData.getDicomObject().createFileMetaInformation(dstTsuid));

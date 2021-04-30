@@ -22,11 +22,10 @@ import org.dcm4che3.data.Fragments;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
 import org.dcm4che3.data.VR.Holder;
-import org.dcm4che3.imageio.codec.TransferSyntaxType;
 import org.dcm4che3.imageio.codec.jpeg.JPEGParser;
 import org.dcm4che3.img.DicomImageReader;
+import org.dcm4che3.img.DicomJpegWriteParam;
 import org.dcm4che3.img.DicomOutputData;
-import org.dcm4che3.img.DicomTranscodeParam;
 import org.dcm4che3.img.Transcoder;
 import org.dcm4che3.img.util.DicomUtils;
 import org.dcm4che3.img.util.Editable;
@@ -43,11 +42,33 @@ public class ImageAdapter {
 
   protected static final byte[] EMPTY_BYTES = {};
 
+  public static class AdaptTransferSyntax {
+    private final String original;
+    private String adapted;
+
+    public AdaptTransferSyntax(String original) {
+      this.original = Objects.requireNonNull(original);
+      this.adapted = original;
+    }
+
+    public String getOriginal() {
+      return original;
+    }
+
+    public String getAdapted() {
+      return adapted;
+    }
+
+    public void setAdapted(String adapted) {
+      this.adapted = adapted;
+    }
+  }
+
   private ImageAdapter() {}
 
   public static DataWriter buildDataWriter(
       Attributes data,
-      String supportedTsuid,
+      AdaptTransferSyntax syntax,
       Editable<PlanarImage> editable,
       BytesWithImageDescriptor desc)
       throws IOException {
@@ -60,15 +81,19 @@ public class ImageAdapter {
       };
     }
 
-    DicomTranscodeParam tparams = new DicomTranscodeParam(supportedTsuid);
     DicomImageReader reader = new DicomImageReader(Transcoder.dicomImageReaderSpi);
-    DicomOutputData imgData = geDicomOutputData(reader, tparams, desc, editable);
+    DicomOutputData imgData = geDicomOutputData(reader, syntax.original, desc, editable);
+    if (!syntax.original.equals(imgData.getTsuid())) {
+      syntax.adapted = imgData.getTsuid();
+      LOGGER.warn(
+          "Transcoding into {} is not possible, used instead {}", syntax.original, syntax.adapted);
+    }
 
     return (out, tsuid) -> {
       Attributes dataSet = new Attributes(data);
       dataSet.remove(Tag.PixelData);
-      try (DicomOutputStream dos = new DicomOutputStream(out, supportedTsuid)) {
-        if (DicomOutputData.isNativeSyntax(supportedTsuid)) {
+      try (DicomOutputStream dos = new DicomOutputStream(out, imgData.getTsuid())) {
+        if (DicomOutputData.isNativeSyntax(imgData.getTsuid())) {
           imgData.writRawImageData(dos, dataSet);
         } else {
           int[] jpegWriteParams =
@@ -76,7 +101,7 @@ public class ImageAdapter {
                   dataSet,
                   imgData.getFistImage().get(),
                   desc.getImageDescriptor(),
-                  tparams.getWriteJpegParam());
+                  DicomJpegWriteParam.buildDicomImageWriteParam(imgData.getTsuid()));
           imgData.writCompressedImageData(dos, dataSet, jpegWriteParams);
         }
       } catch (Exception e) {
@@ -87,6 +112,13 @@ public class ImageAdapter {
     };
   }
 
+  private static boolean isTranscodable(String origUid, String desUid) {
+    if (!desUid.equals(origUid)) {
+      return !(DicomUtils.isNative(origUid) && DicomUtils.isNative(desUid));
+    }
+    return false;
+  }
+
   public static BytesWithImageDescriptor imageTranscode(
       Attributes data,
       String originalTsuid,
@@ -95,11 +127,11 @@ public class ImageAdapter {
 
     Holder pixeldataVR = new Holder();
     Object pixdata = data.getValue(Tag.PixelData, pixeldataVR);
-    if ((Objects.nonNull(context.getMaskArea())
-            && pixdata != null
-            && !DicomUtils.isVideo(originalTsuid))
-        || (!supportedTsuid.equals(originalTsuid)
-            && TransferSyntaxType.forUID(originalTsuid) != TransferSyntaxType.NATIVE)) {
+    if (pixdata != null
+        && DicomImageReader.isSupportedSyntax(originalTsuid)
+        && DicomOutputData.isSupportedSyntax(supportedTsuid)
+        && (Objects.nonNull(context.getMaskArea())
+            || isTranscodable(originalTsuid, supportedTsuid))) {
 
       ImageDescriptor imdDesc = new ImageDescriptor(data);
       ByteBuffer[] mfByteBuffer = new ByteBuffer[1];
@@ -115,7 +147,7 @@ public class ImageAdapter {
         public ByteBuffer getBytes(int frame) throws IOException {
           ImageDescriptor desc = getImageDescriptor();
           int bitsStored = desc.getBitsStored();
-          if (pixdata == null || bitsStored < 1) {
+          if (bitsStored < 1) {
             return ByteBuffer.wrap(EMPTY_BYTES);
           } else {
             Fragments fragments = null;
@@ -257,13 +289,17 @@ public class ImageAdapter {
 
   public static Payload preparePlayload(
       Attributes data,
-      String outputTsuid,
+      AdaptTransferSyntax syntax,
       BytesWithImageDescriptor desc,
       Editable<PlanarImage> editable)
       throws IOException {
-    DicomTranscodeParam tparams = new DicomTranscodeParam(outputTsuid);
     DicomImageReader reader = new DicomImageReader(Transcoder.dicomImageReaderSpi);
-    DicomOutputData imgData = geDicomOutputData(reader, tparams, desc, editable);
+    DicomOutputData imgData = geDicomOutputData(reader, syntax.original, desc, editable);
+    if (!syntax.original.equals(imgData.getTsuid())) {
+      syntax.adapted = imgData.getTsuid();
+      LOGGER.warn(
+          "Transcoding into {} is not possible, used instead {}", syntax.original, syntax.adapted);
+    }
     Attributes dataSet = new Attributes(data);
     dataSet.remove(Tag.PixelData);
 
@@ -276,9 +312,9 @@ public class ImageAdapter {
       @Override
       public InputStream newInputStream() {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        try (DicomOutputStream dos = new DicomOutputStream(out, outputTsuid)) {
-          dos.writeFileMetaInformation(dataSet.createFileMetaInformation(outputTsuid));
-          if (DicomOutputData.isNativeSyntax(outputTsuid)) {
+        try (DicomOutputStream dos = new DicomOutputStream(out, imgData.getTsuid())) {
+          dos.writeFileMetaInformation(dataSet.createFileMetaInformation(imgData.getTsuid()));
+          if (DicomOutputData.isNativeSyntax(imgData.getTsuid())) {
             imgData.writRawImageData(dos, dataSet);
           } else {
             int[] jpegWriteParams =
@@ -286,7 +322,7 @@ public class ImageAdapter {
                     dataSet,
                     imgData.getFistImage().get(),
                     desc.getImageDescriptor(),
-                    tparams.getWriteJpegParam());
+                    DicomJpegWriteParam.buildDicomImageWriteParam(imgData.getTsuid()));
             imgData.writCompressedImageData(dos, dataSet, jpegWriteParams);
           }
         } catch (IOException e) {
@@ -302,12 +338,12 @@ public class ImageAdapter {
 
   private static DicomOutputData geDicomOutputData(
       DicomImageReader reader,
-      DicomTranscodeParam tparams,
+      String outputTsuid,
       BytesWithImageDescriptor desc,
       Editable<PlanarImage> editable)
       throws IOException {
     reader.setInput(desc);
-    var images = reader.getLazyPlanarImages(tparams.getReadParam(), editable);
-    return new DicomOutputData(images, desc.getImageDescriptor(), tparams.getOutputTsuid());
+    var images = reader.getLazyPlanarImages(null, editable);
+    return new DicomOutputData(images, desc.getImageDescriptor(), outputTsuid);
   }
 }

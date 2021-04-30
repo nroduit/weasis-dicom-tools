@@ -61,6 +61,17 @@ public class DicomUtils {
     }
   }
 
+  public static boolean isNative(String uid) {
+    switch (uid) {
+      case UID.ImplicitVRLittleEndian:
+      case UID.ExplicitVRLittleEndian:
+      case UID.ExplicitVRBigEndian:
+        return true;
+      default:
+        return false;
+    }
+  }
+
   public static String getFormattedText(Object value, String format) {
     if (value == null) {
       return StringUtil.EMPTY_STRING;

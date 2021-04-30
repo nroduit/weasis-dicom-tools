@@ -27,6 +27,7 @@ import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
 import org.dcm4che3.img.stream.BytesWithImageDescriptor;
 import org.dcm4che3.img.stream.ImageAdapter;
+import org.dcm4che3.img.stream.ImageAdapter.AdaptTransferSyntax;
 import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.io.DicomInputStream.IncludeBulkData;
 import org.dcm4che3.io.SAXReader;
@@ -300,6 +301,7 @@ public class StoreSCU implements AutoCloseable {
         data = ((DicomInputStream) in).readDataset();
       }
 
+      AdaptTransferSyntax syntax = new AdaptTransferSyntax(ts);
       if (!noChange) {
         AttributeEditorContext context =
             new AttributeEditorContext(
@@ -315,9 +317,15 @@ public class StoreSCU implements AutoCloseable {
         }
 
         BytesWithImageDescriptor desc = ImageAdapter.imageTranscode(data, filets, ts, context);
-        dataWriter = ImageAdapter.buildDataWriter(data, ts, context.getEditable(), desc);
+        dataWriter = ImageAdapter.buildDataWriter(data, syntax, context.getEditable(), desc);
       }
-      as.cstore(cuid, iuid, priority, dataWriter, ts, rspHandlerFactory.createDimseRSPHandler(f));
+      as.cstore(
+          cuid,
+          iuid,
+          priority,
+          dataWriter,
+          syntax.getAdapted(),
+          rspHandlerFactory.createDimseRSPHandler(f));
     } finally {
       SafeClose.close(in);
     }

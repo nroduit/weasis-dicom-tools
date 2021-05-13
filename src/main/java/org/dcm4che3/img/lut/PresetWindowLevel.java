@@ -120,8 +120,8 @@ public class PresetWindowLevel {
     ArrayList<PresetWindowLevel> presetList = new ArrayList<>();
     ImageDescriptor desc = adapter.getImageDescriptor();
     VoiLutModule vLut = desc.getVoiLUT();
-    List<Double> levelList = vLut.getWindowCenter();
-    List<Double> windowList = vLut.getWindowWidth();
+    List<Double> levelList = getWindowCenter(vLut, wl);
+    List<Double> windowList = getWindowWidth(vLut, wl);
 
     // optional attributes
     List<String> wlExplanationList = vLut.getWindowCenterWidthExplanation();
@@ -167,8 +167,8 @@ public class PresetWindowLevel {
       }
     }
 
-    List<LookupTableCV> voiLUTsData = getVoiLutData(desc, wl);
-    List<String> voiLUTsExplanation = getVoiLUTExplanation(desc, wl);
+    List<LookupTableCV> voiLUTsData = getVoiLutData(vLut, wl);
+    List<String> voiLUTsExplanation = getVoiLUTExplanation(vLut, wl);
 
     if (!voiLUTsData.isEmpty()) {
       String defaultExplanation = "VOI LUT";
@@ -205,6 +205,7 @@ public class PresetWindowLevel {
             adapter.getFullDynamicWidth(wl),
             adapter.getFullDynamicCenter(wl),
             defaultLutShape);
+    autoLevel.setKeyCode(0x30);
     presetList.add(autoLevel);
 
     // Exclude Secondary Capture CT
@@ -218,28 +219,54 @@ public class PresetWindowLevel {
     return presetList;
   }
 
-  private static List<LookupTableCV> getVoiLutData(ImageDescriptor desc, WlPresentation wl) {
+  private static List<Double> getWindowCenter(VoiLutModule vLut, WlPresentation wl) {
+    List<Double> luts = new ArrayList<>();
+    PresentationStateLut pr = wl.getPresentationState();
+    if (pr instanceof PrDicomObject) {
+      Optional<VoiLutModule> voiLUT = ((PrDicomObject) pr).getVoiLUT();
+      voiLUT.ifPresent(voiLutModule -> luts.addAll(voiLutModule.getWindowCenter()));
+    }
+    if (!vLut.getWindowCenter().isEmpty()) {
+      luts.addAll(vLut.getWindowCenter());
+    }
+    return luts;
+  }
+
+  private static List<Double> getWindowWidth(VoiLutModule vLut, WlPresentation wl) {
+    List<Double> luts = new ArrayList<>();
+    PresentationStateLut pr = wl.getPresentationState();
+    if (wl.getPresentationState() instanceof PrDicomObject) {
+      Optional<VoiLutModule> voiLUT = ((PrDicomObject) pr).getVoiLUT();
+      voiLUT.ifPresent(voiLutModule -> luts.addAll(voiLutModule.getWindowWidth()));
+    }
+    if (!vLut.getWindowWidth().isEmpty()) {
+      luts.addAll(vLut.getWindowWidth());
+    }
+    return luts;
+  }
+
+  private static List<LookupTableCV> getVoiLutData(VoiLutModule vLut, WlPresentation wl) {
     List<LookupTableCV> luts = new ArrayList<>();
     PresentationStateLut pr = wl.getPresentationState();
     if (pr instanceof PrDicomObject) {
       Optional<VoiLutModule> vlut = ((PrDicomObject) pr).getVoiLUT();
       vlut.ifPresent(voiLutModule -> luts.addAll(voiLutModule.getLut()));
     }
-    if (!desc.getVoiLUT().getLut().isEmpty()) {
-      luts.addAll(desc.getVoiLUT().getLut());
+    if (!vLut.getLut().isEmpty()) {
+      luts.addAll(vLut.getLut());
     }
     return luts;
   }
 
-  private static List<String> getVoiLUTExplanation(ImageDescriptor desc, WlPresentation wl) {
+  private static List<String> getVoiLUTExplanation(VoiLutModule vLut, WlPresentation wl) {
     List<String> luts = new ArrayList<>();
     PresentationStateLut pr = wl.getPresentationState();
     if (pr instanceof PrDicomObject) {
       Optional<VoiLutModule> vlut = ((PrDicomObject) pr).getVoiLUT();
       vlut.ifPresent(voiLutModule -> luts.addAll(voiLutModule.getLutExplanation()));
     }
-    if (!desc.getVoiLUT().getLut().isEmpty()) {
-      luts.addAll(desc.getVoiLUT().getLutExplanation());
+    if (!vLut.getLutExplanation().isEmpty()) {
+      luts.addAll(vLut.getLutExplanation());
     }
     return luts;
   }

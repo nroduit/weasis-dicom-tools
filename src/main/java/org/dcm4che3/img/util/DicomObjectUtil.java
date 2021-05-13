@@ -118,7 +118,7 @@ public class DicomObjectUtil {
    */
   public static Area getShutterShape(Attributes dcm) {
     Area shape = null;
-    String shutterShape = dcm.getString(Tag.ShutterShape);
+    String shutterShape = DicomUtils.getStringFromDicomElement(dcm, Tag.ShutterShape);
     if (shutterShape != null) {
       if (shutterShape.contains("RECTANGULAR")
           || shutterShape.contains("RECTANGLE")) { // $NON-NLS-1$ //$NON-NLS-2$
@@ -167,28 +167,33 @@ public class DicomObjectUtil {
     return shape;
   }
 
+  /**
+   * Extract the shutter color from ShutterPresentationColorCIELabValue or ShutterPresentationValue
+   *
+   * @param dcm the DICOM attributes
+   * @return
+   */
   public static Color getShutterColor(Attributes dcm) {
     int[] rgb = CIELab.dicomLab2rgb(dcm.getInts(Tag.ShutterPresentationColorCIELabValue));
-    return getRGBColor(dcm.getInt(Tag.ShutterPresentationValue, 0xFFFF), rgb);
+    return getRGBColor(dcm.getInt(Tag.ShutterPresentationValue, 0x0000), rgb);
   }
 
+  /**
+   * Get RGB color form rgbColour array or pGray value
+   *
+   * @param pGray A single gray unsigned value when rendered on a monochrome display. The units are
+   *     specified in P-Values, from a minimum of 0x0000 (black) up to a maximum of 0xFFFF (white).
+   * @param rgbColour
+   * @return the color
+   */
   public static Color getRGBColor(int pGray, int[] rgbColour) {
     int r, g, b;
     if (rgbColour != null && rgbColour.length >= 3) {
-      r = rgbColour[0];
-      g = rgbColour[1];
-      b = rgbColour[2];
-      if (r > 255) {
-        r >>= 8;
-      }
-      if (g > 255) {
-        g >>= 8;
-      }
-      if (b > 255) {
-        b >>= 8;
-      }
+      r = Math.min(rgbColour[0], 255);
+      g = Math.min(rgbColour[1], 255);
+      b = Math.min(rgbColour[2], 255);
     } else {
-      r = g = b = pGray > 255 ? pGray >> 8 : pGray;
+      r = g = b = pGray >> 8;
     }
     r &= 0xFF;
     g &= 0xFF;

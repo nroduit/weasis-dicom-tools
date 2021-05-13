@@ -21,7 +21,7 @@ public class CIELab {
 
   private CIELab() {}
 
-  public static double[] dicomLab2rgb(double l, double a, double b) {
+  private static double[] dicomLab2rgb(double l, double a, double b) {
     // lab to xyz
     double cl = (l + 16) / 116;
     double ca = cl + a / 500;
@@ -37,9 +37,9 @@ public class CIELab {
 
     double min;
     if (r <= g) {
-      min = r <= bl ? r : bl;
+      min = Math.min(r, bl);
     } else {
-      min = g <= bl ? g : bl;
+      min = Math.min(g, bl);
     }
 
     if (min < 0) {
@@ -52,7 +52,7 @@ public class CIELab {
     return new double[] {gammaCorrection(r), gammaCorrection(g), gammaCorrection(bl)};
   }
 
-  public static double[] rgb2DicomLab(double r, double g, double b) {
+  private static double[] rgb2DicomLab(double r, double g, double b) {
     // rgb to xyz
     r = invGammaCorrection(r);
     g = invGammaCorrection(g);
@@ -108,11 +108,12 @@ public class CIELab {
   }
 
   /**
-   * This method converts integer DICOM encoded L*a*b* values to CIE L*a*b* regular float encoded
-   * values.
+   * This method converts integer <a
+   * href="http://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.10.7.html#sect_C.10.7.1.1">DICOM
+   * encoded L*a*b* values</a> to RGB values.
    *
    * @param lab
-   * @return float array of 3 components L* on 0..1 and a*,b* on -128...127
+   * @return int array of 3 RGB components
    */
   public static int[] dicomLab2rgb(int[] lab) {
     if (lab == null || lab.length != 3) {
@@ -128,10 +129,30 @@ public class CIELab {
     };
   }
 
+  /**
+   * Converts rgb values to DICOM encoded L*a*b* values with D65 light point (CIELab standard white
+   * point)
+   *
+   * @param c a color
+   * @return integer <a
+   *     href="http://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.10.7.html#sect_C.10.7.1.1">DICOM
+   *     encoded L*a*b* values</a>
+   */
   public static int[] rgbToDicomLab(Color c) {
     return rgbToDicomLab(Objects.requireNonNull(c).getRed(), c.getGreen(), c.getBlue());
   }
 
+  /**
+   * Converts rgb values to DICOM encoded L*a*b* values with D65 light point (CIELab standard white
+   * point)
+   *
+   * @param r red (0 to 255)
+   * @param g green (0 to 255)
+   * @param b blue (0 to 255)
+   * @return integer <a
+   *     href="http://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.10.7.html#sect_C.10.7.1.1">DICOM
+   *     encoded L*a*b* values</a>
+   */
   public static int[] rgbToDicomLab(int r, int g, int b) {
     double[] lab = rgb2DicomLab(r / 255.0, g / 255.0, b / 255.0);
     // lab to Dicom lab

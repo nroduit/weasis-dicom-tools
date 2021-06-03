@@ -2,7 +2,7 @@
  * Copyright (c) 2018-2020 Weasis Team and other contributors.
  *
  * This program and the accompanying materials are made available under the terms of the Eclipse
- * Public License 2.0 which is available at http://www.eclipse.org/legal/epl-2.0, or the Apache
+ * Public License 2.0 which is available at https://www.eclipse.org/legal/epl-2.0, or the Apache
  * License, Version 2.0 which is available at https://www.apache.org/licenses/LICENSE-2.0.
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
@@ -62,7 +62,7 @@ public class StowNetTest {
             new DicomStowRS(stowService, ContentType.APPLICATION_DICOM, null, null);
         DicomInputStream in = new DicomInputStream(new FileInputStream(files.get(0)))) {
       in.setIncludeBulkData(IncludeBulkData.URI);
-      Attributes attributes = in.readDataset(-1, -1);
+      Attributes attributes = in.readDataset();
       attributes.setString(Tag.PatientName, VR.PN, "Override^Patient^Name");
       attributes.setString(Tag.PatientID, VR.LO, "ModifiedPatientID");
       attributes.setString(Tag.StudyInstanceUID, VR.UI, UIDUtils.createUID());

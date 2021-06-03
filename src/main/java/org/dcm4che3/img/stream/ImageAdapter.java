@@ -15,7 +15,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Objects;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.BulkData;
 import org.dcm4che3.data.Fragments;
@@ -141,8 +140,7 @@ public class ImageAdapter {
     if (pixdata != null
         && DicomImageReader.isSupportedSyntax(syntax.original)
         && DicomOutputData.isSupportedSyntax(syntax.requested)
-        && (Objects.nonNull(context.getMaskArea())
-            || isTranscodable(syntax.original, syntax.requested))) {
+        && (context.hasPixelProcessing() || isTranscodable(syntax.original, syntax.requested))) {
 
       ImageDescriptor imdDesc = new ImageDescriptor(data);
       ByteBuffer[] mfByteBuffer = new ByteBuffer[1];

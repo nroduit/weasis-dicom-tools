@@ -9,9 +9,11 @@
  */
 package org.weasis.dicom.param;
 
+import java.util.Objects;
 import java.util.Properties;
 import org.dcm4che3.img.op.MaskArea;
 import org.dcm4che3.img.util.Editable;
+import org.weasis.core.util.LangUtil;
 import org.weasis.opencv.data.PlanarImage;
 
 public class AttributeEditorContext {
@@ -90,5 +92,10 @@ public class AttributeEditorContext {
       return img -> MaskArea.drawShape(img.toMat(), m);
     }
     return null;
+  }
+
+  public boolean hasPixelProcessing() {
+    return Objects.nonNull(getMaskArea())
+        || LangUtil.getEmptytoFalse(getProperties().getProperty("defacing"));
   }
 }

@@ -24,6 +24,7 @@ jobs:
           branch: master
           commit_message: "Automatic changelog update"
           file_pattern: "CHANGELOG.md"
+          push_options: --force
       - name: Extract Release Notes
         id: extract_release_notes
         uses: ffurrer2/extract-release-notes@v1

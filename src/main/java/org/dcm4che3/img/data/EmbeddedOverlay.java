@@ -17,6 +17,7 @@ import org.dcm4che3.data.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/** @author Nicolas Roduit */
 public class EmbeddedOverlay {
   private static final Logger LOGGER = LoggerFactory.getLogger(EmbeddedOverlay.class);
 

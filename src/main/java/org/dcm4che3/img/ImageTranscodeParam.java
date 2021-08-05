@@ -14,6 +14,7 @@ import java.util.OptionalInt;
 import org.dcm4che3.img.Transcoder.Format;
 import org.weasis.core.util.LangUtil;
 
+/** @author Nicolas Roduit */
 public class ImageTranscodeParam {
   private final DicomImageReadParam readParam;
   private final Format format;

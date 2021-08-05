@@ -89,10 +89,8 @@ public class VoiLutModule {
 
     if (LOGGER.isDebugEnabled()) {
       // If multiple Window center and window width values are present, both Attributes shall have
-      // the same
-      // number of values and shall be considered as pairs. Multiple values indicate that multiple
-      // alternative
-      // views may be presented
+      // the same number of values and shall be considered as pairs. Multiple values indicate that
+      // multiple alternative views may be presented
       if (windowCenter.isEmpty() && !windowWidth.isEmpty()) {
         LOGGER.debug("VOI Window Center is required if Window Width is present");
       } else if (!windowCenter.isEmpty() && windowWidth.isEmpty()) {

@@ -25,6 +25,7 @@ import org.weasis.opencv.data.ImageCV;
 import org.weasis.opencv.data.PlanarImage;
 import org.weasis.opencv.op.ImageProcessor;
 
+/** @author Nicolas Roduit */
 public class OverlayData {
   private final int groupOffset;
   private final int rows;
@@ -133,9 +134,7 @@ public class OverlayData {
       int frameIndex) {
     Optional<PrDicomObject> prDcm = params.getPresentationState();
     List<OverlayData> overlays = new ArrayList<>();
-    if (prDcm.isPresent()) {
-      overlays.addAll(prDcm.get().getOverlays());
-    }
+    prDcm.ifPresent(prDicomObject -> overlays.addAll(prDicomObject.getOverlays()));
     List<EmbeddedOverlay> embeddedOverlays = desc.getEmbeddedOverlay();
     overlays.addAll(desc.getOverlayData());
 

@@ -10,7 +10,6 @@
 package org.dcm4che3.img.data;
 
 import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertNull;
 
 import java.awt.Color;
 import org.junit.Test;
@@ -25,8 +24,8 @@ public class CIELabTest {
 
   @Test
   public void testDicomLab2rgb() {
-    assertNull(CIELab.dicomLab2rgb(new int[] {1, 1, 1, 1}));
-    assertNull(CIELab.dicomLab2rgb(null));
+    assertArrayEquals(new int[0], CIELab.dicomLab2rgb(new int[] {1, 1, 1, 1}));
+    assertArrayEquals(new int[0], CIELab.dicomLab2rgb(null));
 
     assertArrayEquals(rgb1, CIELab.dicomLab2rgb(dcmLab1));
     assertArrayEquals(rgb2, CIELab.dicomLab2rgb(dcmLab2));

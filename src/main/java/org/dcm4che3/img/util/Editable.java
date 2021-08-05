@@ -9,6 +9,7 @@
  */
 package org.dcm4che3.img.util;
 
+/** @author Nicolas Roduit */
 @FunctionalInterface
 public interface Editable<T> {
   T process(T t);

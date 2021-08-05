@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.dcm4che3.img.op.MaskArea;
 
+/** @author Nicolas Roduit */
 public class DicomTranscodeParam {
   private final DicomImageReadParam readParam;
   private final DicomJpegWriteParam writeJpegParam;

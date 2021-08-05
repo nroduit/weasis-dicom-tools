@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.util.StringUtil;
 
+/** @author Nicolas Roduit */
 public class DicomObjectUtil {
   private static final Logger LOGGER = LoggerFactory.getLogger(DicomObjectUtil.class);
 

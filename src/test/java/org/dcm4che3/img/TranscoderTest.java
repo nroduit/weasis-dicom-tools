@@ -244,7 +244,7 @@ public class TranscoderTest {
       return reader.getPlanarImages(null);
     } else {
       return files.stream()
-          .map(p -> ImageProcessor.readImageWithCvException(p.toFile()))
+          .map(p -> ImageProcessor.readImageWithCvException(p.toFile(), null))
           .collect(Collectors.toList());
     }
   }
@@ -254,7 +254,7 @@ public class TranscoderTest {
       reader.setInput(new DicomFileInputStream(path));
       return reader.getPlanarImages(null);
     } else {
-      return Arrays.asList(ImageProcessor.readImageWithCvException(path.toFile()));
+      return Arrays.asList(ImageProcessor.readImageWithCvException(path.toFile(), null));
     }
   }
 

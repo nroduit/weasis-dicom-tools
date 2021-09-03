@@ -41,7 +41,8 @@ public class AbstractStowrs implements AutoCloseable {
   private final List<HttpURLConnection> connections;
   private final ContentType contentType;
   private final String requestURL;
-  private final String agentName;
+  protected final String agentNameValue;
+  protected final String contentTypeValue;
   private final Map<String, String> headers;
 
   /**
@@ -49,7 +50,6 @@ public class AbstractStowrs implements AutoCloseable {
    * @param contentType the value of the type in the Content-Type HTTP property
    * @param agentName the value of the User-Agent HTTP property
    * @param headers some additional header properties.
-   * @throws IOException Exception during the POST initialization
    */
   public AbstractStowrs(
       String requestURL,
@@ -59,7 +59,13 @@ public class AbstractStowrs implements AutoCloseable {
     this.contentType = Objects.requireNonNull(contentType);
     this.requestURL = Objects.requireNonNull(getFinalUrl(requestURL), "requestURL cannot be null");
     this.headers = headers;
-    this.agentName = agentName;
+    this.agentNameValue = agentName;
+    this.contentTypeValue =
+        Multipart.MULTIPART_RELATED
+            + "; type=\""
+            + contentType
+            + "\"; boundary="
+            + MULTIPART_BOUNDARY;
     this.connections = new ArrayList<>();
   }
 
@@ -86,14 +92,9 @@ public class AbstractStowrs implements AutoCloseable {
       httpPost.setRequestMethod("POST");
       httpPost.setConnectTimeout(10000);
       httpPost.setReadTimeout(60000);
+      httpPost.setRequestProperty("Content-Type", contentTypeValue);
       httpPost.setRequestProperty(
-          "Content-Type", //$NON-NLS-1$
-          Multipart.MULTIPART_RELATED
-              + "; type=\""
-              + contentType
-              + "\"; boundary="
-              + MULTIPART_BOUNDARY); //$NON-NLS-1$
-      httpPost.setRequestProperty("User-Agent", agentName == null ? "Weasis STOWRS" : agentName);
+          "User-Agent", agentNameValue == null ? "Weasis STOWRS" : agentNameValue);
       httpPost.setRequestProperty(
           "Accept",
           contentType == ContentType.JSON
@@ -131,7 +132,7 @@ public class AbstractStowrs implements AutoCloseable {
     out.write(Multipart.Separator.BOUNDARY.getType());
     out.writeBytes(MULTIPART_BOUNDARY);
     out.write(Multipart.Separator.FIELD.getType());
-    out.writeBytes("Content-Type: "); // $NON-NLS-1$
+    out.writeBytes("Content-Type: ");
     out.writeBytes(contentType.toString());
     out.write(Multipart.Separator.HEADER.getType());
   }
@@ -142,8 +143,7 @@ public class AbstractStowrs implements AutoCloseable {
 
     int code = httpPost.getResponseCode();
     if (code == HttpURLConnection.HTTP_OK) {
-      LOGGER.info(
-          "STOWRS server response message: HTTP Status-Code 200: OK for {}", iuid); // $NON-NLS-1$
+      LOGGER.info("STOWRS server response message: HTTP Status-Code 200: OK for {}", iuid);
     } else {
       throw new HttpServerErrorException(
           String.format("STOWRS server response message: %s", httpPost.getResponseMessage()));
@@ -156,13 +156,12 @@ public class AbstractStowrs implements AutoCloseable {
 
     int code = httpPost.getResponseCode();
     if (code == HttpURLConnection.HTTP_OK) {
-      LOGGER.info(
-          "STOWRS server response message: HTTP Status-Code 200: OK for all the image set"); //$NON-NLS-1$
+      LOGGER.info("STOWRS server response message: HTTP Status-Code 200: OK for all the image set");
     } else if (code == HttpURLConnection.HTTP_ACCEPTED || code == HttpURLConnection.HTTP_CONFLICT) {
       LOGGER.warn(
           "STOWRS server response message: HTTP Status-Code {}: {}",
           code,
-          httpPost.getResponseMessage()); // $NON-NLS-1$
+          httpPost.getResponseMessage());
       // See
       // http://dicom.nema.org/medical/dicom/current/output/chtml/part18/sect_6.6.html#table_6.6.1-1
       return SAXReader.parse(httpPost.getInputStream());

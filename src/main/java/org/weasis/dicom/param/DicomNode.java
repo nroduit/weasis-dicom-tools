@@ -53,7 +53,7 @@ public class DicomNode {
       throw new IllegalArgumentException("Port is out of bound");
     }
     this.id = id;
-    this.aet = aet;
+    this.aet = aet.trim();
     this.hostname = hostname;
     this.port = port;
     this.validateHostname = validateHostname;

@@ -32,9 +32,8 @@ public enum ContentType {
         throw new IOException(
             String.format("failed to determine content type of file: '%s'", path));
       }
-      switch (type.toLowerCase()) {
-        case "application/dicom":
-          return ContentType.APPLICATION_DICOM;
+      if ("application/dicom".equalsIgnoreCase(type)) {
+        return ContentType.APPLICATION_DICOM;
       }
       throw new UnsupportedOperationException(
           String.format("unsupported content type: '%s' of file: '%s'", type, path));

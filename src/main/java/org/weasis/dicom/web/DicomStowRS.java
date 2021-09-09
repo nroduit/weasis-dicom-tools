@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.SequenceInputStream;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
@@ -72,7 +73,6 @@ public class DicomStowRS implements AutoCloseable {
   private final String requestURL;
   private final String agentName;
   private final Map<String, String> headers;
-  private boolean photo = false;
   private final HttpContentType type = HttpContentType.XML;
   private final HttpClient client;
   private final ExecutorService executorService;
@@ -82,7 +82,6 @@ public class DicomStowRS implements AutoCloseable {
    * @param contentType the value of the type in the Content-Type HTTP property
    * @param agentName the value of the User-Agent HTTP property
    * @param headers some additional header properties.
-   * @throws IOException Exception during the POST initialization
    */
   public DicomStowRS(
       String requestURL, ContentType contentType, String agentName, Map<String, String> headers) {
@@ -112,7 +111,7 @@ public class DicomStowRS implements AutoCloseable {
   }
 
   protected HttpRequest buildConnection(Flow.Publisher<? extends ByteBuffer> multipartSubscriber)
-      throws Exception {
+      throws URISyntaxException {
     ContentType partType = ContentType.APPLICATION_DICOM;
     HttpRequest.Builder builder = buidDefaultConnection();
 
@@ -193,9 +192,7 @@ public class DicomStowRS implements AutoCloseable {
   }
 
   private static void promptHeaders(String prefix, HttpHeaders headers) {
-    headers
-        .map()
-        .forEach((k, v) -> v.stream().forEach(v1 -> LOGGER.debug("{} {}: {}", prefix, k, v1)));
+    headers.map().forEach((k, v) -> v.forEach(v1 -> LOGGER.debug("{} {}: {}", prefix, k, v1)));
     LOGGER.debug(prefix);
   }
 
@@ -212,10 +209,6 @@ public class DicomStowRS implements AutoCloseable {
 
   public Map<String, String> getHeaders() {
     return headers;
-  }
-
-  public boolean isPhoto() {
-    return photo;
   }
 
   public void uploadDicom(Path path) throws HttpException {

@@ -326,7 +326,7 @@ public class DicomImageReader extends ImageReader {
         }
         return true;
       default:
-        return false;
+        return pmi.name().startsWith("YBR");
     }
   }
 
@@ -446,6 +446,7 @@ public class DicomImageReader extends ImageReader {
 
     String tsuid = dis.getMetadata().getTransferSyntaxUID();
     TransferSyntaxType type = TransferSyntaxType.forUID(tsuid);
+    PhotometricInterpretation pmi = desc.getPhotometricInterpretation();
     boolean rawData =
         pixeldataFragments == null
             || type == TransferSyntaxType.NATIVE
@@ -454,8 +455,11 @@ public class DicomImageReader extends ImageReader {
         (type.canEncodeSigned() && desc.isSigned())
             ? Imgcodecs.DICOM_FLAG_SIGNED
             : Imgcodecs.DICOM_FLAG_UNSIGNED;
-    if (!rawData && fileYbr2rgb(desc.getPhotometricInterpretation(), tsuid, seg, frame, param)) {
+    if (!rawData && fileYbr2rgb(pmi, tsuid, seg, frame, param)) {
       dcmFlags |= Imgcodecs.DICOM_FLAG_YBR;
+      if (type == TransferSyntaxType.JPEG_LS) {
+        dcmFlags |= Imgcodecs.DICOM_FLAG_FORCE_RGB_CONVERSION;
+      }
     }
     if (bigendian) {
       dcmFlags |= Imgcodecs.DICOM_FLAG_BIGENDIAN;
@@ -489,11 +493,7 @@ public class DicomImageReader extends ImageReader {
                 streamVR);
         return ImageCV.toImageCV(
             Imgcodecs.dicomRawFileRead(
-                seg.getPath().toString(),
-                positions,
-                lengths,
-                dicomparams,
-                desc.getPhotometricInterpretation().name()));
+                seg.getPath().toString(), positions, lengths, dicomparams, pmi.name()));
       }
       return ImageCV.toImageCV(
           Imgcodecs.dicomJpgFileRead(
@@ -515,13 +515,17 @@ public class DicomImageReader extends ImageReader {
 
     String tsuid = bdis.getTransferSyntax();
     TransferSyntaxType type = TransferSyntaxType.forUID(tsuid);
+    PhotometricInterpretation pmi = desc.getPhotometricInterpretation();
     boolean rawData = type == TransferSyntaxType.NATIVE || type == TransferSyntaxType.RLE;
     int dcmFlags =
         (type.canEncodeSigned() && desc.isSigned())
             ? Imgcodecs.DICOM_FLAG_SIGNED
             : Imgcodecs.DICOM_FLAG_UNSIGNED;
-    if (!rawData && byteYbr2rgb(desc.getPhotometricInterpretation(), tsuid, frame, param)) {
+    if (!rawData && byteYbr2rgb(pmi, tsuid, frame, param)) {
       dcmFlags |= Imgcodecs.DICOM_FLAG_YBR;
+      if (type == TransferSyntaxType.JPEG_LS) {
+        dcmFlags |= Imgcodecs.DICOM_FLAG_FORCE_RGB_CONVERSION;
+      }
     }
     if (bdis.bigEndian()) {
       dcmFlags |= Imgcodecs.DICOM_FLAG_BIGENDIAN;
@@ -552,9 +556,7 @@ public class DicomImageReader extends ImageReader {
                 bits,
                 desc.isBanded() ? Imgcodecs.ILV_NONE : Imgcodecs.ILV_SAMPLE,
                 streamVR);
-        return ImageCV.toImageCV(
-            Imgcodecs.dicomRawMatRead(
-                buf, dicomparams, desc.getPhotometricInterpretation().name()));
+        return ImageCV.toImageCV(Imgcodecs.dicomRawMatRead(buf, dicomparams, pmi.name()));
       }
       return ImageCV.toImageCV(
           Imgcodecs.dicomJpgMatRead(buf, dcmFlags, Imgcodecs.IMREAD_UNCHANGED));

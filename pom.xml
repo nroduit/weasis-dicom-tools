@@ -388,7 +388,7 @@
                 <artifactItem>
                   <groupId>org.weasis.thirdparty.org.opencv</groupId>
                   <artifactId>${lib-file-name}</artifactId>
-                  <version>4.5.0-dcm</version>
+                  <version>${weasis.opencv.native.version}</version>
                   <type>${lib-file-ext}</type>
                   <classifier>${os-name}-${cpu-name}</classifier>
                   <overWrite>false</overWrite>

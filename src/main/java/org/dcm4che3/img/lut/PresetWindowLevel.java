@@ -111,8 +111,8 @@ public class PresetWindowLevel {
 
   public static List<PresetWindowLevel> getPresetCollection(
       DicomImageAdapter adapter, String type, WlPresentation wl) {
-    if (adapter == null) {
-      return null;
+    if (adapter == null || wl == null) {
+      throw new IllegalArgumentException("Null parameter");
     }
 
     String dicomKeyWord = " " + type;

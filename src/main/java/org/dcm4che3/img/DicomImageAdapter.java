@@ -28,7 +28,11 @@ import org.weasis.core.util.SoftHashMap;
 import org.weasis.opencv.data.LookupTableCV;
 import org.weasis.opencv.data.PlanarImage;
 import org.weasis.opencv.op.ImageProcessor;
-import org.weasis.opencv.op.lut.*;
+import org.weasis.opencv.op.lut.LutParameters;
+import org.weasis.opencv.op.lut.LutShape;
+import org.weasis.opencv.op.lut.PresentationStateLut;
+import org.weasis.opencv.op.lut.WlParams;
+import org.weasis.opencv.op.lut.WlPresentation;
 
 /** @author Nicolas Roduit */
 public class DicomImageAdapter {
@@ -250,6 +254,13 @@ public class DicomImageAdapter {
       windowingPresetCollection = PresetWindowLevel.getPresetCollection(this, "[DICOM]", wl);
     }
     return windowingPresetCollection;
+  }
+
+  public int getPresetCollectionSize() {
+    if (windowingPresetCollection == null) {
+      return 0;
+    }
+    return windowingPresetCollection.size();
   }
 
   public LutShape getDefaultShape(WlPresentation wlp) {

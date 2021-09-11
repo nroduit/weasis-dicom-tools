@@ -48,32 +48,11 @@ public class DicomStowRS implements AutoCloseable {
   private static final ByteArrayInputStream emptyInputStream =
       new ByteArrayInputStream(new byte[] {});
 
-  public enum HttpContentType {
-    DICOM("application/dicom"),
-    XML("application/dicom+xml"),
-    JSON("application/dicom+json");
-
-    private final String type;
-
-    HttpContentType(String type) {
-      this.type = type;
-    }
-
-    public String getType() {
-      return type;
-    }
-
-    @Override
-    public String toString() {
-      return type;
-    }
-  }
-
   private final ContentType contentType;
   private final String requestURL;
   private final String agentName;
   private final Map<String, String> headers;
-  private final HttpContentType type = HttpContentType.XML;
+  private final Multipart.ContentType type = Multipart.ContentType.XML;
   private final HttpClient client;
   private final ExecutorService executorService;
 

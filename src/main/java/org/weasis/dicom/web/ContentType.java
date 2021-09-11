@@ -25,6 +25,14 @@ public enum ContentType {
     this.bulkdataTag = bulkdataTag;
   }
 
+  public String getType() {
+    return type;
+  }
+
+  public int getBulkdataTag() {
+    return bulkdataTag;
+  }
+
   static ContentType probe(Path path) {
     try {
       String type = Files.probeContentType(path);

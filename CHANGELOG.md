@@ -1,5 +1,13 @@
 # Changelog
 
+## [v5.24.0-IMG-RELEASE](https://github.com/nroduit/weasis-dicom-tools/tree/v5.24.0-IMG-RELEASE) (2021-09-11)
+
+[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.24.0...v5.24.0-IMG-RELEASE)
+
+## [v5.24.0](https://github.com/nroduit/weasis-dicom-tools/tree/v5.24.0) (2021-09-03)
+
+[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.23.3...v5.24.0)
+
 ## [v5.23.3](https://github.com/nroduit/weasis-dicom-tools/tree/v5.23.3) (2021-06-05)
 
 [Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/5.23.3-IMG-RELEASE...v5.23.3)

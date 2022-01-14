@@ -129,7 +129,11 @@ public class DicomObjectUtil {
             dcm.getInt(Tag.ShutterUpperHorizontalEdge, 0),
             dcm.getInt(Tag.ShutterRightVerticalEdge, 0),
             dcm.getInt(Tag.ShutterLowerHorizontalEdge, 0));
-        shape = new Area(rect);
+        if (rect.isEmpty()) {
+          LOGGER.error("Shutter rectangle has an empty area!");
+        } else {
+          shape = new Area(rect);
+        }
       }
       if (shutterShape.contains("CIRCULAR")) { // $NON-NLS-1$
         int[] centerOfCircularShutter = dcm.getInts(Tag.CenterOfCircularShutter);
@@ -142,10 +146,14 @@ public class DicomObjectUtil {
               centerOfCircularShutter[0],
               centerOfCircularShutter[1] + radius,
               centerOfCircularShutter[0] + radius);
-          if (shape == null) {
-            shape = new Area(ellipse);
+          if (ellipse.isEmpty()) {
+            LOGGER.error("Shutter ellipse has an empty area!");
           } else {
-            shape.intersect(new Area(ellipse));
+            if (shape == null) {
+              shape = new Area(ellipse);
+            } else {
+              shape.intersect(new Area(ellipse));
+            }
           }
         }
       }
@@ -157,15 +165,32 @@ public class DicomObjectUtil {
             // Thanks DICOM for reversing x,y by row,column
             polygon.addPoint(points[i * 2 + 1], points[i * 2]);
           }
-          if (shape == null) {
-            shape = new Area(polygon);
+          if (isPolygonValid(polygon)) {
+            if (shape == null) {
+              shape = new Area(polygon);
+            } else {
+              shape.intersect(new Area(polygon));
+            }
           } else {
-            shape.intersect(new Area(polygon));
+            LOGGER.error("Shutter rectangle has an empty area!");
           }
         }
       }
     }
     return shape;
+  }
+
+  private static boolean isPolygonValid(Polygon polygon) {
+    int[] xPoints = polygon.xpoints;
+    int[] yPoints = polygon.ypoints;
+    double area = 0;
+    for (int i = 0; i < polygon.npoints; i++) {
+      area += (xPoints[i] * yPoints[i + 1]) - (xPoints[i + 1] * yPoints[i]);
+      if (area > 0) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**

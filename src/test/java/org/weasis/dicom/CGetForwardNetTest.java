@@ -10,7 +10,6 @@
 package org.weasis.dicom;
 
 import java.util.Arrays;
-import org.apache.log4j.BasicConfigurator;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
@@ -20,19 +19,12 @@ import org.hamcrest.core.IsEqual;
 import org.junit.Assert;
 import org.junit.Test;
 import org.weasis.dicom.op.CGetForward;
-import org.weasis.dicom.param.AdvancedParams;
-import org.weasis.dicom.param.ConnectOptions;
-import org.weasis.dicom.param.CstoreParams;
-import org.weasis.dicom.param.DefaultAttributeEditor;
-import org.weasis.dicom.param.DicomNode;
-import org.weasis.dicom.param.DicomProgress;
-import org.weasis.dicom.param.DicomState;
+import org.weasis.dicom.param.*;
 
 public class CGetForwardNetTest {
 
   @Test
   public void testProcess() {
-    BasicConfigurator.configure();
 
     DicomProgress progress = new DicomProgress();
     progress.addProgressListener(

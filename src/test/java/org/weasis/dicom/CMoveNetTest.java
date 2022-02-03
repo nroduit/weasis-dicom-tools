@@ -10,7 +10,6 @@
 package org.weasis.dicom;
 
 import java.util.EnumSet;
-import org.apache.log4j.BasicConfigurator;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.net.QueryOption;
 import org.dcm4che3.net.Status;
@@ -19,17 +18,12 @@ import org.hamcrest.core.IsEqual;
 import org.junit.Assert;
 import org.junit.Test;
 import org.weasis.dicom.op.CMove;
-import org.weasis.dicom.param.AdvancedParams;
-import org.weasis.dicom.param.DicomNode;
-import org.weasis.dicom.param.DicomParam;
-import org.weasis.dicom.param.DicomProgress;
-import org.weasis.dicom.param.DicomState;
+import org.weasis.dicom.param.*;
 
 public class CMoveNetTest {
 
   @Test
   public void testProcess() {
-    BasicConfigurator.configure();
 
     DicomProgress progress = new DicomProgress();
     progress.addProgressListener(

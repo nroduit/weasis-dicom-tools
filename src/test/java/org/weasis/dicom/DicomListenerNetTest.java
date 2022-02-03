@@ -9,7 +9,6 @@
  */
 package org.weasis.dicom;
 
-import org.apache.log4j.BasicConfigurator;
 import org.dcm4che3.net.Status;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.IsEqual;
@@ -18,12 +17,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.weasis.dicom.op.CGetForward;
-import org.weasis.dicom.param.AdvancedParams;
-import org.weasis.dicom.param.ConnectOptions;
-import org.weasis.dicom.param.DicomNode;
-import org.weasis.dicom.param.DicomProgress;
-import org.weasis.dicom.param.DicomState;
-import org.weasis.dicom.param.ListenerParams;
+import org.weasis.dicom.param.*;
 import org.weasis.dicom.tool.DicomListener;
 
 public class DicomListenerNetTest {
@@ -31,7 +25,6 @@ public class DicomListenerNetTest {
 
   @Test
   public void testProcess() {
-    BasicConfigurator.configure();
 
     AdvancedParams params = new AdvancedParams();
     ConnectOptions connectOptions = new ConnectOptions();

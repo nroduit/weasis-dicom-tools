@@ -16,7 +16,7 @@ import org.dcm4che3.data.VR;
 import org.dcm4che3.util.UIDUtils;
 
 public class DefaultAttributeEditor implements AttributeEditor {
-  private HashMap<String, String> uidMap;
+  private final HashMap<String, String> uidMap;
   private final boolean generateUIDs;
   private final Attributes tagToOverride;
 

@@ -18,7 +18,7 @@ public class ViewerMessage {
   public enum eLevel {
     INFO,
     WARN,
-    ERROR;
+    ERROR
   }
 
   private final String message;

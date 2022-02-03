@@ -93,7 +93,7 @@ public class CGetForward implements AutoCloseable {
   private int priority;
   private InformationModel model;
 
-  private Attributes keys = new Attributes();
+  private final Attributes keys = new Attributes();
   private Association as;
 
   private final StoreFromStreamSCU streamSCU;

@@ -12,7 +12,6 @@ package org.weasis.dicom.web;
 import java.io.IOException;
 
 public class MultipartStreamException extends IOException {
-  private static final long serialVersionUID = -4358358366372546933L;
 
   public MultipartStreamException(String message) {
     super(message);

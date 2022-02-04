@@ -14,7 +14,6 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.log4j.BasicConfigurator;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
@@ -35,8 +34,6 @@ public class CstoreNetTest {
 
   @Test
   public void testProcess() {
-    BasicConfigurator.configure();
-
     AdvancedParams params = new AdvancedParams();
     ConnectOptions connectOptions = new ConnectOptions();
     connectOptions.setConnectTimeout(3000);

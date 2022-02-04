@@ -9,7 +9,6 @@
  */
 package org.weasis.dicom;
 
-import org.apache.log4j.BasicConfigurator;
 import org.dcm4che3.net.Status;
 import org.hamcrest.core.IsEqual;
 import org.junit.Assert;
@@ -22,8 +21,6 @@ public class EchoNetTest {
 
   @Test
   public void testProcess() {
-    BasicConfigurator.configure();
-
     // DicomNode calling = new DicomNode("WEA-SCU");
     // DicomNode called = new DicomNode("DCM4CHEE", "localhost", 11112);
     // AdvancedParams params = new AdvancedParams();

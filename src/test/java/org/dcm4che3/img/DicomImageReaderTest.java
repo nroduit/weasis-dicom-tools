@@ -15,7 +15,6 @@ import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
-import org.apache.log4j.BasicConfigurator;
 import org.dcm4che3.img.stream.DicomFileInputStream;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.IsEqual;
@@ -32,7 +31,6 @@ public class DicomImageReaderTest {
   @BeforeClass
   public static void setUp() throws URISyntaxException {
     IN_DIR = Paths.get(DicomImageReaderTest.class.getResource("").toURI());
-    BasicConfigurator.configure();
     reader = new DicomImageReader(new DicomImageReaderSpi());
   }
 

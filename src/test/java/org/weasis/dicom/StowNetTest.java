@@ -14,7 +14,6 @@ import java.io.FileInputStream;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.log4j.BasicConfigurator;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
@@ -32,8 +31,6 @@ public class StowNetTest {
 
   @Test
   public void testProcess() {
-    BasicConfigurator.configure();
-
     List<String> files = new ArrayList<>();
     try {
       files.add(new File(getClass().getResource("mr.dcm").toURI()).getPath());

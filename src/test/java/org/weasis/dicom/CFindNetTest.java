@@ -10,7 +10,6 @@
 package org.weasis.dicom;
 
 import java.util.List;
-import org.apache.log4j.BasicConfigurator;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.net.Status;
@@ -27,8 +26,6 @@ public class CFindNetTest {
 
   @Test
   public void testProcess() {
-    BasicConfigurator.configure();
-
     DicomParam[] params = {
       new DicomParam(Tag.PatientID, "PAT001"),
       new DicomParam(Tag.StudyInstanceUID),

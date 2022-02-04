@@ -10,7 +10,6 @@
 package org.weasis.dicom;
 
 import java.util.Arrays;
-import org.apache.log4j.BasicConfigurator;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
@@ -32,8 +31,6 @@ public class CGetForwardNetTest {
 
   @Test
   public void testProcess() {
-    BasicConfigurator.configure();
-
     DicomProgress progress = new DicomProgress();
     progress.addProgressListener(
         progress1 -> {

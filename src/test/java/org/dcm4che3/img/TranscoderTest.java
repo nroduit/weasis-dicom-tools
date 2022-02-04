@@ -22,7 +22,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-import org.apache.log4j.BasicConfigurator;
 import org.dcm4che3.data.UID;
 import org.dcm4che3.img.Transcoder.Format;
 import org.dcm4che3.img.data.ImageContentHash;
@@ -47,7 +46,6 @@ public class TranscoderTest {
   private static DicomImageReader reader = new DicomImageReader(new DicomImageReaderSpi());
 
   static {
-    BasicConfigurator.configure();
     FileUtil.delete(OUT_DIR);
     try {
       Files.createDirectories(OUT_DIR);

@@ -10,7 +10,6 @@
 package org.weasis.dicom;
 
 import java.io.IOException;
-import org.apache.log4j.BasicConfigurator;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.net.Status;
 import org.hamcrest.MatcherAssert;
@@ -30,8 +29,6 @@ public class CGetNetTest {
 
   @Test
   public void testProcess() throws IOException {
-    BasicConfigurator.configure();
-
     DicomProgress progress = new DicomProgress();
     progress.addProgressListener(
         progress1 -> {

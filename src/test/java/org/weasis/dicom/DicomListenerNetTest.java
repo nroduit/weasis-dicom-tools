@@ -9,7 +9,6 @@
  */
 package org.weasis.dicom;
 
-import org.apache.log4j.BasicConfigurator;
 import org.dcm4che3.net.Status;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.IsEqual;
@@ -31,8 +30,6 @@ public class DicomListenerNetTest {
 
   @Test
   public void testProcess() {
-    BasicConfigurator.configure();
-
     AdvancedParams params = new AdvancedParams();
     ConnectOptions connectOptions = new ConnectOptions();
     connectOptions.setConnectTimeout(3000);

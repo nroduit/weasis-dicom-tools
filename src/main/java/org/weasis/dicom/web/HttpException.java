@@ -12,11 +12,19 @@ package org.weasis.dicom.web;
 import java.io.IOException;
 
 public class HttpException extends IOException {
-  public HttpException(String message) {
+  private final int statusCode;
+
+  public HttpException(String message, int statusCode) {
     super(message);
+    this.statusCode = statusCode;
   }
 
-  public HttpException(String message, Throwable cause) {
+  public HttpException(String message, int statusCode, Throwable cause) {
     super(message, cause);
+    this.statusCode = statusCode;
+  }
+
+  public int getStatusCode() {
+    return statusCode;
   }
 }

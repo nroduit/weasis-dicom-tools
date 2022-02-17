@@ -73,7 +73,7 @@ public class DicomStowRS implements AutoCloseable {
         HttpClient.newBuilder()
             .executor(executorService)
             .followRedirects(HttpClient.Redirect.NORMAL)
-            .version(HttpClient.Version.HTTP_2)
+            .version(HttpClient.Version.HTTP_1_1)
             .connectTimeout(Duration.ofSeconds(10)) // Timeout should be an option
             .build();
   }
@@ -106,7 +106,7 @@ public class DicomStowRS implements AutoCloseable {
       LOGGER.debug(
           "> POST {} {}",
           request.uri().getRawPath(),
-          request.version().orElse(HttpClient.Version.HTTP_2));
+          request.version().orElse(HttpClient.Version.HTTP_1_1));
       LOGGER.debug("> Host: {}:{}", request.uri().getHost(), request.uri().getPort());
       promptHeaders("> ", request.headers());
       //            multipartBody.prompt();
@@ -146,7 +146,7 @@ public class DicomStowRS implements AutoCloseable {
       LOGGER.debug(
           "> POST {} {}",
           request.uri().getRawPath(),
-          request.version().orElse(HttpClient.Version.HTTP_2));
+          request.version().orElse(HttpClient.Version.HTTP_1_1));
       LOGGER.debug("> Host: {}:{}", request.uri().getHost(), request.uri().getPort());
       promptHeaders("> ", request.headers());
       multipartBody.prompt();
@@ -163,8 +163,9 @@ public class DicomStowRS implements AutoCloseable {
       promptHeaders("< ", response.headers());
     }
 
-    if (response.statusCode() >= 400 && response.statusCode() <= 599) {
-      throw new HttpException("Error response, status code " + response.statusCode());
+    int statusCode = response.statusCode();
+    if (statusCode >= 400 && statusCode <= 599) {
+      throw new HttpException("HTTP POST error: " + statusCode, statusCode);
     }
 
     return response;
@@ -190,7 +191,7 @@ public class DicomStowRS implements AutoCloseable {
     return headers;
   }
 
-  public void uploadDicom(Path path) throws HttpException {
+  public void uploadDicom(Path path) throws Exception {
     Payload playload =
         new Payload() {
           @Override
@@ -211,7 +212,7 @@ public class DicomStowRS implements AutoCloseable {
     uploadPayload(playload);
   }
 
-  public void uploadDicom(InputStream in, Attributes fmi) throws HttpException {
+  public void uploadDicom(InputStream in, Attributes fmi) throws Exception {
     Payload playload =
         new Payload() {
           @Override
@@ -238,7 +239,7 @@ public class DicomStowRS implements AutoCloseable {
     uploadPayload(playload);
   }
 
-  public void uploadDicom(Attributes metadata, String tsuid) throws HttpException {
+  public void uploadDicom(Attributes metadata, String tsuid) throws Exception {
     Payload playload =
         new Payload() {
           @Override
@@ -262,40 +263,34 @@ public class DicomStowRS implements AutoCloseable {
     uploadPayload(playload);
   }
 
-  public void uploadPayload(Payload playload) throws HttpException {
-    try {
-      MultipartBody multipartBody =
-          new MultipartBody(ContentType.APPLICATION_DICOM, MULTIPART_BOUNDARY);
-      HttpRequest request =
-          buildConnection(
-              multipartBody, playload, () -> new SequenceInputStream(multipartBody.enumeration()));
-      send(client, request, HttpResponse.BodyHandlers.ofLines()).body().forEach(LOGGER::info);
+  public void uploadPayload(Payload playload) throws Exception {
+    MultipartBody multipartBody =
+        new MultipartBody(ContentType.APPLICATION_DICOM, MULTIPART_BOUNDARY);
+    HttpRequest request =
+        buildConnection(
+            multipartBody, playload, () -> new SequenceInputStream(multipartBody.enumeration()));
+    send(client, request, HttpResponse.BodyHandlers.ofLines()).body().forEach(LOGGER::info);
 
-      //            MultipartBody.Part part = new MultipartBody.Part(playload,
-      // ContentType.APPLICATION_DICOM.type, null);
-      //
-      //            SubmissionPublisher<ByteBuffer> publisher = new SubmissionPublisher<>();
-      //            publisher.subscribe(multipartBody);
-      //            HttpRequest request = buildConnection(publisher);
-      //            CompletableFuture
-      //                    <HttpResponse<Stream<String>>> responses = client.sendAsync(request,
-      // HttpResponse.BodyHandlers.ofLines());
-      //            publisher.submit(ByteBuffer.wrap(multipartBody.getHeader(part)));
-      //            publisher.submit(part.newByteBuffer());
-      //            publisher.submit(ByteBuffer.wrap(multipartBody.getEnd()));
-      //            publisher.close();
-      //
-      //            HttpResponse<Stream<String>> response = responses.get();
-      //            if (LOGGER.isDebugEnabled()) {
-      //                LOGGER.debug("< {} response code: {}", response.version(),
-      // response.statusCode());
-      //                promptHeaders("< ", response.headers());
-      //            }
-      //            response.body().forEach(LOGGER::info);
-    } catch (HttpException httpException) {
-      throw httpException;
-    } catch (Exception e) {
-      LOGGER.error("Cannot post DICOM", e);
-    }
+    //            MultipartBody.Part part = new MultipartBody.Part(playload,
+    // ContentType.APPLICATION_DICOM.type, null);
+    //
+    //            SubmissionPublisher<ByteBuffer> publisher = new SubmissionPublisher<>();
+    //            publisher.subscribe(multipartBody);
+    //            HttpRequest request = buildConnection(publisher);
+    //            CompletableFuture
+    //                    <HttpResponse<Stream<String>>> responses = client.sendAsync(request,
+    // HttpResponse.BodyHandlers.ofLines());
+    //            publisher.submit(ByteBuffer.wrap(multipartBody.getHeader(part)));
+    //            publisher.submit(part.newByteBuffer());
+    //            publisher.submit(ByteBuffer.wrap(multipartBody.getEnd()));
+    //            publisher.close();
+    //
+    //            HttpResponse<Stream<String>> response = responses.get();
+    //            if (LOGGER.isDebugEnabled()) {
+    //                LOGGER.debug("< {} response code: {}", response.version(),
+    // response.statusCode());
+    //                promptHeaders("< ", response.headers());
+    //            }
+    //            response.body().forEach(LOGGER::info);
   }
 }

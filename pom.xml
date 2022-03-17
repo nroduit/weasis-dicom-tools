@@ -7,20 +7,20 @@
   <artifactId>weasis-dicom-tools</artifactId>
   <packaging>jar</packaging>
   <name>Weasis DICOM API (based on dcm4che3)</name>
-  <version>5.25.1.1-IMG-RELEASE</version>
+  <version>5.25.2-IMG-RELEASE</version>
 
   <properties>
     <java-version>11</java-version>
     <enforcer.jdk-version>[${java-version},)</enforcer.jdk-version>
     <enforcer.maven-version>[3.0.5,)</enforcer.maven-version>
-    <dcm4che.version>5.25.1</dcm4che.version>
+    <dcm4che.version>5.25.2</dcm4che.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <sonar.projectKey>weasis-dicom-tools</sonar.projectKey>
     <sonar.organization>nroduit-github</sonar.organization>
     <sonar.host.url>https://sonarcloud.io</sonar.host.url>
 
-    <weasis.core.img.version>4.5.5</weasis.core.img.version>
+    <weasis.core.img.version>4.5.5.1</weasis.core.img.version>
     <weasis.opencv.native.version>4.5.5-dcm</weasis.opencv.native.version>
     <skipTests>false</skipTests>
   </properties>
@@ -429,12 +429,12 @@
           </java>
         </configuration>
         <executions>
-          <execution>
-            <phase>verify</phase>
-            <goals>
-              <goal>check</goal>
-            </goals>
-          </execution>
+<!--          <execution>-->
+<!--            <phase>verify</phase>-->
+<!--            <goals>-->
+<!--              <goal>check</goal>-->
+<!--            </goals>-->
+<!--          </execution>-->
         </executions>
       </plugin>
       <plugin>
@@ -448,6 +448,12 @@
   </build>
 
   <dependencies>
+    <dependency>
+      <groupId>commons-codec</groupId>
+      <artifactId>commons-codec</artifactId>
+      <version>1.15</version>
+    </dependency>
+
     <dependency>
       <groupId>org.dcm4che</groupId>
       <artifactId>dcm4che-core</artifactId>

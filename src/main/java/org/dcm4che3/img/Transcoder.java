@@ -152,15 +152,13 @@ public class Transcoder {
       LOGGER.warn("Transcoding into {} is not possible, decompressing {}", dstTsuid, srcPath);
     }
     try (DicomOutputStream dos = new DicomOutputStream(Files.newOutputStream(outPath), dstTsuid)) {
-      dos.writeFileMetaInformation(
-          dicomMetaData.getDicomObject().createFileMetaInformation(dstTsuid));
-
+      dos.writeFileMetaInformation(dataSet.createFileMetaInformation(dstTsuid));
       if (DicomOutputData.isNativeSyntax(dstTsuid)) {
         imgData.writRawImageData(dos, dataSet);
       } else {
         int[] jpegWriteParams =
             imgData.adaptTagsToCompressedImage(dataSet, firstImage, desc, writeParams);
-        imgData.writCompressedImageData(dos, dataSet, jpegWriteParams);
+        imgData.writeCompressedImageData(dos, dataSet, jpegWriteParams);
       }
     } catch (Exception e) {
       FileUtil.delete(outPath);

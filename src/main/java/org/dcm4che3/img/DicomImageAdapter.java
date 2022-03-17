@@ -40,7 +40,6 @@ public class DicomImageAdapter {
 
   private static final SoftHashMap<LutParameters, LookupTableCV> LUT_Cache = new SoftHashMap<>();
 
-  private final PlanarImage image;
   private final ImageDescriptor desc;
   private final MinMaxLocResult minMax;
 
@@ -48,10 +47,9 @@ public class DicomImageAdapter {
   private List<PresetWindowLevel> windowingPresetCollection = null;
 
   public DicomImageAdapter(PlanarImage image, ImageDescriptor desc) {
-    this.image = Objects.requireNonNull(image);
     this.desc = Objects.requireNonNull(desc);
     this.bitsStored = desc.getBitsStored();
-    this.minMax = findMinMaxValues();
+    this.minMax = findMinMaxValues(Objects.requireNonNull(image));
     /*
      * Lazily compute image pixel transformation here since inner class Load is called from a separate and dedicated
      * worker Thread. Also, it will be computed only once
@@ -61,7 +59,7 @@ public class DicomImageAdapter {
     getModalityLookup(null, false);
   }
 
-  private MinMaxLocResult findMinMaxValues() {
+  private MinMaxLocResult findMinMaxValues(PlanarImage image) {
     /*
      * This function can be called several times from the inner class Load. min and max will be computed only once.
      */
@@ -80,7 +78,7 @@ public class DicomImageAdapter {
             (paddingLimit == null) ? paddingValue : Math.min(paddingValue, paddingLimit);
         Integer paddingValueMax =
             (paddingLimit == null) ? paddingValue : Math.max(paddingValue, paddingLimit);
-        val = findMinMaxValues(paddingValueMin, paddingValueMax);
+        val = findMinMaxValues(image, paddingValueMin, paddingValueMax);
       }
     }
 
@@ -115,7 +113,8 @@ public class DicomImageAdapter {
    * @param paddingValueMin
    * @param paddingValueMax
    */
-  private MinMaxLocResult findMinMaxValues(Integer paddingValueMin, Integer paddingValueMax) {
+  private MinMaxLocResult findMinMaxValues(
+      PlanarImage image, Integer paddingValueMin, Integer paddingValueMax) {
     MinMaxLocResult val;
     if (image.type() <= CvType.CV_8S) {
       val = new MinMaxLocResult();
@@ -142,10 +141,6 @@ public class DicomImageAdapter {
 
   public MinMaxLocResult getMinMax() {
     return minMax;
-  }
-
-  public PlanarImage getImage() {
-    return image;
   }
 
   public ImageDescriptor getImageDescriptor() {

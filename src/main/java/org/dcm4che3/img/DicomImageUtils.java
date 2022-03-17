@@ -882,8 +882,8 @@ public class DicomImageUtils {
     int len = desc[0] == 0 ? 0x10000 : desc[0];
     int bits = desc[2];
     Optional<byte[]> odata = getByteData(ds, dataTag);
-    byte[] data = null;
-    if (!odata.isPresent()) {
+    byte[] data;
+    if (odata.isEmpty()) {
       int[] lut = ds.getInts(segmTag);
       if (lut == null) {
         throw new IllegalArgumentException("Missing LUT Data!");
@@ -904,11 +904,13 @@ public class DicomImageUtils {
                 + " in LUT Descriptor");
       }
 
-      int hilo = 1;
+      int hilo = ds.bigEndian() ? 0 : 1;
       if (bits == 8) {
         hilo = 1 - hilo; // padded high bits -> use low bits
       }
       data = halfLength(data, hilo);
+    } else {
+      data = odata.get();
     }
     return data;
   }

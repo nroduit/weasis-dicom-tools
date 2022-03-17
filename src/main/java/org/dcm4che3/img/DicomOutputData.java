@@ -85,7 +85,7 @@ public class DicomOutputData {
     return tsuid;
   }
 
-  public void writCompressedImageData(DicomOutputStream dos, Attributes dataSet, int[] params)
+  public void writeCompressedImageData(DicomOutputStream dos, Attributes dataSet, int[] params)
       throws IOException {
     Mat buf = null;
     MatOfInt dicomParams = null;
@@ -315,7 +315,7 @@ public class DicomOutputData {
     params[Imgcodecs.DICOM_PARAM_JPEG_MODE] = param.getJpegMode(); // JPEG Codec mode
     params[Imgcodecs.DICOM_PARAM_JPEGLS_LOSSY_ERROR] = jpeglsNLE; // Lossy error for jpeg-ls
     params[Imgcodecs.DICOM_PARAM_J2K_COMPRESSION_FACTOR] =
-        param.getCompressionRatiofactor(); // JPEG2000 factor of compression ratio
+        param.getCompressionRatioFactor(); // JPEG2000 factor of compression ratio
     params[Imgcodecs.DICOM_PARAM_JPEG_QUALITY] =
         param.getCompressionQuality(); // JPEG lossy quality
     params[Imgcodecs.DICOM_PARAM_JPEG_PREDICTION] =

@@ -9,7 +9,6 @@
  */
 package org.dcm4che3.img;
 
-import java.awt.*;
 import java.awt.image.DataBuffer;
 import java.util.List;
 import java.util.Objects;
@@ -35,14 +34,13 @@ public class ImageRendering {
       final PlanarImage imageSource, ImageDescriptor desc, DicomImageReadParam params) {
     PlanarImage img = getImageWithoutEmbeddedOverlay(imageSource, desc);
     DicomImageAdapter adapter = new DicomImageAdapter(img, desc);
-    return getModalityLutImage(adapter, params);
+    return getModalityLutImage(imageSource, adapter, params);
   }
 
   public static PlanarImage getModalityLutImage(
-      DicomImageAdapter adapter, DicomImageReadParam params) {
-    PlanarImage img = adapter.getImage();
+      PlanarImage img, DicomImageAdapter adapter, DicomImageReadParam params) {
     WindLevelParameters p = new WindLevelParameters(adapter, params);
-    int datatype = img.type();
+    int datatype = Objects.requireNonNull(img).type();
 
     if (datatype >= CvType.CV_8U && datatype < CvType.CV_32S) {
       LookupTableCV modalityLookup = adapter.getModalityLookup(p, p.isInverseLut());
@@ -64,15 +62,15 @@ public class ImageRendering {
   public static PlanarImage getVoiLutImage(
       final PlanarImage imageSource, ImageDescriptor desc, DicomImageReadParam params) {
     DicomImageAdapter adapter = new DicomImageAdapter(imageSource, desc);
-    return getVoiLutImage(adapter, params);
+    return getVoiLutImage(imageSource, adapter, params);
   }
 
-  public static PlanarImage getVoiLutImage(DicomImageAdapter adapter, DicomImageReadParam params) {
-    PlanarImage imageSource = adapter.getImage();
+  public static PlanarImage getVoiLutImage(
+      PlanarImage imageSource, DicomImageAdapter adapter, DicomImageReadParam params) {
     ImageDescriptor desc = adapter.getImageDescriptor();
 
     WindLevelParameters p = new WindLevelParameters(adapter, params);
-    int datatype = imageSource.type();
+    int datatype = Objects.requireNonNull(imageSource).type();
 
     if (datatype >= CvType.CV_8U && datatype < CvType.CV_32S) {
       LookupTableCV modalityLookup = adapter.getModalityLookup(p, p.isInverseLut());

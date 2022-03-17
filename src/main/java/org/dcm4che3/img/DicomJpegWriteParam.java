@@ -25,7 +25,7 @@ public class DicomJpegWriteParam {
   private int compressionQuality;
   private boolean losslessCompression;
   private Rectangle sourceRegion;
-  private int compressionRatiofactor;
+  private int compressionRatioFactor;
   private final String transferSyntaxUid;
 
   DicomJpegWriteParam(TransferSyntaxType type, String transferSyntaxUid) {
@@ -37,7 +37,7 @@ public class DicomJpegWriteParam {
     this.compressionQuality = 85;
     this.losslessCompression = true;
     this.sourceRegion = null;
-    this.compressionRatiofactor = 0;
+    this.compressionRatioFactor = 0;
   }
 
   public String getTransferSyntaxUid() {
@@ -74,28 +74,28 @@ public class DicomJpegWriteParam {
     return compressionQuality;
   }
 
-  /** @param compressionQuality between 1 to 100 (100 is the best lossy quality). */
+  /** @param compressionQuality between 1 and 100 (100 is the best lossy quality). */
   public void setCompressionQuality(int compressionQuality) {
     this.compressionQuality = compressionQuality;
   }
 
-  public int getCompressionRatiofactor() {
-    return compressionRatiofactor;
+  public int getCompressionRatioFactor() {
+    return compressionRatioFactor;
   }
 
   /**
    * JPEG-2000 Lossy compression ratio factor.
    *
    * <p>Visually near-lossless typically achieves compression ratios of 10:1 to 20:1 (e.g.
-   * compressionRatiofactor = 10)
+   * compressionRatioFactor = 10)
    *
    * <p>Lossy compression with acceptable degradation can have ratios of 50:1 to 100:1 (e.g.
-   * compressionRatiofactor = 50)
+   * compressionRatioFactor = 50)
    *
-   * @param compressionRatiofactor the compression ratio
+   * @param compressionRatioFactor the compression ratio
    */
-  public void setCompressionRatiofactor(int compressionRatiofactor) {
-    this.compressionRatiofactor = compressionRatiofactor;
+  public void setCompressionRatioFactor(int compressionRatioFactor) {
+    this.compressionRatioFactor = compressionRatioFactor;
   }
 
   public TransferSyntaxType getType() {
@@ -152,7 +152,7 @@ public class DicomJpegWriteParam {
     DicomJpegWriteParam param = new DicomJpegWriteParam(type, tsuid);
     param.losslessCompression = !TransferSyntaxType.isLossyCompression(tsuid);
     param.setNearLosslessError(param.losslessCompression ? 0 : 2);
-    param.setCompressionRatiofactor(param.losslessCompression ? 0 : 10);
+    param.setCompressionRatioFactor(param.losslessCompression ? 0 : 10);
     param.setCompressionQuality(param.losslessCompression ? 0 : param.getCompressionQuality());
     if (type == TransferSyntaxType.JPEG_LOSSLESS) {
       param.setPointTransform(0);

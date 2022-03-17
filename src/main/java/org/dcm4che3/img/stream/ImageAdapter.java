@@ -9,8 +9,11 @@
  */
 package org.dcm4che3.img.stream;
 
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -33,6 +36,7 @@ import org.dcm4che3.io.DicomOutputStream;
 import org.dcm4che3.net.DataWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.weasis.core.util.FileUtil;
 import org.weasis.core.util.StringUtil;
 import org.weasis.dicom.param.AttributeEditorContext;
 import org.weasis.dicom.web.Payload;
@@ -47,6 +51,8 @@ public class ImageAdapter {
     private final String original;
     private final String requested;
     private String suitable;
+    private int jpegQuality;
+    private int compressionRatioFactor;
 
     public AdaptTransferSyntax(String original, String requested) {
       if (!StringUtil.hasText(original) || !StringUtil.hasText(requested)) {
@@ -55,6 +61,7 @@ public class ImageAdapter {
       this.original = original;
       this.requested = requested;
       this.suitable = requested;
+      this.jpegQuality = 85;
     }
 
     public String getOriginal() {
@@ -69,12 +76,119 @@ public class ImageAdapter {
       return suitable;
     }
 
+    public int getJpegQuality() {
+      return jpegQuality;
+    }
+
+    public void setJpegQuality(int jpegQuality) {
+      this.jpegQuality = jpegQuality;
+    }
+
+    public int getCompressionRatioFactor() {
+      return compressionRatioFactor;
+    }
+
+    public void setCompressionRatioFactor(int compressionRatioFactor) {
+      this.compressionRatioFactor = compressionRatioFactor;
+    }
+
     public void setSuitable(String suitable) {
       this.suitable = suitable;
     }
   }
 
   private ImageAdapter() {}
+
+  public static boolean writeDicomFile(
+      Attributes data,
+      AdaptTransferSyntax syntax,
+      Editable<PlanarImage> editable,
+      BytesWithImageDescriptor desc,
+      File file) {
+    if (desc == null) {
+      if (UID.ImplicitVRLittleEndian.equals(syntax.suitable)
+          || UID.ExplicitVRBigEndian.equals(syntax.suitable)) {
+        syntax.suitable = UID.ImplicitVRLittleEndian;
+      }
+      try (DicomOutputStream writer = new DicomOutputStream(file)) {
+        writer.writeDataset(data.createFileMetaInformation(syntax.suitable), data);
+        writer.finish();
+        return true;
+      } catch (Exception e) {
+        LOGGER.error("Writing DICOM file", e);
+        FileUtil.delete(file);
+        return false;
+      }
+    }
+
+    DicomImageReader reader = new DicomImageReader(Transcoder.dicomImageReaderSpi);
+    DicomOutputData imgData;
+    try {
+      imgData = geDicomOutputData(reader, syntax.requested, desc, editable);
+    } catch (IOException e) {
+      LOGGER.error("Get DicomOutputData", e);
+      return false;
+    }
+    checkSyntax(syntax, imgData);
+
+    Attributes dataSet = new Attributes(data);
+    dataSet.remove(Tag.PixelData);
+    String dstTsuid = syntax.suitable;
+    try (DicomOutputStream dos =
+        new DicomOutputStream(new BufferedOutputStream(new FileOutputStream(file)), dstTsuid)) {
+      dos.writeFileMetaInformation(dataSet.createFileMetaInformation(dstTsuid));
+      writeImage(syntax, desc, imgData, dataSet, dstTsuid, dos);
+    } catch (Exception e) {
+      LOGGER.error("Transcoding image data", e);
+      FileUtil.delete(file);
+      return false;
+    } finally {
+      reader.dispose();
+    }
+
+    return true;
+  }
+
+  private static void writeImage(
+      AdaptTransferSyntax syntax,
+      BytesWithImageDescriptor desc,
+      DicomOutputData imgData,
+      Attributes dataSet,
+      String dstTsuid,
+      DicomOutputStream dos)
+      throws IOException {
+    if (DicomOutputData.isNativeSyntax(dstTsuid)) {
+      imgData.writRawImageData(dos, dataSet);
+    } else {
+      DicomJpegWriteParam dicomJpegWriteParam =
+          DicomJpegWriteParam.buildDicomImageWriteParam(dstTsuid);
+      if (dicomJpegWriteParam.getCompressionQuality() > 0) {
+        int quality = syntax.getJpegQuality() <= 0 ? 85 : syntax.getJpegQuality();
+        dicomJpegWriteParam.setCompressionQuality(quality);
+      }
+      if (dicomJpegWriteParam.getCompressionRatioFactor() > 0
+          && syntax.getCompressionRatioFactor() > 0) {
+        dicomJpegWriteParam.setCompressionRatioFactor(syntax.getCompressionRatioFactor());
+      }
+      int[] jpegWriteParams =
+          imgData.adaptTagsToCompressedImage(
+              dataSet,
+              imgData.getFistImage().get(),
+              desc.getImageDescriptor(),
+              dicomJpegWriteParam);
+      imgData.writeCompressedImageData(dos, dataSet, jpegWriteParams);
+    }
+  }
+
+  public static void checkSyntax(AdaptTransferSyntax syntax, DicomOutputData imgData) {
+    if (!syntax.requested.equals(imgData.getTsuid())) {
+      syntax.suitable = imgData.getTsuid();
+      LOGGER.warn(
+          "Transcoding into {} is not possible, used instead {}",
+          syntax.requested,
+          syntax.suitable);
+    }
+  }
 
   public static DataWriter buildDataWriter(
       Attributes data,
@@ -94,29 +208,13 @@ public class ImageAdapter {
 
     DicomImageReader reader = new DicomImageReader(Transcoder.dicomImageReaderSpi);
     DicomOutputData imgData = geDicomOutputData(reader, syntax.requested, desc, editable);
-    if (!syntax.requested.equals(imgData.getTsuid())) {
-      syntax.suitable = imgData.getTsuid();
-      LOGGER.warn(
-          "Transcoding into {} is not possible, used instead {}",
-          syntax.requested,
-          syntax.suitable);
-    }
+    checkSyntax(syntax, imgData);
 
     return (out, tsuid) -> {
       Attributes dataSet = new Attributes(data);
       dataSet.remove(Tag.PixelData);
       try (DicomOutputStream dos = new DicomOutputStream(out, tsuid)) {
-        if (DicomOutputData.isNativeSyntax(tsuid)) {
-          imgData.writRawImageData(dos, dataSet);
-        } else {
-          int[] jpegWriteParams =
-              imgData.adaptTagsToCompressedImage(
-                  dataSet,
-                  imgData.getFistImage().get(),
-                  desc.getImageDescriptor(),
-                  DicomJpegWriteParam.buildDicomImageWriteParam(tsuid));
-          imgData.writCompressedImageData(dos, dataSet, jpegWriteParams);
-        }
+        writeImage(syntax, desc, imgData, dataSet, tsuid, dos);
       } catch (Exception e) {
         LOGGER.error("Transcoding image data", e);
       } finally {
@@ -279,8 +377,7 @@ public class ImageAdapter {
 
         @Override
         public Attributes getPaletteColorLookupTable() {
-          Attributes dcm = new Attributes(10);
-          copyValue(data, dcm, Tag.RedPaletteColorLookupTableDescriptor);
+          Attributes dcm = new Attributes(9);
           copyValue(data, dcm, Tag.RedPaletteColorLookupTableDescriptor);
           copyValue(data, dcm, Tag.GreenPaletteColorLookupTableDescriptor);
           copyValue(data, dcm, Tag.BluePaletteColorLookupTableDescriptor);
@@ -341,7 +438,7 @@ public class ImageAdapter {
                     imgData.getFistImage().get(),
                     desc.getImageDescriptor(),
                     DicomJpegWriteParam.buildDicomImageWriteParam(imgData.getTsuid()));
-            imgData.writCompressedImageData(dos, dataSet, jpegWriteParams);
+            imgData.writeCompressedImageData(dos, dataSet, jpegWriteParams);
           }
         } catch (IOException e) {
           LOGGER.error("Cannot write DICOM", e);

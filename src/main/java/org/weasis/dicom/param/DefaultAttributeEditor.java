@@ -9,16 +9,32 @@
  */
 package org.weasis.dicom.param;
 
-import java.util.HashMap;
+import java.util.List;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
-import org.dcm4che3.util.UIDUtils;
+import org.dcm4che3.data.Value;
+import org.weasis.core.util.StringUtil;
+import org.weasis.dicom.util.Hmac;
 
 public class DefaultAttributeEditor implements AttributeEditor {
-  private HashMap<String, String> uidMap;
+
+  protected static final List<Integer> uids =
+      List.of(
+          Tag.StudyInstanceUID,
+          Tag.SeriesInstanceUID,
+          Tag.SOPInstanceUID,
+          Tag.AffectedSOPInstanceUID,
+          Tag.FailedSOPInstanceUIDList,
+          Tag.MediaStorageSOPInstanceUID,
+          Tag.ReferencedSOPInstanceUID,
+          Tag.ReferencedSOPInstanceUIDInFile,
+          Tag.RequestedSOPInstanceUID,
+          Tag.MultiFrameSourceSOPInstanceUID);
+
   private final boolean generateUIDs;
   private final Attributes tagToOverride;
+  private final Hmac hmac;
 
   public DefaultAttributeEditor(Attributes tagToOverride) {
     this(false, tagToOverride);
@@ -29,35 +45,82 @@ public class DefaultAttributeEditor implements AttributeEditor {
    * @param tagToOverride list of DICOM attributes to override
    */
   public DefaultAttributeEditor(boolean generateUIDs, Attributes tagToOverride) {
+    this(generateUIDs, null, tagToOverride);
+  }
+
+  public DefaultAttributeEditor(boolean generateUIDs, String globalKey, Attributes tagToOverride) {
     this.generateUIDs = generateUIDs;
     this.tagToOverride = tagToOverride;
-    this.uidMap = generateUIDs ? new HashMap<>() : null;
+    byte[] key =
+        StringUtil.hasText(globalKey) ? Hmac.hexToByte(globalKey) : Hmac.generateRandomKey();
+    this.hmac = generateUIDs ? new Hmac(key) : null;
+  }
+
+  public boolean isGenerateUIDs() {
+    return generateUIDs;
+  }
+
+  public Attributes getTagToOverride() {
+    return tagToOverride;
+  }
+
+  public Hmac getHmac() {
+    return hmac;
   }
 
   @Override
   public void apply(Attributes data, AttributeEditorContext context) {
     if (data != null) {
       if (generateUIDs) {
-        if ("2.25".equals(UIDUtils.getRoot())) {
-          UIDUtils.setRoot("2.25.35");
+        UidVisitor visitor = new UidVisitor(hmac);
+        try {
+          data.accept(visitor, true);
+        } catch (Exception e) {
+          throw new RuntimeException(e);
         }
-        // New Study UID
-        String oldStudyUID = data.getString(Tag.StudyInstanceUID);
-        String studyUID = uidMap.computeIfAbsent(oldStudyUID, k -> UIDUtils.createUID());
-        data.setString(Tag.StudyInstanceUID, VR.UI, studyUID);
-
-        // New Series UID
-        String oldSeriesUID = data.getString(Tag.SeriesInstanceUID);
-        String seriesUID = uidMap.computeIfAbsent(oldSeriesUID, k -> UIDUtils.createUID());
-        data.setString(Tag.SeriesInstanceUID, VR.UI, seriesUID);
-
-        // New Sop UID
-        String iuid = UIDUtils.createUID();
-        data.setString(Tag.SOPInstanceUID, VR.UI, iuid);
       }
       if (tagToOverride != null && !tagToOverride.isEmpty()) {
         data.update(Attributes.UpdatePolicy.OVERWRITE, tagToOverride, null);
       }
+    }
+  }
+
+  private static class UidVisitor implements Attributes.Visitor {
+    private final Hmac hmac;
+
+    public UidVisitor(Hmac hmac) {
+      this.hmac = hmac;
+    }
+
+    @Override
+    public boolean visit(Attributes attrs, int tag, VR vr, Object val) {
+      if (vr != VR.UI || val == Value.NULL) {
+        return true;
+      }
+      if (!uids.contains(tag)) {
+        return true;
+      }
+
+      String[] ss;
+      if (val instanceof byte[]) {
+        ss = attrs.getStrings(tag);
+        val = ss.length == 1 ? ss[0] : ss;
+      }
+      if (val instanceof String[]) {
+        ss = (String[]) val;
+        for (int i = 0; i < ss.length; i++) {
+          String uid = hmac.uidHash(ss[i]);
+          if (uid != null) {
+            ss[i] = uid;
+          }
+        }
+      } else {
+        String uid = hmac.uidHash(val.toString());
+        if (uid != null) {
+          attrs.setString(tag, VR.UI, uid);
+        }
+      }
+      return true;
     }
   }
 }

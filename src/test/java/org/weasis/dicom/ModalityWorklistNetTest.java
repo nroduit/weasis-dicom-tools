@@ -26,7 +26,6 @@ public class ModalityWorklistNetTest {
 
   @Test
   public void testProcess() {
-
     // Filter by AETitle by setting a value
     final int[] sps = {Tag.ScheduledProcedureStepSequence};
     DicomParam stationAet = new DicomParam(sps, Tag.ScheduledStationAETitle, "ADVT");

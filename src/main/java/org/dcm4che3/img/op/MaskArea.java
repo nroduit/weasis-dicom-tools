@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2021 Weasis Team and other contributors.
+ * Copyright (c) 2021 Weasis Team and other contributors.
  *
  * This program and the accompanying materials are made available under the terms of the Eclipse
  * Public License 2.0 which is available at https://www.eclipse.org/legal/epl-2.0, or the Apache
@@ -7,7 +7,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
  */
-package org.weasis.dicom.param;
+package org.dcm4che3.img.op;
 
 import java.awt.Color;
 import java.awt.Rectangle;
@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 import org.weasis.opencv.data.ImageCV;
 import org.weasis.opencv.op.ImageProcessor;
 
+/** @author Nicolas Roduit */
 public class MaskArea {
   private static final Logger LOGGER = LoggerFactory.getLogger(MaskArea.class);
   private final Color color;

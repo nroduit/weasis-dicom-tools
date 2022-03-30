@@ -22,14 +22,15 @@ import org.dcm4che3.data.ElementDictionary;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
 import org.dcm4che3.data.VR;
-import org.dcm4che3.imageio.codec.Decompressor;
+import org.dcm4che3.img.stream.BytesWithImageDescriptor;
+import org.dcm4che3.img.stream.ImageAdapter;
+import org.dcm4che3.img.stream.ImageAdapter.AdaptTransferSyntax;
 import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.io.DicomInputStream.IncludeBulkData;
 import org.dcm4che3.net.ApplicationEntity;
 import org.dcm4che3.net.Association;
 import org.dcm4che3.net.Connection;
 import org.dcm4che3.net.DataWriter;
-import org.dcm4che3.net.DataWriterAdapter;
 import org.dcm4che3.net.Device;
 import org.dcm4che3.net.DimseRSPHandler;
 import org.dcm4che3.net.IncompatibleConnectionException;
@@ -159,17 +160,20 @@ public class CGetForward implements AutoCloseable {
                 throw new IllegalStateException("Association not ready for transfer.");
               }
               DataWriter dataWriter;
-              String supportedTsuid = streamSCU.selectTransferSyntax(cuid, tsuid);
+              AdaptTransferSyntax syntax =
+                  new AdaptTransferSyntax(tsuid, streamSCU.selectTransferSyntax(cuid, tsuid));
               if ((cstoreParams == null || !cstoreParams.hasDicomEditors())
-                  && supportedTsuid.equals(tsuid)) {
+                  && syntax.getRequested().equals(tsuid)) {
                 dataWriter = new InputStreamDataWriter(data);
               } else {
                 AttributeEditorContext context =
                     new AttributeEditorContext(
-                        tsuid, DicomNode.buildRemoteDicomNode(as), streamSCU.getRemoteDicomNode());
+                        syntax.getOriginal(),
+                        DicomNode.buildRemoteDicomNode(as),
+                        streamSCU.getRemoteDicomNode());
                 in = new DicomInputStream(data, tsuid);
                 in.setIncludeBulkData(IncludeBulkData.URI);
-                Attributes attributes = in.readDataset(-1, -1);
+                Attributes attributes = in.readDataset();
                 if (cstoreParams != null && cstoreParams.hasDicomEditors()) {
                   cstoreParams.getDicomEditors().forEach(e -> e.apply(attributes, context));
                   iuid = attributes.getString(Tag.SOPInstanceUID);
@@ -185,13 +189,13 @@ public class CGetForward implements AutoCloseable {
                       "DICOM associtation abort. " + context.getAbortMessage());
                 }
 
-                if (!supportedTsuid.equals(tsuid)) {
-                  Decompressor.decompress(attributes, tsuid);
-                }
-                dataWriter = new DataWriterAdapter(attributes);
+                BytesWithImageDescriptor desc =
+                    ImageAdapter.imageTranscode(attributes, syntax, context);
+                dataWriter =
+                    ImageAdapter.buildDataWriter(attributes, syntax, context.getEditable(), desc);
               }
 
-              streamSCU.cstore(cuid, iuid, priority, dataWriter, tsuid);
+              streamSCU.cstore(cuid, iuid, priority, dataWriter, syntax.getSuitable());
             } catch (AbortException e) {
               ServiceUtil.notifyProgession(
                   streamSCU.getState(),

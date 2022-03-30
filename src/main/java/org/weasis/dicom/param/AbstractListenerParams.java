@@ -59,8 +59,8 @@ public abstract class AbstractListenerParams {
         acceptedCallingAETitles == null ? new String[0] : acceptedCallingAETitles;
     if (params == null && this.params.getConnectOptions() != null) {
       // Concurrent DICOM operations
-      this.params.getConnectOptions().setMaxOpsInvoked(15);
-      this.params.getConnectOptions().setMaxOpsPerformed(15);
+      this.params.getConnectOptions().setMaxOpsInvoked(50);
+      this.params.getConnectOptions().setMaxOpsPerformed(50);
     }
   }
 

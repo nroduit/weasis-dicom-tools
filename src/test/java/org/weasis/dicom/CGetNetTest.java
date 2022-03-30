@@ -29,7 +29,6 @@ public class CGetNetTest {
 
   @Test
   public void testProcess() throws IOException {
-
     DicomProgress progress = new DicomProgress();
     progress.addProgressListener(
         progress1 -> {

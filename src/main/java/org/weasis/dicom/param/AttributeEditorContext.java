@@ -9,7 +9,15 @@
  */
 package org.weasis.dicom.param;
 
+import java.util.Objects;
+import java.util.Properties;
+import org.dcm4che3.img.op.MaskArea;
+import org.dcm4che3.img.util.Editable;
+import org.weasis.core.util.LangUtil;
+import org.weasis.opencv.data.PlanarImage;
+
 public class AttributeEditorContext {
+
   /** Abort status allows to skip the file transfer or abort the DICOM association */
   public enum Abort {
     // Do nothing
@@ -24,6 +32,7 @@ public class AttributeEditorContext {
   private final String tsuid;
   private final DicomNode sourceNode;
   private final DicomNode destinationNode;
+  private final Properties properties;
 
   private Abort abort;
   private String abortMessage;
@@ -34,6 +43,7 @@ public class AttributeEditorContext {
     this.sourceNode = sourceNode;
     this.destinationNode = destinationNode;
     this.abort = Abort.NONE;
+    this.properties = new Properties();
   }
 
   public Abort getAbort() {
@@ -70,5 +80,22 @@ public class AttributeEditorContext {
 
   public void setMaskArea(MaskArea maskArea) {
     this.maskArea = maskArea;
+  }
+
+  public Properties getProperties() {
+    return properties;
+  }
+
+  public Editable<PlanarImage> getEditable() {
+    MaskArea m = getMaskArea();
+    if (m != null) {
+      return img -> MaskArea.drawShape(img.toMat(), m);
+    }
+    return null;
+  }
+
+  public boolean hasPixelProcessing() {
+    return Objects.nonNull(getMaskArea())
+        || LangUtil.getEmptytoFalse(getProperties().getProperty("defacing"));
   }
 }

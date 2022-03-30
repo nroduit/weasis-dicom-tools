@@ -24,7 +24,6 @@ public class CMoveNetTest {
 
   @Test
   public void testProcess() {
-
     DicomProgress progress = new DicomProgress();
     progress.addProgressListener(
         progress1 -> {

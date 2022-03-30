@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Weasis Team and other contributors.
+ * Copyright (c) 2019-2020 Weasis Team and other contributors.
  *
  * This program and the accompanying materials are made available under the terms of the Eclipse
  * Public License 2.0 which is available at https://www.eclipse.org/legal/epl-2.0, or the Apache
@@ -31,22 +31,22 @@ public class MultipartReader {
   private int tailBuffer = 0;
 
   /**
-   * @param input the <code>InputStream</code> of a multipart exchange.
+   * @param inputStream the <code>InputStream</code> of a multipart exchange.
    * @param boundary the mark to delimit the parts of a multipart stream.
    */
-  public MultipartReader(InputStream input, byte[] boundary) {
-    this(input, boundary, 4096);
+  public MultipartReader(InputStream inputStream, byte[] boundary) {
+    this(inputStream, boundary, 4096);
   }
 
   /**
-   * @param input the <code>InputStream</code> of a multipart exchange.
+   * @param inputStream the <code>InputStream</code> of a multipart exchange.
    * @param boundary the mark to delimit the parts of a multipart stream.
-   * @param bufSize the size of the buffer in bytes. Default is 4096.
+   * @param bufferSize the size of the buffer in bytes. Default is 4096.
    */
-  public MultipartReader(InputStream input, byte[] boundary, int bufSize) {
-    this.inputStream = input;
-    this.bufferSize = bufSize;
-    this.buffer = new byte[bufSize];
+  public MultipartReader(InputStream inputStream, byte[] boundary, int bufferSize) {
+    this.inputStream = inputStream;
+    this.bufferSize = bufferSize;
+    this.buffer = new byte[bufferSize];
     int blength = Multipart.Separator.BOUNDARY.getType().length;
     this.boundary = new byte[boundary.length + blength];
     this.currentBoundaryLength = boundary.length + blength;

@@ -21,7 +21,6 @@ public class EchoNetTest {
 
   @Test
   public void testProcess() {
-
     // DicomNode calling = new DicomNode("WEA-SCU");
     // DicomNode called = new DicomNode("DCM4CHEE", "localhost", 11112);
     // AdvancedParams params = new AdvancedParams();

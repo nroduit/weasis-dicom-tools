@@ -34,7 +34,6 @@ public class CstoreNetTest {
 
   @Test
   public void testProcess() {
-
     AdvancedParams params = new AdvancedParams();
     ConnectOptions connectOptions = new ConnectOptions();
     connectOptions.setConnectTimeout(3000);

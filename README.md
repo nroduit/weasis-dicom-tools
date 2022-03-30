@@ -10,27 +10,26 @@ This project provides a DICOM API for [C-Echo](src/main/java/org/weasis/dicom/op
 and [C-Store](src/main/java/org/weasis/dicom/op/CStore.java) based on dcm4che3. The implementation
 allows to follow the progression of an DICOM operation like C-Move and gives its status. It contains
 also some other classes for worklist SCU, strore SCP, dicomization, DICOM forward with attributes
-modification on the fly and a DICOM gateway (experimental).
+modification on the fly.
 
-This project replaces [weasis-dicom-operations](https://github.com/nroduit/weasis-dicom-operations)
-and now this library is used by recent versions
-of [weasis-pacs-connector](https://github.com/nroduit/weasis-pacs-connector) and in the
-weasis-dicom-codec module of [Weasis](https://github.com/nroduit/Weasis).
+This library is used by [Weasis](https://github.com/nroduit/Weasis), [Karnak](https://github.com/OsiriX-Foundation/karnak) and [weasis-pacs-connector](https://github.com/nroduit/weasis-pacs-connector).
 
 **Getting
 started**: [see the test classes](https://github.com/nroduit/weasis-dicom-tools/tree/master/src/test/java/org/weasis/dicom)
 
 Code formatter: [google-java-format](https://github.com/google/google-java-format)
 
-## [Release History](CHANGELOG.md)
+# Release History
+See [CHANGELOG](CHANGELOG.md)
 
-## Build weasis-dicom-tools ##
+# Build weasis-dicom-tools ##
 
 Prerequisites: JDK 8 and Maven 3
 
-The master branch requires Java 8+ and the 1.0.x branch requires Java 7+.
-
 Execute the maven command `mvn clean install` in the root directory of the project.
 
-Note: the dependencies are not includes in the jar file, see in [pom.xml](pom.xml) which libraries
-are required (at least dcm4che-core and dcm4che-net).
+The master branch requires Java 11+ and old branches are:
+* 5.25.x (Java 8+)
+* 1.0.x (Java 7+)
+
+Note: the dependencies are not includes in the jar file, see in [pom.xml](pom.xml).

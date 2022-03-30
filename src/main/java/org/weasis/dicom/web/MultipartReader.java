@@ -31,7 +31,7 @@ public class MultipartReader {
   private int tailBuffer = 0;
 
   /**
-   * @param inputStream the <code>InputStream</code> of a multipart exchange.
+   * @param input the <code>InputStream</code> of a multipart exchange.
    * @param boundary the mark to delimit the parts of a multipart stream.
    */
   public MultipartReader(InputStream inputStream, byte[] boundary) {
@@ -39,9 +39,9 @@ public class MultipartReader {
   }
 
   /**
-   * @param inputStream the <code>InputStream</code> of a multipart exchange.
+   * @param input the <code>InputStream</code> of a multipart exchange.
    * @param boundary the mark to delimit the parts of a multipart stream.
-   * @param bufferSize the size of the buffer in bytes. Default is 4096.
+   * @param bufSize the size of the buffer in bytes. Default is 4096.
    */
   public MultipartReader(InputStream inputStream, byte[] boundary, int bufferSize) {
     this.inputStream = inputStream;

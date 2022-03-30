@@ -20,7 +20,7 @@ import org.weasis.core.util.EscapeChars;
 import org.weasis.core.util.StringUtil;
 
 public interface Xml {
-  static final Logger LOGGER = LoggerFactory.getLogger(Xml.class);
+  Logger LOGGER = LoggerFactory.getLogger(Xml.class);
 
   enum Level {
     PATIENT("Patient"), // $NON-NLS-1$

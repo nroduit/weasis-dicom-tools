@@ -74,7 +74,7 @@ public class CMove {
     }
     AdvancedParams options = params == null ? new AdvancedParams() : params;
 
-    try (MoveSCU moveSCU = new MoveSCU(progress); ) {
+    try (MoveSCU moveSCU = new MoveSCU(progress)) {
       Connection remote = moveSCU.getRemoteConnection();
       Connection conn = moveSCU.getConnection();
       options.configureConnect(moveSCU.getAAssociateRQ(), remote, calledNode);

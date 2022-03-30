@@ -27,7 +27,7 @@ import org.weasis.core.util.StringUtil;
 public class Patient implements Xml, Comparable<Patient> {
 
   private final String patientID;
-  private String issuerOfPatientID;
+  private final String issuerOfPatientID;
   private String patientName;
   private String patientBirthDate = null;
   private String patientBirthTime = null;

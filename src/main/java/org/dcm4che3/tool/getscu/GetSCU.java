@@ -84,7 +84,7 @@ public class GetSCU implements AutoCloseable {
   private int priority;
   private InformationModel model;
   private File storageDir;
-  private Attributes keys = new Attributes();
+  private final Attributes keys = new Attributes();
   private int[] inFilter = DEF_IN_FILTER;
   private Association as;
   private int cancelAfter;
@@ -92,7 +92,7 @@ public class GetSCU implements AutoCloseable {
   private DimseRSPHandler rspHandler;
   private long totalSize = 0;
 
-  private BasicCStoreSCP storageSCP =
+  private final BasicCStoreSCP storageSCP =
       new BasicCStoreSCP("*") {
 
         @Override

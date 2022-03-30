@@ -69,7 +69,7 @@ public class MoveSCU extends Device implements AutoCloseable {
   private int priority;
   private String destination;
   private InformationModel model;
-  private Attributes keys = new Attributes();
+  private final Attributes keys = new Attributes();
   private int[] inFilter = DEF_IN_FILTER;
   private transient Association as;
   private int cancelAfter;

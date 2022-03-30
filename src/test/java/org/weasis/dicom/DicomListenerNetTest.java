@@ -17,12 +17,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.weasis.dicom.op.CGetForward;
-import org.weasis.dicom.param.AdvancedParams;
-import org.weasis.dicom.param.ConnectOptions;
-import org.weasis.dicom.param.DicomNode;
-import org.weasis.dicom.param.DicomProgress;
-import org.weasis.dicom.param.DicomState;
-import org.weasis.dicom.param.ListenerParams;
+import org.weasis.dicom.param.*;
 import org.weasis.dicom.tool.DicomListener;
 
 public class DicomListenerNetTest {

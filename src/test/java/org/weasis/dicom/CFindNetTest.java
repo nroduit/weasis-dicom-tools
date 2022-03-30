@@ -26,6 +26,7 @@ public class CFindNetTest {
 
   @Test
   public void testProcess() {
+
     DicomParam[] params = {
       new DicomParam(Tag.PatientID, "PAT001"),
       new DicomParam(Tag.StudyInstanceUID),

@@ -43,7 +43,7 @@ import org.weasis.dicom.util.ServiceUtil.ProgressStatus;
 
 public class StoreFromStreamSCU {
 
-  private static Logger LOGGER = LoggerFactory.getLogger(StoreFromStreamSCU.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(StoreFromStreamSCU.class);
 
   @FunctionalInterface
   public interface RSPHandlerFactory {
@@ -117,7 +117,7 @@ public class StoreFromStreamSCU {
                       LOGGER.warn(
                           "Received C-STORE-RSP with Status {}H{}",
                           TagUtils.shortToHexString(status),
-                          "\r\n" + cmd.toString());
+                          "\r\n" + cmd);
                     } else {
                       LOGGER.warn(
                           "Received C-STORE-RSP with Status {}H",
@@ -135,7 +135,7 @@ public class StoreFromStreamSCU {
                       LOGGER.error(
                           "Received C-STORE-RSP with Status {}H{}",
                           TagUtils.shortToHexString(status),
-                          "\r\n" + cmd.toString());
+                          "\r\n" + cmd);
                     } else {
                       LOGGER.error(
                           "Received C-STORE-RSP with Status {}H",

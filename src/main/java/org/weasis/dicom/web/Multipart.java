@@ -122,7 +122,7 @@ public class Multipart {
         }
         end = parseEOF(header, k);
         buf.append(" ");
-        buf.append(header.substring(k, end));
+        buf.append(header, k, end);
         start = end + 2;
       }
 

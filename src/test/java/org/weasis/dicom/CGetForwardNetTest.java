@@ -19,18 +19,13 @@ import org.hamcrest.core.IsEqual;
 import org.junit.Assert;
 import org.junit.Test;
 import org.weasis.dicom.op.CGetForward;
-import org.weasis.dicom.param.AdvancedParams;
-import org.weasis.dicom.param.ConnectOptions;
-import org.weasis.dicom.param.CstoreParams;
-import org.weasis.dicom.param.DefaultAttributeEditor;
-import org.weasis.dicom.param.DicomNode;
-import org.weasis.dicom.param.DicomProgress;
-import org.weasis.dicom.param.DicomState;
+import org.weasis.dicom.param.*;
 
 public class CGetForwardNetTest {
 
   @Test
   public void testProcess() {
+
     DicomProgress progress = new DicomProgress();
     progress.addProgressListener(
         progress1 -> {

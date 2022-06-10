@@ -12,6 +12,25 @@ allows to follow the progression of an DICOM operation like C-Move and gives its
 also some other classes for worklist SCU, strore SCP, dicomization, DICOM forward with attributes
 modification on the fly.
 
+It also provides an API to convert and manipulate images from DICOM files.
+
+Here are the main features of [dcm2dcm](src/main/java/org/dcm4che3/img/Transcoder.java#L126-L170):
+
+* Similar as the dcm2dcm command of the dcm4che toolkit: image transcoding, compression or decompression
+* Accept folders and files as input parameters
+* Write compressed images with LossyImageCompressionMethod and LossyImageCompressionRatio (keep the succession of old compressed values)
+* Option add mask area on the image with a specific color (for de-identification). In DicomTranscodeParam add a mask.
+
+Here are the main features of [dcm2image](src/main/java/org/dcm4che3/img/Transcoder.java#L80-L115):
+
+* Convert in several images formats (JPEG, PNG, TIF, JP2, PNM, BMP or HDR)
+* Option to preserve the pixel depth with some formats (e.g. 16-bit TIF, double values in TIF or HDR)
+* Capabilities to apply Modality, VOI and Presentation LUT with 8-bit output images
+* Support multiframe and/or multi-fragments. For multiframe output images are created with an index.
+* Apply a Presentation State (W/L, LUTs, overlay).
+* Set the color of overlays in image or Presentation State
+
+
 This library is used by [Weasis](https://github.com/nroduit/Weasis), [Karnak](https://github.com/OsiriX-Foundation/karnak) and [weasis-pacs-connector](https://github.com/nroduit/weasis-pacs-connector).
 
 **Getting

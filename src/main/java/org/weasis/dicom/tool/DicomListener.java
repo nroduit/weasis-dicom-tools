@@ -20,14 +20,18 @@ import org.dcm4che3.tool.storescp.StoreSCP;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.DeviceListenerService;
 import org.weasis.dicom.param.DicomNode;
+import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.ListenerParams;
 
 public class DicomListener {
   private final StoreSCP storeSCP;
   private final DeviceListenerService deviceService;
 
-  public DicomListener(File storageDir) throws IOException {
-    this.storeSCP = new StoreSCP(storageDir);
+  public DicomListener(File storageDir) {
+    this(storageDir, null);
+  }
+  public DicomListener(File storageDir, DicomProgress dicomProgress) {
+    this.storeSCP = new StoreSCP(storageDir, null, dicomProgress);
     this.deviceService = new DeviceListenerService(storeSCP.getDevice());
   }
 

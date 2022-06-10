@@ -36,7 +36,7 @@ public class DicomProgress implements CancelListener {
   public void setAttributes(Attributes attributes) {
     synchronized (this) {
       int failed = getNumberOfFailedSuboperations();
-      failed = failed < 0 ? 0 : failed;
+      failed = Math.max(failed, 0);
       this.attributes = attributes;
       lastFailed = failed < getNumberOfFailedSuboperations();
     }

@@ -114,7 +114,12 @@ public class GetSCU implements AutoCloseable {
           try {
             storeTo(as, as.createFileMetaInformation(iuid, cuid, tsuid), data, file);
             totalSize += file.length();
-            renameTo(as, file, new File(storageDir, iuid));
+            File rename = new File(storageDir, iuid);
+            renameTo(as, file, rename);
+            DicomProgress p = state.getProgress();
+            if (p != null) {
+              p.setProcessedFile(rename);
+            }
           } catch (Exception e) {
             throw new DicomServiceException(Status.ProcessingFailure, e);
           }

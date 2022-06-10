@@ -44,6 +44,8 @@ import org.slf4j.LoggerFactory;
 import org.weasis.core.util.FileUtil;
 import org.weasis.core.util.StringUtil;
 import org.weasis.dicom.param.DicomNode;
+import org.weasis.dicom.param.DicomProgress;
+import org.weasis.dicom.param.DicomState;
 
 /** @author Gunter Zeilinger <gunterze@gmail.com> */
 public class StoreSCP {
@@ -62,6 +64,8 @@ public class StoreSCP {
   private volatile int status = Status.Success;
   private int[] receiveDelays;
   private int[] responseDelays;
+
+  private final DicomProgress progress;
 
   private final BasicCStoreSCP cstoreSCP =
       new BasicCStoreSCP("*") {
@@ -118,7 +122,12 @@ public class StoreSCP {
                 }
                 filename = filePathFormat.format(a);
               }
-              renameTo(as, file, new File(storageDir, filename));
+              File rename = new File(storageDir, filename);
+              renameTo(as, file, rename);
+              if (progress != null) {
+                progress.setProcessedFile(rename);
+                progress.setAttributes(null);
+              }
             } catch (Exception e) {
               FileUtil.delete(file);
               throw new DicomServiceException(Status.ProcessingFailure, e);
@@ -152,6 +161,9 @@ public class StoreSCP {
    *     (authorizedCallingNodes allow to check hostname unlike acceptedCallingAETitles)
    */
   public StoreSCP(File storageDir, List<DicomNode> authorizedCallingNodes) {
+    this(storageDir, authorizedCallingNodes, null);
+  }
+  public StoreSCP(File storageDir, List<DicomNode> authorizedCallingNodes, DicomProgress dicomProgress) {
     this.storageDir = Objects.requireNonNull(storageDir);
     device.setDimseRQHandler(createServiceRegistry());
     device.addConnection(conn);
@@ -159,6 +171,7 @@ public class StoreSCP {
     ae.setAssociationAcceptor(true);
     ae.addConnection(conn);
     this.authorizedCallingNodes = authorizedCallingNodes;
+    this.progress = dicomProgress;
   }
 
   private void storeTo(Association as, Attributes fmi, PDVInputStream data, File file)

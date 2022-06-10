@@ -19,9 +19,8 @@ jobs:
           # Get config from .github_changelog_generator file
       - name: Git Auto Commit
         id: commit
-        uses: stefanzweifel/git-auto-commit-action@v4.12.0
+        uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          branch: master
           commit_message: "Automatic changelog update"
           file_pattern: "CHANGELOG.md"
       - name: Extract Release Notes

@@ -142,6 +142,11 @@ public class DicomImageUtils {
         return Optional.empty();
       }
 
+      if (bData == null) {
+      	LOGGER.error("Cannot get byte[] of {}", TagUtils.toString(Tag.LUTData));
+      	return Optional.empty();
+      }
+      
       if (numBits <= 8) { // LUT Data should be stored in 8 bits allocated format
         if (numEntries <= 256 && (bData.length == (numEntries << 1))) {
           // Some implementations have encoded 8 bit entries with 16 bits allocated, padding the

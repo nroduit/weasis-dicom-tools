@@ -76,4 +76,16 @@ public class DicomMetaData extends IIOMetadata {
   public String getTransferSyntaxUID() {
     return transferSyntaxUID;
   }
+
+  public boolean isVideoTransferSyntaxUID() {
+    return transferSyntaxUID != null && transferSyntaxUID.startsWith("1.2.840.10008.1.2.4.10");
+  }
+
+  public boolean isDMediaStorageDirectoryStorage() {
+    String mediaStorageSOPClassUID =
+        fileMetaInformation == null
+            ? null
+            : fileMetaInformation.getString(Tag.MediaStorageSOPClassUID);
+    return "1.2.840.10008.1.3.10".equals(mediaStorageSOPClassUID);
+  }
 }

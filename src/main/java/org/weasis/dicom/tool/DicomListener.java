@@ -30,6 +30,7 @@ public class DicomListener {
   public DicomListener(File storageDir) {
     this(storageDir, null);
   }
+
   public DicomListener(File storageDir, DicomProgress dicomProgress) {
     this.storeSCP = new StoreSCP(storageDir, null, dicomProgress);
     this.deviceService = new DeviceListenerService(storeSCP.getDevice());

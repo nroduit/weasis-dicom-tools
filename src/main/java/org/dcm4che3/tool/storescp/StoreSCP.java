@@ -45,7 +45,6 @@ import org.weasis.core.util.FileUtil;
 import org.weasis.core.util.StringUtil;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomProgress;
-import org.weasis.dicom.param.DicomState;
 
 /** @author Gunter Zeilinger <gunterze@gmail.com> */
 public class StoreSCP {
@@ -163,7 +162,9 @@ public class StoreSCP {
   public StoreSCP(File storageDir, List<DicomNode> authorizedCallingNodes) {
     this(storageDir, authorizedCallingNodes, null);
   }
-  public StoreSCP(File storageDir, List<DicomNode> authorizedCallingNodes, DicomProgress dicomProgress) {
+
+  public StoreSCP(
+      File storageDir, List<DicomNode> authorizedCallingNodes, DicomProgress dicomProgress) {
     this.storageDir = Objects.requireNonNull(storageDir);
     device.setDimseRQHandler(createServiceRegistry());
     device.addConnection(conn);

@@ -12,7 +12,9 @@ package org.dcm4che3.img.data;
 import java.awt.Color;
 import java.util.Objects;
 
-/** @author Nicolas Roduit */
+/**
+ * @author Nicolas Roduit
+ */
 public class CIELab {
   // Initialize white points of D65 light point (CIELab standard white point)
   private static final double D65_WHITE_POINT_X = 0.950456;

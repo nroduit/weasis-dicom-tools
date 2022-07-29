@@ -29,7 +29,9 @@ import org.weasis.core.util.StringUtil;
 import org.weasis.opencv.data.LookupTableCV;
 import org.weasis.opencv.op.lut.PresentationStateLut;
 
-/** @author Nicolas Roduit */
+/**
+ * @author Nicolas Roduit
+ */
 public class PrDicomObject implements PresentationStateLut {
   private final Attributes dcmPR;
   private final ModalityLutModule modalityLUT;

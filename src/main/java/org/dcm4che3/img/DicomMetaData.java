@@ -18,7 +18,9 @@ import org.dcm4che3.img.stream.ImageDescriptor;
 import org.dcm4che3.io.DicomInputStream;
 import org.w3c.dom.Node;
 
-/** @author Gunter Zeilinger <gunterze@gmail.com> */
+/**
+ * @author Gunter Zeilinger <gunterze@gmail.com>
+ */
 public class DicomMetaData extends IIOMetadata {
 
   private final Attributes fileMetaInformation;

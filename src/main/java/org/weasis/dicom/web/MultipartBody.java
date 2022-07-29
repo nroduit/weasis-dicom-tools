@@ -32,7 +32,9 @@ import org.slf4j.LoggerFactory;
 
 public class MultipartBody implements Flow.Subscriber<ByteBuffer> {
   private static final Logger LOGGER = LoggerFactory.getLogger(MultipartBody.class);
-  /** @see <a href="https://tools.ietf.org/html/rfc2387">multipart specifications</a> */
+  /**
+   * @see <a href="https://tools.ietf.org/html/rfc2387">multipart specifications</a>
+   */
   private final String boundary;
 
   private final ContentType contentType;

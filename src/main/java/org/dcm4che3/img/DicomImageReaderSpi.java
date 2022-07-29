@@ -18,7 +18,9 @@ import org.dcm4che3.data.Implementation;
 import org.dcm4che3.img.stream.BytesWithImageDescriptor;
 import org.dcm4che3.img.stream.DicomFileInputStream;
 
-/** @author Gunter Zeilinger <gunterze@gmail.com> */
+/**
+ * @author Gunter Zeilinger <gunterze@gmail.com>
+ */
 public class DicomImageReaderSpi extends ImageReaderSpi {
 
   private static final String[] dicomFormatNames = {"dicom", "DICOM"};

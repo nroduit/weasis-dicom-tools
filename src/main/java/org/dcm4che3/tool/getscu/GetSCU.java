@@ -44,7 +44,9 @@ import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
 import org.weasis.dicom.util.ServiceUtil;
 
-/** @author Gunter Zeilinger <gunterze@gmail.com> */
+/**
+ * @author Gunter Zeilinger <gunterze@gmail.com>
+ */
 public class GetSCU implements AutoCloseable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GetSCU.class);

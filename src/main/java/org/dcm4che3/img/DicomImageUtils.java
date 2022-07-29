@@ -30,7 +30,9 @@ import org.weasis.opencv.op.ImageProcessor;
 import org.weasis.opencv.op.lut.LutParameters;
 import org.weasis.opencv.op.lut.LutShape;
 
-/** @author Benoit Jacquemoud, Nicolas Roduit */
+/**
+ * @author Benoit Jacquemoud, Nicolas Roduit
+ */
 public class DicomImageUtils {
   private static final Logger LOGGER = LoggerFactory.getLogger(DicomImageUtils.class);
 

@@ -25,7 +25,9 @@ import org.slf4j.LoggerFactory;
 import org.weasis.opencv.data.ImageCV;
 import org.weasis.opencv.op.ImageProcessor;
 
-/** @author Nicolas Roduit */
+/**
+ * @author Nicolas Roduit
+ */
 public class MaskArea {
   private static final Logger LOGGER = LoggerFactory.getLogger(MaskArea.class);
   private final Color color;

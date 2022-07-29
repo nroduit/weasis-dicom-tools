@@ -9,7 +9,9 @@
  */
 package org.dcm4che3.imageio.codec.jpeg;
 
-/** @author Gunter Zeilinger <gunterze@gmail.com> */
+/**
+ * @author Gunter Zeilinger <gunterze@gmail.com>
+ */
 public class JPEG {
 
   /** For temporary use in arithmetic coding */

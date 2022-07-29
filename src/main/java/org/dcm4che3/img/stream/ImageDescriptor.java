@@ -19,7 +19,9 @@ import org.dcm4che3.img.lut.ModalityLutModule;
 import org.dcm4che3.img.lut.VoiLutModule;
 import org.dcm4che3.img.util.DicomUtils;
 
-/** @author Nicolas Roduit */
+/**
+ * @author Nicolas Roduit
+ */
 public final class ImageDescriptor {
 
   private final int rows;

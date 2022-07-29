@@ -11,7 +11,9 @@ package org.dcm4che3.tool.common;
 
 import java.io.File;
 
-/** @author Gunter Zeilinger <gunterze@gmail.com> */
+/**
+ * @author Gunter Zeilinger <gunterze@gmail.com>
+ */
 public class FilesetInfo {
 
   private String uid;

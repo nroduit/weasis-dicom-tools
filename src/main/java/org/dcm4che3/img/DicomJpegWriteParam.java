@@ -13,7 +13,9 @@ import java.awt.Rectangle;
 import org.dcm4che3.data.UID;
 import org.dcm4che3.imageio.codec.TransferSyntaxType;
 
-/** @author Nicolas Roduit */
+/**
+ * @author Nicolas Roduit
+ */
 public class DicomJpegWriteParam {
   private final TransferSyntaxType type;
 
@@ -74,7 +76,9 @@ public class DicomJpegWriteParam {
     return compressionQuality;
   }
 
-  /** @param compressionQuality between 1 and 100 (100 is the best lossy quality). */
+  /**
+   * @param compressionQuality between 1 and 100 (100 is the best lossy quality).
+   */
   public void setCompressionQuality(int compressionQuality) {
     this.compressionQuality = compressionQuality;
   }

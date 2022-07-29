@@ -14,7 +14,9 @@ import java.util.OptionalInt;
 import org.dcm4che3.img.Transcoder.Format;
 import org.weasis.core.util.LangUtil;
 
-/** @author Nicolas Roduit */
+/**
+ * @author Nicolas Roduit
+ */
 public class ImageTranscodeParam {
   private final DicomImageReadParam readParam;
   private final Format format;
@@ -41,7 +43,9 @@ public class ImageTranscodeParam {
     return LangUtil.getOptionalInteger(jpegCompressionQuality);
   }
 
-  /** @param jpegCompressionQuality between 1 to 100 (100 is the best lossy quality). */
+  /**
+   * @param jpegCompressionQuality between 1 to 100 (100 is the best lossy quality).
+   */
   public void setJpegCompressionQuality(int jpegCompressionQuality) {
     this.jpegCompressionQuality = jpegCompressionQuality;
   }

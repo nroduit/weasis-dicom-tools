@@ -42,7 +42,9 @@ import org.slf4j.LoggerFactory;
 
 public class DicomStowRS implements AutoCloseable {
   private static final Logger LOGGER = LoggerFactory.getLogger(DicomStowRS.class);
-  /** @see <a href="https://tools.ietf.org/html/rfc2387">multipart specifications</a> */
+  /**
+   * @see <a href="https://tools.ietf.org/html/rfc2387">multipart specifications</a>
+   */
   protected static final String MULTIPART_BOUNDARY = "mimeTypeBoundary";
 
   private static final ByteArrayInputStream emptyInputStream =

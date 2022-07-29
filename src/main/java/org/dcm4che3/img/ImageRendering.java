@@ -25,7 +25,9 @@ import org.weasis.opencv.data.PlanarImage;
 import org.weasis.opencv.op.ImageProcessor;
 import org.weasis.opencv.op.lut.PresentationStateLut;
 
-/** @author Nicolas Roduit */
+/**
+ * @author Nicolas Roduit
+ */
 public class ImageRendering {
 
   private ImageRendering() {}

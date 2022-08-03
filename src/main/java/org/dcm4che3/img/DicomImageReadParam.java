@@ -20,7 +20,9 @@ import org.dcm4che3.img.data.PrDicomObject;
 import org.weasis.core.util.LangUtil;
 import org.weasis.opencv.op.lut.LutShape;
 
-/** @author Nicolas Roduit */
+/**
+ * @author Nicolas Roduit
+ */
 public class DicomImageReadParam extends ImageReadParam {
 
   private static final String NOT_COMPATIBLE = "Not compatible with the native DICOM Decoder";
@@ -101,7 +103,9 @@ public class DicomImageReadParam extends ImageReadParam {
     return LangUtil.getOptionalDouble(windowCenter);
   }
 
-  /** @param windowCenter the center of window DICOM values. */
+  /**
+   * @param windowCenter the center of window DICOM values.
+   */
   public void setWindowCenter(Double windowCenter) {
     this.windowCenter = windowCenter;
   }
@@ -110,7 +114,9 @@ public class DicomImageReadParam extends ImageReadParam {
     return LangUtil.getOptionalDouble(windowWidth);
   }
 
-  /** @param windowWidth the width from low to high input DICOM values around level. */
+  /**
+   * @param windowWidth the width from low to high input DICOM values around level.
+   */
   public void setWindowWidth(Double windowWidth) {
     this.windowWidth = windowWidth;
   }
@@ -119,7 +125,9 @@ public class DicomImageReadParam extends ImageReadParam {
     return LangUtil.getOptionalDouble(levelMin);
   }
 
-  /** @param levelMin the min DICOM value in the image. */
+  /**
+   * @param levelMin the min DICOM value in the image.
+   */
   public void setLevelMin(Double levelMin) {
     this.levelMin = levelMin;
   }
@@ -128,7 +136,9 @@ public class DicomImageReadParam extends ImageReadParam {
     return LangUtil.getOptionalDouble(levelMax);
   }
 
-  /** @param levelMax the max DICOM value in the image. */
+  /**
+   * @param levelMax the max DICOM value in the image.
+   */
   public void setLevelMax(Double levelMax) {
     this.levelMax = levelMax;
   }

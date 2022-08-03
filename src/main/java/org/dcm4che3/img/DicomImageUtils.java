@@ -30,7 +30,9 @@ import org.weasis.opencv.op.ImageProcessor;
 import org.weasis.opencv.op.lut.LutParameters;
 import org.weasis.opencv.op.lut.LutShape;
 
-/** @author Benoit Jacquemoud, Nicolas Roduit */
+/**
+ * @author Benoit Jacquemoud, Nicolas Roduit
+ */
 public class DicomImageUtils {
   private static final Logger LOGGER = LoggerFactory.getLogger(DicomImageUtils.class);
 
@@ -122,7 +124,7 @@ public class DicomImageUtils {
     } else {
       // First value is the number of entries in the lookup table.
       // When this value is 0 the number of table entries is equal to 65536 <=> 0x10000.
-      int numEntries = (descriptor[0] == 0) ? 65536 : descriptor[0];
+      int numEntries = (descriptor[0] <= 0) ? descriptor[0] + 0x10000 : descriptor[0];
 
       // Second value is mapped to the first entry in the LUT.
       int offset =
@@ -139,6 +141,9 @@ public class DicomImageUtils {
         bData = dicomLutObject.getBytes(Tag.LUTData);
       } catch (IOException e) {
         LOGGER.error("Cannot get byte[] of {}", TagUtils.toString(Tag.LUTData), e);
+      }
+
+      if (bData == null) {
         return Optional.empty();
       }
 
@@ -879,7 +884,7 @@ public class DicomImageUtils {
   }
 
   public static byte[] lutData(Attributes ds, int[] desc, int dataTag, int segmTag) {
-    int len = desc[0] == 0 ? 0x10000 : desc[0];
+    int len = desc[0] <= 0 ? desc[0] + 0x10000 : desc[0];
     int bits = desc[2];
     Optional<byte[]> odata = getByteData(ds, dataTag);
     byte[] data;

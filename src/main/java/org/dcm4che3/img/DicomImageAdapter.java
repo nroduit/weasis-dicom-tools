@@ -34,7 +34,9 @@ import org.weasis.opencv.op.lut.PresentationStateLut;
 import org.weasis.opencv.op.lut.WlParams;
 import org.weasis.opencv.op.lut.WlPresentation;
 
-/** @author Nicolas Roduit */
+/**
+ * @author Nicolas Roduit
+ */
 public class DicomImageAdapter {
   private static final Logger LOGGER = LoggerFactory.getLogger(DicomImageAdapter.class);
 
@@ -419,7 +421,9 @@ public class DicomImageAdapter {
         inversePaddingMLUT);
   }
 
-  /** @return 8 bits unsigned Lookup Table */
+  /**
+   * @return 8 bits unsigned Lookup Table
+   */
   public LookupTableCV getVOILookup(WlParams wl) {
     if (wl == null || wl.getLutShape() == null) {
       return null;

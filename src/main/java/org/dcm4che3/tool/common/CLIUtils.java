@@ -21,7 +21,9 @@ import org.dcm4che3.data.VR;
 import org.dcm4che3.util.StreamUtils;
 import org.dcm4che3.util.StringUtils;
 
-/** @author Gunter Zeilinger <gunterze@gmail.com> */
+/**
+ * @author Gunter Zeilinger <gunterze@gmail.com>
+ */
 public class CLIUtils {
 
   public static Properties loadProperties(String url, Properties p) throws IOException {

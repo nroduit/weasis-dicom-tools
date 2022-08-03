@@ -32,7 +32,9 @@ import org.weasis.core.util.FileUtil;
 import org.weasis.opencv.data.PlanarImage;
 import org.weasis.opencv.op.ImageProcessor;
 
-/** @author Nicolas Roduit */
+/**
+ * @author Nicolas Roduit
+ */
 public class Transcoder {
   private static final Logger LOGGER = LoggerFactory.getLogger(Transcoder.class);
 

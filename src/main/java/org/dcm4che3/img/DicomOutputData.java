@@ -36,7 +36,9 @@ import org.slf4j.LoggerFactory;
 import org.weasis.core.util.StringUtil;
 import org.weasis.opencv.data.PlanarImage;
 
-/** @author Nicolas Roduit */
+/**
+ * @author Nicolas Roduit
+ */
 public class DicomOutputData {
   private static final Logger LOGGER = LoggerFactory.getLogger(DicomOutputData.class);
 

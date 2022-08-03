@@ -33,7 +33,9 @@ import org.slf4j.LoggerFactory;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
 
-/** @author Gunter Zeilinger <gunterze@gmail.com> */
+/**
+ * @author Gunter Zeilinger <gunterze@gmail.com>
+ */
 public class MoveSCU extends Device implements AutoCloseable {
   private static final Logger LOGGER = LoggerFactory.getLogger(MoveSCU.class);
 

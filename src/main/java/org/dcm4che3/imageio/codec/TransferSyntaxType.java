@@ -14,7 +14,9 @@ import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
 import org.dcm4che3.data.VR;
 
-/** @author Gunter Zeilinger <gunterze@gmail.com> */
+/**
+ * @author Gunter Zeilinger <gunterze@gmail.com>
+ */
 public enum TransferSyntaxType {
   NATIVE(false, false, true, 16, 0),
   JPEG_BASELINE(true, true, false, 8, 0),

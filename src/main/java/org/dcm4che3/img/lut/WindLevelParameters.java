@@ -17,7 +17,9 @@ import org.weasis.opencv.op.lut.DefaultWlPresentation;
 import org.weasis.opencv.op.lut.LutShape;
 import org.weasis.opencv.op.lut.WlParams;
 
-/** @author Nicolas Roduit */
+/**
+ * @author Nicolas Roduit
+ */
 public class WindLevelParameters implements WlParams {
 
   private final double window;

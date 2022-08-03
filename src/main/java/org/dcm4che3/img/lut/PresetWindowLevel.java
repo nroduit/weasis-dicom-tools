@@ -32,7 +32,9 @@ import org.weasis.opencv.op.lut.LutShape.eFunction;
 import org.weasis.opencv.op.lut.PresentationStateLut;
 import org.weasis.opencv.op.lut.WlPresentation;
 
-/** @author Nicolas Roduit */
+/**
+ * @author Nicolas Roduit
+ */
 public class PresetWindowLevel {
   private static final Logger LOGGER = LoggerFactory.getLogger(PresetWindowLevel.class);
 

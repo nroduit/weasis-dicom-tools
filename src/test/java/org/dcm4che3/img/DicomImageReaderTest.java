@@ -23,7 +23,9 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.weasis.opencv.data.PlanarImage;
 
-/** @author Nicolas Roduit */
+/**
+ * @author Nicolas Roduit
+ */
 public class DicomImageReaderTest {
   static Path IN_DIR;
   static DicomImageReader reader;

@@ -25,7 +25,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.opencv.data.LookupTableCV;
 
-/** @author Nicolas Roduit */
+/**
+ * @author Nicolas Roduit
+ */
 public class VoiLutModule {
   private static final Logger LOGGER = LoggerFactory.getLogger(VoiLutModule.class);
 

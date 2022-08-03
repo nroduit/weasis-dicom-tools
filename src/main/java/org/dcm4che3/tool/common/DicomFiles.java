@@ -22,7 +22,9 @@ import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.io.DicomInputStream.IncludeBulkData;
 import org.dcm4che3.util.SafeClose;
 
-/** @author Gunter Zeilinger <gunterze@gmail.com> */
+/**
+ * @author Gunter Zeilinger <gunterze@gmail.com>
+ */
 public abstract class DicomFiles {
 
   private static SAXParser saxParser;

@@ -16,7 +16,9 @@ import java.nio.file.Path;
 import org.dcm4che3.img.DicomMetaData;
 import org.dcm4che3.io.DicomInputStream;
 
-/** @author Nicolas Roduit */
+/**
+ * @author Nicolas Roduit
+ */
 public class DicomFileInputStream extends DicomInputStream implements ImageReaderDescriptor {
 
   private final Path path;

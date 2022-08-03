@@ -46,7 +46,9 @@ import org.weasis.core.util.StringUtil;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomProgress;
 
-/** @author Gunter Zeilinger <gunterze@gmail.com> */
+/**
+ * @author Gunter Zeilinger <gunterze@gmail.com>
+ */
 public class StoreSCP {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(StoreSCP.class);
@@ -149,7 +151,9 @@ public class StoreSCP {
     }
   }
 
-  /** @param storageDir the base path of storage folder */
+  /**
+   * @param storageDir the base path of storage folder
+   */
   public StoreSCP(File storageDir) {
     this(storageDir, null);
   }

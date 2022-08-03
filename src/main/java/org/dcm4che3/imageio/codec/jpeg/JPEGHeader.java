@@ -15,7 +15,9 @@ import org.dcm4che3.data.UID;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.util.ByteUtils;
 
-/** @author Gunter Zeilinger <gunterze@gmail.com> */
+/**
+ * @author Gunter Zeilinger <gunterze@gmail.com>
+ */
 public class JPEGHeader {
 
   private final byte[] data;

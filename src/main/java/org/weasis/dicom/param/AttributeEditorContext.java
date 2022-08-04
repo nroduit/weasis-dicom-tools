@@ -9,6 +9,8 @@
  */
 package org.weasis.dicom.param;
 
+import static org.dcm4che3.img.Transcoder.getMaskedImage;
+
 import java.util.Objects;
 import java.util.Properties;
 import org.dcm4che3.img.op.MaskArea;
@@ -87,11 +89,7 @@ public class AttributeEditorContext {
   }
 
   public Editable<PlanarImage> getEditable() {
-    MaskArea m = getMaskArea();
-    if (m != null) {
-      return img -> MaskArea.drawShape(img.toMat(), m);
-    }
-    return null;
+    return getMaskedImage(getMaskArea());
   }
 
   public boolean hasPixelProcessing() {

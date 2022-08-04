@@ -20,7 +20,7 @@
     <sonar.organization>nroduit-github</sonar.organization>
     <sonar.host.url>https://sonarcloud.io</sonar.host.url>
 
-    <weasis.core.img.version>4.5.5.1</weasis.core.img.version>
+    <weasis.core.img.version>4.5.5.2</weasis.core.img.version>
     <weasis.opencv.native.version>4.5.5-dcm</weasis.opencv.native.version>
     <skipTests>false</skipTests>
   </properties>

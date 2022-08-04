@@ -29,6 +29,7 @@ import org.opencv.imgcodecs.Imgcodecs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.util.FileUtil;
+import org.weasis.opencv.data.ImageCV;
 import org.weasis.opencv.data.PlanarImage;
 import org.weasis.opencv.op.ImageProcessor;
 
@@ -173,9 +174,19 @@ public class Transcoder {
 
   private static Editable<PlanarImage> getMask(Attributes dataSet, DicomTranscodeParam params) {
     String stationName = dataSet.getString(Tag.StationName, "*");
-    MaskArea m = params.getMask(stationName);
+    return getMaskedImage(params.getMask(stationName));
+  }
+
+  public static Editable<PlanarImage> getMaskedImage(MaskArea m) {
     if (m != null) {
-      return img -> MaskArea.drawShape(img.toMat(), m);
+      return img -> {
+        ImageCV mask = MaskArea.drawShape(img.toMat(), m);
+        if (img.isReleasedAfterWriting()) {
+          img.release();
+          mask.setReleasedAfterWriting(true);
+        }
+        return mask;
+      };
     }
     return null;
   }

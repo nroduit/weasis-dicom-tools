@@ -74,6 +74,26 @@ public class DicomObjectUtil {
     return false;
   }
 
+  public static <T, E extends Exception> SupplierEx<T, E> memoize(SupplierEx<T, E> original) {
+    return new SupplierEx<>() {
+      SupplierEx<T, E> delegate = this::firstTime;
+      boolean initialized;
+
+      public T get() throws E {
+        return delegate.get();
+      }
+
+      private synchronized T firstTime() throws E {
+        if (!initialized) {
+          T value = original.get();
+          delegate = () -> value;
+          initialized = true;
+        }
+        return delegate.get();
+      }
+    };
+  }
+
   public static LocalDate getDicomDate(String date) {
     if (StringUtil.hasText(date)) {
       try {

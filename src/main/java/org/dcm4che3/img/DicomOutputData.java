@@ -49,14 +49,12 @@ public class DicomOutputData {
   public DicomOutputData(
       List<SupplierEx<PlanarImage, IOException>> images, ImageDescriptor desc, String tsuid)
       throws IOException {
-    if (images.isEmpty()) {
+    if (Objects.requireNonNull(images).isEmpty()) {
       throw new IllegalStateException("No image found!");
     }
-    PlanarImage firstImage = images.get(0).get();
-    this.images = new ArrayList<>(Objects.requireNonNull(images));
-    this.images.set(0, () -> firstImage);
+    this.images = new ArrayList<>(images);
     this.desc = Objects.requireNonNull(desc);
-    int type = CvType.depth(firstImage.type());
+    int type = CvType.depth(getFirstImage().get().type());
     this.tsuid =
         DicomOutputData.adaptSuitableSyntax(
             desc.getBitsStored(), type, Objects.requireNonNull(tsuid));
@@ -75,7 +73,7 @@ public class DicomOutputData {
     this(Collections.singletonList(() -> image), desc, tsuid);
   }
 
-  public SupplierEx<PlanarImage, IOException> getFistImage() {
+  public SupplierEx<PlanarImage, IOException> getFirstImage() {
     return images.get(0);
   }
 
@@ -91,25 +89,31 @@ public class DicomOutputData {
       throws IOException {
     Mat buf = null;
     MatOfInt dicomParams = null;
-    boolean first = true;
-    PlanarImage img = getFistImage().get();
     try {
       dicomParams = new MatOfInt(params);
-      for (SupplierEx<PlanarImage, IOException> supplier : images) {
-        buf =
-            Imgcodecs.dicomJpgWrite(
-                DicomImageUtils.bgr2rgb(supplier.get()).toMat(), dicomParams, "");
+      for (int i = 0; i < images.size(); i++) {
+        PlanarImage image = images.get(i).get();
+        boolean releaseSrc = image.isReleasedAfterProcessing();
+        PlanarImage writeImage = DicomImageUtils.bgr2rgb(image);
+        if (releaseSrc && !writeImage.equals(image)) {
+          image.release();
+        }
+        buf = Imgcodecs.dicomJpgWrite(writeImage.toMat(), dicomParams, "");
         if (buf.empty()) {
+          writeImage.release();
           throw new IOException("Native encoding error: null image");
         }
         int compressedLength = buf.width() * buf.height() * (int) buf.elemSize();
-        if (first) {
-          first = false;
-          double uncompressed = img.width() * img.height() * (double) img.elemSize();
+        if (i == 0) {
+          double uncompressed =
+              writeImage.width() * writeImage.height() * (double) writeImage.elemSize();
           adaptCompressionRatio(dataSet, params, uncompressed / compressedLength);
           dos.writeDataset(null, dataSet);
           dos.writeHeader(Tag.PixelData, VR.OB, -1);
           dos.writeHeader(Tag.Item, null, 0);
+        }
+        if (releaseSrc) {
+          writeImage.release();
         }
 
         byte[] bSrcData = new byte[compressedLength];
@@ -166,7 +170,7 @@ public class DicomOutputData {
 
   public void writRawImageData(DicomOutputStream dos, Attributes data) {
     try {
-      PlanarImage fistImage = getFistImage().get();
+      PlanarImage fistImage = getFirstImage().get();
       adaptTagsToRawImage(data, fistImage, desc);
       dos.writeDataset(null, data);
 

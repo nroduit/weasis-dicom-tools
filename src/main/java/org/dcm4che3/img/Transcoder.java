@@ -140,8 +140,6 @@ public class Transcoder {
     Editable<PlanarImage> mask = getMask(dataSet, params);
     List<SupplierEx<PlanarImage, IOException>> images =
         reader.getLazyPlanarImages(params.getReadParam(), mask);
-    PlanarImage firstImage = images.get(0).get();
-    images.set(0, () -> firstImage);
     String dstTsuid = params.getOutputTsuid();
     DicomJpegWriteParam writeParams = params.getWriteJpegParam();
     ImageDescriptor desc = dicomMetaData.getImageDescriptor();
@@ -160,7 +158,8 @@ public class Transcoder {
         imgData.writRawImageData(dos, dataSet);
       } else {
         int[] jpegWriteParams =
-            imgData.adaptTagsToCompressedImage(dataSet, firstImage, desc, writeParams);
+            imgData.adaptTagsToCompressedImage(
+                dataSet, imgData.getFirstImage().get(), desc, writeParams);
         imgData.writeCompressedImageData(dos, dataSet, jpegWriteParams);
       }
     } catch (Exception e) {
@@ -172,23 +171,23 @@ public class Transcoder {
     return outPath;
   }
 
-  private static Editable<PlanarImage> getMask(Attributes dataSet, DicomTranscodeParam params) {
-    String stationName = dataSet.getString(Tag.StationName, "*");
-    return getMaskedImage(params.getMask(stationName));
-  }
-
   public static Editable<PlanarImage> getMaskedImage(MaskArea m) {
     if (m != null) {
       return img -> {
         ImageCV mask = MaskArea.drawShape(img.toMat(), m);
-        if (img.isReleasedAfterWriting()) {
+        if (img.isReleasedAfterProcessing()) {
           img.release();
-          mask.setReleasedAfterWriting(true);
+          mask.setReleasedAfterProcessing(true);
         }
         return mask;
       };
     }
     return null;
+  }
+
+  private static Editable<PlanarImage> getMask(Attributes dataSet, DicomTranscodeParam params) {
+    String stationName = dataSet.getString(Tag.StationName, "*");
+    return getMaskedImage(params.getMask(stationName));
   }
 
   private static int getCompressionRatio(ImageTranscodeParam params) {

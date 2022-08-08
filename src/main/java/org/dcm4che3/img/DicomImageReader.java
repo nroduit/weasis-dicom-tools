@@ -337,12 +337,29 @@ public class DicomImageReader extends ImageReader {
     for (int i = 0; i < size; i++) {
       final int index = i;
       suppliers.add(
-          () -> {
-            PlanarImage img = getPlanarImage(index, param);
-            if (editor == null) {
-              return img;
+          new SupplierEx<>() {
+            SupplierEx<PlanarImage, IOException> delegate = this::firstTime;
+            boolean initialized;
+
+            public PlanarImage get() throws IOException {
+              return delegate.get();
             }
-            return editor.process(img);
+
+            private synchronized PlanarImage firstTime() throws IOException {
+              if (!initialized) {
+                PlanarImage img = getPlanarImage(index, param);
+                PlanarImage value;
+                if (editor == null) {
+                  value = img;
+                } else {
+                  value = editor.process(img);
+                  img.release();
+                }
+                delegate = () -> value;
+                initialized = true;
+              }
+              return delegate.get();
+            }
           });
     }
     return suppliers;
@@ -366,25 +383,29 @@ public class DicomImageReader extends ImageReader {
 
   public PlanarImage getPlanarImage(int frame, DicomImageReadParam param) throws IOException {
     PlanarImage img = getRawImage(frame, param);
+    PlanarImage out = img;
     if (getImageDescriptor().getPhotometricInterpretation()
         == PhotometricInterpretation.PALETTE_COLOR) {
       if (dis == null) {
-        img =
+        out =
             DicomImageUtils.getRGBImageFromPaletteColorModel(
-                img, bdis.getPaletteColorLookupTable());
+                out, bdis.getPaletteColorLookupTable());
       } else {
-        img =
+        out =
             DicomImageUtils.getRGBImageFromPaletteColorModel(
-                img, dis.getMetadata().getDicomObject());
+                out, dis.getMetadata().getDicomObject());
       }
     }
     if (param != null && param.getSourceRegion() != null) {
-      img = ImageProcessor.crop(img.toMat(), param.getSourceRegion());
+      out = ImageProcessor.crop(out.toMat(), param.getSourceRegion());
     }
     if (param != null && param.getSourceRenderSize() != null) {
-      img = ImageProcessor.scale(img.toMat(), param.getSourceRenderSize(), Imgproc.INTER_LANCZOS4);
+      out = ImageProcessor.scale(out.toMat(), param.getSourceRenderSize(), Imgproc.INTER_LANCZOS4);
     }
-    return img;
+    if (!img.equals(out)) {
+      img.release();
+    }
+    return out;
   }
 
   public PlanarImage getRawImage(int frame, DicomImageReadParam param) throws IOException {

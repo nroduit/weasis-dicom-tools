@@ -173,7 +173,7 @@ public class ImageAdapter {
       int[] jpegWriteParams =
           imgData.adaptTagsToCompressedImage(
               dataSet,
-              imgData.getFistImage().get(),
+              imgData.getFirstImage().get(),
               desc.getImageDescriptor(),
               dicomJpegWriteParam);
       imgData.writeCompressedImageData(dos, dataSet, jpegWriteParams);
@@ -435,7 +435,7 @@ public class ImageAdapter {
             int[] jpegWriteParams =
                 imgData.adaptTagsToCompressedImage(
                     dataSet,
-                    imgData.getFistImage().get(),
+                    imgData.getFirstImage().get(),
                     desc.getImageDescriptor(),
                     DicomJpegWriteParam.buildDicomImageWriteParam(imgData.getTsuid()));
             imgData.writeCompressedImageData(dos, dataSet, jpegWriteParams);

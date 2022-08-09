@@ -26,10 +26,7 @@ import org.dcm4che3.data.UID;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.data.VR.Holder;
 import org.dcm4che3.imageio.codec.jpeg.JPEGParser;
-import org.dcm4che3.img.DicomImageReader;
-import org.dcm4che3.img.DicomJpegWriteParam;
-import org.dcm4che3.img.DicomOutputData;
-import org.dcm4che3.img.Transcoder;
+import org.dcm4che3.img.*;
 import org.dcm4che3.img.util.DicomUtils;
 import org.dcm4che3.img.util.Editable;
 import org.dcm4che3.io.DicomOutputStream;
@@ -44,6 +41,12 @@ import org.weasis.opencv.data.PlanarImage;
 
 public class ImageAdapter {
   private static final Logger LOGGER = LoggerFactory.getLogger(ImageAdapter.class);
+
+  private static final DicomImageReadParam dicomImageReadParam = new DicomImageReadParam();
+
+  static {
+    dicomImageReadParam.setReleaseImageAfterProcessing(true);
+  }
 
   protected static final byte[] EMPTY_BYTES = {};
 
@@ -458,7 +461,7 @@ public class ImageAdapter {
       Editable<PlanarImage> editable)
       throws IOException {
     reader.setInput(desc);
-    var images = reader.getLazyPlanarImages(null, editable);
+    var images = reader.getLazyPlanarImages(dicomImageReadParam, editable);
     return new DicomOutputData(images, desc.getImageDescriptor(), outputTsuid);
   }
 }

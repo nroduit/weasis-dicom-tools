@@ -278,7 +278,14 @@ public class DicomImageReader extends ImageReader {
     if (!TransferSyntaxType.isLossyCompression(attributes.getString(Tag.TransferSyntaxUID, ""))) {
       return false;
     }
-    if (pmi == PhotometricInterpretation.RGB && !param.getKeepRgbForLossyJpeg().orElse(false)) {
+    boolean keepRgbForLossyJpeg;
+    if (param == null) {
+      keepRgbForLossyJpeg = false;
+    } else {
+      keepRgbForLossyJpeg = param.getKeepRgbForLossyJpeg().orElse(false);
+    }
+
+    if (pmi == PhotometricInterpretation.RGB && !keepRgbForLossyJpeg) {
       // Force JPEG Baseline (1.2.840.10008.1.2.4.50) to YBR_FULL_422 color model when RGB with
       // JFIF header (error made by some constructors). RGB color model doesn't make sense for
       // lossy jpeg with JFIF header.
@@ -512,17 +519,37 @@ public class DicomImageReader extends ImageReader {
                 bits,
                 desc.isBanded() ? Imgcodecs.ILV_NONE : Imgcodecs.ILV_SAMPLE,
                 streamVR);
-        return ImageCV.toImageCV(
-            Imgcodecs.dicomRawFileRead(
-                seg.getPath().toString(), positions, lengths, dicomparams, pmi.name()));
+        ImageCV imageCV =
+            ImageCV.toImageCV(
+                Imgcodecs.dicomRawFileRead(
+                    seg.getPath().toString(), positions, lengths, dicomparams, pmi.name()));
+        return applyReleaseImageAfterProcessing(imageCV, param);
       }
-      return ImageCV.toImageCV(
-          Imgcodecs.dicomJpgFileRead(
-              seg.getPath().toString(), positions, lengths, dcmFlags, Imgcodecs.IMREAD_UNCHANGED));
+      ImageCV imageCV =
+          ImageCV.toImageCV(
+              Imgcodecs.dicomJpgFileRead(
+                  seg.getPath().toString(),
+                  positions,
+                  lengths,
+                  dcmFlags,
+                  Imgcodecs.IMREAD_UNCHANGED));
+      return applyReleaseImageAfterProcessing(imageCV, param);
     } finally {
       closeMat(positions);
       closeMat(lengths);
     }
+  }
+
+  public static ImageCV applyReleaseImageAfterProcessing(
+      ImageCV imageCV, DicomImageReadParam param) {
+    if (isReleaseImageAfterProcessing(param)) {
+      imageCV.setReleasedAfterProcessing(true);
+    }
+    return imageCV;
+  }
+
+  public static boolean isReleaseImageAfterProcessing(DicomImageReadParam param) {
+    return param != null && param.getReleaseImageAfterProcessing().orElse(Boolean.FALSE);
   }
 
   protected PlanarImage getRawImageFromBytes(int frame, DicomImageReadParam param)
@@ -577,10 +604,13 @@ public class DicomImageReader extends ImageReader {
                 bits,
                 desc.isBanded() ? Imgcodecs.ILV_NONE : Imgcodecs.ILV_SAMPLE,
                 streamVR);
-        return ImageCV.toImageCV(Imgcodecs.dicomRawMatRead(buf, dicomparams, pmi.name()));
+        ImageCV imageCV =
+            ImageCV.toImageCV(Imgcodecs.dicomRawMatRead(buf, dicomparams, pmi.name()));
+        return applyReleaseImageAfterProcessing(imageCV, param);
       }
-      return ImageCV.toImageCV(
-          Imgcodecs.dicomJpgMatRead(buf, dcmFlags, Imgcodecs.IMREAD_UNCHANGED));
+      ImageCV imageCV =
+          ImageCV.toImageCV(Imgcodecs.dicomJpgMatRead(buf, dcmFlags, Imgcodecs.IMREAD_UNCHANGED));
+      return applyReleaseImageAfterProcessing(imageCV, param);
     } finally {
       closeMat(buf);
     }

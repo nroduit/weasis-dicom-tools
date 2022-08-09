@@ -70,6 +70,12 @@ public class Transcoder {
 
   public static final DicomImageReaderSpi dicomImageReaderSpi = new DicomImageReaderSpi();
 
+  private static final DicomImageReadParam dicomImageReadParam = new DicomImageReadParam();
+
+  static {
+    dicomImageReadParam.setReleaseImageAfterProcessing(true);
+  }
+
   /**
    * Convert a DICOM image to a standard image with some rendering parameters
    *
@@ -138,8 +144,14 @@ public class Transcoder {
 
     outPath = adaptFileExtension(FileUtil.getOutputPath(srcPath, dstPath), ".dcm", ".dcm");
     Editable<PlanarImage> mask = getMask(dataSet, params);
+    DicomImageReadParam dicomParams = params.getReadParam();
+    if (dicomParams == null) {
+      dicomParams = dicomImageReadParam;
+    } else {
+      dicomParams.setReleaseImageAfterProcessing(true);
+    }
     List<SupplierEx<PlanarImage, IOException>> images =
-        reader.getLazyPlanarImages(params.getReadParam(), mask);
+        reader.getLazyPlanarImages(dicomParams, mask);
     String dstTsuid = params.getOutputTsuid();
     DicomJpegWriteParam writeParams = params.getWriteJpegParam();
     ImageDescriptor desc = dicomMetaData.getImageDescriptor();

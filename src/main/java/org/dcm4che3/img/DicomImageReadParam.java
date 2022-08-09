@@ -37,6 +37,8 @@ public class DicomImageReadParam extends ImageReadParam {
   private Boolean fillOutsideLutRange;
   private Boolean applyWindowLevelToColorImage;
   private Boolean keepRgbForLossyJpeg;
+
+  private Boolean releaseImageAfterProcessing;
   private PrDicomObject presentationState;
 
   private int windowIndex;
@@ -165,6 +167,14 @@ public class DicomImageReadParam extends ImageReadParam {
 
   public void setInverseLut(Boolean inverseLut) {
     this.inverseLut = inverseLut;
+  }
+
+  public Optional<Boolean> getReleaseImageAfterProcessing() {
+    return Optional.ofNullable(releaseImageAfterProcessing);
+  }
+
+  public void setReleaseImageAfterProcessing(Boolean releaseImageAfterProcessing) {
+    this.releaseImageAfterProcessing = releaseImageAfterProcessing;
   }
 
   public Optional<Boolean> getFillOutsideLutRange() {

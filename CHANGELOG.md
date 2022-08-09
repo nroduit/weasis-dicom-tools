@@ -1,5 +1,21 @@
 # Changelog
 
+## [v5.27.0.1](https://github.com/nroduit/weasis-dicom-tools/tree/v5.27.0.1) (2022-08-09)
+
+[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.27.0...v5.27.0.1)
+
+**Closed issues:**
+
+- NPE with corrupted LUT [\#17](https://github.com/nroduit/weasis-dicom-tools/issues/17)
+
+## [v5.27.0](https://github.com/nroduit/weasis-dicom-tools/tree/v5.27.0) (2022-07-29)
+
+[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.26.1...v5.27.0)
+
+## [v5.26.1](https://github.com/nroduit/weasis-dicom-tools/tree/v5.26.1) (2022-06-10)
+
+[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.26.0...v5.26.1)
+
 ## [v5.26.0](https://github.com/nroduit/weasis-dicom-tools/tree/v5.26.0) (2022-03-30)
 
 [Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.25.2...v5.26.0)
@@ -174,7 +190,11 @@
 
 ## [1.2.0](https://github.com/nroduit/weasis-dicom-tools/tree/1.2.0) (2017-08-07)
 
-[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/1.1.0-rc1...1.2.0)
+[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/1.1.0-rc2...1.2.0)
+
+## [1.1.0-rc2](https://github.com/nroduit/weasis-dicom-tools/tree/1.1.0-rc2) (2017-07-10)
+
+[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/1.1.0-rc1...1.1.0-rc2)
 
 ## [1.1.0-rc1](https://github.com/nroduit/weasis-dicom-tools/tree/1.1.0-rc1) (2017-07-03)
 

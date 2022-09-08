@@ -43,7 +43,7 @@ See [CHANGELOG](CHANGELOG.md)
 
 # Build weasis-dicom-tools ##
 
-Prerequisites: JDK 8 and Maven 3
+Prerequisites: JDK 11 and Maven 3
 
 Execute the maven command `mvn clean install` in the root directory of the project.
 

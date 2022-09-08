@@ -368,12 +368,15 @@ public class DicomImageAdapter {
 
   public boolean isPhotometricInterpretationInverse(PresentationStateLut pr) {
     Optional<String> prLUTShape = pr == null ? Optional.empty() : pr.getPrLutShapeMode();
-    if (!prLUTShape.isPresent()) {
+    if (prLUTShape.isEmpty()) {
       prLUTShape = Optional.ofNullable(desc.getPresentationLUTShape());
     }
-    return prLUTShape.isPresent()
-        ? "INVERSE".equals(prLUTShape.get())
-        : PhotometricInterpretation.MONOCHROME1 == desc.getPhotometricInterpretation();
+    PhotometricInterpretation p = desc.getPhotometricInterpretation();
+    if (prLUTShape.isPresent()) {
+      return ("INVERSE".equals(prLUTShape.get()) && p == PhotometricInterpretation.MONOCHROME2)
+          || ("IDENTITY".equals(prLUTShape.get()) && p == PhotometricInterpretation.MONOCHROME1);
+    }
+    return p == PhotometricInterpretation.MONOCHROME1;
   }
 
   public LutParameters getLutParameters(

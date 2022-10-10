@@ -1,14 +1,11 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+<?xml version="1.0"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-
   <groupId>org.weasis</groupId>
   <artifactId>weasis-dicom-tools</artifactId>
   <packaging>jar</packaging>
   <name>Weasis DICOM API (based on dcm4che3)</name>
   <version>5.27.0.1</version>
-
   <properties>
     <java-version>11</java-version>
     <enforcer.jdk-version>[${java-version},)</enforcer.jdk-version>
@@ -19,12 +16,10 @@
     <sonar.projectKey>weasis-dicom-tools</sonar.projectKey>
     <sonar.organization>nroduit-github</sonar.organization>
     <sonar.host.url>https://sonarcloud.io</sonar.host.url>
-
     <weasis.core.img.version>4.5.5.2</weasis.core.img.version>
     <weasis.opencv.native.version>4.5.5-dcm</weasis.opencv.native.version>
     <skipTests>false</skipTests>
   </properties>
-
   <licenses>
     <license>
       <name>Eclipse Public License v2.0</name>
@@ -32,19 +27,21 @@
       <distribution>repo</distribution>
     </license>
   </licenses>
-
   <scm>
     <connection>scm:git:git@github.com:nroduit/weasis-dicom-tools.git</connection>
     <developerConnection>scm:git:https://github.com/nroduit/weasis-dicom-tools.git
     </developerConnection>
     <url>https://github.com/nroduit/weasis-dicom-tools</url>
   </scm>
-
   <distributionManagement>
-    <repository>
+    <!-- <repository>
       <id>github</id>
       <name>GitHub Weasis Maven Packages</name>
       <url>https://maven.pkg.github.com/nroduit/weasis-dicom-tools</url>
+    </repository> -->
+    <repository>
+      <id>empolis-imi-reposilite</id>
+      <url>https://empolis.imi.uni-luebeck.de/maven/releases</url>
     </repository>
   </distributionManagement>
   <repositories>
@@ -69,40 +66,51 @@
       <url>https://www.dcm4che.org/maven2</url>
     </repository>
   </repositories>
-
   <!-- To perform network DICOM test with a demo server, run: mvn -Dnet.test -->
   <profiles>
-  <profile>
-    <id>default-profile</id>
-    <activation>
-      <property>
-        <name>!net.test</name>
-      </property>
-    </activation>
-
-    <build>
-      <plugins>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-surefire-plugin</artifactId>
-          <configuration>
-            <excludes>
-              <exclude>**/*NetTest.java</exclude>
-            </excludes>
-          </configuration>
-        </plugin>
-      </plugins>
-    </build>
-  </profile>
-
-  <profile>
-    <id>network-test</id>
-    <activation>
-      <property>
-        <name>net.test</name>
-      </property>
-    </activation>
-  </profile>
+    <profile>
+      <id>default-profile</id>
+      <activation>
+        <property>
+          <name>!net.test</name>
+        </property>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <version>3.0.1</version>
+            <executions>
+              <execution>
+                <id>sign-artifacts</id>
+                <phase>verify</phase>
+                <goals>
+                  <goal>sign</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+              <excludes>
+                <exclude>**/*NetTest.java</exclude>
+              </excludes>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>network-test</id>
+      <activation>
+        <property>
+          <name>net.test</name>
+        </property>
+      </activation>
+    </profile>
     <profile>
       <id>mac</id>
       <activation>
@@ -235,7 +243,6 @@
       </properties>
     </profile>
   </profiles>
-
   <build>
     <pluginManagement>
       <plugins>
@@ -333,7 +340,6 @@
         <directory>${project.build.directory}/dict</directory>
       </resource>
     </resources>
-
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -426,7 +432,7 @@
             <googleJavaFormat/>
             <toggleOffOn>
               <off>@formatter:off</off>
-							<on>@formatter:on</on>
+              <on>@formatter:on</on>
             </toggleOffOn>
             <licenseHeader>
               <!-- @formatter:off -->
@@ -446,12 +452,12 @@
           </java>
         </configuration>
         <executions>
-<!--          <execution>-->
-<!--            <phase>verify</phase>-->
-<!--            <goals>-->
-<!--              <goal>check</goal>-->
-<!--            </goals>-->
-<!--          </execution>-->
+          <!--          <execution>-->
+          <!--            <phase>verify</phase>-->
+          <!--            <goals>-->
+          <!--              <goal>check</goal>-->
+          <!--            </goals>-->
+          <!--          </execution>-->
         </executions>
       </plugin>
       <plugin>
@@ -463,14 +469,12 @@
       </plugin>
     </plugins>
   </build>
-
   <dependencies>
     <dependency>
       <groupId>commons-codec</groupId>
       <artifactId>commons-codec</artifactId>
       <version>1.15</version>
     </dependency>
-
     <dependency>
       <groupId>org.dcm4che</groupId>
       <artifactId>dcm4che-core</artifactId>
@@ -501,7 +505,6 @@
       <artifactId>weasis-core-img</artifactId>
       <version>${weasis.core.img.version}</version>
     </dependency>
-
     <dependency>
       <groupId>org.weasis.thirdparty.org.opencv</groupId>
       <artifactId>libopencv_java</artifactId>
@@ -523,7 +526,6 @@
       <type>dll</type>
       <classifier>windows-x86-64</classifier>
     </dependency>
-
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>

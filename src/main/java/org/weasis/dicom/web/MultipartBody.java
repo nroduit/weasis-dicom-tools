@@ -194,7 +194,7 @@ public class MultipartBody implements Flow.Subscriber<ByteBuffer> {
 
   @Override
   public void onError(Throwable throwable) {
-    throwable.printStackTrace();
+    LOGGER.error("", throwable);
   }
 
   @Override

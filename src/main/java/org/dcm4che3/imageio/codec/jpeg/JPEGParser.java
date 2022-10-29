@@ -50,6 +50,10 @@ public class JPEGParser implements XPEGParser {
     }
   }
 
+  public Params getParams() {
+    return params;
+  }
+
   @Override
   public long getCodeStreamPosition() {
     return codeStreamPosition;
@@ -161,7 +165,7 @@ public class JPEGParser implements XPEGParser {
           String.format("unexpected %2XH on position %d", v, channel.position() - 4));
   }
 
-  private interface Params {
+  public interface Params {
     int samplesPerPixel();
 
     int rows();
@@ -184,11 +188,32 @@ public class JPEGParser implements XPEGParser {
     final int sof;
     final ByteBuffer sofParams;
     final ByteBuffer sosParams;
+    boolean rgb = false;
+    boolean jfif = false;
 
     JPEGParams(SeekableByteChannel channel) throws IOException {
       Segment segment;
       while (JPEG.isAPP((segment = nextSegment(channel)).marker)) {
-        skip(channel, segment.contentSize);
+        if (segment.marker == JPEG.APP0) {
+          jfif = true;
+        }
+        if (segment.marker == JPEG.APP14 && segment.contentSize >= 12) {
+          ByteBuffer buf = ByteBuffer.allocate(segment.contentSize);
+          channel.read(buf);
+
+          byte[] values = buf.array();
+          if (values[0] == 0x41
+              && values[1] == 0x64
+              && values[2] == 0x6F
+              && values[3] == 0x62
+              && values[4] == 0x65
+              && values[11] == 0) {
+            /* Found Adobe APP14 marker for RGB transform*/
+            rgb = true;
+          }
+        } else {
+          skip(channel, segment.contentSize);
+        }
         positionAfterAPP = channel.position();
       }
       while (!JPEG.isSOF(segment.marker)) {
@@ -233,9 +258,27 @@ public class JPEGParser implements XPEGParser {
       return !(sof == JPEG.SOF3 || (sof == JPEG.SOF55 && sosParams.get(3) == 0));
     }
 
+    public boolean isRgb() {
+      // Not JFIF or has RGB Components, see
+      // https://entropymine.wordpress.com/2018/10/22/how-is-a-jpeg-images-color-type-determined/
+      return !jfif
+          && (rgb
+              || (sofParams.limit() > 12
+                  && (sofParams.get(6) & 0xff) == 0x52
+                  && (sofParams.get(9) & 0xff) == 0x47
+                  && (sofParams.get(12) & 0xff) == 0x42));
+    }
+
     @Override
     public String colorPhotometricInterpretation() {
-      return sof == JPEG.SOF3 || sof == JPEG.SOF55 ? "RGB" : "YBR_FULL_422";
+      if (samplesPerPixel() < 3) {
+        return "MONOCHROME2";
+      }
+
+      if (sof == JPEG.SOF3 || sof == JPEG.SOF55 || isRgb()) {
+        return "RGB";
+      }
+      return sof == JPEG.SOF0 ? "YBR_FULL_422" : "YBR_FULL";
     }
 
     @Override

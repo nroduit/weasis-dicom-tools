@@ -42,8 +42,8 @@ public class PresetWindowLevel {
       getPresetListByModality();
 
   private final String name;
-  private final Double window;
-  private final Double level;
+  private final double window;
+  private final double level;
   private final LutShape shape;
   private int keyCode = 0;
 
@@ -58,11 +58,11 @@ public class PresetWindowLevel {
     return name;
   }
 
-  public Double getWindow() {
+  public double getWindow() {
     return window;
   }
 
-  public Double getLevel() {
+  public double getLevel() {
     return level;
   }
 
@@ -97,13 +97,16 @@ public class PresetWindowLevel {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     PresetWindowLevel that = (PresetWindowLevel) o;
-    return name.equals(that.name)
-        && window.equals(that.window)
-        && level.equals(that.level)
-        && shape.equals(that.shape);
+    return Double.compare(that.window, window) == 0
+        && Double.compare(that.level, level) == 0 && name.equals(that.name) && shape.equals(
+        that.shape);
   }
 
   @Override

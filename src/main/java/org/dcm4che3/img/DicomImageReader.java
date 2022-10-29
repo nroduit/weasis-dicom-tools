@@ -34,6 +34,7 @@ import org.dcm4che3.data.UID;
 import org.dcm4che3.data.VR.Holder;
 import org.dcm4che3.image.PhotometricInterpretation;
 import org.dcm4che3.imageio.codec.TransferSyntaxType;
+import org.dcm4che3.imageio.codec.XPEGParserException;
 import org.dcm4che3.imageio.codec.jpeg.JPEGParser;
 import org.dcm4che3.img.stream.BytesWithImageDescriptor;
 import org.dcm4che3.img.stream.DicomFileInputStream;
@@ -274,8 +275,13 @@ public class DicomImageReader extends ImageReader {
       SeekableByteChannel channel, PhotometricInterpretation pmi, DicomImageReadParam param)
       throws IOException {
     JPEGParser parser = new JPEGParser(channel);
-    Attributes attributes = parser.getAttributes(null);
-    if (!TransferSyntaxType.isLossyCompression(attributes.getString(Tag.TransferSyntaxUID, ""))) {
+    String tsuid = null;
+    try {
+      tsuid = parser.getTransferSyntaxUID();
+    } catch (XPEGParserException e) {
+      LOG.warn("Cannot parse jpeg type", e);
+    }
+    if (tsuid != null && !TransferSyntaxType.isLossyCompression(tsuid)) {
       return false;
     }
     boolean keepRgbForLossyJpeg;
@@ -287,9 +293,8 @@ public class DicomImageReader extends ImageReader {
 
     if (pmi == PhotometricInterpretation.RGB && !keepRgbForLossyJpeg) {
       // Force JPEG Baseline (1.2.840.10008.1.2.4.50) to YBR_FULL_422 color model when RGB with
-      // JFIF header (error made by some constructors). RGB color model doesn't make sense for
-      // lossy jpeg with JFIF header.
-      return !"RGB".equals(attributes.getString(Tag.PhotometricInterpretation));
+      // JFIF header or not RGB components (error made by some constructors).
+      return !"RGB".equals(parser.getParams().colorPhotometricInterpretation());
     }
     return false;
   }

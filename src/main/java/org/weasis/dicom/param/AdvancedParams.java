@@ -190,8 +190,12 @@ public class AdvancedParams {
 
   public void configureTLS(Connection conn, Connection remote) throws IOException {
     if (tlsOptions != null) {
-      conn.setTlsCipherSuites(tlsOptions.getCipherSuites());
-      conn.setTlsProtocols(tlsOptions.getTlsProtocols());
+      if (tlsOptions.getCipherSuites() != null) {
+        conn.setTlsCipherSuites(tlsOptions.getCipherSuites().toArray(new String[0]));
+      }
+      if (tlsOptions.getTlsProtocols() != null) {
+        conn.setTlsProtocols(tlsOptions.getTlsProtocols().toArray(new String[0]));
+      }
       conn.setTlsNeedClientAuth(tlsOptions.isTlsNeedClientAuth());
 
       Device device = conn.getDevice();

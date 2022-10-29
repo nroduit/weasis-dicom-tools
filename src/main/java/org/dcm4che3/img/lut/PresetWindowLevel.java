@@ -105,8 +105,9 @@ public class PresetWindowLevel {
     }
     PresetWindowLevel that = (PresetWindowLevel) o;
     return Double.compare(that.window, window) == 0
-        && Double.compare(that.level, level) == 0 && name.equals(that.name) && shape.equals(
-        that.shape);
+        && Double.compare(that.level, level) == 0
+        && name.equals(that.name)
+        && shape.equals(that.shape);
   }
 
   @Override

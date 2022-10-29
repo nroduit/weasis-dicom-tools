@@ -9,27 +9,29 @@
  */
 package org.weasis.dicom.param;
 
+import java.util.List;
+
 public class TlsOptions {
   // cipherSuites
-  public static final String[] TLS = {
-    "SSL_RSA_WITH_NULL_SHA", "TLS_RSA_WITH_AES_128_CBC_SHA", "SSL_RSA_WITH_3DES_EDE_CBC_SHA"
-  };
-  public static final String[] TLS_NULL = {"SSL_RSA_WITH_NULL_SHA"};
-  public static final String[] TLS_3DES = {"SSL_RSA_WITH_3DES_EDE_CBC_SHA"};
-  public static final String[] TLS_AES = {
-    "TLS_RSA_WITH_AES_128_CBC_SHA", "SSL_RSA_WITH_3DES_EDE_CBC_SHA"
-  };
+  public static final List<String> TLS =
+      List.of(
+          "SSL_RSA_WITH_NULL_SHA", "TLS_RSA_WITH_AES_128_CBC_SHA", "SSL_RSA_WITH_3DES_EDE_CBC_SHA");
+  public static final List<String> TLS_NULL = List.of("SSL_RSA_WITH_NULL_SHA");
+  public static final List<String> TLS_3DES = List.of("SSL_RSA_WITH_3DES_EDE_CBC_SHA");
+  public static final List<String> TLS_AES =
+      List.of("TLS_RSA_WITH_AES_128_CBC_SHA", "SSL_RSA_WITH_3DES_EDE_CBC_SHA");
 
   // tlsProtocols
-  public static final String[] defaultProtocols = {"TLSv1", "SSLv3"};
-  public static final String[] tls1 = {"TLSv1"};
-  public static final String[] tls11 = {"TLSv1.1"};
-  public static final String[] tls12 = {"TLSv1.2"};
-  public static final String[] ssl3 = {"SSLv3"}; // deprecated
-  public static final String[] ssl2Hello = {"SSLv2Hello", "SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2"};
+  public static final List<String> defaultProtocols = List.of("TLSv1", "SSLv3");
+  public static final List<String> tls1 = List.of("TLSv1");
+  public static final List<String> tls11 = List.of("TLSv1.1");
+  public static final List<String> tls12 = List.of("TLSv1.2");
+  @Deprecated public static final List<String> ssl3 = List.of("SSLv3");
+  public static final List<String> ssl2Hello =
+      List.of("SSLv2Hello", "SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2");
 
-  private final String[] cipherSuites;
-  private final String[] tlsProtocols;
+  private final List<String> cipherSuites;
+  private final List<String> tlsProtocols;
 
   private final boolean tlsNeedClientAuth;
 
@@ -64,8 +66,8 @@ public class TlsOptions {
   }
 
   public TlsOptions(
-      String[] cipherSuites,
-      String[] tlsProtocols,
+      List<String> cipherSuites,
+      List<String> tlsProtocols,
       boolean tlsNeedClientAuth,
       String keystoreURL,
       String keystoreType,
@@ -93,11 +95,11 @@ public class TlsOptions {
     return tlsNeedClientAuth;
   }
 
-  public String[] getCipherSuites() {
+  public List<String> getCipherSuites() {
     return cipherSuites;
   }
 
-  public String[] getTlsProtocols() {
+  public List<String> getTlsProtocols() {
     return tlsProtocols;
   }
 

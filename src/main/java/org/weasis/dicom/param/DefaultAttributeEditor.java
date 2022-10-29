@@ -94,30 +94,25 @@ public class DefaultAttributeEditor implements AttributeEditor {
 
     @Override
     public boolean visit(Attributes attrs, int tag, VR vr, Object val) {
-      if (vr != VR.UI || val == Value.NULL) {
-        return true;
-      }
-      if (!uids.contains(tag)) {
-        return true;
-      }
-
-      String[] ss;
-      if (val instanceof byte[]) {
-        ss = attrs.getStrings(tag);
-        val = ss.length == 1 ? ss[0] : ss;
-      }
-      if (val instanceof String[]) {
-        ss = (String[]) val;
-        for (int i = 0; i < ss.length; i++) {
-          String uid = hmac.uidHash(ss[i]);
-          if (uid != null) {
-            ss[i] = uid;
-          }
+      if (vr == VR.UI && val != Value.NULL && uids.contains(tag)) {
+        String[] ss;
+        if (val instanceof byte[]) {
+          ss = attrs.getStrings(tag);
+          val = ss.length == 1 ? ss[0] : ss;
         }
-      } else {
-        String uid = hmac.uidHash(val.toString());
-        if (uid != null) {
-          attrs.setString(tag, VR.UI, uid);
+        if (val instanceof String[]) {
+          ss = (String[]) val;
+          for (int i = 0; i < ss.length; i++) {
+            String uid = hmac.uidHash(ss[i]);
+            if (uid != null) {
+              ss[i] = uid;
+            }
+          }
+        } else {
+          String uid = hmac.uidHash(val.toString());
+          if (uid != null) {
+            attrs.setString(tag, VR.UI, uid);
+          }
         }
       }
       return true;

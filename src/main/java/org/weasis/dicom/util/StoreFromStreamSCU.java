@@ -75,7 +75,7 @@ public class StoreFromStreamSCU {
       };
   private final ScheduledExecutorService closeAssociationExecutor =
       Executors.newSingleThreadScheduledExecutor();
-  private volatile ScheduledFuture<?> scheduledFuture;
+  private ScheduledFuture<?> scheduledFuture;
 
   private final RSPHandlerFactory rspHandlerFactory =
       () ->

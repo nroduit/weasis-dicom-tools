@@ -7,7 +7,7 @@
   <artifactId>weasis-dicom-tools</artifactId>
   <packaging>jar</packaging>
   <name>Weasis DICOM API (based on dcm4che3)</name>
-  <version>5.29.0</version>
+  <version>5.29.0.1</version>
 
   <properties>
     <java-version>11</java-version>
@@ -20,8 +20,8 @@
     <sonar.organization>nroduit-github</sonar.organization>
     <sonar.host.url>https://sonarcloud.io</sonar.host.url>
 
-    <weasis.core.img.version>4.5.5.2</weasis.core.img.version>
-    <weasis.opencv.native.version>4.5.5-dcm</weasis.opencv.native.version>
+    <weasis.core.img.version>4.6.0</weasis.core.img.version>
+    <weasis.opencv.native.version>4.6.0-dcm</weasis.opencv.native.version>
     <skipTests>false</skipTests>
   </properties>
 
@@ -502,6 +502,7 @@
     <dependency>
       <groupId>org.weasis.core</groupId>
       <artifactId>weasis-core-img</artifactId>
+      <classifier>jdk11</classifier>
       <version>${weasis.core.img.version}</version>
     </dependency>
 
@@ -536,7 +537,7 @@
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-simple</artifactId>
-      <version>1.7.36</version>
+      <version>2.0.3</version>
       <scope>test</scope>
     </dependency>
   </dependencies>

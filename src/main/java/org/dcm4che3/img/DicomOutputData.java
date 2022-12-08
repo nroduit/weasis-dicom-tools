@@ -94,26 +94,26 @@ public class DicomOutputData {
       for (int i = 0; i < images.size(); i++) {
         PlanarImage image = images.get(i).get();
         boolean releaseSrc = image.isReleasedAfterProcessing();
-        PlanarImage writeImage = DicomImageUtils.bgr2rgb(image);
-        if (releaseSrc && !writeImage.equals(image)) {
+        PlanarImage writeImg = DicomUtils.isJpeg2000(tsuid) ? image :DicomImageUtils.bgr2rgb(image);
+        if (releaseSrc && !writeImg.equals(image)) {
           image.release();
         }
-        buf = Imgcodecs.dicomJpgWrite(writeImage.toMat(), dicomParams, "");
+        buf = Imgcodecs.dicomJpgWrite(writeImg.toMat(), dicomParams, "");
         if (buf.empty()) {
-          writeImage.release();
+          writeImg.release();
           throw new IOException("Native encoding error: null image");
         }
         int compressedLength = buf.width() * buf.height() * (int) buf.elemSize();
         if (i == 0) {
           double uncompressed =
-              writeImage.width() * writeImage.height() * (double) writeImage.elemSize();
+              writeImg.width() * writeImg.height() * (double) writeImg.elemSize();
           adaptCompressionRatio(dataSet, params, uncompressed / compressedLength);
           dos.writeDataset(null, dataSet);
           dos.writeHeader(Tag.PixelData, VR.OB, -1);
           dos.writeHeader(Tag.Item, null, 0);
         }
         if (releaseSrc) {
-          writeImage.release();
+          writeImg.release();
         }
 
         byte[] bSrcData = new byte[compressedLength];

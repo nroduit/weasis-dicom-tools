@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased](https://github.com/nroduit/weasis-dicom-tools/tree/HEAD)
+
+[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.29.0.1...HEAD)
+
+**Implemented enhancements:**
+
+- Free native memory issue [\#21](https://github.com/nroduit/weasis-dicom-tools/issues/21)
+
+## [v5.29.0.1](https://github.com/nroduit/weasis-dicom-tools/tree/v5.29.0.1) (2022-12-08)
+
+[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.29.0...v5.29.0.1)
+
 ## [v5.29.0](https://github.com/nroduit/weasis-dicom-tools/tree/v5.29.0) (2022-10-29)
 
 [Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.27.0.1...v5.29.0)

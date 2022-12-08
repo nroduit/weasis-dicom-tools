@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Changelog Generator from github issues
         id: generate_changelog_file
         uses: heinrichreimer/github-changelog-generator-action@v2.3
@@ -24,16 +24,16 @@ jobs:
           branch: master
           commit_message: "Automatic changelog update"
           file_pattern: "CHANGELOG.md"
-      - name: Extract Release Notes
-        id: extract_release_notes
+      - name: Extract release notes
+        id: extract-release-notes
         uses: ffurrer2/extract-release-notes@v1
-      - name: Create Release
+      - name: Create release
         uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.ref }}
           release_name: ${{ github.ref }}
-          body: ${{ steps.extract-release-notes.outputs.release_notes }}
-          prerelease: ${{ contains(github.ref, '-rc') || contains(github.ref, '-b') || contains(github.ref, '-a') }}
           draft: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          prerelease: false
+          body: ${{ steps.extract-release-notes.outputs.release_notes }}

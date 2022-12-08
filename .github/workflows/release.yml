@@ -9,20 +9,15 @@ jobs:
     name: Maven Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           path: main
       - name: Set up JDK for compilation
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: '11'
-      - name: Cache Maven packages
-        uses: actions/cache@v2
-        with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-m2
+          cache: 'maven'
       - name: Build weasis-dicom-tools
         run: mvn -B clean install -f main
       - name: Extract Maven project version
@@ -31,7 +26,7 @@ jobs:
           echo ::set-output name=version::$(mvn -q -Dexec.executable=echo -Dexec.args='${project.version}' --non-recursive exec:exec)
         id: project
       - name: Checkout mvn-repo repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: nroduit/mvn-repo
           path: mvn-repo

@@ -94,7 +94,8 @@ public class DicomOutputData {
       for (int i = 0; i < images.size(); i++) {
         PlanarImage image = images.get(i).get();
         boolean releaseSrc = image.isReleasedAfterProcessing();
-        PlanarImage writeImg = DicomUtils.isJpeg2000(tsuid) ? image :DicomImageUtils.bgr2rgb(image);
+        PlanarImage writeImg =
+            DicomUtils.isJpeg2000(tsuid) ? image : DicomImageUtils.bgr2rgb(image);
         if (releaseSrc && !writeImg.equals(image)) {
           image.release();
         }
@@ -105,8 +106,7 @@ public class DicomOutputData {
         }
         int compressedLength = buf.width() * buf.height() * (int) buf.elemSize();
         if (i == 0) {
-          double uncompressed =
-              writeImg.width() * writeImg.height() * (double) writeImg.elemSize();
+          double uncompressed = writeImg.width() * writeImg.height() * (double) writeImg.elemSize();
           adaptCompressionRatio(dataSet, params, uncompressed / compressedLength);
           dos.writeDataset(null, dataSet);
           dos.writeHeader(Tag.PixelData, VR.OB, -1);

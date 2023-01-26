@@ -67,6 +67,8 @@ public class StoreFromStreamSCU {
   private final AdvancedParams options;
   private final AtomicBoolean countdown = new AtomicBoolean(false);
 
+  private final AtomicBoolean pauseAssociation = new AtomicBoolean(false);
+
   private final TimerTask closeAssociationTask =
       new TimerTask() {
         public void run() {
@@ -187,6 +189,25 @@ public class StoreFromStreamSCU {
 
   public void cstore(String cuid, String iuid, int priority, DataWriter dataWriter, String tsuid)
       throws IOException, InterruptedException {
+    if (pauseAssociation.get()) {
+      int loop = 0;
+      boolean runLoop = true;
+      while (runLoop) {
+        try {
+          if (!pauseAssociation.get()) {
+            break;
+          }
+          TimeUnit.MILLISECONDS.sleep(10);
+          loop++;
+          if (loop > 500) { // Let 5 sec max
+            runLoop = false;
+          }
+        } catch (InterruptedException e) {
+          runLoop = false;
+          Thread.currentThread().interrupt();
+        }
+      }
+    }
     if (as == null) {
       throw new IllegalStateException("Association is null!");
     }
@@ -291,6 +312,8 @@ public class StoreFromStreamSCU {
       }
       as = null;
       LOGGER.trace("Connecting to remote destination", e);
+    } finally {
+      pauseAssociation.set(false);
     }
     if (as == null) {
       throw new IOException("Cannot connect to the remote destination");
@@ -299,6 +322,7 @@ public class StoreFromStreamSCU {
 
   public synchronized void close(boolean force) {
     if (force || countdown.compareAndSet(true, false)) {
+      pauseAssociation.set(true);
       if (as != null) {
         try {
           LOGGER.info("Closing DICOM association");

@@ -190,23 +190,21 @@ public class StoreFromStreamSCU {
   public void cstore(String cuid, String iuid, int priority, DataWriter dataWriter, String tsuid)
       throws IOException, InterruptedException {
     if (pauseAssociation.get()) {
-      synchronized (this) {
-        int loop = 0;
-        boolean runLoop = true;
-        while (runLoop) {
-          try {
-            if (!pauseAssociation.get()) {
-              break;
-            }
-            TimeUnit.MILLISECONDS.sleep(10);
-            loop++;
-            if (loop > 500) { // Let 5 sec max
-              runLoop = false;
-            }
-          } catch (InterruptedException e) {
-            runLoop = false;
-            Thread.currentThread().interrupt();
+      int loop = 0;
+      boolean runLoop = true;
+      while (runLoop) {
+        try {
+          if (!pauseAssociation.get()) {
+            break;
           }
+          TimeUnit.MILLISECONDS.sleep(10);
+          loop++;
+          if (loop > 500) { // Let 5 sec max
+            runLoop = false;
+          }
+        } catch (InterruptedException e) {
+          runLoop = false;
+          Thread.currentThread().interrupt();
         }
       }
     }

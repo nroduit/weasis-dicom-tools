@@ -10,10 +10,7 @@
 package org.weasis.dicom.util;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.Objects;
-import java.util.Set;
-import java.util.TimerTask;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -22,6 +19,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
+import org.dcm4che3.img.DicomOutputData;
 import org.dcm4che3.net.ApplicationEntity;
 import org.dcm4che3.net.Association;
 import org.dcm4che3.net.Connection;
@@ -35,10 +33,7 @@ import org.dcm4che3.tool.storescu.RelatedGeneralSOPClasses;
 import org.dcm4che3.util.TagUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.weasis.dicom.param.AdvancedParams;
-import org.weasis.dicom.param.DicomNode;
-import org.weasis.dicom.param.DicomProgress;
-import org.weasis.dicom.param.DicomState;
+import org.weasis.dicom.param.*;
 import org.weasis.dicom.util.ServiceUtil.ProgressStatus;
 
 public class StoreFromStreamSCU {
@@ -50,6 +45,7 @@ public class StoreFromStreamSCU {
     DimseRSPHandler createDimseRSPHandler();
   }
 
+  private final Set<Object> currentList = Collections.synchronizedSet(new LinkedHashSet<>());
   private final ApplicationEntity ae;
   private final Connection remote;
   private final AAssociateRQ rq = new AAssociateRQ();
@@ -366,5 +362,64 @@ public class StoreFromStreamSCU {
     }
 
     return UID.ImplicitVRLittleEndian;
+  }
+
+  public void removeInstanceUID(String iuid) {
+    currentList.remove(iuid);
+  }
+
+  public void prepareTransfer(DeviceOpService service, String iuid, String cuid, String dstTsuid)
+      throws IOException {
+    synchronized (this) {
+      if (hasAssociation()) {
+        // Handle dynamically new SOPClassUID
+        Set<String> tss = getTransferSyntaxesFor(cuid);
+        if (!tss.contains(dstTsuid)) {
+          countdown.set(false);
+          int loop = 0;
+          boolean runLoop = true;
+          while (runLoop) {
+            try {
+              if (currentList.isEmpty()) {
+                break;
+              }
+              TimeUnit.MILLISECONDS.sleep(20);
+              loop++;
+              if (loop > 2500) { // Let 50 sec max
+                runLoop = false;
+              }
+            } catch (InterruptedException e) {
+              runLoop = false;
+              Thread.currentThread().interrupt();
+            }
+          }
+          LOGGER.info("Close association to handle dynamically new SOPClassUID: {}", cuid);
+          close(true);
+        }
+
+        // Add Presentation Context for the association
+        addData(cuid, dstTsuid);
+        if (DicomOutputData.isAdaptableSyntax(dstTsuid)) {
+          addData(cuid, UID.JPEGLosslessSV1);
+        }
+
+        if (!isReadyForDataTransfer()) {
+          // If connection has been closed just reopen
+          open();
+        }
+      } else {
+        service.start();
+        // Add Presentation Context for the association
+        addData(cuid, dstTsuid);
+        if (!dstTsuid.equals(UID.ExplicitVRLittleEndian)) {
+          addData(cuid, UID.ExplicitVRLittleEndian);
+        }
+        if (DicomOutputData.isAdaptableSyntax(dstTsuid)) {
+          addData(cuid, UID.JPEGLosslessSV1);
+        }
+        open();
+      }
+      currentList.add(iuid);
+    }
   }
 }

@@ -396,8 +396,7 @@ public class DicomImageReader extends ImageReader {
   public PlanarImage getPlanarImage(int frame, DicomImageReadParam param) throws IOException {
     PlanarImage img = getRawImage(frame, param);
     PlanarImage out = img;
-    if (getImageDescriptor().getPhotometricInterpretation()
-        == PhotometricInterpretation.PALETTE_COLOR) {
+    if (getImageDescriptor().hasPaletteColorLookupTable()) {
       if (dis == null) {
         out =
             DicomImageUtils.getRGBImageFromPaletteColorModel(

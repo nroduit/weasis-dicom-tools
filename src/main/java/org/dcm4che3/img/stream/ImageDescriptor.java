@@ -46,6 +46,7 @@ public final class ImageDescriptor {
   private final VoiLutModule voiLUT;
   private final int highBit;
   private final String stationName;
+  private final String pixelPresentation;
 
   public ImageDescriptor(Attributes dcm) {
     this(dcm, 0);
@@ -58,6 +59,7 @@ public final class ImageDescriptor {
     this.photometricInterpretation =
         PhotometricInterpretation.fromString(
             dcm.getString(Tag.PhotometricInterpretation, "MONOCHROME2"));
+    this.pixelPresentation = dcm.getString(Tag.PixelPresentation);
     this.bitsAllocated = dcm.getInt(Tag.BitsAllocated, 8);
     this.bitsStored = dcm.getInt(Tag.BitsStored, bitsAllocated);
     this.highBit = dcm.getInt(Tag.HighBit, bitsStored - 1);
@@ -106,6 +108,15 @@ public final class ImageDescriptor {
 
   public int getBitsCompressed() {
     return bitsCompressed;
+  }
+
+  public String getPixelPresentation() {
+    return pixelPresentation;
+  }
+
+  public boolean hasPaletteColorLookupTable() {
+    return photometricInterpretation == PhotometricInterpretation.PALETTE_COLOR
+        || (pixelPresentation != null && !"MONOCHROME".equals(pixelPresentation));
   }
 
   public int getPixelRepresentation() {

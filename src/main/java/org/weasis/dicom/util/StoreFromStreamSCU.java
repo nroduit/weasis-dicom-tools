@@ -190,21 +190,18 @@ public class StoreFromStreamSCU {
   public void cstore(String cuid, String iuid, int priority, DataWriter dataWriter, String tsuid)
       throws IOException, InterruptedException {
     if (pauseAssociation.get()) {
-      LOGGER.info("Pause Association enter");
       synchronized (this) {
         int loop = 0;
         boolean runLoop = true;
         while (runLoop) {
           try {
             if (!pauseAssociation.get()) {
-              LOGGER.info("Pause Association exit");
               break;
             }
             TimeUnit.MILLISECONDS.sleep(10);
             loop++;
             if (loop > 500) { // Let 5 sec max
               runLoop = false;
-              LOGGER.info("Pause Association timeout");
             }
           } catch (InterruptedException e) {
             runLoop = false;
@@ -216,7 +213,6 @@ public class StoreFromStreamSCU {
     if (as == null) {
       throw new IllegalStateException("Association is null!");
     }
-    LOGGER.info("C-store call");
     as.cstore(cuid, iuid, priority, dataWriter, tsuid, rspHandlerFactory.createDimseRSPHandler());
   }
 

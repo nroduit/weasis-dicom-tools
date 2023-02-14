@@ -17,7 +17,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
@@ -47,7 +46,8 @@ public class StoreFromStreamSCU {
     DimseRSPHandler createDimseRSPHandler();
   }
 
-  // Map which corresponds to the instances UIDs currently processed: the value corresponds to the number of occurence
+  // Map which corresponds to the instances UIDs currently processed: the value corresponds to the
+  // number of occurence
   // of this uid currently processed
   private final Map<String, Integer> instanceUidsCurrentlyProcessed = new ConcurrentHashMap<>();
 
@@ -407,9 +407,10 @@ public class StoreFromStreamSCU {
   }
 
   /**
-   * Check if a new transfer syntax needs to be dynamically added to the association.
-   * If yes, wait until the end of the current transfers of the streamSCU and close association
-   * to add new transfer syntax.
+   * Check if a new transfer syntax needs to be dynamically added to the association. If yes, wait
+   * until the end of the current transfers of the streamSCU and close association to add new
+   * transfer syntax.
+   *
    * @param cuid cuid
    * @param dstTsuid List of transfer syntax of the association
    */
@@ -440,37 +441,39 @@ public class StoreFromStreamSCU {
           Thread.currentThread().interrupt();
         }
       }
-      LOGGER.info("prepareTransfer: Close association to handle dynamically new SOPClassUID: {}",
-          cuid);
+      LOGGER.info(
+          "prepareTransfer: Close association to handle dynamically new SOPClassUID: {}", cuid);
       close(true);
     }
   }
 
   /**
-   * Manage the map corresponding to the uids currently processed: remove the uid of the map if
-   * only 1 occurence, otherwise remove 1 occurence number
+   * Manage the map corresponding to the uids currently processed: remove the uid of the map if only
+   * 1 occurence, otherwise remove 1 occurence number
+   *
    * @param iuid Uid to remove from the map
    */
   public void removeIUIDProcessed(String iuid) {
-    if(instanceUidsCurrentlyProcessed.containsKey(iuid) && instanceUidsCurrentlyProcessed.get(iuid) < 2){
+    if (instanceUidsCurrentlyProcessed.containsKey(iuid)
+        && instanceUidsCurrentlyProcessed.get(iuid) < 2) {
       instanceUidsCurrentlyProcessed.remove(iuid);
-    }
-    else {
-      instanceUidsCurrentlyProcessed.computeIfPresent(iuid, (k, v) -> v-1);
+    } else {
+      instanceUidsCurrentlyProcessed.computeIfPresent(iuid, (k, v) -> v - 1);
     }
   }
 
   /**
-   * Manage the map corresponding to the uids currently processed: add the uid to the map if
-   * uid not existing add 1 occurrence, otherwise add 1 occurence number to the existing uid
+   * Manage the map corresponding to the uids currently processed: add the uid to the map if uid not
+   * existing add 1 occurrence, otherwise add 1 occurence number to the existing uid
+   *
    * @param iuid Uid to add in the map
    */
   private void addIUIDProcessed(String iuid) {
-    if(instanceUidsCurrentlyProcessed.isEmpty() || !instanceUidsCurrentlyProcessed.containsKey(iuid)){
+    if (instanceUidsCurrentlyProcessed.isEmpty()
+        || !instanceUidsCurrentlyProcessed.containsKey(iuid)) {
       instanceUidsCurrentlyProcessed.put(iuid, 1);
-    }
-    else {
-      instanceUidsCurrentlyProcessed.computeIfPresent(iuid, (k, v) -> v+1);
+    } else {
+      instanceUidsCurrentlyProcessed.computeIfPresent(iuid, (k, v) -> v + 1);
     }
   }
 }

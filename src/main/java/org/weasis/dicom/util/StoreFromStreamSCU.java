@@ -11,11 +11,13 @@ package org.weasis.dicom.util;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
@@ -45,7 +47,10 @@ public class StoreFromStreamSCU {
     DimseRSPHandler createDimseRSPHandler();
   }
 
-  private final Set<Object> currentList = Collections.synchronizedSet(new LinkedHashSet<>());
+  // Map which corresponds to the instances UIDs currently processed: the value corresponds to the number of occurence
+  // of this uid currently processed
+  private final Map<String, Integer> instanceUidsCurrentlyProcessed = new ConcurrentHashMap<>();
+
   private final ApplicationEntity ae;
   private final Connection remote;
   private final AAssociateRQ rq = new AAssociateRQ();
@@ -364,38 +369,12 @@ public class StoreFromStreamSCU {
     return UID.ImplicitVRLittleEndian;
   }
 
-  public void removeInstanceUID(String iuid) {
-    currentList.remove(iuid);
-  }
-
   public void prepareTransfer(DeviceOpService service, String iuid, String cuid, String dstTsuid)
       throws IOException {
     synchronized (this) {
       if (hasAssociation()) {
         // Handle dynamically new SOPClassUID
-        Set<String> tss = getTransferSyntaxesFor(cuid);
-        if (!tss.contains(dstTsuid)) {
-          countdown.set(false);
-          int loop = 0;
-          boolean runLoop = true;
-          while (runLoop) {
-            try {
-              if (currentList.isEmpty()) {
-                break;
-              }
-              TimeUnit.MILLISECONDS.sleep(20);
-              loop++;
-              if (loop > 2500) { // Let 50 sec max
-                runLoop = false;
-              }
-            } catch (InterruptedException e) {
-              runLoop = false;
-              Thread.currentThread().interrupt();
-            }
-          }
-          LOGGER.info("Close association to handle dynamically new SOPClassUID: {}", cuid);
-          close(true);
-        }
+        checkNewSopClassUID(cuid, dstTsuid);
 
         // Add Presentation Context for the association
         addData(cuid, dstTsuid);
@@ -404,6 +383,7 @@ public class StoreFromStreamSCU {
         }
 
         if (!isReadyForDataTransfer()) {
+          LOGGER.debug("prepareTransfer: as not ready for data transfer, reopen");
           // If connection has been closed just reopen
           open();
         }
@@ -417,9 +397,80 @@ public class StoreFromStreamSCU {
         if (DicomOutputData.isAdaptableSyntax(dstTsuid)) {
           addData(cuid, UID.JPEGLosslessSV1);
         }
+        LOGGER.debug("prepareTransfer: connecting to the remote destination");
         open();
       }
-      currentList.add(iuid);
+
+      // Add IUID to process
+      addIUIDProcessed(iuid);
+    }
+  }
+
+  /**
+   * Check if a new transfer syntax needs to be dynamically added to the association.
+   * If yes, wait until the end of the current transfers of the streamSCU and close association
+   * to add new transfer syntax.
+   * @param cuid cuid
+   * @param dstTsuid List of transfer syntax of the association
+   */
+  private void checkNewSopClassUID(String cuid, String dstTsuid) {
+    Set<String> tss = getTransferSyntaxesFor(cuid);
+    if (!tss.contains(dstTsuid)) {
+      LOGGER.debug("prepareTransfer: New output transfer syntax {}: closing streamSCU", dstTsuid);
+      countdown.set(false);
+      int loop = 0;
+      boolean runLoop = true;
+      while (runLoop) {
+        try {
+          if (instanceUidsCurrentlyProcessed.isEmpty()) {
+            LOGGER.debug("prepareTransfer: StreamSCU has no more IUID to process: stop waiting");
+            break;
+          }
+          LOGGER.debug("prepareTransfer: StreamSCU has some IUID to process: waiting 20 ms");
+          TimeUnit.MILLISECONDS.sleep(20);
+          loop++;
+          if (loop > 3000) { // Let 1 min max
+            LOGGER.warn("prepareTransfer: StreamSCU timeout reached");
+            runLoop = false;
+            instanceUidsCurrentlyProcessed.clear();
+          }
+        } catch (InterruptedException e) {
+          LOGGER.error(String.format("prepareTransfer: InterruptedException %s", e.getMessage()));
+          runLoop = false;
+          Thread.currentThread().interrupt();
+        }
+      }
+      LOGGER.info("prepareTransfer: Close association to handle dynamically new SOPClassUID: {}",
+          cuid);
+      close(true);
+    }
+  }
+
+  /**
+   * Manage the map corresponding to the uids currently processed: remove the uid of the map if
+   * only 1 occurence, otherwise remove 1 occurence number
+   * @param iuid Uid to remove from the map
+   */
+  public void removeIUIDProcessed(String iuid) {
+    if(instanceUidsCurrentlyProcessed.containsKey(iuid) && instanceUidsCurrentlyProcessed.get(iuid) < 2){
+      instanceUidsCurrentlyProcessed.remove(iuid);
+    }
+    else {
+      instanceUidsCurrentlyProcessed.computeIfPresent(iuid, (k, v) -> v-1);
+    }
+  }
+
+  /**
+   * Manage the map corresponding to the uids currently processed: add the uid to the map if
+   * uid not existing add 1 occurrence, otherwise add 1 occurence number to the existing uid
+   * @param iuid Uid to add in the map
+   */
+  private void addIUIDProcessed(String iuid) {
+    if(instanceUidsCurrentlyProcessed.isEmpty() || !instanceUidsCurrentlyProcessed.containsKey(iuid)){
+      instanceUidsCurrentlyProcessed.put(iuid, 1);
+    }
+    else {
+      instanceUidsCurrentlyProcessed.computeIfPresent(iuid, (k, v) -> v+1);
     }
   }
 }

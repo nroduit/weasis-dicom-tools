@@ -1,12 +1,16 @@
 # Changelog
 
-## [Unreleased](https://github.com/nroduit/weasis-dicom-tools/tree/HEAD)
+## [v5.29.0.2](https://github.com/nroduit/weasis-dicom-tools/tree/v5.29.0.2) (2023-02-14)
 
-[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.29.0.1...HEAD)
+[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.29.0.1...v5.29.0.2)
 
 **Implemented enhancements:**
 
 - Free native memory issue [\#21](https://github.com/nroduit/weasis-dicom-tools/issues/21)
+
+**Merged pull requests:**
+
+- Modification closing stream scu [\#23](https://github.com/nroduit/weasis-dicom-tools/pull/23) ([jdcshug](https://github.com/jdcshug))
 
 ## [v5.29.0.1](https://github.com/nroduit/weasis-dicom-tools/tree/v5.29.0.1) (2022-12-08)
 
@@ -74,15 +78,15 @@
 
 ## [v5.23.3](https://github.com/nroduit/weasis-dicom-tools/tree/v5.23.3) (2021-06-05)
 
-[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.23.3-IMG-RELEASE...v5.23.3)
-
-## [v5.23.3-IMG-RELEASE](https://github.com/nroduit/weasis-dicom-tools/tree/v5.23.3-IMG-RELEASE) (2021-06-03)
-
-[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/5.23.3-IMG-RELEASE...v5.23.3-IMG-RELEASE)
+[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/5.23.3-IMG-RELEASE...v5.23.3)
 
 ## [5.23.3-IMG-RELEASE](https://github.com/nroduit/weasis-dicom-tools/tree/5.23.3-IMG-RELEASE) (2021-06-03)
 
-[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.23.2.1-IMG-RELEASE...5.23.3-IMG-RELEASE)
+[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.23.3-IMG-RELEASE...5.23.3-IMG-RELEASE)
+
+## [v5.23.3-IMG-RELEASE](https://github.com/nroduit/weasis-dicom-tools/tree/v5.23.3-IMG-RELEASE) (2021-06-03)
+
+[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.23.2.1-IMG-RELEASE...v5.23.3-IMG-RELEASE)
 
 ## [v5.23.2.1-IMG-RELEASE](https://github.com/nroduit/weasis-dicom-tools/tree/v5.23.2.1-IMG-RELEASE) (2021-04-30)
 

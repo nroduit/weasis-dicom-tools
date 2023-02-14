@@ -10,18 +10,18 @@
 package org.weasis.dicom.util;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.Objects;
-import java.util.Set;
-import java.util.TimerTask;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
+import org.dcm4che3.img.DicomOutputData;
 import org.dcm4che3.net.ApplicationEntity;
 import org.dcm4che3.net.Association;
 import org.dcm4che3.net.Connection;
@@ -35,10 +35,7 @@ import org.dcm4che3.tool.storescu.RelatedGeneralSOPClasses;
 import org.dcm4che3.util.TagUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.weasis.dicom.param.AdvancedParams;
-import org.weasis.dicom.param.DicomNode;
-import org.weasis.dicom.param.DicomProgress;
-import org.weasis.dicom.param.DicomState;
+import org.weasis.dicom.param.*;
 import org.weasis.dicom.util.ServiceUtil.ProgressStatus;
 
 public class StoreFromStreamSCU {
@@ -49,6 +46,10 @@ public class StoreFromStreamSCU {
   public interface RSPHandlerFactory {
     DimseRSPHandler createDimseRSPHandler();
   }
+
+  // Map which corresponds to the instances UIDs currently processed: the value corresponds to the number of occurence
+  // of this uid currently processed
+  private final Map<String, Integer> instanceUidsCurrentlyProcessed = new ConcurrentHashMap<>();
 
   private final ApplicationEntity ae;
   private final Connection remote;
@@ -366,5 +367,110 @@ public class StoreFromStreamSCU {
     }
 
     return UID.ImplicitVRLittleEndian;
+  }
+
+  public void prepareTransfer(DeviceOpService service, String iuid, String cuid, String dstTsuid)
+      throws IOException {
+    synchronized (this) {
+      if (hasAssociation()) {
+        // Handle dynamically new SOPClassUID
+        checkNewSopClassUID(cuid, dstTsuid);
+
+        // Add Presentation Context for the association
+        addData(cuid, dstTsuid);
+        if (DicomOutputData.isAdaptableSyntax(dstTsuid)) {
+          addData(cuid, UID.JPEGLosslessSV1);
+        }
+
+        if (!isReadyForDataTransfer()) {
+          LOGGER.debug("prepareTransfer: as not ready for data transfer, reopen");
+          // If connection has been closed just reopen
+          open();
+        }
+      } else {
+        service.start();
+        // Add Presentation Context for the association
+        addData(cuid, dstTsuid);
+        if (!dstTsuid.equals(UID.ExplicitVRLittleEndian)) {
+          addData(cuid, UID.ExplicitVRLittleEndian);
+        }
+        if (DicomOutputData.isAdaptableSyntax(dstTsuid)) {
+          addData(cuid, UID.JPEGLosslessSV1);
+        }
+        LOGGER.debug("prepareTransfer: connecting to the remote destination");
+        open();
+      }
+
+      // Add IUID to process
+      addIUIDProcessed(iuid);
+    }
+  }
+
+  /**
+   * Check if a new transfer syntax needs to be dynamically added to the association.
+   * If yes, wait until the end of the current transfers of the streamSCU and close association
+   * to add new transfer syntax.
+   * @param cuid cuid
+   * @param dstTsuid List of transfer syntax of the association
+   */
+  private void checkNewSopClassUID(String cuid, String dstTsuid) {
+    Set<String> tss = getTransferSyntaxesFor(cuid);
+    if (!tss.contains(dstTsuid)) {
+      LOGGER.debug("prepareTransfer: New output transfer syntax {}: closing streamSCU", dstTsuid);
+      countdown.set(false);
+      int loop = 0;
+      boolean runLoop = true;
+      while (runLoop) {
+        try {
+          if (instanceUidsCurrentlyProcessed.isEmpty()) {
+            LOGGER.debug("prepareTransfer: StreamSCU has no more IUID to process: stop waiting");
+            break;
+          }
+          LOGGER.debug("prepareTransfer: StreamSCU has some IUID to process: waiting 20 ms");
+          TimeUnit.MILLISECONDS.sleep(20);
+          loop++;
+          if (loop > 3000) { // Let 1 min max
+            LOGGER.warn("prepareTransfer: StreamSCU timeout reached");
+            runLoop = false;
+            instanceUidsCurrentlyProcessed.clear();
+          }
+        } catch (InterruptedException e) {
+          LOGGER.error(String.format("prepareTransfer: InterruptedException %s", e.getMessage()));
+          runLoop = false;
+          Thread.currentThread().interrupt();
+        }
+      }
+      LOGGER.info("prepareTransfer: Close association to handle dynamically new SOPClassUID: {}",
+          cuid);
+      close(true);
+    }
+  }
+
+  /**
+   * Manage the map corresponding to the uids currently processed: remove the uid of the map if
+   * only 1 occurence, otherwise remove 1 occurence number
+   * @param iuid Uid to remove from the map
+   */
+  public void removeIUIDProcessed(String iuid) {
+    if(instanceUidsCurrentlyProcessed.containsKey(iuid) && instanceUidsCurrentlyProcessed.get(iuid) < 2){
+      instanceUidsCurrentlyProcessed.remove(iuid);
+    }
+    else {
+      instanceUidsCurrentlyProcessed.computeIfPresent(iuid, (k, v) -> v-1);
+    }
+  }
+
+  /**
+   * Manage the map corresponding to the uids currently processed: add the uid to the map if
+   * uid not existing add 1 occurrence, otherwise add 1 occurence number to the existing uid
+   * @param iuid Uid to add in the map
+   */
+  private void addIUIDProcessed(String iuid) {
+    if(instanceUidsCurrentlyProcessed.isEmpty() || !instanceUidsCurrentlyProcessed.containsKey(iuid)){
+      instanceUidsCurrentlyProcessed.put(iuid, 1);
+    }
+    else {
+      instanceUidsCurrentlyProcessed.computeIfPresent(iuid, (k, v) -> v+1);
+    }
   }
 }

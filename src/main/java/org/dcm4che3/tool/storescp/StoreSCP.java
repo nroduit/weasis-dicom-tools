@@ -266,4 +266,12 @@ public class StoreSCP {
   public Device getDevice() {
     return device;
   }
+
+  public File getStorageDir() {
+    return storageDir;
+  }
+
+  public DicomProgress getProgress() {
+    return progress;
+  }
 }

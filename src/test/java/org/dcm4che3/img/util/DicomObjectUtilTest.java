@@ -81,10 +81,10 @@ public class DicomObjectUtilTest {
 
     assertFalse(
         DicomObjectUtil.isImageFrameApplicableToReferencedImageSequence(
-            new ArrayList<Attributes>(), Tag.ReferencedFrameNumber, "1.2.3.4.5.1.1", 1, true));
+            new ArrayList<>(), Tag.ReferencedFrameNumber, "1.2.3.4.5.1.1", 1, true));
     assertFalse(
         DicomObjectUtil.isImageFrameApplicableToReferencedImageSequence(
-            new ArrayList<Attributes>(), Tag.ReferencedFrameNumber, "", 3, true));
+            new ArrayList<>(), Tag.ReferencedFrameNumber, "", 3, true));
 
     // Accept all when no reference
     assertTrue(

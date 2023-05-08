@@ -1,5 +1,13 @@
 # Changelog
 
+## [v5.29.2](https://github.com/nroduit/weasis-dicom-tools/tree/v5.29.2) (2023-04-17)
+
+[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.29.0.2...v5.29.2)
+
+**Closed issues:**
+
+- can't read Chinese words [\#24](https://github.com/nroduit/weasis-dicom-tools/issues/24)
+
 ## [v5.29.0.2](https://github.com/nroduit/weasis-dicom-tools/tree/v5.29.0.2) (2023-02-14)
 
 [Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.29.0.1...v5.29.0.2)

@@ -46,7 +46,7 @@ public class Dicomizer {
     ensureUID(attrs, Tag.SOPInstanceUID);
     setCreationDate(attrs);
 
-    BulkData bulk = new BulkData(pdfFile.toURI().toString(), 0, (int) pdfFile.length(), false);
+    BulkData bulk = new BulkData(pdfFile.toURI().toString(), 0, pdfFile.length(), false);
     attrs.setValue(Tag.EncapsulatedDocument, VR.OB, bulk);
     attrs.setString(Tag.MIMETypeOfEncapsulatedDocument, VR.LO, "application/pdf");
     Attributes fmi = attrs.createFileMetaInformation(UID.ExplicitVRLittleEndian);

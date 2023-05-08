@@ -58,9 +58,9 @@ public class ModalityLutModule {
     String modality = DicomImageUtils.getModality(dcm);
     if (dcm.containsValue(Tag.RescaleIntercept) && dcm.containsValue(Tag.RescaleSlope)) {
       if ("MR".equals(modality)
+          //          || "PT".equals(modality) // bug https://github.com/nroduit/Weasis/issues/399
           || "XA".equals(modality)
-          || "XRF".equals(modality)
-          || "PT".equals(modality)) {
+          || "XRF".equals(modality)) {
         // IHE BIR: Windowing and Rendering 4.16.4.2.2.5.4
         LOGGER.trace("Do not apply RescaleSlope and RescaleIntercept to {}", modality);
       } else {

@@ -12,9 +12,7 @@ package org.dcm4che3.img;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.io.IOException;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.nio.file.*;
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.List;
@@ -118,6 +116,33 @@ public class TranscoderTest {
 
       Assert.assertEquals("The width of image doesn't match", 128, imgs.get(0).width());
       Assert.assertEquals("The height of image doesn't match", 128, imgs.get(0).height());
+    }
+
+    @Test
+    public void dcm2dcm_TranscodeMultipleTimes() throws Exception {
+      test("MR-JPEGLosslessSV1.dcm", UID.JPEGLSLossless, UID.JPEGLosslessSV1);
+      test("CT-JPEGLosslessSV1.dcm", UID.ExplicitVRLittleEndian, UID.JPEGLSLossless, UID.JPEGLosslessSV1);
+    }
+
+    private void test(String srcFileName, String... transferSyntaxList) throws Exception {
+      String newSrcFileName = null;
+
+      for (int i = 0; i < transferSyntaxList.length; i++) {
+        String transferSyntax = transferSyntaxList[i];
+        String dstFileName = transferSyntax + ".dcm";
+        DicomTranscodeParam params = new DicomTranscodeParam(transferSyntax);
+        Map<ImageContentHash, Consumer<Double>> enumMap = new EnumMap<>(ImageContentHash.class);
+
+        if (i == 0) {
+          Path artifact = transcodeDicom(srcFileName, params, enumMap);
+          Path target = FileSystems.getDefault().getPath(IN_DIR.toString(), dstFileName);
+          Files.copy(artifact, target, StandardCopyOption.REPLACE_EXISTING);
+        } else {
+          transcodeDicom(newSrcFileName, params, enumMap);
+        }
+
+        newSrcFileName = dstFileName;
+      }
     }
   }
 

@@ -10,6 +10,7 @@
 package org.dcm4che3.img;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -130,11 +131,30 @@ public class Transcoder {
    * @param dstPath the path of the destination image or the path of a directory in which the source
    *     image filename will be used
    * @param params the DICOM conversion parameters
-   * @throws Exception
+   * @throws IOException if an I/O error occurs
    */
-  public static Path dcm2dcm(Path srcPath, Path dstPath, DicomTranscodeParam params)
-      throws Exception {
-    Path outPath;
+  public static Path dcm2dcm(Path srcPath, Path dstPath, DicomTranscodeParam params) throws IOException {
+    Path outPath = adaptFileExtension(FileUtil.getOutputPath(srcPath, dstPath), ".dcm", ".dcm");
+
+    try {
+      dcm2dcm(srcPath, Files.newOutputStream(outPath), params);
+    } catch (Exception e) {
+      FileUtil.delete(outPath);
+      throw e;
+    }
+
+    return outPath;
+  }
+
+  /**
+   * Convert a DICOM image to another DICOM image with a specific transfer syntax
+   *
+   * @param srcPath the path of the source image
+   * @param outputStream the output stream where the transcoded data will be written
+   * @param params the DICOM conversion parameters
+   * @throws IOException if an I/O error occurs
+   */
+  public static void dcm2dcm(Path srcPath, OutputStream outputStream, DicomTranscodeParam params) throws IOException {
     DicomImageReader reader = new DicomImageReader(dicomImageReaderSpi);
     reader.setInput(new DicomFileInputStream(srcPath));
 
@@ -142,7 +162,6 @@ public class Transcoder {
     Attributes dataSet = new Attributes(dicomMetaData.getDicomObject());
     dataSet.remove(Tag.PixelData);
 
-    outPath = adaptFileExtension(FileUtil.getOutputPath(srcPath, dstPath), ".dcm", ".dcm");
     Editable<PlanarImage> mask = getMask(dataSet, params);
     DicomImageReadParam dicomParams = params.getReadParam();
     if (dicomParams == null) {
@@ -164,7 +183,7 @@ public class Transcoder {
       }
       LOGGER.warn("Transcoding into {} is not possible, decompressing {}", dstTsuid, srcPath);
     }
-    try (DicomOutputStream dos = new DicomOutputStream(Files.newOutputStream(outPath), dstTsuid)) {
+    try (DicomOutputStream dos = new DicomOutputStream(outputStream, dstTsuid)) {
       dos.writeFileMetaInformation(dataSet.createFileMetaInformation(dstTsuid));
       if (DicomOutputData.isNativeSyntax(dstTsuid)) {
         imgData.writRawImageData(dos, dataSet);
@@ -175,12 +194,10 @@ public class Transcoder {
         imgData.writeCompressedImageData(dos, dataSet, jpegWriteParams);
       }
     } catch (Exception e) {
-      FileUtil.delete(outPath);
       LOGGER.error("Transcoding image data", e);
     } finally {
       reader.dispose();
     }
-    return outPath;
   }
 
   public static Editable<PlanarImage> getMaskedImage(MaskArea m) {

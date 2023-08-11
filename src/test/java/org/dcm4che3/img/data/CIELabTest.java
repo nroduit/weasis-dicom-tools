@@ -9,36 +9,41 @@
  */
 package org.dcm4che3.img.data;
 
-import static org.junit.Assert.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 import java.awt.Color;
-import org.junit.Test;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
-public class CIELabTest {
+class CIELabTest {
 
   private static final int[] rgb1 = new int[] {255, 200, 0};
+
   private static final int[] dcmLab1 = new int[] {54534, 34371, 54623};
 
   private static final int[] rgb2 = new int[] {1, 7, 9};
+
   private static final int[] dcmLab2 = new int[] {1054, 32564, 32559};
 
   @Test
-  public void testDicomLab2rgb() {
+  @DisplayName("Convert Dicom Lab pixel values to RGB")
+  void dicomLab2rgb() {
     assertArrayEquals(new int[0], CIELab.dicomLab2rgb(new int[] {1, 1, 1, 1}));
     assertArrayEquals(new int[0], CIELab.dicomLab2rgb(null));
-
     assertArrayEquals(rgb1, CIELab.dicomLab2rgb(dcmLab1));
     assertArrayEquals(rgb2, CIELab.dicomLab2rgb(dcmLab2));
   }
 
   @Test
-  public void testRgbToDicomLab() {
+  @DisplayName("Convert RGB to Dicom Lab")
+  void rgbToDicomLab() {
     assertArrayEquals(dcmLab1, CIELab.rgbToDicomLab(rgb1[0], rgb1[1], rgb1[2]));
     assertArrayEquals(dcmLab2, CIELab.rgbToDicomLab(rgb2[0], rgb2[1], rgb2[2]));
   }
 
   @Test
-  public void testRgbToDicomLab2() throws NumberFormatException {
+  @DisplayName("Convert RGB color to Dicom Lab")
+  void rgbToDicomLab2() throws NumberFormatException {
     assertArrayEquals(dcmLab1, CIELab.rgbToDicomLab(new Color(rgb1[0], rgb1[1], rgb1[2])));
     assertArrayEquals(dcmLab2, CIELab.rgbToDicomLab(new Color(rgb2[0], rgb2[1], rgb2[2])));
   }

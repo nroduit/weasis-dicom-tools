@@ -10,17 +10,18 @@
 package org.weasis.dicom;
 
 import org.dcm4che3.net.Status;
-import org.hamcrest.core.IsEqual;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.weasis.dicom.op.Echo;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomState;
 
-public class EchoNetTest {
+@DisplayName("DICOM Echo")
+class EchoNetTest {
 
   @Test
-  public void testProcess() {
+  void testProcess() {
     // DicomNode calling = new DicomNode("WEA-SCU");
     // DicomNode called = new DicomNode("DCM4CHEE", "localhost", 11112);
     // AdvancedParams params = new AdvancedParams();
@@ -34,15 +35,15 @@ public class EchoNetTest {
     // DicomState state = Echo.process(params, calling, called);
 
     DicomNode calling = new DicomNode("WEASIS-SCU");
-    DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
+    DicomNode called = new DicomNode("DICOMSERVER", "www.dicomserver.co.uk", 104);
     DicomState state = Echo.process(null, calling, called);
     // Should never happen
-    Assert.assertNotNull(state);
-
+    Assertions.assertNotNull(state);
     System.out.println("DICOM Status:" + state.getStatus());
     System.out.println(state.getMessage());
+
     // see org.dcm4che3.net.Status
-    // See server log at http://dicomserver.co.uk/logs/
-    Assert.assertThat(state.getMessage(), state.getStatus(), IsEqual.equalTo(Status.Success));
+    // See server log at https://dicomserver.co.uk/logs/
+    Assertions.assertEquals(Status.Success, state.getStatus(), state.getMessage());
   }
 }

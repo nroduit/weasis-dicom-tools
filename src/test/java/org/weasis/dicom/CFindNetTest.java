@@ -9,35 +9,36 @@
  */
 package org.weasis.dicom;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+
 import java.util.List;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.net.Status;
-import org.hamcrest.MatcherAssert;
-import org.hamcrest.core.IsEqual;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.weasis.dicom.op.CFind;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomParam;
 import org.weasis.dicom.param.DicomState;
 
-public class CFindNetTest {
+@DisplayName("DICOM C-FIND")
+class CFindNetTest {
 
   @Test
-  public void testProcess() {
-
+  @DisplayName("Test Process")
+  void testProcess() {
     DicomParam[] params = {
-      new DicomParam(Tag.PatientID, "PAT001"),
+      new DicomParam(Tag.PatientID, "ModifiedPatientID"),
       new DicomParam(Tag.StudyInstanceUID),
       new DicomParam(Tag.NumberOfStudyRelatedSeries)
     };
     DicomNode calling = new DicomNode("WEASIS-SCU");
-    DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
+    DicomNode called = new DicomNode("DICOMSERVER", "www.dicomserver.co.uk", 104);
     DicomState state = CFind.process(calling, called, params);
     // Should never happen
-    Assert.assertNotNull(state);
-
+    Assertions.assertNotNull(state);
     List<Attributes> items = state.getDicomRSP();
     for (int i = 0; i < items.size(); i++) {
       Attributes item = items.get(i);
@@ -46,13 +47,11 @@ public class CFindNetTest {
       System.out.println("===========================================");
       System.out.println(item.toString(100, 150));
     }
-
     System.out.println("DICOM Status:" + state.getStatus());
     System.out.println(state.getMessage());
     // see org.dcm4che3.net.Status
-    // See server log at http://dicomserver.co.uk/logs/
-    MatcherAssert.assertThat(
-        state.getMessage(), state.getStatus(), IsEqual.equalTo(Status.Success));
-    Assert.assertFalse("No DICOM RSP Object", state.getDicomRSP().isEmpty());
+    // See server log at https://dicomserver.co.uk/logs/
+    Assertions.assertEquals(Status.Success, state.getStatus(), state.getMessage());
+    assertFalse(state.getDicomRSP().isEmpty(), "No DICOM RSP Object in response");
   }
 }

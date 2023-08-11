@@ -325,12 +325,12 @@ public class DicomImageAdapter {
     if (pixelPadding) {
       inverseLut ^= inverseLUTAction;
     }
-    LutParameters lutparams = getLutParameters(pixelPadding, mLUTSeq, inverseLut, pr);
+    LutParameters lutParams = getLutParameters(pixelPadding, mLUTSeq, inverseLut, pr);
     // Not required to have a modality lookup table
-    if (lutparams == null) {
+    if (lutParams == null) {
       return null;
     }
-    LookupTableCV modalityLookup = LUT_Cache.get(lutparams);
+    LookupTableCV modalityLookup = LUT_Cache.get(lutParams);
 
     if (modalityLookup != null) {
       return modalityLookup;
@@ -356,13 +356,13 @@ public class DicomImageAdapter {
         modalityLookup = mLUTSeq;
       }
     } else {
-      modalityLookup = DicomImageUtils.createRescaleRampLut(lutparams);
+      modalityLookup = DicomImageUtils.createRescaleRampLut(lutParams);
     }
 
     if (desc.getPhotometricInterpretation().isMonochrome()) {
-      DicomImageUtils.applyPixelPaddingToModalityLUT(modalityLookup, lutparams);
+      DicomImageUtils.applyPixelPaddingToModalityLUT(modalityLookup, lutParams);
     }
-    LUT_Cache.put(lutparams, modalityLookup);
+    LUT_Cache.put(lutParams, modalityLookup);
     return modalityLookup;
   }
 

@@ -15,29 +15,32 @@ import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Objects;
 import org.dcm4che3.img.stream.DicomFileInputStream;
-import org.hamcrest.MatcherAssert;
-import org.hamcrest.core.IsEqual;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.weasis.opencv.data.PlanarImage;
 
 /**
  * @author Nicolas Roduit
  */
-public class DicomImageReaderTest {
+@DisplayName("DicomImageReader")
+class DicomImageReaderTest {
+
   static Path IN_DIR;
   static DicomImageReader reader;
 
-  @BeforeClass
-  public static void setUp() throws URISyntaxException {
-    IN_DIR = Paths.get(DicomImageReaderTest.class.getResource("").toURI());
+  @BeforeAll
+  static void setUp() throws URISyntaxException {
+    IN_DIR = Paths.get(Objects.requireNonNull(DicomImageReaderTest.class.getResource("")).toURI());
     reader = new DicomImageReader(new DicomImageReaderSpi());
   }
 
-  @AfterClass
-  public static void tearDown() {
+  @AfterAll
+  static void tearDown() {
     if (reader != null) reader.dispose();
   }
 
@@ -48,24 +51,24 @@ public class DicomImageReaderTest {
   }
 
   @Test
-  public void jpeg2000_lossy_multiframe_multifragments() throws Exception {
+  @DisplayName("Read lossy JPEG2000 multiframe with multi-fragments stream")
+  void jpeg2000LossyMultiframe() throws Exception {
     List<PlanarImage> imagesIn = readDicomImage("jpeg2000-multiframe-multifragments.dcm");
-    MatcherAssert.assertThat(
-        "The number of image frames doesn't match", imagesIn.size(), IsEqual.equalTo(19));
+    Assertions.assertEquals(19, imagesIn.size(), "The number of image frames doesn't match");
     for (PlanarImage img : imagesIn) {
-      MatcherAssert.assertThat("The image size doesn't match", img.width(), IsEqual.equalTo(256));
+      Assertions.assertEquals(256, img.width(), "The image width doesn't match");
+      Assertions.assertEquals(256, img.height(), "The image height doesn't match");
     }
   }
 
   @Test
-  public void ybrFull_RLE() throws Exception {
+  @DisplayName("Read YBR_FULL with RLE compression")
+  void ybrFullRLE() throws Exception {
     List<PlanarImage> imagesIn = readDicomImage("ybrFull-RLE.dcm");
-    MatcherAssert.assertThat(
-        "The number of image frames doesn't match", imagesIn.size(), IsEqual.equalTo(1));
+    Assertions.assertEquals(1, imagesIn.size(), "The number of image frames doesn't match");
     for (PlanarImage img : imagesIn) {
-      MatcherAssert.assertThat("The image width doesn't match", img.width(), IsEqual.equalTo(640));
-      MatcherAssert.assertThat(
-          "The image height doesn't match", img.height(), IsEqual.equalTo(480));
+      Assertions.assertEquals(640, img.width(), "The image width doesn't match");
+      Assertions.assertEquals(480, img.height(), "The image height doesn't match");
     }
   }
 }

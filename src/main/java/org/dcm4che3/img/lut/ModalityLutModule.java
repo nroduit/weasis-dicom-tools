@@ -115,10 +115,10 @@ public class ModalityLutModule {
           LOGGER.trace(
               "Modality LUT Sequence shall NOT be present if Rescale Intercept is present");
         }
-        if (!lutType.isPresent()) {
+        if (lutType.isEmpty()) {
           LOGGER.trace("Modality Type is required if Modality LUT Sequence is present.");
         }
-      } else if (rescaleIntercept.isPresent() && !rescaleSlope.isPresent()) {
+      } else if (rescaleIntercept.isPresent() && rescaleSlope.isEmpty()) {
         LOGGER.trace("Modality Rescale Slope is required if Rescale Intercept is present.");
       }
     }
@@ -151,12 +151,12 @@ public class ModalityLutModule {
   public void adaptWithOverlayBitMask(int shiftHighBit) {
     // Combine to the slope value
     double rs = 1.0;
-    if (!rescaleSlope.isPresent()) {
+    if (rescaleSlope.isEmpty()) {
       // Set valid modality LUT values
-      if (!rescaleIntercept.isPresent()) {
+      if (rescaleIntercept.isEmpty()) {
         rescaleIntercept = OptionalDouble.of(0.0);
       }
-      if (!rescaleType.isPresent()) {
+      if (rescaleType.isEmpty()) {
         rescaleType = Optional.of("US");
       }
     }

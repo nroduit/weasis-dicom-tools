@@ -14,45 +14,44 @@ import java.io.FileInputStream;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.io.DicomInputStream.IncludeBulkData;
 import org.dcm4che3.util.UIDUtils;
-import org.hamcrest.MatcherAssert;
-import org.hamcrest.core.IsNull;
-import org.junit.Test;
-import org.weasis.dicom.param.DicomState;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.weasis.dicom.web.ContentType;
 import org.weasis.dicom.web.DicomStowRS;
 
-public class StowNetTest {
+@DisplayName("DICOMWeb stow-rs scu")
+class StowNetTest {
 
   @Test
-  public void testProcess() {
+  void testProcess() {
     List<String> files = new ArrayList<>();
     try {
-      files.add(new File(getClass().getResource("mr.dcm").toURI()).getPath());
+      files.add(
+          new File(Objects.requireNonNull(getClass().getResource("mr.dcm")).toURI()).getPath());
     } catch (URISyntaxException e) {
-      e.printStackTrace();
+      System.err.println(e.getMessage());
     }
-
     String stowService = "http://localhost:8080/dcm4chee-arc/aets/DCM4CHEE/rs/studies";
-    DicomState state = null;
 
     // Upload files
-    //        try (DicomStowRS stowRS = new DicomStowRS(stowService, ContentType.APPLICATION_DICOM,
+    // try (DicomStowRS stowRS = new DicomStowRS(stowService, ContentType.APPLICATION_DICOM,
     // null, null)) {
-    //            state = stowRS.uploadDicom(files, true);
-    //        } catch (Exception e) {
-    //            System.out.println("StowRS error: " + e.getMessage());
-    //        }
+    // state = stowRS.uploadDicom(files, true);
+    // } catch (Exception e) {
+    // System.out.println("StowRS error: " + e.getMessage());
+    // }
     //
-    //        Assert.assertThat("DicomState cannot be null", state, IsNull.notNullValue());
-    //        Assert.assertThat(state.getMessage(), state.getStatus(),
+    // Assert.assertThat("DicomState cannot be null", state, IsNull.notNullValue());
+    // Assert.assertThat(state.getMessage(), state.getStatus(),
     // IsEqual.equalTo(Status.Success));
-
     String message = null;
     // Upload a modify file
     try (DicomStowRS stowRS =
@@ -70,6 +69,7 @@ public class StowNetTest {
     } catch (Exception e) {
       message = e.getMessage();
     }
-    MatcherAssert.assertThat(message, message, IsNull.nullValue());
+
+    Assertions.assertNull(message, message);
   }
 }

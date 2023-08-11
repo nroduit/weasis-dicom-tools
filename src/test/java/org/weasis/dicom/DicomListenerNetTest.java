@@ -9,22 +9,24 @@
  */
 package org.weasis.dicom;
 
+import java.io.File;
+import java.nio.file.Path;
 import org.dcm4che3.net.Status;
-import org.hamcrest.MatcherAssert;
-import org.hamcrest.core.IsEqual;
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.weasis.dicom.op.CGetForward;
 import org.weasis.dicom.param.*;
 import org.weasis.dicom.tool.DicomListener;
 
-public class DicomListenerNetTest {
-  @Rule public TemporaryFolder testFolder = new TemporaryFolder();
+@DisplayName("DICOM Listener")
+class DicomListenerNetTest {
+
+  @TempDir public Path testFolder;
 
   @Test
-  public void testProcess() {
+  void testProcess() {
     AdvancedParams params = new AdvancedParams();
     ConnectOptions connectOptions = new ConnectOptions();
     connectOptions.setConnectTimeout(3000);
@@ -33,25 +35,21 @@ public class DicomListenerNetTest {
     connectOptions.setMaxOpsInvoked(15);
     connectOptions.setMaxOpsPerformed(15);
     params.setConnectOptions(connectOptions);
-
     DicomNode calling = new DicomNode("WEASIS-SCU");
-    DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
+    DicomNode called = new DicomNode("DICOMSERVER", "www.dicomserver.co.uk", 104);
     DicomNode scpNode = new DicomNode("DICOMLISTENER", "localhost", 11113);
-
     // String TEST_PATTERN =
     // "{00080020,date,yyyy/MM/dd}/{00080030,time,HH}/{0020000D,hash}/{0020000E,hash}/{00080008[1]}/{00080018}.dcm";
     String TEST_PATTERN = "{00020016}/{00020003}.dcm";
     ListenerParams lparams =
         new ListenerParams(params, false, TEST_PATTERN, null, calling.getAet());
-
     DicomListener listener;
     try {
-      listener = new DicomListener(testFolder.newFolder("tmp-dcm-listener"));
+      listener = new DicomListener(new File(testFolder.toString(), "tmp-dcm-listener"));
       listener.start(scpNode, lparams);
     } catch (Exception e) {
-      e.printStackTrace();
+      System.err.println(e.getMessage());
     }
-
     DicomProgress progress = new DicomProgress();
     progress.addProgressListener(
         progress1 -> {
@@ -68,21 +66,17 @@ public class DicomListenerNetTest {
             System.out.println("Last file has failed:" + progress1.getProcessedFile());
           }
         });
-
     String studyUID = "1.2.528.1.1001.100.2.3865.6101.93503564261.20070711142700372";
-
     DicomState state =
         CGetForward.processStudy(params, params, calling, called, scpNode, progress, studyUID);
 
     // Should never happen
-    Assert.assertNotNull(state);
-
+    Assertions.assertNotNull(state);
     System.out.println("DICOM Status:" + state.getStatus());
     System.out.println(state.getMessage());
 
     // see org.dcm4che3.net.Status
-    // See server log at http://dicomserver.co.uk/logs/
-    MatcherAssert.assertThat(
-        state.getMessage(), state.getStatus(), IsEqual.equalTo(Status.Success));
+    // See server log at https://dicomserver.co.uk/logs/
+    Assertions.assertEquals(Status.Success, state.getStatus(), state.getMessage());
   }
 }

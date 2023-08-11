@@ -9,26 +9,27 @@
  */
 package org.weasis.dicom;
 
-import java.io.IOException;
+import java.io.File;
+import java.nio.file.Path;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.net.Status;
-import org.hamcrest.MatcherAssert;
-import org.hamcrest.core.IsEqual;
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.weasis.dicom.op.CGet;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomParam;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
 
-public class CGetNetTest {
-  @Rule public TemporaryFolder testFolder = new TemporaryFolder();
+@DisplayName("DICOM C-GET")
+class CGetNetTest {
+
+  @TempDir public Path testFolder;
 
   @Test
-  public void testProcess() throws IOException {
+  void testProcess() {
     DicomProgress progress = new DicomProgress();
     progress.addProgressListener(
         progress1 -> {
@@ -38,21 +39,17 @@ public class CGetNetTest {
           // progress.cancel();
           // }
         });
-
-    /** The following parameters must be changed to get a successful test. */
+    // The following parameters must be changed to get a successful test.
     DicomParam[] params = {
       new DicomParam(
           Tag.StudyInstanceUID, "1.2.528.1.1001.100.2.3865.6101.93503564261.20070711142700372")
     };
     DicomNode calling = new DicomNode("WEASIS-SCU");
-    DicomNode called = new DicomNode("DICOMSERVER", "dicomserver.co.uk", 11112);
-
+    DicomNode called = new DicomNode("DICOMSERVER", "www.dicomserver.co.uk", 104);
     DicomState state =
-        CGet.process(calling, called, progress, testFolder.newFolder("c-get"), params);
-
+        CGet.process(calling, called, progress, new File(testFolder.toString(), "c-get"), params);
     // Should never happen
-    Assert.assertNotNull(state);
-
+    Assertions.assertNotNull(state);
     System.out.println("DICOM Status:" + state.getStatus());
     System.out.println(state.getMessage());
     System.out.println(
@@ -62,10 +59,8 @@ public class CGetNetTest {
     System.out.println("NumberOfFailedSuboperations:" + progress.getNumberOfFailedSuboperations());
     System.out.println(
         "NumberOfWarningSuboperations:" + progress.getNumberOfWarningSuboperations());
-
     // see org.dcm4che3.net.Status
-    // See server log at http://dicomserver.co.uk/logs/
-    MatcherAssert.assertThat(
-        state.getMessage(), state.getStatus(), IsEqual.equalTo(Status.Success));
+    // See server log at https://dicomserver.co.uk/logs/
+    Assertions.assertEquals(Status.Success, state.getStatus(), state.getMessage());
   }
 }

@@ -333,7 +333,9 @@ public class CGetForward implements AutoCloseable {
   }
 
   public void open()
-      throws IOException, InterruptedException, IncompatibleConnectionException,
+      throws IOException,
+          InterruptedException,
+          IncompatibleConnectionException,
           GeneralSecurityException {
     as = ae.connect(conn, remote, rq);
   }

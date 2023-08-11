@@ -21,22 +21,28 @@ public class JPEG {
 
   // JPEG 2000 markers
   private static final int JPEG2000_STANDALONE = 0x30;
+
   /** Start of codestream */
   public static final int FF_SOC = 0xFF4F;
 
   public static final int SOC = 0x4F;
+
   /** Image and tile size */
   public static final int SIZ = 0x51;
+
   /** Coding style default */
   public static final int COD = 0x52;
 
   // SOF markers for Nondifferential Huffman coding
   /** Baseline DCT */
   public static final int SOF0 = 0xC0;
+
   /** Extended Sequential DCT */
   public static final int SOF1 = 0xC1;
+
   /** Progressive DCT */
   public static final int SOF2 = 0xC2;
+
   /** Lossless Sequential */
   public static final int SOF3 = 0xC3;
 
@@ -46,8 +52,10 @@ public class JPEG {
   // SOF markers for Differential Huffman coding
   /** Differential Sequential DCT */
   public static final int SOF5 = 0xC5;
+
   /** Differential Progressive DCT */
   public static final int SOF6 = 0xC6;
+
   /** Differential Lossless */
   public static final int SOF7 = 0xC7;
 
@@ -57,8 +65,10 @@ public class JPEG {
   // SOF markers for Nondifferential arithmetic coding
   /** Extended Sequential DCT, Arithmetic coding */
   public static final int SOF9 = 0xC9;
+
   /** Progressive DCT, Arithmetic coding */
   public static final int SOF10 = 0xCA;
+
   /** Lossless Sequential, Arithmetic coding */
   public static final int SOF11 = 0xCB;
 
@@ -68,8 +78,10 @@ public class JPEG {
   // SOF markers for Differential arithmetic coding
   /** Differential Sequential DCT, Arithmetic coding */
   public static final int SOF13 = 0xCD;
+
   /** Differential Progressive DCT, Arithmetic coding */
   public static final int SOF14 = 0xCE;
+
   /** Differential Lossless, Arithmetic coding */
   public static final int SOF15 = 0xCF;
 
@@ -82,6 +94,7 @@ public class JPEG {
   public static final int RST5 = 0xD5;
   public static final int RST6 = 0xD6;
   public static final int RST7 = 0xD7;
+
   /** Number of restart markers */
   public static final int RESTART_RANGE = 8;
 
@@ -89,8 +102,10 @@ public class JPEG {
   public static final int FF_SOI = 0xFFD8;
 
   public static final int SOI = 0xD8;
+
   /** End of Image */
   public static final int EOI = 0xD9;
+
   /** Start of Scan */
   public static final int SOS = 0xDA;
 
@@ -126,6 +141,7 @@ public class JPEG {
   public static final int APP11 = 0xEB;
   public static final int APP12 = 0xEC;
   public static final int APP13 = 0xED;
+
   /** APP14 used by Adobe */
   public static final int APP14 = 0xEE;
 
@@ -134,6 +150,7 @@ public class JPEG {
   // codes 0xF0 to 0xFD are reserved
   /** JPEG-LS coding */
   public static final int SOF55 = 0xF7;
+
   /** JPEG-LS parameters */
   public static final int LSE = 0xF8;
 

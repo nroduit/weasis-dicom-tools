@@ -1,5 +1,14 @@
 # Changelog
 
+## [v5.30.0](https://github.com/nroduit/weasis-dicom-tools/tree/v5.30.0) (2023-08-15)
+
+[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.29.2.2...v5.30.0)
+
+**Merged pull requests:**
+
+- fix Index 1 out of bounds length 0 on createLut\(Attributes\) [\#26](https://github.com/nroduit/weasis-dicom-tools/pull/26) ([cicciu](https://github.com/cicciu))
+- feat: transcode dcm to output stream [\#25](https://github.com/nroduit/weasis-dicom-tools/pull/25) ([adrianog3](https://github.com/adrianog3))
+
 ## [v5.29.2.2](https://github.com/nroduit/weasis-dicom-tools/tree/v5.29.2.2) (2023-05-22)
 
 [Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.29.2.1...v5.29.2.2)

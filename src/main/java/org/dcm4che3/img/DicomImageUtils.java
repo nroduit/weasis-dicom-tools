@@ -143,7 +143,7 @@ public class DicomImageUtils {
         LOGGER.error("Cannot get byte[] of {}", TagUtils.toString(Tag.LUTData), e);
       }
 
-      if (bData == null) {
+      if (bData == null | bData.length == 0) {
         return Optional.empty();
       }
 

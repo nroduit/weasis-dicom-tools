@@ -125,6 +125,34 @@ class TranscoderTest {
     Assertions.assertEquals(128, images.get(0).height(), "The height of image doesn't match");
   }
 
+
+  @Test
+  void dcm2dcm_TranscodeMultipleTimes() throws Exception {
+    test("MR-JPEGLosslessSV1.dcm", UID.JPEGLSLossless, UID.JPEGLosslessSV1);
+    test("CT-JPEGLosslessSV1.dcm", UID.ExplicitVRLittleEndian, UID.JPEGLSLossless, UID.JPEGLosslessSV1);
+  }
+
+  void test(String srcFileName, String... transferSyntaxList) throws Exception {
+    String newSrcFileName = null;
+
+    for (int i = 0; i < transferSyntaxList.length; i++) {
+      String transferSyntax = transferSyntaxList[i];
+      String dstFileName = transferSyntax + ".dcm";
+      DicomTranscodeParam params = new DicomTranscodeParam(transferSyntax);
+      Map<ImageContentHash, Consumer<Double>> enumMap = new EnumMap<>(ImageContentHash.class);
+
+      if (i == 0) {
+        Path artifact = transcodeDicom(srcFileName, params, enumMap);
+        Path target = FileSystems.getDefault().getPath(IN_DIR.toString(), dstFileName);
+        Files.copy(artifact, target, StandardCopyOption.REPLACE_EXISTING);
+      } else {
+        transcodeDicom(newSrcFileName, params, enumMap);
+      }
+
+      newSrcFileName = dstFileName;
+    }
+  }
+
   @ParameterizedTest
   @EnumSource(Format.class)
   @DisplayName("Export YBR_422 DICOM to all the image formats")

@@ -133,7 +133,8 @@ public class Transcoder {
    * @param params the DICOM conversion parameters
    * @throws IOException if an I/O error occurs
    */
-  public static Path dcm2dcm(Path srcPath, Path dstPath, DicomTranscodeParam params) throws IOException {
+  public static Path dcm2dcm(Path srcPath, Path dstPath, DicomTranscodeParam params)
+      throws IOException {
     Path outPath = adaptFileExtension(FileUtil.getOutputPath(srcPath, dstPath), ".dcm", ".dcm");
 
     try {
@@ -154,7 +155,8 @@ public class Transcoder {
    * @param params the DICOM conversion parameters
    * @throws IOException if an I/O error occurs
    */
-  public static void dcm2dcm(Path srcPath, OutputStream outputStream, DicomTranscodeParam params) throws IOException {
+  public static void dcm2dcm(Path srcPath, OutputStream outputStream, DicomTranscodeParam params)
+      throws IOException {
     DicomImageReader reader = new DicomImageReader(dicomImageReaderSpi);
     reader.setInput(new DicomFileInputStream(srcPath));
 

@@ -16,12 +16,15 @@
     <dcm4che.version>5.30.0</dcm4che.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
     <sonar.projectKey>weasis-dicom-tools</sonar.projectKey>
     <sonar.organization>nroduit-github</sonar.organization>
     <sonar.host.url>https://sonarcloud.io</sonar.host.url>
+    <sonar.language>java</sonar.language>
 
     <weasis.core.img.version>4.8.0</weasis.core.img.version>
     <weasis.opencv.native.version>4.8.0-dcm</weasis.opencv.native.version>
+    <argLine>-Djava.library.path=${project.build.directory}/lib/${os-name}-${cpu-name}</argLine>
     <skipTests>false</skipTests>
   </properties>
 
@@ -230,6 +233,41 @@
         <lib-file-ext>dll</lib-file-ext>
       </properties>
     </profile>
+
+    <profile>
+      <id>coverage</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.jacoco</groupId>
+            <artifactId>jacoco-maven-plugin</artifactId>
+            <configuration>
+              <includes>
+                <include>org/dcm4che3/**/*.*</include>
+                <include>org/weasis/dicom/**/*.*</include>
+              </includes>
+              <excludes>
+                <exclude>**/package-info.java</exclude>
+              </excludes>
+            </configuration>
+            <executions>
+              <execution>
+                <id>prepare-agent</id>
+                <goals>
+                  <goal>prepare-agent</goal>
+                </goals>
+              </execution>
+              <execution>
+                <id>report</id>
+                <goals>
+                  <goal>report</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
   </profiles>
 
   <build>
@@ -318,6 +356,11 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-source-plugin</artifactId>
           <version>3.3.0</version>
+        </plugin>
+        <plugin>
+          <groupId>org.jacoco</groupId>
+          <artifactId>jacoco-maven-plugin</artifactId>
+          <version>0.8.6</version>
         </plugin>
       </plugins>
     </pluginManagement>
@@ -416,7 +459,7 @@
       <plugin>
         <groupId>com.diffplug.spotless</groupId>
         <artifactId>spotless-maven-plugin</artifactId>
-        <version>2.37.0</version>
+        <version>2.38.0</version>
         <configuration>
           <java>
             <googleJavaFormat/>
@@ -445,7 +488,6 @@
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
-          <argLine>-Djava.library.path=${project.build.directory}/lib/${os-name}-${cpu-name}</argLine>
           <skipTests>${skipTests}</skipTests>
         </configuration>
       </plugin>

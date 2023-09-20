@@ -45,10 +45,10 @@ See [CHANGELOG](CHANGELOG.md)
 
 Prerequisites: JDK 11 and Maven 3
 
-Execute the maven command `mvn clean install` in the root directory of the project.
-
 The master branch requires Java 11+ and old branches are:
 * 5.25.x (Java 8+)
 * 1.0.x (Java 7+)
 
-Note: the dependencies are not includes in the jar file, see in [pom.xml](pom.xml).
+Execute the maven command `mvn clean install` in the root directory of the project.
+
+Note: This project has a native library dependency which must be included in your application and launched with a specific JVM option (e.g. '-Djava.library.path="path/of/native/lib"'). Additional systems and architectures of the native library are available directly from [this Maven repository](https://github.com/nroduit/mvn-repo/tree/master/org/weasis/thirdparty/org/opencv/libopencv_java). 

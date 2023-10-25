@@ -12,11 +12,11 @@ package org.dcm4che3.img;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.io.IOException;
+import java.nio.file.*;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
-import java.nio.file.*;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -124,11 +124,14 @@ class TranscoderTest {
     Assertions.assertEquals(128, images.get(0).height(), "The height of image doesn't match");
   }
 
-
   @Test
   void dcm2dcm_TranscodeMultipleTimes() throws Exception {
     test("MR-JPEGLosslessSV1.dcm", UID.JPEGLSLossless, UID.JPEGLosslessSV1);
-    test("CT-JPEGLosslessSV1.dcm", UID.ExplicitVRLittleEndian, UID.JPEGLSLossless, UID.JPEGLosslessSV1);
+    test(
+        "CT-JPEGLosslessSV1.dcm",
+        UID.ExplicitVRLittleEndian,
+        UID.JPEGLSLossless,
+        UID.JPEGLosslessSV1);
   }
 
   void test(String srcFileName, String... transferSyntaxList) throws Exception {

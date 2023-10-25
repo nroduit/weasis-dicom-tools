@@ -25,9 +25,7 @@ class CIELabTest {
 
   private static final int[] dcmLab2 = new int[] {1054, 32564, 32559};
 
-  /**
-   * Method under test: {@link CIELab#dicomLab2rgb(int[])}
-   */
+  /** Method under test: {@link CIELab#dicomLab2rgb(int[])} */
   @Test
   @DisplayName("Convert Dicom Lab pixel values to RGB")
   void dicomLab2rgb() {
@@ -37,9 +35,7 @@ class CIELabTest {
     assertArrayEquals(rgb2, CIELab.dicomLab2rgb(dcmLab2));
   }
 
-  /**
-   * Method under test: {@link CIELab#rgbToDicomLab(int, int, int)}
-   */
+  /** Method under test: {@link CIELab#rgbToDicomLab(int, int, int)} */
   @Test
   @DisplayName("Convert RGB to Dicom Lab")
   void rgbToDicomLab() {
@@ -47,9 +43,7 @@ class CIELabTest {
     assertArrayEquals(dcmLab2, CIELab.rgbToDicomLab(rgb2[0], rgb2[1], rgb2[2]));
   }
 
-  /**
-   * Method under test: {@link CIELab#rgbToDicomLab(Color)}
-   */
+  /** Method under test: {@link CIELab#rgbToDicomLab(Color)} */
   @Test
   @DisplayName("Convert RGB color to Dicom Lab")
   void rgbToDicomLab2() throws NumberFormatException {

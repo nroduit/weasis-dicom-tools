@@ -37,7 +37,6 @@ import org.dcm4che3.img.data.CIELab;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("DicomObjectUtil")
 class DicomObjectUtilTest {
 
   @Test

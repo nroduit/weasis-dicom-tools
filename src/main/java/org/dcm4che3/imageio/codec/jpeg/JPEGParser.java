@@ -18,6 +18,7 @@ import org.dcm4che3.data.UID;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.imageio.codec.XPEGParser;
 import org.dcm4che3.imageio.codec.XPEGParserException;
+import org.dcm4che3.imageio.codec.mp4.MP4FileType;
 import org.dcm4che3.util.SafeBuffer;
 
 /**
@@ -65,6 +66,11 @@ public class JPEGParser implements XPEGParser {
   }
 
   @Override
+  public MP4FileType getMP4FileType() {
+    return null;
+  }
+
+  @Override
   public Attributes getAttributes(Attributes attrs) {
     if (attrs == null) attrs = new Attributes(10);
 
@@ -89,7 +95,7 @@ public class JPEGParser implements XPEGParser {
   }
 
   @Override
-  public String getTransferSyntaxUID() throws XPEGParserException {
+  public String getTransferSyntaxUID(boolean fragmented) throws XPEGParserException {
     return params.transferSyntaxUID();
   }
 

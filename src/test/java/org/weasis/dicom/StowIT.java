@@ -28,7 +28,7 @@ import org.weasis.dicom.web.ContentType;
 import org.weasis.dicom.web.DicomStowRS;
 
 @DisplayName("DICOMWeb stow-rs scu")
-class StowNetTest {
+class StowIT {
 
   @Test
   void testProcess() {

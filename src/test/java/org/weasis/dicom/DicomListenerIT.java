@@ -21,7 +21,7 @@ import org.weasis.dicom.param.*;
 import org.weasis.dicom.tool.DicomListener;
 
 @DisplayName("DICOM Listener")
-class DicomListenerNetTest {
+class DicomListenerIT {
 
   @TempDir public Path testFolder;
 

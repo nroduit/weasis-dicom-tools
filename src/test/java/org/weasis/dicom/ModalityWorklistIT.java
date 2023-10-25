@@ -24,7 +24,7 @@ import org.weasis.dicom.param.DicomState;
 import org.weasis.dicom.tool.ModalityWorklist;
 
 @DisplayName("DICOM Modality Worklist")
-class ModalityWorklistNetTest {
+class ModalityWorklistIT {
 
   @Test
   void testProcess() {

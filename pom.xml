@@ -7,17 +7,17 @@
   <artifactId>weasis-dicom-tools</artifactId>
   <packaging>jar</packaging>
   <name>Weasis DICOM API (based on dcm4che3)</name>
-  <version>5.31.0</version>
+  <version>5.31.1</version>
 
   <properties>
     <java-version>17</java-version>
     <enforcer.jdk-version>[${java-version},)</enforcer.jdk-version>
     <enforcer.maven-version>[3.0.5,)</enforcer.maven-version>
-    <dcm4che.version>5.31.0</dcm4che.version>
+    <dcm4che.version>5.31.1</dcm4che.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <weasis.core.img.version>4.8.0.1</weasis.core.img.version>
-    <weasis.opencv.native.version>4.8.0-dcm</weasis.opencv.native.version>
+    <weasis.core.img.version>4.8.1</weasis.core.img.version>
+    <weasis.opencv.native.version>4.8.1-dcm</weasis.opencv.native.version>
 
     <sonar.projectKey>weasis-dicom-tools</sonar.projectKey>
     <sonar.organization>nroduit-github</sonar.organization>

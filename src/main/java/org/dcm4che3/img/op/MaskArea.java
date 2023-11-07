@@ -58,8 +58,7 @@ public class MaskArea {
       Scalar color =
           c == null ? new Scalar(0, 0, 0) : new Scalar(c.getBlue(), c.getGreen(), c.getRed());
       for (Shape shape : maskArea.getShapeList()) {
-        if (c == null && shape instanceof Rectangle) {
-          Rectangle r = (Rectangle) shape;
+        if (c == null && shape instanceof Rectangle r) {
           r = r.intersection(new Rectangle(0, 0, srcImg.width(), srcImg.height()));
           Rect rect2d = new Rect(r.x, r.y, r.width, r.height);
           if (r.width < 3 || r.height < 3) {

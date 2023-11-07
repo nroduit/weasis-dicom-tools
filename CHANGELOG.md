@@ -1,5 +1,13 @@
 # Changelog
 
+## [v5.31.1](https://github.com/nroduit/weasis-dicom-tools/tree/v5.31.1) (2023-11-07)
+
+[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.30.0...v5.31.1)
+
+**Closed issues:**
+
+- Cannot integrate tools to Weasis  [\#27](https://github.com/nroduit/weasis-dicom-tools/issues/27)
+
 ## [v5.30.0](https://github.com/nroduit/weasis-dicom-tools/tree/v5.30.0) (2023-08-15)
 
 [Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.29.2.2...v5.30.0)

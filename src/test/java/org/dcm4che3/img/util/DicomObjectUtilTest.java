@@ -223,6 +223,10 @@ class DicomObjectUtilTest {
     assertEquals(Color.BLACK, DicomObjectUtil.getRGBColor(0x0000, null));
 
     assertEquals(Color.ORANGE, DicomObjectUtil.getRGBColor(0, new int[] {255, 200, 0}));
-    assertEquals(Color.WHITE, DicomObjectUtil.getRGBColor(1, new int[] {256, 256, 256, 0}));
+    assertEquals(Color.WHITE, DicomObjectUtil.getRGBColor(1, new int[] {256, 256, 256, 256}));
+
+    // Color transparency
+    assertEquals(
+        new Color(255, 200, 0, 128), DicomObjectUtil.getRGBColor(0, new int[] {255, 200, 0, 128}));
   }
 }

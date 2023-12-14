@@ -43,9 +43,9 @@ See [CHANGELOG](CHANGELOG.md)
 
 # Build weasis-dicom-tools ##
 
-Prerequisites: JDK 11 and Maven 3
+Prerequisites: JDK 17 and Maven 3
 
-The master branch requires Java 11+ and old branches are:
+The master branch requires Java 17+ and old branches are:
 * 5.25.x (Java 8+)
 * 1.0.x (Java 7+)
 

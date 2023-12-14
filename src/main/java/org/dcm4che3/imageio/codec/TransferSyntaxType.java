@@ -75,7 +75,7 @@ public enum TransferSyntaxType {
     if (maxBitsStored == 12) {
       int bitsStored = attrs.getInt(Tag.BitsStored, 8);
       if (bitsStored > 8 && bitsStored < 12) {
-        attrs.setInt(Tag.BitsStored, VR.US, bitsStored = 12);
+        attrs.setInt(Tag.BitsStored, VR.US, 12);
         attrs.setInt(Tag.HighBit, VR.US, 11);
         return true;
       }

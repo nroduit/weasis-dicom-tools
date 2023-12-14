@@ -137,7 +137,8 @@ public class DicomObjectUtil {
    * @see <a
    *     href="http://dicom.nema.org/MEDICAL/DICOM/current/output/chtml/part03/sect_C.7.6.11.html">C.7.6.11
    *     Display Shutter Module</a>
-   * @param dcm
+   * @param dcm the DICOM attributes
+   * @return the shape
    */
   public static Area getShutterShape(Attributes dcm) {
     Area shape = null;
@@ -219,7 +220,7 @@ public class DicomObjectUtil {
    * Extract the shutter color from ShutterPresentationColorCIELabValue or ShutterPresentationValue
    *
    * @param dcm the DICOM attributes
-   * @return
+   * @return the color
    */
   public static Color getShutterColor(Attributes dcm) {
     int[] rgb = CIELab.dicomLab2rgb(dcm.getInts(Tag.ShutterPresentationColorCIELabValue));
@@ -227,26 +228,25 @@ public class DicomObjectUtil {
   }
 
   /**
-   * Get RGB color form rgbColour array or pGray value
+   * Get RGB color form rgbaColour array or pGray value
    *
    * @param pGray A single gray unsigned value when rendered on a monochrome display. The units are
    *     specified in P-Values, from a minimum of 0x0000 (black) up to a maximum of 0xFFFF (white).
-   * @param rgbColour
+   * @param rgbaColour An array of unsigned values that specify an RGB[A] color (alpha is optional).
    * @return the color
    */
-  public static Color getRGBColor(int pGray, int[] rgbColour) {
-    int r, g, b;
-    if (rgbColour != null && rgbColour.length >= 3) {
-      r = Math.min(rgbColour[0], 255);
-      g = Math.min(rgbColour[1], 255);
-      b = Math.min(rgbColour[2], 255);
+  public static Color getRGBColor(int pGray, int[] rgbaColour) {
+    int r, g, b, a = 255;
+    if (rgbaColour != null && rgbaColour.length >= 3) {
+      r = Math.min(rgbaColour[0], 255);
+      g = Math.min(rgbaColour[1], 255);
+      b = Math.min(rgbaColour[2], 255);
+      if (rgbaColour.length > 3) {
+        a = Math.min(rgbaColour[3], 255);
+      }
     } else {
       r = g = b = pGray >> 8;
     }
-    r &= 0xFF;
-    g &= 0xFF;
-    b &= 0xFF;
-    int conv = (r << 16) | (g << 8) | b | 0x1000000;
-    return new Color(conv);
+    return new Color(r, g, b, a);
   }
 }

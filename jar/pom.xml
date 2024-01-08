@@ -65,8 +65,6 @@
 
 
     <build>
-        <directory>../target</directory>
-
         <pluginManagement>
             <plugins>
                 <plugin>
@@ -153,12 +151,15 @@
             </plugins>
         </pluginManagement>
 
+        <directory>../target</directory>
+        <sourceDirectory>../src/main/java</sourceDirectory>
+
         <resources>
             <resource>
                 <directory>../src/main/resources</directory>
             </resource>
             <resource>
-                <directory>../target/dict</directory>
+                <directory>${project.build.directory}/dict</directory>
             </resource>
         </resources>
 
@@ -193,7 +194,7 @@
                                     <excludes>META-INF/**</excludes>
                                 </artifactItem>
                             </artifactItems>
-                            <outputDirectory>../target/dict</outputDirectory>
+                            <outputDirectory>${project.build.directory}/dict</outputDirectory>
                         </configuration>
                     </execution>
                     <execution>

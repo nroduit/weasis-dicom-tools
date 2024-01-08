@@ -10,12 +10,11 @@
     <version>${revision}${sha1}${changelist}</version>
 
     <properties>
-        <dcm4che.version>5.31.1</dcm4che.version>
-
         <revision>${dcm4che.version}.1</revision>
         <changelist>-SNAPSHOT</changelist>
-        <sha1></sha1>
+        <sha1/>
 
+        <dcm4che.version>5.31.1</dcm4che.version>
         <weasis.core.img.version>4.8.1</weasis.core.img.version>
         <weasis.opencv.native.version>4.8.1-dcm</weasis.opencv.native.version>
     </properties>
@@ -223,5 +222,48 @@
             </properties>
         </profile>
     </profiles>
+
+    <build>
+
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>flatten-maven-plugin</artifactId>
+                    <version>1.5.0</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+
+        <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+
+                <configuration>
+                    <flattenMode>bom</flattenMode>
+                </configuration>
+
+                <executions>
+                    <!-- enable flattening -->
+                    <execution>
+                        <id>flatten</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>flatten</goal>
+                        </goals>
+                    </execution>
+                    <!-- ensure proper cleanup -->
+                    <execution>
+                        <id>flatten.clean</id>
+                        <phase>clean</phase>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>

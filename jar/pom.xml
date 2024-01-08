@@ -282,6 +282,20 @@
                     </java>
                 </configuration>
             </plugin>
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+
+                <configuration>
+                    <!-- <flattenMode>resolveCiFriendliesOnly</flattenMode>-->
+                    <!--> https://www.mojohaus.org/flatten-maven-plugin/apidocs/org/codehaus/mojo/flatten/FlattenMode.html-->
+
+                    <flattenMode>ossrh
+                    </flattenMode> <!-- Keeps all optional POM elements that are required for OSS Repository-Hosting-->
+                </configuration>
+            </plugin>
+
         </plugins>
     </build>
 

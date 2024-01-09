@@ -24,3 +24,5 @@ release.properties
 pom.xml.releaseBackup
 pom.xml.tag
 
+# Ignore flattened pom files
+.flattened-pom.xml

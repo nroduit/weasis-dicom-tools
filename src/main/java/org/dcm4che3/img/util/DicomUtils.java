@@ -374,7 +374,7 @@ public class DicomUtils {
     return defaultValue;
   }
 
-  public static int[] getIntAyrrayFromDicomElement(Attributes dicom, int tag, int[] defaultValue) {
+  public static int[] getIntArrayFromDicomElement(Attributes dicom, int tag, int[] defaultValue) {
     return getIntArrayFromDicomElement(dicom, tag, null, defaultValue);
   }
 

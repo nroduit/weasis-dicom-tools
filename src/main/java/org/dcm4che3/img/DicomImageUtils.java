@@ -115,7 +115,7 @@ public class DicomImageUtils {
     // Three values of the LUT Descriptor describe the format of the LUT Data in the corresponding
     // Data Element
     int[] descriptor =
-        DicomUtils.getIntAyrrayFromDicomElement(dicomLutObject, Tag.LUTDescriptor, null);
+        DicomUtils.getIntArrayFromDicomElement(dicomLutObject, Tag.LUTDescriptor, null);
 
     if (descriptor == null) {
       LOGGER.debug("Missing LUT Descriptor");

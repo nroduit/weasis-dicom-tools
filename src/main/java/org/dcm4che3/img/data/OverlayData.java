@@ -98,7 +98,7 @@ public class OverlayData {
           int imageFrameOrigin = dcm.getInt(Tag.ImageFrameOrigin | gg0000, 1);
           int framesInOverlay = dcm.getInt(Tag.NumberOfFramesInOverlay | gg0000, 1);
           int[] origin =
-              DicomUtils.getIntAyrrayFromDicomElement(
+              DicomUtils.getIntArrayFromDicomElement(
                   dcm, (Tag.OverlayOrigin | gg0000), new int[] {1, 1});
           data.add(
               new OverlayData(

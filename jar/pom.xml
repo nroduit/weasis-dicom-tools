@@ -63,7 +63,6 @@
         </repository>
     </repositories>
 
-
     <build>
         <pluginManagement>
             <plugins>
@@ -295,11 +294,9 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>flatten-maven-plugin</artifactId>
-
                 <configuration>
                     <!-- <flattenMode>resolveCiFriendliesOnly</flattenMode>-->
                     <!--> https://www.mojohaus.org/flatten-maven-plugin/apidocs/org/codehaus/mojo/flatten/FlattenMode.html-->
-
                     <flattenMode>ossrh
                     </flattenMode> <!-- Keeps all optional POM elements that are required for OSS Repository-Hosting-->
                 </configuration>
@@ -469,7 +466,6 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>1.7.36</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>

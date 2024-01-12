@@ -27,6 +27,14 @@
         <dependencies>
             <dependency>
                 <groupId>org.dcm4che</groupId>
+                <artifactId>dcm4che-parent</artifactId>
+                <version>${dcm4che.version}</version>
+                <scope>import</scope>
+                <type>pom</type>
+            </dependency>
+
+            <dependency>
+                <groupId>org.dcm4che</groupId>
                 <artifactId>dcm4che-core</artifactId>
                 <version>${dcm4che.version}</version>
             </dependency>
@@ -71,7 +79,6 @@
                 <version>${weasis.opencv.native.version}</version>
                 <type>so</type>
                 <classifier>linux-aarch64</classifier>
-
             </dependency>
             <dependency>
                 <groupId>org.weasis.thirdparty.org.opencv</groupId>
@@ -79,7 +86,6 @@
                 <version>${weasis.opencv.native.version}</version>
                 <type>so</type>
                 <classifier>linux-armv7a</classifier>
-
             </dependency>
             <dependency>
                 <groupId>org.weasis.thirdparty.org.opencv</groupId>
@@ -87,7 +93,6 @@
                 <version>${weasis.opencv.native.version}</version>
                 <type>dylib</type>
                 <classifier>macosx-x86-64</classifier>
-
             </dependency>
             <dependency>
                 <groupId>org.weasis.thirdparty.org.opencv</groupId>
@@ -95,7 +100,6 @@
                 <version>${weasis.opencv.native.version}</version>
                 <type>dylib</type>
                 <classifier>macosx-aarch64</classifier>
-
             </dependency>
             <dependency>
                 <groupId>org.weasis.thirdparty.org.opencv</groupId>
@@ -103,7 +107,6 @@
                 <version>${weasis.opencv.native.version}</version>
                 <type>dll</type>
                 <classifier>windows-x86-64</classifier>
-
             </dependency>
             <dependency>
                 <groupId>org.weasis.thirdparty.org.opencv</groupId>
@@ -224,7 +227,6 @@
     </profiles>
 
     <build>
-
         <pluginManagement>
             <plugins>
                 <plugin>
@@ -239,11 +241,9 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>flatten-maven-plugin</artifactId>
-
                 <configuration>
                     <flattenMode>bom</flattenMode>
                 </configuration>
-
                 <executions>
                     <!-- enable flattening -->
                     <execution>
@@ -265,5 +265,4 @@
             </plugin>
         </plugins>
     </build>
-
 </project>

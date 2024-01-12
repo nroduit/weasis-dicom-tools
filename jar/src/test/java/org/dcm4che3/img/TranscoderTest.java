@@ -41,9 +41,9 @@ import org.weasis.opencv.op.ImageProcessor;
 @DisplayName("Transcoder")
 class TranscoderTest {
 
-  static Path IN_DIR = FileSystems.getDefault().getPath("../target/test-classes/org/dcm4che3/img");
+  static Path IN_DIR = FileSystems.getDefault().getPath("./target/test-classes/org/dcm4che3/img");
 
-  static final Path OUT_DIR = FileSystems.getDefault().getPath("../target/test-out/");
+  static final Path OUT_DIR = FileSystems.getDefault().getPath("./target/test-out/");
 
   private static final DicomImageReader reader = new DicomImageReader(new DicomImageReaderSpi());
 

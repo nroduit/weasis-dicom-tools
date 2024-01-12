@@ -150,23 +150,23 @@
             </plugins>
         </pluginManagement>
 
-        <directory>../target</directory>
-        <sourceDirectory>../src/main/java</sourceDirectory>
+        <directory>./target</directory>
+        <sourceDirectory>./src/main/java</sourceDirectory>
 
         <resources>
             <resource>
-                <directory>../src/main/resources</directory>
+                <directory>./src/main/resources</directory>
             </resource>
             <resource>
                 <directory>${project.build.directory}/dict</directory>
             </resource>
         </resources>
 
-        <testSourceDirectory>../src/test/java</testSourceDirectory>
+        <testSourceDirectory>./src/test/java</testSourceDirectory>
         <testOutputDirectory>${project.build.directory}/test-classes</testOutputDirectory>
         <testResources>
             <testResource>
-                <directory>../src/test/resources</directory>
+                <directory>./src/test/resources</directory>
             </testResource>
         </testResources>
 

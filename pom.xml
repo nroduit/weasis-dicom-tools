@@ -15,8 +15,7 @@
         <sha1/>
 
         <dcm4che.version>5.31.1</dcm4che.version>
-        <weasis.core.img.version>4.8.1</weasis.core.img.version>
-        <weasis.opencv.native.version>4.8.1-dcm</weasis.opencv.native.version>
+        <weasis.core.img.version>4.8.1.2-SNAPSHOT</weasis.core.img.version>
     </properties>
 
     <modules>
@@ -61,59 +60,15 @@
 
             <dependency>
                 <groupId>org.weasis.core</groupId>
+                <artifactId>weasis-core-img-bom</artifactId>
+                <version>${weasis.core.img.version}</version>
+                <scope>import</scope>
+                <type>pom</type>
+            </dependency>
+            <dependency>
+                <groupId>org.weasis.core</groupId>
                 <artifactId>weasis-core-img</artifactId>
                 <version>${weasis.core.img.version}</version>
-            </dependency>
-
-            <!-- OpenCV native library -->
-            <dependency>
-                <groupId>org.weasis.thirdparty.org.opencv</groupId>
-                <artifactId>libopencv_java</artifactId>
-                <version>${weasis.opencv.native.version}</version>
-                <type>so</type>
-                <classifier>linux-x86-64</classifier>
-            </dependency>
-            <dependency>
-                <groupId>org.weasis.thirdparty.org.opencv</groupId>
-                <artifactId>libopencv_java</artifactId>
-                <version>${weasis.opencv.native.version}</version>
-                <type>so</type>
-                <classifier>linux-aarch64</classifier>
-            </dependency>
-            <dependency>
-                <groupId>org.weasis.thirdparty.org.opencv</groupId>
-                <artifactId>libopencv_java</artifactId>
-                <version>${weasis.opencv.native.version}</version>
-                <type>so</type>
-                <classifier>linux-armv7a</classifier>
-            </dependency>
-            <dependency>
-                <groupId>org.weasis.thirdparty.org.opencv</groupId>
-                <artifactId>libopencv_java</artifactId>
-                <version>${weasis.opencv.native.version}</version>
-                <type>dylib</type>
-                <classifier>macosx-x86-64</classifier>
-            </dependency>
-            <dependency>
-                <groupId>org.weasis.thirdparty.org.opencv</groupId>
-                <artifactId>libopencv_java</artifactId>
-                <version>${weasis.opencv.native.version}</version>
-                <type>dylib</type>
-                <classifier>macosx-aarch64</classifier>
-            </dependency>
-            <dependency>
-                <groupId>org.weasis.thirdparty.org.opencv</groupId>
-                <artifactId>opencv_java</artifactId>
-                <version>${weasis.opencv.native.version}</version>
-                <type>dll</type>
-                <classifier>windows-x86-64</classifier>
-            </dependency>
-            <dependency>
-                <groupId>org.weasis.thirdparty.org.opencv</groupId>
-                <artifactId>opencv_java</artifactId>
-                <version>${weasis.opencv.native.version}</version>
-                <type>dll</type>
-                <classifier>windows-x86</classifier>
             </dependency>
         </dependencies>
     </dependencyManagement>

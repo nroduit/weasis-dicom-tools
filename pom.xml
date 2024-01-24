@@ -14,7 +14,7 @@
         <changelist>-SNAPSHOT</changelist>
         <sha1/>
 
-        <dcm4che.version>5.31.1</dcm4che.version>
+        <dcm4che.version>5.31.2</dcm4che.version>
         <weasis.core.img.version>4.8.1.2-SNAPSHOT</weasis.core.img.version>
     </properties>
 

@@ -391,6 +391,12 @@
             <artifactId>weasis-core-img</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
         <!-- OpenCV native library -->
         <dependency>
             <groupId>org.weasis.thirdparty.org.opencv</groupId>
@@ -461,10 +467,12 @@
             <version>5.10.0</version>
             <scope>test</scope>
         </dependency>
+
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-            <scope>provided</scope>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <scope>test</scope>
         </dependency>
+
     </dependencies>
 </project>

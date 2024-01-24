@@ -32,8 +32,13 @@ public class DicomMetaData extends IIOMetadata {
     this.fileMetaInformation = Objects.requireNonNull(dcmStream).readFileMetaInformation();
     this.dcm = dcmStream.readDataset();
     this.desc = new ImageDescriptor(dcm);
-    this.transferSyntaxUID =
-        fileMetaInformation.getString(Tag.TransferSyntaxUID, dcmStream.getTransferSyntax());
+    String uid;
+    if (fileMetaInformation == null) {
+      uid = dcmStream.getTransferSyntax();
+    } else {
+      uid = fileMetaInformation.getString(Tag.TransferSyntaxUID, dcmStream.getTransferSyntax());
+    }
+    this.transferSyntaxUID = uid;
   }
 
   public DicomMetaData(Attributes dcm, String transferSyntaxUID) {
@@ -79,15 +84,21 @@ public class DicomMetaData extends IIOMetadata {
     return transferSyntaxUID;
   }
 
+  public String getMediaStorageSOPClassUID() {
+    return fileMetaInformation == null
+        ? null
+        : fileMetaInformation.getString(Tag.MediaStorageSOPClassUID);
+  }
+
   public boolean isVideoTransferSyntaxUID() {
     return transferSyntaxUID != null && transferSyntaxUID.startsWith("1.2.840.10008.1.2.4.10");
   }
 
-  public boolean isDMediaStorageDirectoryStorage() {
-    String mediaStorageSOPClassUID =
-        fileMetaInformation == null
-            ? null
-            : fileMetaInformation.getString(Tag.MediaStorageSOPClassUID);
-    return "1.2.840.10008.1.3.10".equals(mediaStorageSOPClassUID);
+  public boolean isMediaStorageDirectory() {
+    return "1.2.840.10008.1.3.10".equals(getMediaStorageSOPClassUID());
+  }
+
+  public boolean isSegmentationStorage() {
+    return "1.2.840.10008.5.1.4.1.1.66.4".equals(getMediaStorageSOPClassUID());
   }
 }

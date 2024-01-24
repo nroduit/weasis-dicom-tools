@@ -26,3 +26,6 @@ pom.xml.tag
 
 # Ignore flattened pom files
 .flattened-pom.xml
+
+# Ignore temporary folders
+_*

@@ -206,11 +206,6 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>flatten-maven-plugin</artifactId>
-                <configuration>
-                    <flattenMode>bom
-                    </flattenMode> <!-- Like ossrh but additionally keeps dependencyManagement and properties. -->
-                    <!--> https://www.mojohaus.org/flatten-maven-plugin/apidocs/org/codehaus/mojo/flatten/FlattenMode.html -->
-                </configuration>
                 <executions>
                     <!-- enable flattening -->
                     <execution>
@@ -219,6 +214,11 @@
                         <goals>
                             <goal>flatten</goal>
                         </goals>
+                        <configuration>
+                            <flattenMode>bom
+                            </flattenMode> <!-- Like ossrh but additionally keeps dependencyManagement and properties. -->
+                            <!--> https://www.mojohaus.org/flatten-maven-plugin/apidocs/org/codehaus/mojo/flatten/FlattenMode.html -->
+                        </configuration>
                     </execution>
                     <!-- ensure proper cleanup -->
                     <execution>

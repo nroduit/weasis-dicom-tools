@@ -47,6 +47,16 @@
                 <artifactId>dcm4che-net</artifactId>
                 <version>${dcm4che.version}</version>
             </dependency>
+
+            <dependency>
+                <!-- FIX Eclipse Parsson Denial of Service vulnerability -->
+                <!-- CVE-2023-4043 - org.eclipse.parsson:parsson -->
+                <!--    https://github.com/keycloak/keycloak/issues/25545-->
+                <groupId>org.eclipse.parsson</groupId>
+                <artifactId>parsson</artifactId>
+                <version>1.1.5</version>
+                <!--!! note this dependency must be set before dcm4che-json to override the transitive version-->
+            </dependency>
             <dependency>
                 <groupId>org.dcm4che</groupId>
                 <artifactId>dcm4che-json</artifactId>

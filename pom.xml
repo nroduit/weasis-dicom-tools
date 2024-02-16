@@ -16,7 +16,7 @@
     <dcm4che.version>5.31.2</dcm4che.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <weasis.core.img.version>4.8.1</weasis.core.img.version>
+    <weasis.core.img.version>4.8.1.1</weasis.core.img.version>
     <weasis.opencv.native.version>4.8.1-dcm</weasis.opencv.native.version>
 
     <sonar.projectKey>weasis-dicom-tools</sonar.projectKey>

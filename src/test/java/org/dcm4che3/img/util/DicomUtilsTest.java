@@ -27,14 +27,21 @@ import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 import java.util.Date;
+import java.util.Locale;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 class DicomUtilsTest {
+
+  @BeforeAll
+  static void setUp() {
+    Locale.setDefault(Locale.US);
+  }
 
   @Test
   void testGetPeriod() {
@@ -186,14 +193,14 @@ class DicomUtilsTest {
     assertEquals("Value", DicomUtils.getFormattedText("Value", "$V"));
     assertEquals("Value", DicomUtils.getFormattedText("Value", null));
     assertEquals("Value", DicomUtils.getFormattedText("Value", ""));
-    assertEquals("1 janv. 1970", DicomUtils.getFormattedText(LocalDate.of(1970, 1, 1), "Format"));
+    assertEquals("Jan 1, 1970", DicomUtils.getFormattedText(LocalDate.of(1970, 1, 1), "Format"));
     assertEquals(
-        "1 janv. 1970, 00:00:00",
+        "Jan 1, 1970, 12:00:00 AM",
         DicomUtils.getFormattedText(LocalDate.of(1970, 1, 1).atStartOfDay(), "Format"));
-    assertEquals("00:00:00", DicomUtils.getFormattedText(LocalTime.MIDNIGHT, "Format"));
+    assertEquals("12:00:00 AM", DicomUtils.getFormattedText(LocalTime.MIDNIGHT, "Format"));
     assertEquals("", DicomUtils.getFormattedText(DayOfWeek.MONDAY, "Format"));
     assertEquals(
-        "1 janv. 1970, 00:00:00",
+        "Jan 1, 1970, 12:00:00 AM",
         DicomUtils.getFormattedText(
             LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC), "Format"));
   }

@@ -6,7 +6,7 @@
     <groupId>org.weasis</groupId>
     <artifactId>weasis-dicom-tools-bom</artifactId>
     <packaging>pom</packaging>
-    <name>Weasis DICOM API (based on dcm4che3) - BOM</name>
+    <name>Weasis DICOM API - BOM</name>
     <version>${revision}${sha1}${changelist}</version>
 
     <properties>

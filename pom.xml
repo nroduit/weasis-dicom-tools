@@ -14,14 +14,14 @@
         <changelist>-SNAPSHOT</changelist>
         <sha1/>
 
-        <dcm4che.version>5.31.3</dcm4che.version>
+        <dcm4che.version>5.31.2</dcm4che.version>
         <weasis.core.img.version>4.8.1.2-SNAPSHOT</weasis.core.img.version>
         <!-- @NOTE: import weasis.core.img is now optional in dependencyManagement  -->
         <!-- Setting its version explicitly override the transitivity inherited from dcm4che, including weasis.opencv.native.version-->
     </properties>
 
     <modules>
-        <module>jar</module>
+        <module>weasis-dicom-tools</module>
     </modules>
 
     <dependencyManagement>

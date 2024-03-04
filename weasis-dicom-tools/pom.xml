@@ -7,6 +7,7 @@
     <groupId>org.weasis</groupId>
     <artifactId>weasis-dicom-tools-bom</artifactId>
     <version>${revision}${sha1}${changelist}</version>
+    <relativePath>../pom.xml</relativePath>
   </parent>
 
   <artifactId>weasis-dicom-tools</artifactId>
@@ -16,7 +17,7 @@
   <properties>
     <java-version>17</java-version>
     <enforcer.jdk-version>[${java-version},)</enforcer.jdk-version>
-    <enforcer.maven-version>[3.0.5,)</enforcer.maven-version>
+    <enforcer.maven-version>[3.6.3,)</enforcer.maven-version>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -31,42 +32,6 @@
     <!-- Tests require the native library and can only be run on Linux, Windows and macOS-->
     <argLine>-Djava.library.path=${project.build.directory}/lib/${os-name}-${cpu-name}</argLine>
   </properties>
-
-  <licenses>
-    <license>
-      <name>Eclipse Public License v2.0</name>
-      <url>https://www.eclipse.org/legal/epl-v20.html</url>
-      <distribution>repo</distribution>
-    </license>
-    <license>
-      <name>Apache License v2.0</name>
-      <url>https://www.apache.org/licenses/LICENSE-2.0</url>
-      <distribution>repo</distribution>
-    </license>
-  </licenses>
-
-  <repositories>
-    <repository>
-      <id>central</id>
-      <name>Central Repository</name>
-      <url>https://repo.maven.apache.org/maven2</url>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-    </repository>
-    <repository>
-      <id>mvn-repo-master</id>
-      <url>https://raw.github.com/nroduit/mvn-repo/master/</url>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-    </repository>
-    <repository>
-      <id>www.dcm4che.org</id>
-      <name>dcm4che Repository</name>
-      <url>https://www.dcm4che.org/maven2</url>
-    </repository>
-  </repositories>
 
   <build>
     <pluginManagement>
@@ -361,12 +326,6 @@
       </build>
     </profile>
   </profiles>
-
-  <dependencyManagement>
-    <dependencies>
-
-    </dependencies>
-  </dependencyManagement>
 
   <dependencies>
     <dependency>

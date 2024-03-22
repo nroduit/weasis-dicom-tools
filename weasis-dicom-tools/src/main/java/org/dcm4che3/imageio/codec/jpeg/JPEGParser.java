@@ -51,6 +51,18 @@ public class JPEGParser implements XPEGParser {
     }
   }
 
+  @Override
+  public String toString() {
+    return "JPEGParser{"
+        + "codeStreamPos="
+        + codeStreamPosition
+        + ", posAfterAPP="
+        + positionAfterAPP
+        + ", "
+        + params
+        + '}';
+  }
+
   public Params getParams() {
     return params;
   }
@@ -309,17 +321,31 @@ public class JPEGParser implements XPEGParser {
 
     final ByteBuffer sizParams;
     final ByteBuffer codParams;
+    final boolean tlm;
 
     JPEG2000Params(SeekableByteChannel channel) throws IOException {
+      ByteBuffer sizParams = null;
+      ByteBuffer codParams = null;
+      boolean tlm = false;
       Segment segment;
-      while ((segment = nextSegment(channel)).marker != JPEG.SIZ) {
-        skip(channel, segment.contentSize);
-      }
-      channel.read(sizParams = ByteBuffer.allocate(segment.contentSize));
-      while ((segment = nextSegment(channel)).marker != JPEG.COD) {
-        skip(channel, segment.contentSize);
-      }
-      channel.read(codParams = ByteBuffer.allocate(segment.contentSize));
+      do {
+        segment = nextSegment(channel);
+        switch (segment.marker) {
+          case JPEG.SIZ:
+            channel.read(sizParams = ByteBuffer.allocate(segment.contentSize));
+            break;
+          case JPEG.COD:
+            channel.read(codParams = ByteBuffer.allocate(segment.contentSize));
+            break;
+          case JPEG.TLM:
+            tlm = true;
+          default:
+            skip(channel, segment.contentSize);
+        }
+      } while (segment.marker != JPEG.SOT);
+      this.sizParams = sizParams;
+      this.codParams = codParams;
+      this.tlm = tlm;
     }
 
     @Override
@@ -361,7 +387,141 @@ public class JPEGParser implements XPEGParser {
 
     @Override
     public String transferSyntaxUID() {
-      return lossyImageCompression() ? UID.JPEG2000 : UID.JPEG2000Lossless;
+      return (sizParams.getShort(0) & 0b0100_0000_0000_0000) != 0
+          ? lossyImageCompression()
+              ? UID.HTJ2K
+              : isRPCL() ? UID.HTJ2KLosslessRPCL : UID.HTJ2KLossless
+          : lossyImageCompression() ? UID.JPEG2000 : UID.JPEG2000Lossless;
+    }
+
+    @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder(512);
+      sb.append("JPEG2000Params{\n  SIZ{Lsiz=").append(sizParams.limit() + 2);
+      sb.append(", Rsiz=").append(toBinaryString(sizParams.getShort(0) & 0xffff));
+      sb.append(", Xsiz=").append(sizParams.getInt(2) & 0xffffffffL);
+      sb.append(", Ysiz=").append(sizParams.getInt(6) & 0xffffffffL);
+      sb.append(", XOsiz=").append(sizParams.getInt(10) & 0xffffffffL);
+      sb.append(", YOsiz=").append(sizParams.getInt(14) & 0xffffffffL);
+      sb.append(", XTsiz=").append(sizParams.getInt(18) & 0xffffffffL);
+      sb.append(", YTsiz=").append(sizParams.getInt(22) & 0xffffffffL);
+      sb.append(", XTOsiz=").append(sizParams.getInt(26) & 0xffffffffL);
+      sb.append(", YTOsiz=").append(sizParams.getInt(30) & 0xffffffffL);
+      sb.append(", numXTiles=").append(numXTiles());
+      sb.append(", numYTiles=").append(numYTiles());
+      sb.append(", Csiz=").append(sizParams.getShort(34) & 0xffff);
+      sb.append(", Comps{");
+      for (int i = 36; i + 2 < sizParams.limit(); ) {
+        sb.append('{');
+        int ssiz = sizParams.get(i++);
+        if (ssiz < 0) sb.append('±');
+        sb.append((ssiz & 0x7f) + 1)
+            .append(':')
+            .append(sizParams.get(i++) & 0xff)
+            .append(':')
+            .append(sizParams.get(i++) & 0xff)
+            .append('}')
+            .append(',');
+      }
+      sb.setLength(sb.length() - 1);
+      sb.append("}},\n  COD{Lcod=").append(codParams.limit() + 2);
+      sb.append(", Scod=").append(toBinaryString(codParams.get(0) & 0xff));
+      sb.append(", SGcod{P=").append(toProgressionOrder(codParams.get(1) & 0xff));
+      sb.append(", Layers=").append(codParams.getShort(2) & 0xffff);
+      sb.append(", RCT/ICT=").append(codParams.get(4));
+      sb.append("}, SPcod{NL=").append(decompositions());
+      sb.append(", cb-width=").append(4 << (codParams.get(6) & 0xff));
+      sb.append(", cb-height=").append(4 << (codParams.get(7) & 0xff));
+      sb.append(", cb-style=").append(toBinaryString(codParams.get(8) & 0xff));
+      sb.append(", Wavelet=").append(toTransformation(codParams.get(9) & 0xff));
+      if (codParams.limit() > 10) {
+        sb.append(", Precincts{");
+        for (int i = 10; i < codParams.limit(); i++) {
+          sb.append('{')
+              .append(codParams.get(i) & 0xf)
+              .append(',')
+              .append((codParams.get(i) & 0xf0) >>> 4)
+              .append('}')
+              .append(',');
+        }
+        sb.setLength(sb.length() - 1);
+      }
+      sb.append(tlm ? "}}}\n  TLM}" : "}}}}");
+      return sb.toString();
+    }
+
+    private String toTransformation(int i) {
+      switch (i) {
+        case 0:
+          return "9-7";
+        case 1:
+          return "5-3";
+      }
+      return Integer.toString(i);
+    }
+
+    private String toProgressionOrder(int i) {
+      switch (i) {
+        case 0:
+          return "LRCP";
+        case 1:
+          return "RLCP";
+        case 2:
+          return "RPCL";
+        case 3:
+          return "PCRL";
+        case 4:
+          return "CPRL";
+      }
+      return Integer.toString(i);
+    }
+
+    private String toBinaryString(int i) {
+      String s = Integer.toBinaryString(i);
+      int l = s.length();
+      if (l <= 4) return s;
+      StringBuilder sb = new StringBuilder(s);
+      while (l > 4) sb.insert(l -= 4, '_');
+      return sb.toString();
+    }
+
+    private boolean isRPCL() {
+      return tlm
+          && isProgressionOrderRPCL()
+          && isBlockSize64x64()
+          && numXTiles() == 1
+          && numYTiles() == 1
+          && (Math.min(rows(), columns()) >>> decompositions()) <= 64;
+    }
+
+    private boolean isProgressionOrderRPCL() {
+      return codParams.get(1) == 2;
+    }
+
+    private int decompositions() {
+      return codParams.get(5) & 0xff;
+    }
+
+    private boolean isBlockSize64x64() {
+      return (codParams.get(6) & 0xff) == 4 && (codParams.get(7) & 0xff) == 4;
+    }
+
+    private int numXTiles() {
+      return numTiles(2, 18, 26);
+    }
+
+    private int numYTiles() {
+      return numTiles(6, 22, 30);
+    }
+
+    private int numTiles(int iSize, int iTsiz, int iTOsiz) {
+      long tSize = sizParams.getInt(iTsiz) & 0xffffffffL;
+      return (int)
+          (((sizParams.getInt(iSize) & 0xffffffffL)
+                  - (sizParams.getInt(iTOsiz) & 0xffffffffL)
+                  + tSize
+                  - 1)
+              / tSize);
     }
   }
 }

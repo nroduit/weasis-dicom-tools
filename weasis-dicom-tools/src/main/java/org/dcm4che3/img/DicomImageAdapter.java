@@ -103,7 +103,7 @@ public class DicomImageAdapter {
          *
          * Overlays in pixel data should be masked before finding min and max.
          */
-        this.bitsStored = bitsAllocated;
+        setBitsStored(bitsAllocated);
       }
     }
     return val;
@@ -112,13 +112,13 @@ public class DicomImageAdapter {
   /**
    * Computes Min/Max values from Image excluding range of values provided
    *
-   * @param paddingValueMin
-   * @param paddingValueMax
+   * @param paddingValueMin padding value to exclude from min value
+   * @param paddingValueMax padding value to exclude from max value
    */
   private MinMaxLocResult findMinMaxValues(
       PlanarImage image, Integer paddingValueMin, Integer paddingValueMax) {
     MinMaxLocResult val;
-    if (image.type() <= CvType.CV_8S) {
+    if (CvType.depth(image.type()) <= CvType.CV_8S) {
       val = new MinMaxLocResult();
       val.minVal = 0.0;
       val.maxVal = 255.0;
@@ -166,8 +166,8 @@ public class DicomImageAdapter {
    * In the case where Rescale Slope and Rescale Intercept are used for modality pixel
    * transformation, the output ranges may be signed even if Pixel Representation is unsigned.
    *
-   * @param wl
-   * @return
+   * @param wl WlPresentation
+   * @return true if the output of the modality pixel transformation can be signed
    */
   public boolean isModalityLutOutSigned(WlPresentation wl) {
     boolean signed = desc.isSigned();

@@ -175,17 +175,24 @@ class DicomUtilsTest {
     // Replace non-breaking spaces with regular spaces before comparing
     TemporalAccessor[] temporalAccessors = {LocalDate.of(2022, 12, 25), LocalDate.of(2022, 12, 26)};
     assertEquals(
-        "Dec 25, 2022, Dec 26, 2022", DicomUtils.getFormattedText(temporalAccessors, "Format").replace(" ", " "));
-    assertEquals("Jan 1, 1970", DicomUtils.getFormattedText(LocalDate.of(1970, 1, 1), "Format").replace(" ", " "));
+        "Dec 25, 2022, Dec 26, 2022",
+        DicomUtils.getFormattedText(temporalAccessors, "Format").replace(" ", " "));
+    assertEquals(
+        "Jan 1, 1970",
+        DicomUtils.getFormattedText(LocalDate.of(1970, 1, 1), "Format").replace(" ", " "));
     assertEquals(
         "Jan 1, 1970, 12:00:00 AM",
-        DicomUtils.getFormattedText(LocalDate.of(1970, 1, 1).atStartOfDay(), "Format", Locale.US).replace(" ", " "));
-    assertEquals("12:00:00 AM", DicomUtils.getFormattedText(LocalTime.MIDNIGHT, "Format", Locale.US).replace(" ", " "));
+        DicomUtils.getFormattedText(LocalDate.of(1970, 1, 1).atStartOfDay(), "Format", Locale.US)
+            .replace(" ", " "));
+    assertEquals(
+        "12:00:00 AM",
+        DicomUtils.getFormattedText(LocalTime.MIDNIGHT, "Format", Locale.US).replace(" ", " "));
     assertEquals("", DicomUtils.getFormattedText(DayOfWeek.MONDAY, "Format").replace(" ", " "));
     assertEquals(
         "Jan 1, 1970, 12:00:00 AM",
         DicomUtils.getFormattedText(
-            LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC), "Format", Locale.US).replace(" ", " "));
+                LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC), "Format", Locale.US)
+            .replace(" ", " "));
   }
 
   @Test
@@ -271,27 +278,59 @@ class DicomUtilsTest {
   @Test
   @DisplayName("Get date array from Dicom Element with default value")
   void testGetDatesFromDicomElement() {
+    TimeZone timeZone = TimeZone.getDefault();
     Attributes dicom = new Attributes();
+    dicom.setTimezone(timeZone);
     Date fromResult =
-        Date.from(LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC).toInstant());
+        Date.from(
+            LocalDate.of(1985, 3, 21)
+                .atStartOfDay()
+                .atZone(ZoneOffset.systemDefault())
+                .toInstant());
 
     Date[] actualDatesFromDicomElement =
         DicomUtils.getDatesFromDicomElement(
-            dicom, 1, "Private Creator ID", new Date[] {fromResult});
+            dicom, 1, "Private Creator ID", new Date[] {fromResult, fromResult});
 
-    assertEquals(1, actualDatesFromDicomElement.length);
+    assertEquals(2, actualDatesFromDicomElement.length);
     assertSame(fromResult, actualDatesFromDicomElement[0]);
+
+    int privateCreatorId = 0x70070070;
+    int privateDateId = 0x70077001;
+    dicom.setString(privateCreatorId, VR.LO, "Private Creator ID");
+    dicom.setDate(privateDateId, VR.DA, fromResult, new Date());
+    actualDatesFromDicomElement =
+        DicomUtils.getDatesFromDicomElement(
+            dicom, privateDateId, "Private Creator ID", new Date[] {fromResult});
+    assertEquals(2, actualDatesFromDicomElement.length);
+    assertEquals(fromResult, actualDatesFromDicomElement[0]);
   }
 
   @Test
   @DisplayName("Get Patient Age in Period")
   void testGetPatientAgeInPeriod() {
+    Date birthdate =
+        Date.from(
+            LocalDate.of(1985, 3, 21)
+                .atStartOfDay()
+                .atZone(ZoneOffset.systemDefault())
+                .toInstant());
+    Date date =
+        Date.from(
+            LocalDate.of(2003, 7, 19)
+                .atStartOfDay()
+                .atZone(ZoneOffset.systemDefault())
+                .toInstant());
+    Attributes dicom = new Attributes();
+    dicom.setDate(Tag.PatientBirthDate, VR.DA, birthdate);
+    dicom.setString(Tag.PatientAge, VR.AS, "017Y");
+
     assertEquals("foo", DicomUtils.getPatientAgeInPeriod(null, 1, "foo", "foo", false));
-    assertNull(DicomUtils.getPatientAgeInPeriod(new Attributes(), 1, "foo", "foo", false));
+    assertNull(DicomUtils.getPatientAgeInPeriod(dicom, 1, "foo", "foo", false));
+
+    dicom.setDate(Tag.AcquisitionDate, VR.DA, date);
     assertEquals(
-        "42",
-        DicomUtils.getPatientAgeInPeriod(
-            new Attributes(), 65536, "Private Creator ID", "42", true));
+        "42", DicomUtils.getPatientAgeInPeriod(dicom, 65536, "Private Creator ID", "42", true));
     assertEquals(
         "42",
         DicomUtils.getPatientAgeInPeriod(
@@ -300,14 +339,14 @@ class DicomUtilsTest {
             "Private Creator ID",
             "42",
             true));
-    assertNull(
-        DicomUtils.getPatientAgeInPeriod(
-            new Attributes(), 65536, "Private Creator ID", null, true));
-    assertNull(
-        DicomUtils.getPatientAgeInPeriod(new Attributes(), 65536, "Private Creator ID", "", true));
-    assertNull(DicomUtils.getPatientAgeInPeriod(new Attributes(), 1, true));
+    assertEquals(
+        "018Y", DicomUtils.getPatientAgeInPeriod(dicom, 65536, "Private Creator ID", null, true));
+    assertEquals("017Y", DicomUtils.getPatientAgeInPeriod(dicom, Tag.PatientAge, null, null, true));
+    assertEquals(
+        "018Y", DicomUtils.getPatientAgeInPeriod(dicom, 65536, "Private Creator ID", "", true));
+    assertEquals("018Y", DicomUtils.getPatientAgeInPeriod(dicom, 1, true));
     assertNull(DicomUtils.getPatientAgeInPeriod(null, 1, false));
-    assertNull(DicomUtils.getPatientAgeInPeriod(new Attributes(), 1, false));
+    assertEquals("018Y", DicomUtils.getPatientAgeInPeriod(dicom, 1, false));
   }
 
   @Test

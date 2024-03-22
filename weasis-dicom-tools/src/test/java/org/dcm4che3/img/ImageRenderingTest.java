@@ -9,6 +9,10 @@
  */
 package org.dcm4che3.img;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import java.awt.Polygon;
 import java.awt.Shape;
 import java.nio.file.Path;
@@ -19,7 +23,6 @@ import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import org.dcm4che3.img.stream.DicomFileInputStream;
 import org.dcm4che3.img.stream.ImageDescriptor;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.weasis.core.util.MathUtil;
@@ -27,7 +30,6 @@ import org.weasis.core.util.StringUtil;
 import org.weasis.opencv.data.PlanarImage;
 import org.weasis.opencv.op.ImageProcessor;
 
-@DisplayName("ImageRendering")
 class ImageRenderingTest {
 
   @Test
@@ -44,11 +46,11 @@ class ImageRenderingTest {
     polygon.addPoint(200, 250);
     polygon.addPoint(140, 240);
     double[][] val = statistics(in.toString(), readParam, polygon);
-    Assertions.assertNotNull(val);
-    Assertions.assertEquals(val[0][0], -202.0, 0.0);
-    Assertions.assertEquals(961.0, val[1][0], 0.0);
-    Assertions.assertTrue(MathUtil.isEqual(val[2][0], 13.184417441029307));
-    Assertions.assertTrue(MathUtil.isEqual(val[3][0], 146.3726881826613));
+    assertNotNull(val);
+    assertEquals(val[0][0], -202.0, 0.0);
+    assertEquals(961.0, val[1][0], 0.0);
+    assertTrue(MathUtil.isEqual(val[2][0], 13.184417441029307));
+    assertTrue(MathUtil.isEqual(val[3][0], 146.3726881826613));
   }
 
   public static double[][] statistics(String srcPath, DicomImageReadParam params, Shape shape)

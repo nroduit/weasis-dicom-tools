@@ -51,6 +51,10 @@ class PresetWindowLevelTest {
         NullPointerException.class,
         () -> new PresetWindowLevel("Test", 1.0, null, LutShape.LINEAR));
     assertThrows(NullPointerException.class, () -> new PresetWindowLevel("Test", 1.0, 2.0, null));
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> PresetWindowLevel.getPresetCollection(null, "Test", null));
   }
 
   @Test
@@ -60,7 +64,7 @@ class PresetWindowLevelTest {
     PresetWindowLevel preset2 = new PresetWindowLevel("Test", 1.0, 2.0, LutShape.LINEAR);
     assertEquals(preset1, preset2);
     assertEquals(preset1.hashCode(), preset2.hashCode());
-    assertNotEquals(null, preset1);
+    assertNotEquals(preset1, null);
 
     preset2 = new PresetWindowLevel("Test2", 1.0, 2.0, LutShape.LINEAR);
     assertNotEquals(preset1, preset2);

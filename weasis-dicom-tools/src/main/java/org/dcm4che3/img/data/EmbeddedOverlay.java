@@ -18,27 +18,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * Represents a pixel embedded overlay in DICOM attributes which is defined by the group offset and
+ * the bit position. This type of overlay has been retired in DICOM standard, but it is still used
+ * in some old DICOM files.
+ *
  * @author Nicolas Roduit
  */
-public class EmbeddedOverlay {
+public record EmbeddedOverlay(int groupOffset, int bitPosition) {
   private static final Logger LOGGER = LoggerFactory.getLogger(EmbeddedOverlay.class);
 
-  private final int groupOffset;
-  private final int bitPosition;
-
-  public EmbeddedOverlay(int groupOffset, int bitPosition) {
-    this.groupOffset = groupOffset;
-    this.bitPosition = bitPosition;
-  }
-
-  public int getBitPosition() {
-    return bitPosition;
-  }
-
-  public int getGroupOffset() {
-    return groupOffset;
-  }
-
+  /**
+   * Returns a list of EmbeddedOverlay objects extracted from the given DICOM attributes.
+   *
+   * @param dcm the DICOM attributes containing the embedded overlays
+   * @return a list of EmbeddedOverlay objects
+   */
   public static List<EmbeddedOverlay> getEmbeddedOverlay(Attributes dcm) {
     List<EmbeddedOverlay> data = new ArrayList<>();
     int bitsAllocated = dcm.getInt(Tag.BitsAllocated, 8);

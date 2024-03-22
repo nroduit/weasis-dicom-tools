@@ -10,10 +10,37 @@
 package org.dcm4che3.img.stream;
 
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.Objects;
 
 /**
  * @author Nicolas Roduit
  * @since Mar 2018
  */
 public record ExtendSegmentedInputImageStream(
-    Path path, long[] segmentPositions, int[] segmentLengths, ImageDescriptor imageDescriptor) {}
+    Path path, long[] segmentPositions, int[] segmentLengths, ImageDescriptor imageDescriptor) {
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    ExtendSegmentedInputImageStream that = (ExtendSegmentedInputImageStream) o;
+    return Objects.equals(path, that.path)
+        && Arrays.equals(segmentPositions, that.segmentPositions)
+        && Arrays.equals(segmentLengths, that.segmentLengths)
+        && Objects.equals(imageDescriptor, that.imageDescriptor);
+  }
+
+  @Override
+  public int hashCode() {
+    int result = Objects.hash(path, imageDescriptor);
+    result = 31 * result + Arrays.hashCode(segmentPositions);
+    result = 31 * result + Arrays.hashCode(segmentLengths);
+    return result;
+  }
+
+  @Override
+  public String toString() {
+    return "ExtendSegmentedInputImageStream{" + "path=" + path + '}';
+  }
+}

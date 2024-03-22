@@ -280,35 +280,23 @@ public class DateTimeUtils {
 
   public static LocalDate toLocalDate(Date date) {
     if (date != null) {
-      try {
-        LocalDateTime datetime = LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault());
-        return datetime.toLocalDate();
-      } catch (Exception e) {
-        LOGGER.error("Date conversion", e);
-      }
+      LocalDateTime datetime = LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault());
+      return datetime.toLocalDate();
     }
     return null;
   }
 
   public static LocalTime toLocalTime(Date date) {
     if (date != null) {
-      try {
-        LocalDateTime datetime = LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault());
-        return datetime.toLocalTime();
-      } catch (Exception e) {
-        LOGGER.error("Time conversion", e);
-      }
+      LocalDateTime datetime = LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault());
+      return datetime.toLocalTime();
     }
     return null;
   }
 
   public static LocalDateTime toLocalDateTime(Date date) {
     if (date != null) {
-      try {
-        return LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault());
-      } catch (Exception e) {
-        LOGGER.error("DateTime conversion", e);
-      }
+      return LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault());
     }
     return null;
   }

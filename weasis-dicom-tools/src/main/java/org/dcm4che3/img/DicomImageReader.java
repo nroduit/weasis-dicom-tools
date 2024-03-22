@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.function.BooleanSupplier;
 import javax.imageio.ImageReadParam;
 import javax.imageio.ImageReader;
@@ -74,6 +75,29 @@ public class DicomImageReader extends ImageReader {
 
   private static final Logger LOG = LoggerFactory.getLogger(DicomImageReader.class);
 
+  public static Set<Integer> BULK_TAGS =
+      Set.of(
+          Tag.PixelDataProviderURL,
+          Tag.AudioSampleData,
+          Tag.CurveData,
+          Tag.SpectroscopyData,
+          Tag.RedPaletteColorLookupTableData,
+          Tag.GreenPaletteColorLookupTableData,
+          Tag.BluePaletteColorLookupTableData,
+          Tag.AlphaPaletteColorLookupTableData,
+          Tag.LargeRedPaletteColorLookupTableData,
+          Tag.LargeGreenPaletteColorLookupTableData,
+          Tag.LargeBluePaletteColorLookupTableData,
+          Tag.SegmentedRedPaletteColorLookupTableData,
+          Tag.SegmentedGreenPaletteColorLookupTableData,
+          Tag.SegmentedBluePaletteColorLookupTableData,
+          Tag.SegmentedAlphaPaletteColorLookupTableData,
+          Tag.OverlayData,
+          Tag.EncapsulatedDocument,
+          Tag.FloatPixelData,
+          Tag.DoubleFloatPixelData,
+          Tag.PixelData);
+
   static {
     // Load the native OpenCV library
     OpenCVNativeLoader loader = new OpenCVNativeLoader();
@@ -82,46 +106,21 @@ public class DicomImageReader extends ImageReader {
 
   public static final BulkDataDescriptor BULKDATA_DESCRIPTOR =
       (itemPointer, privateCreator, tag, vr, length) -> {
-        switch (TagUtils.normalizeRepeatingGroup(tag)) {
-          case Tag.PixelDataProviderURL:
-          case Tag.AudioSampleData:
-          case Tag.CurveData:
-          case Tag.SpectroscopyData:
-          case Tag.RedPaletteColorLookupTableData:
-          case Tag.GreenPaletteColorLookupTableData:
-          case Tag.BluePaletteColorLookupTableData:
-          case Tag.AlphaPaletteColorLookupTableData:
-          case Tag.LargeRedPaletteColorLookupTableData:
-          case Tag.LargeGreenPaletteColorLookupTableData:
-          case Tag.LargeBluePaletteColorLookupTableData:
-          case Tag.SegmentedRedPaletteColorLookupTableData:
-          case Tag.SegmentedGreenPaletteColorLookupTableData:
-          case Tag.SegmentedBluePaletteColorLookupTableData:
-          case Tag.SegmentedAlphaPaletteColorLookupTableData:
-          case Tag.OverlayData:
-          case Tag.EncapsulatedDocument:
-          case Tag.FloatPixelData:
-          case Tag.DoubleFloatPixelData:
-          case Tag.PixelData:
-            return itemPointer.isEmpty();
-          case Tag.WaveformData:
-            return itemPointer.size() == 1
-                && itemPointer.get(0).sequenceTag == Tag.WaveformSequence;
+        var tagNormalized = TagUtils.normalizeRepeatingGroup(tag);
+        if (tagNormalized == Tag.WaveformData) {
+          return itemPointer.size() == 1 && itemPointer.get(0).sequenceTag == Tag.WaveformSequence;
+        } else if (BULK_TAGS.contains(tagNormalized)) {
+          return itemPointer.isEmpty();
         }
+
         if (TagUtils.isPrivateTag(tag)) {
           return length > 1000; // Do no read in memory private value more than 1 KB
         }
 
-        switch (vr) {
-          case OB:
-          case OD:
-          case OF:
-          case OL:
-          case OW:
-          case UN:
-            return length > 64;
-        }
-        return false;
+        return switch (vr) {
+          case OB, OD, OF, OL, OW, UN -> length > 64;
+          default -> false;
+        };
       };
 
   private final ArrayList<Integer> fragmentsPositions = new ArrayList<>();
@@ -226,10 +225,14 @@ public class DicomImageReader extends ImageReader {
 
   protected DicomImageReadParam getDefaultReadParam(ImageReadParam param) {
     DicomImageReadParam dcmParam;
-    if (param instanceof DicomImageReadParam) {
-      dcmParam = (DicomImageReadParam) param;
+    if (param instanceof DicomImageReadParam readParam) {
+      dcmParam = readParam;
     } else {
-      dcmParam = new DicomImageReadParam(param);
+      if (param == null) {
+        dcmParam = new DicomImageReadParam();
+      } else {
+        dcmParam = new DicomImageReadParam(param);
+      }
     }
     return dcmParam;
   }
@@ -328,18 +331,18 @@ public class DicomImageReader extends ImageReader {
         break;
     }
 
-    switch (tsuid) {
-      case UID.JPEGBaseline8Bit:
-      case UID.JPEGExtended12Bit:
-      case UID.JPEGSpectralSelectionNonHierarchical68:
-      case UID.JPEGFullProgressionNonHierarchical1012:
+    return switch (tsuid) {
+      case UID.JPEGBaseline8Bit,
+          UID.JPEGExtended12Bit,
+          UID.JPEGSpectralSelectionNonHierarchical68,
+          UID.JPEGFullProgressionNonHierarchical1012 -> {
         if (pmi == PhotometricInterpretation.RGB) {
-          return isYbrModel.getAsBoolean();
+          yield isYbrModel.getAsBoolean();
         }
-        return true;
-      default:
-        return pmi.name().startsWith("YBR");
-    }
+        yield true;
+      }
+      default -> pmi.name().startsWith("YBR");
+    };
   }
 
   public List<SupplierEx<PlanarImage, IOException>> getLazyPlanarImages(
@@ -701,26 +704,25 @@ public class DicomImageReader extends ImageReader {
   }
 
   public static boolean isSupportedSyntax(String uid) {
-    switch (uid) {
-      case UID.ImplicitVRLittleEndian:
-      case UID.ExplicitVRLittleEndian:
-      case UID.ExplicitVRBigEndian:
-      case UID.RLELossless:
-      case UID.JPEGBaseline8Bit:
-      case UID.JPEGExtended12Bit:
-      case UID.JPEGSpectralSelectionNonHierarchical68:
-      case UID.JPEGFullProgressionNonHierarchical1012:
-      case UID.JPEGLossless:
-      case UID.JPEGLosslessSV1:
-      case UID.JPEGLSLossless:
-      case UID.JPEGLSNearLossless:
-      case UID.JPEG2000Lossless:
-      case UID.JPEG2000:
-      case UID.JPEG2000MCLossless:
-      case UID.JPEG2000MC:
-        return true;
-      default:
-        return false;
-    }
+    return switch (uid) {
+      case UID.ImplicitVRLittleEndian,
+              UID.ExplicitVRLittleEndian,
+              UID.ExplicitVRBigEndian,
+              UID.RLELossless,
+              UID.JPEGBaseline8Bit,
+              UID.JPEGExtended12Bit,
+              UID.JPEGSpectralSelectionNonHierarchical68,
+              UID.JPEGFullProgressionNonHierarchical1012,
+              UID.JPEGLossless,
+              UID.JPEGLosslessSV1,
+              UID.JPEGLSLossless,
+              UID.JPEGLSNearLossless,
+              UID.JPEG2000Lossless,
+              UID.JPEG2000,
+              UID.JPEG2000MCLossless,
+              UID.JPEG2000MC ->
+          true;
+      default -> false;
+    };
   }
 }

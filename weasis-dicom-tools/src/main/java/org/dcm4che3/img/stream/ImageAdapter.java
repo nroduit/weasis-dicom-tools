@@ -254,10 +254,10 @@ public class ImageAdapter {
 
         @Override
         public boolean bigEndian() {
-          if (pixdata instanceof BulkData) {
-            return ((BulkData) pixdata).bigEndian();
-          } else if (pixdata instanceof Fragments) {
-            return ((Fragments) pixdata).bigEndian();
+          if (pixdata instanceof BulkData bulkData) {
+            return bulkData.bigEndian();
+          } else if (pixdata instanceof Fragments fragments) {
+            return fragments.bigEndian();
           }
           return false;
         }
@@ -277,10 +277,10 @@ public class ImageAdapter {
             Fragments fragments = null;
             BulkData bulkData = null;
             boolean bigEndian = bigEndian();
-            if (pixdata instanceof BulkData) {
-              bulkData = (BulkData) pixdata;
-            } else if (pixdata instanceof Fragments) {
-              fragments = (Fragments) pixdata;
+            if (pixdata instanceof BulkData bck) {
+              bulkData = bck;
+            } else if (pixdata instanceof Fragments frag) {
+              fragments = frag;
             }
 
             boolean hasFragments = fragments != null;

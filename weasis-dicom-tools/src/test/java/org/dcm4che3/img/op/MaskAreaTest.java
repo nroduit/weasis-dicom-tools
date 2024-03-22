@@ -62,6 +62,10 @@ class MaskAreaTest {
         assertEquals(2, data[424]);
         assertEquals(3, data[425]);
       }
+
+      try (ImageCV result = MaskArea.drawShape(img, null)) {
+        assertEquals(img, result);
+      }
     }
 
     actualMaskArea = new MaskArea(shapeList, Color.BLACK);

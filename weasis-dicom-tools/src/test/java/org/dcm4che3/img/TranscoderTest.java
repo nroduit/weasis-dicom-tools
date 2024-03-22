@@ -9,6 +9,11 @@
  */
 package org.dcm4che3.img;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import java.awt.Color;
 import java.awt.Dimension;
 import java.io.IOException;
@@ -29,7 +34,6 @@ import org.dcm4che3.img.data.ImageContentHash;
 import org.dcm4che3.img.data.PrDicomObject;
 import org.dcm4che3.img.stream.DicomFileInputStream;
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -40,7 +44,6 @@ import org.weasis.core.util.FileUtil;
 import org.weasis.opencv.data.PlanarImage;
 import org.weasis.opencv.op.ImageProcessor;
 
-@DisplayName("Transcoder")
 class TranscoderTest {
 
   static final Path IN_DIR =
@@ -67,14 +70,14 @@ class TranscoderTest {
 
   static final Consumer<Double> zeroDiff =
       val ->
-          Assertions.assertEquals(
+          assertEquals(
               0.0,
               val,
               "The hash result of the image input is not exactly the same as the output image");
 
   static final Consumer<Double> hasDiff =
       val ->
-          Assertions.assertNotEquals(
+          assertNotEquals(
               0.0,
               val,
               "The hash result of the image input is exactly the same as the output image");
@@ -88,7 +91,7 @@ class TranscoderTest {
     readParam.setPresentationState(PrDicomObject.getPresentationState(inPr.toString()));
     ImageTranscodeParam params = new ImageTranscodeParam(readParam, Format.PNG);
     List<Path> outFiles = Transcoder.dcm2image(in, OUT_DIR, params);
-    Assertions.assertFalse(outFiles.isEmpty());
+    assertFalse(outFiles.isEmpty());
     Map<ImageContentHash, Consumer<Double>> enumMap = new EnumMap<>(ImageContentHash.class);
     enumMap.put(ImageContentHash.AVERAGE, zeroDiff);
     enumMap.put(ImageContentHash.PHASH, zeroDiff);
@@ -110,7 +113,7 @@ class TranscoderTest {
     readParam.setOverlayColor(Color.GREEN);
     ImageTranscodeParam params = new ImageTranscodeParam(readParam, Format.PNG);
     List<Path> outFiles = Transcoder.dcm2image(in, OUT_DIR, params);
-    Assertions.assertFalse(outFiles.isEmpty());
+    assertFalse(outFiles.isEmpty());
     Map<ImageContentHash, Consumer<Double>> enumMap = new EnumMap<>(ImageContentHash.class);
     enumMap.put(ImageContentHash.AVERAGE, zeroDiff);
     enumMap.put(ImageContentHash.PHASH, zeroDiff);
@@ -129,8 +132,8 @@ class TranscoderTest {
     params.getReadParam().setSourceRenderSize(new Dimension(128, 128));
     Path out = transcodeDicom("signed-raw-9bit.dcm", params, null);
     List<PlanarImage> images = readImages(out);
-    Assertions.assertEquals(128, images.get(0).width(), "The width of image doesn't match");
-    Assertions.assertEquals(128, images.get(0).height(), "The height of image doesn't match");
+    assertEquals(128, images.get(0).width(), "The width of image doesn't match");
+    assertEquals(128, images.get(0).height(), "The height of image doesn't match");
   }
 
   @Test
@@ -171,7 +174,7 @@ class TranscoderTest {
     Path in = FileSystems.getDefault().getPath(IN_DIR.toString(), "ybr422-raw.dcm");
     ImageTranscodeParam params = new ImageTranscodeParam(format);
     List<Path> outFiles = Transcoder.dcm2image(in, OUT_DIR, params);
-    Assertions.assertFalse(outFiles.isEmpty());
+    assertFalse(outFiles.isEmpty());
     Map<ImageContentHash, Consumer<Double>> enumMap = new EnumMap<>(ImageContentHash.class);
     enumMap.put(ImageContentHash.AVERAGE, zeroDiff);
     enumMap.put(ImageContentHash.PHASH, zeroDiff);
@@ -234,7 +237,7 @@ class TranscoderTest {
       throws Exception {
     List<PlanarImage> imagesIn = readImages(in);
     List<PlanarImage> imagesOut = readImages(outFiles);
-    Assertions.assertEquals(
+    assertEquals(
         imagesIn.size(),
         imagesOut.size(),
         "The number of image frames of the input file is different of the output file");
@@ -284,7 +287,7 @@ class TranscoderTest {
     Path out = FileSystems.getDefault().getPath(OUT_DIR.toString(), params.getOutputTsuid());
     Files.createDirectories(out);
     out = Transcoder.dcm2dcm(in, out, params);
-    Assertions.assertTrue(out != null && Files.size(out) > 0, "The output image is empty");
+    assertTrue(out != null && Files.size(out) > 0, "The output image is empty");
     if (enumMap != null) {
       compareImageContent(in, out, enumMap);
     }

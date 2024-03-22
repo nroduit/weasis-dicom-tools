@@ -12,6 +12,7 @@ package org.dcm4che3.img.lut;
 import static org.junit.jupiter.api.Assertions.*;
 
 import org.dcm4che3.data.Attributes;
+import org.dcm4che3.data.Sequence;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
 import org.junit.jupiter.api.DisplayName;
@@ -40,6 +41,38 @@ class ModalityLutModuleTest {
   }
 
   @Test
+  @DisplayName("Verify do not apply modality LUT for XA and XRF")
+  void verifyLUTForXA() {
+    Attributes attributes = new Attributes();
+    attributes.setString(Tag.Modality, VR.LO, "XA");
+    attributes.setDouble(Tag.RescaleSlope, VR.DS, 2.0);
+    attributes.setDouble(Tag.RescaleIntercept, VR.DS, 1.0);
+    ModalityLutModule modalityLutModule = new ModalityLutModule(attributes);
+    assertTrue(modalityLutModule.getRescaleIntercept().isEmpty());
+    assertTrue(modalityLutModule.getRescaleSlope().isEmpty());
+
+    attributes.setString(Tag.Modality, VR.LO, "XRF");
+    attributes.setString(Tag.PixelIntensityRelationship, VR.CS, "DISP");
+    Attributes dcm = new Attributes();
+    dcm.setString(Tag.ModalityLUTType, VR.LO, "US");
+    dcm.setInt(Tag.LUTDescriptor, VR.US, 8);
+    dcm.setBytes(Tag.LUTData, VR.OB, new byte[] {1, 2, 3});
+    dcm.setString(Tag.LUTExplanation, VR.LO, "Explanation");
+    Sequence seq = attributes.newSequence(Tag.ModalityLUTSequence, 1);
+    seq.add(dcm);
+
+    modalityLutModule = new ModalityLutModule(attributes);
+    assertTrue(modalityLutModule.getRescaleIntercept().isEmpty());
+    assertTrue(modalityLutModule.getRescaleSlope().isEmpty());
+    assertTrue(modalityLutModule.getLutExplanation().isEmpty());
+
+    attributes.setString(Tag.Modality, VR.LO, "PT");
+    dcm.setString(Tag.ModalityLUTType, VR.LO, "MGML");
+    modalityLutModule = new ModalityLutModule(attributes);
+    assertEquals("Explanation", modalityLutModule.getLutExplanation().get());
+  }
+
+  @Test
   @DisplayName(
       "Verify adaptWithOverlayBitMask sets correct rescaleSlope when rescaleSlope is empty")
   void shouldSetCorrectRescaleSlopeWhenRescaleSlopeIsEmpty() {
@@ -51,13 +84,14 @@ class ModalityLutModuleTest {
     assertEquals("US", modalityLutModule.getRescaleType().get());
 
     Attributes attributes = new Attributes();
+    attributes.setString(Tag.Modality, VR.LO, "CT");
     attributes.setDouble(Tag.RescaleSlope, VR.DS, 2.0);
     attributes.setDouble(Tag.RescaleIntercept, VR.DS, 1.0);
-    attributes.setString(Tag.RescaleType, VR.LO, "CT");
+    attributes.setString(Tag.RescaleType, VR.LO, "HU");
     modalityLutModule = new ModalityLutModule(attributes);
     modalityLutModule.adaptWithOverlayBitMask(2);
     assertEquals(1.0, modalityLutModule.getRescaleIntercept().getAsDouble());
     assertEquals(0.25, modalityLutModule.getRescaleSlope().getAsDouble());
-    assertEquals("CT", modalityLutModule.getRescaleType().get());
+    assertEquals("HU", modalityLutModule.getRescaleType().get());
   }
 }

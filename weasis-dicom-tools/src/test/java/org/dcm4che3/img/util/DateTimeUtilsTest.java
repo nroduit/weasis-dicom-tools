@@ -114,7 +114,7 @@ class DateTimeUtilsTest {
     calendarA.set(Calendar.MILLISECOND, 0);
     Date date = calendarA.getTime();
     calendarA.set(1970, Calendar.JANUARY, 1, 5, 27, 54);
-    calendarA.set(Calendar.MILLISECOND, 394);
+    calendarA.set(Calendar.MILLISECOND, 5394);
     Date time = calendarA.getTime();
     Date result = DateTimeUtils.dateTime(date, null);
     assertEquals(date, result);
@@ -124,7 +124,7 @@ class DateTimeUtilsTest {
 
     result = DateTimeUtils.dateTime(date, time);
     calendarA.set(2024, Calendar.JUNE, 21, 5, 27, 54);
-    calendarA.set(Calendar.MILLISECOND, 394);
+    calendarA.set(Calendar.MILLISECOND, 5394);
     assertEquals(calendarA.getTime(), result);
   }
 

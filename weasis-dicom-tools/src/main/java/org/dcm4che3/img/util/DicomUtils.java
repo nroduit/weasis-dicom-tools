@@ -36,47 +36,50 @@ import org.weasis.core.util.StringUtil;
 public class DicomUtils {
   private static final Logger LOGGER = LoggerFactory.getLogger(DicomUtils.class);
 
+  private DicomUtils() {}
+
   public static boolean isVideo(String uid) {
-    switch (uid) {
-      case UID.MPEG2MPML:
-      case UID.MPEG2MPHL:
-      case UID.MPEG4HP41:
-      case UID.MPEG4HP41BD:
-      case UID.MPEG4HP422D:
-      case UID.MPEG4HP423D:
-      case UID.MPEG4HP42STEREO:
-      case UID.HEVCMP51:
-      case UID.HEVCM10P51:
-        return true;
-      default:
-        return false;
-    }
+    return switch (uid) {
+      case UID.MPEG2MPML,
+              UID.MPEG2MPMLF,
+              UID.MPEG2MPHL,
+              UID.MPEG2MPHLF,
+              UID.MPEG4HP41,
+              UID.MPEG4HP41F,
+              UID.MPEG4HP41BD,
+              UID.MPEG4HP41BDF,
+              UID.MPEG4HP422D,
+              UID.MPEG4HP422DF,
+              UID.MPEG4HP423D,
+              UID.MPEG4HP423DF,
+              UID.MPEG4HP42STEREO,
+              UID.MPEG4HP42STEREOF,
+              UID.HEVCMP51,
+              UID.HEVCM10P51 ->
+          true;
+      default -> false;
+    };
   }
 
   public static boolean isJpeg2000(String uid) {
-    switch (uid) {
-      case UID.JPEG2000Lossless:
-      case UID.JPEG2000:
-      case UID.JPEG2000MCLossless:
-      case UID.JPEG2000MC:
-      case UID.HTJ2KLossless:
-      case UID.HTJ2KLosslessRPCL:
-      case UID.HTJ2K:
-        return true;
-      default:
-        return false;
-    }
+    return switch (uid) {
+      case UID.JPEG2000Lossless,
+              UID.JPEG2000,
+              UID.JPEG2000MCLossless,
+              UID.JPEG2000MC,
+              UID.HTJ2KLossless,
+              UID.HTJ2KLosslessRPCL,
+              UID.HTJ2K ->
+          true;
+      default -> false;
+    };
   }
 
   public static boolean isNative(String uid) {
-    switch (uid) {
-      case UID.ImplicitVRLittleEndian:
-      case UID.ExplicitVRLittleEndian:
-      case UID.ExplicitVRBigEndian:
-        return true;
-      default:
-        return false;
-    }
+    return switch (uid) {
+      case UID.ImplicitVRLittleEndian, UID.ExplicitVRLittleEndian, UID.ExplicitVRBigEndian -> true;
+      default -> false;
+    };
   }
 
   public static String getFormattedText(Object value, String format) {
@@ -90,30 +93,26 @@ public class DicomUtils {
 
     String str;
 
-    if (value instanceof String) {
-      str = (String) value;
-    } else if (value instanceof String[]) {
-      str = String.join("\\", Arrays.asList((String[]) value));
-    } else if (value instanceof TemporalAccessor) {
-      str = DateTimeUtils.formatDateTime((TemporalAccessor) value, locale);
-    } else if (value instanceof TemporalAccessor[]) {
+    if (value instanceof String string) {
+      str = string;
+    } else if (value instanceof String[] strings) {
+      str = String.join("\\", Arrays.asList(strings));
+    } else if (value instanceof TemporalAccessor temporal) {
+      str = DateTimeUtils.formatDateTime(temporal, locale);
+    } else if (value instanceof TemporalAccessor[] temporal) {
       str =
-          Stream.of((TemporalAccessor[]) value)
+          Stream.of(temporal)
               .map(v -> DateTimeUtils.formatDateTime(v, locale))
               .collect(Collectors.joining(", "));
-    } else if (value instanceof float[]) {
-      float[] array = (float[]) value;
+    } else if (value instanceof float[] array) {
       str =
           IntStream.range(0, array.length)
               .mapToObj(i -> String.valueOf(array[i]))
               .collect(Collectors.joining(", "));
-    } else if (value instanceof double[]) {
-      str =
-          DoubleStream.of((double[]) value)
-              .mapToObj(String::valueOf)
-              .collect(Collectors.joining(", "));
-    } else if (value instanceof int[]) {
-      str = IntStream.of((int[]) value).mapToObj(String::valueOf).collect(Collectors.joining(", "));
+    } else if (value instanceof double[] array) {
+      str = DoubleStream.of(array).mapToObj(String::valueOf).collect(Collectors.joining(", "));
+    } else if (value instanceof int[] array) {
+      str = IntStream.of(array).mapToObj(String::valueOf).collect(Collectors.joining(", "));
     } else {
       str = value.toString();
     }

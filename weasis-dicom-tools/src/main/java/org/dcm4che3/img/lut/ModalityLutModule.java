@@ -75,42 +75,44 @@ public class ModalityLutModule {
     }
 
     initModalityLUTSequence(dcm, modality);
-
-    if (rescaleIntercept.isPresent() && lut.isPresent()) {
-      LOGGER.warn(
-          "Either a Modality LUT Sequence or Rescale Slope and Intercept values shall be present but not both!");
-    }
-
     logModalityLutConsistency();
   }
 
   private void initModalityLUTSequence(Attributes dcm, String modality) {
     Attributes dcmLut = dcm.getNestedDataset(Tag.ModalityLUTSequence);
-    if (dcmLut != null) {
-      if (dcmLut.containsValue(Tag.ModalityLUTType)
-          && dcmLut.containsValue(Tag.LUTDescriptor)
-          && dcmLut.containsValue(Tag.LUTData)) {
-        boolean canApplyMLUT = true;
+    if (dcmLut != null
+        && dcmLut.containsValue(Tag.ModalityLUTType)
+        && dcmLut.containsValue(Tag.LUTDescriptor)
+        && dcmLut.containsValue(Tag.LUTData)) {
+      applyMLUT(dcm, modality, dcmLut);
+    }
+  }
 
-        // See http://dicom.nema.org/medical/dicom/current/output/html/part04.html#figure_N.2-1 and
-        // http://dicom.nema.org/medical/dicom/current/output/html/part03.html#sect_C.8.7.1.1.2
-        if ("XA".equals(modality) || "XRF".equals(modality)) {
-          String pixRel = dcm.getString(Tag.PixelIntensityRelationship);
-          if (("LOG".equalsIgnoreCase(pixRel) || "DISP".equalsIgnoreCase(pixRel))) {
-            canApplyMLUT = false;
-          }
-        }
-        if (canApplyMLUT) {
-          this.lutType = Optional.ofNullable(dcmLut.getString(Tag.ModalityLUTType));
-          this.lutExplanation = Optional.ofNullable(dcmLut.getString(Tag.LUTExplanation));
-          this.lut = DicomImageUtils.createLut(dcmLut);
-        }
+  private void applyMLUT(Attributes dcm, String modality, Attributes dcmLut) {
+    boolean canApplyMLUT = true;
+
+    // See http://dicom.nema.org/medical/dicom/current/output/html/part04.html#figure_N.2-1 and
+    // http://dicom.nema.org/medical/dicom/current/output/html/part03.html#sect_C.8.7.1.1.2
+    if ("XA".equals(modality) || "XRF".equals(modality)) {
+      String pixRel = dcm.getString(Tag.PixelIntensityRelationship);
+      if (("LOG".equalsIgnoreCase(pixRel) || "DISP".equalsIgnoreCase(pixRel))) {
+        canApplyMLUT = false;
       }
+    }
+    if (canApplyMLUT) {
+      this.lutType = Optional.ofNullable(dcmLut.getString(Tag.ModalityLUTType));
+      this.lutExplanation = Optional.ofNullable(dcmLut.getString(Tag.LUTExplanation));
+      this.lut = DicomImageUtils.createLut(dcmLut);
     }
   }
 
   @Generated
   private void logModalityLutConsistency() {
+    if (rescaleIntercept.isPresent() && lut.isPresent()) {
+      LOGGER.warn(
+          "Either a Modality LUT Sequence or Rescale Slope and Intercept values shall be present but not both!");
+    }
+
     if (LOGGER.isTraceEnabled()) {
       if (lut.isPresent()) {
         if (rescaleIntercept.isPresent()) {
@@ -152,7 +154,7 @@ public class ModalityLutModule {
 
   public void adaptWithOverlayBitMask(int shiftHighBit) {
     // Combine to the slope value
-    double rs = 1.0;
+    double rs = 1.0; // FIXME: 1.0 should we use rescaleSlope.orElse(1.0) instead?
     if (rescaleSlope.isEmpty()) {
       // Set valid modality LUT values
       if (rescaleIntercept.isEmpty()) {

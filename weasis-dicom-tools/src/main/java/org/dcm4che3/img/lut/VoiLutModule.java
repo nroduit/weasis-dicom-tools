@@ -67,7 +67,7 @@ public class VoiLutModule {
       String[] wexpl =
           DicomUtils.getStringArrayFromDicomElement(dcm, Tag.WindowCenterWidthExplanation);
       if (wexpl != null) {
-        this.windowCenterWidthExplanation = Stream.of(wexpl).collect(Collectors.toList());
+        this.windowCenterWidthExplanation = Stream.of(wexpl).toList();
       }
 
       if ("MR".equals(modality)
@@ -80,14 +80,8 @@ public class VoiLutModule {
 
     Sequence voiSeq = dcm.getSequence(Tag.VOILUTSequence);
     if (voiSeq != null && !voiSeq.isEmpty()) {
-      this.lutExplanation =
-          voiSeq.stream()
-              .map(i -> i.getString(Tag.LUTExplanation, ""))
-              .collect(Collectors.toList());
-      this.lut =
-          voiSeq.stream()
-              .map(i -> DicomImageUtils.createLut(i).orElse(null))
-              .collect(Collectors.toList());
+      this.lutExplanation = voiSeq.stream().map(i -> i.getString(Tag.LUTExplanation, "")).toList();
+      this.lut = voiSeq.stream().map(i -> DicomImageUtils.createLut(i).orElse(null)).toList();
     }
 
     if (LOGGER.isDebugEnabled()) {

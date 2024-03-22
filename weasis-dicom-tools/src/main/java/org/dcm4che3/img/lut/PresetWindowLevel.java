@@ -131,79 +131,12 @@ public class PresetWindowLevel {
 
     // optional attributes
     List<String> wlExplanationList = vLut.getWindowCenterWidthExplanation();
-    Optional<String> lutFunctionDescriptor = vLut.getVoiLutFunction();
+    LutShape defaultLutShape = getDefaultLutShape(vLut, dicomKeyWord);
 
-    LutShape defaultLutShape =
-        LutShape.LINEAR; // Implicitly defined as default function in DICOM standard
-    if (lutFunctionDescriptor.isPresent()) {
-      if ("SIGMOID".equalsIgnoreCase(lutFunctionDescriptor.get())) {
-        defaultLutShape = new LutShape(eFunction.SIGMOID, eFunction.SIGMOID + dicomKeyWord);
-      } else if ("LINEAR".equalsIgnoreCase(lutFunctionDescriptor.get())) {
-        defaultLutShape = new LutShape(eFunction.LINEAR, eFunction.LINEAR + dicomKeyWord);
-      }
-    }
+    buildPreset(
+        levelList, windowList, wlExplanationList, dicomKeyWord, defaultLutShape, presetList);
 
-    if (!levelList.isEmpty() && !windowList.isEmpty()) {
-      String defaultExplanation = "Default";
-
-      int k = 1;
-
-      for (int i = 0; i < levelList.size(); i++) {
-        String explanation = defaultExplanation + " " + k;
-        if (i < wlExplanationList.size()) {
-          String wexpl = wlExplanationList.get(i);
-          if (StringUtil.hasText(wexpl)) {
-            explanation = wexpl;
-          }
-        }
-
-        PresetWindowLevel preset =
-            new PresetWindowLevel(
-                explanation + dicomKeyWord, windowList.get(i), levelList.get(i), defaultLutShape);
-        // Only set shortcuts for the two first presets
-        if (k == 1) {
-          preset.setKeyCode(0x31);
-        } else if (k == 2) {
-          preset.setKeyCode(0x32);
-        }
-        if (!presetList.contains(preset)) {
-          presetList.add(preset);
-          k++;
-        }
-      }
-    }
-
-    List<LookupTableCV> voiLUTsData = getVoiLutData(vLut, wl);
-    List<String> voiLUTsExplanation = getVoiLUTExplanation(vLut, wl);
-
-    if (!voiLUTsData.isEmpty()) {
-      String defaultExplanation = "VOI LUT";
-
-      for (int i = 0; i < voiLUTsData.size(); i++) {
-        String explanation = defaultExplanation + " " + i;
-
-        if (i < voiLUTsExplanation.size()) {
-          String exp = voiLUTsExplanation.get(i);
-          if (StringUtil.hasText(exp)) {
-            explanation = exp;
-          }
-        }
-
-        PresetWindowLevel preset =
-            buildPresetFromLutData(adapter, voiLUTsData.get(i), wl, explanation + dicomKeyWord);
-        if (preset == null) {
-          continue;
-        }
-        // Only set shortcuts for the two first presets
-        int k = presetList.size();
-        if (k == 0) {
-          preset.setKeyCode(0x31);
-        } else if (k == 1) {
-          preset.setKeyCode(0x32);
-        }
-        presetList.add(preset);
-      }
-    }
+    buildPresetFromLutData(adapter, wl, vLut, dicomKeyWord, presetList);
 
     PresetWindowLevel autoLevel =
         new PresetWindowLevel(
@@ -225,11 +158,100 @@ public class PresetWindowLevel {
     return presetList;
   }
 
+  private static LutShape getDefaultLutShape(VoiLutModule vLut, String dicomKeyWord) {
+    Optional<String> lutFunctionDescriptor = vLut.getVoiLutFunction();
+
+    // Implicitly defined as default function in DICOM standard
+    LutShape defaultLutShape = LutShape.LINEAR;
+    if (lutFunctionDescriptor.isPresent()) {
+      if ("SIGMOID".equalsIgnoreCase(lutFunctionDescriptor.get())) {
+        defaultLutShape = new LutShape(eFunction.SIGMOID, eFunction.SIGMOID + dicomKeyWord);
+      } else if ("LINEAR".equalsIgnoreCase(lutFunctionDescriptor.get())) {
+        defaultLutShape = new LutShape(eFunction.LINEAR, eFunction.LINEAR + dicomKeyWord);
+      }
+    }
+    return defaultLutShape;
+  }
+
+  private static void buildPresetFromLutData(
+      DicomImageAdapter adapter,
+      WlPresentation wl,
+      VoiLutModule vLut,
+      String dicomKeyWord,
+      ArrayList<PresetWindowLevel> presetList) {
+    List<LookupTableCV> voiLUTsData = getVoiLutData(vLut, wl);
+    List<String> voiLUTsExplanation = getVoiLUTExplanation(vLut, wl);
+
+    if (!voiLUTsData.isEmpty()) {
+      String defaultExplanation = "VOI LUT";
+
+      for (int i = 0; i < voiLUTsData.size(); i++) {
+        String explanation =
+            getPresetExplanation(voiLUTsExplanation, i, defaultExplanation + " " + i);
+        PresetWindowLevel preset =
+            buildPresetFromLutData(adapter, voiLUTsData.get(i), wl, explanation + dicomKeyWord);
+        if (preset == null) {
+          continue;
+        }
+        // Only set shortcuts for the two first presets
+        int presetNumber = presetList.size();
+        if (presetNumber == 0) {
+          preset.setKeyCode(0x31);
+        } else if (presetNumber == 1) {
+          preset.setKeyCode(0x32);
+        }
+        presetList.add(preset);
+      }
+    }
+  }
+
+  private static String getPresetExplanation(
+      List<String> wlExplanationList, int index, String defaultExplanation) {
+    String explanation = defaultExplanation;
+    if (index < wlExplanationList.size()) {
+      String wexpl = wlExplanationList.get(index);
+      if (StringUtil.hasText(wexpl)) {
+        explanation = wexpl;
+      }
+    }
+    return explanation;
+  }
+
+  private static void buildPreset(
+      List<Double> levelList,
+      List<Double> windowList,
+      List<String> wlExplanationList,
+      String dicomKeyWord,
+      LutShape defaultLutShape,
+      ArrayList<PresetWindowLevel> presetList) {
+    if (!levelList.isEmpty() && !windowList.isEmpty()) {
+      String defaultExplanation = "Default";
+
+      int k = 1;
+      for (int i = 0; i < levelList.size(); i++) {
+        String explanation = defaultExplanation + " " + k;
+        explanation = getPresetExplanation(wlExplanationList, i, explanation);
+        PresetWindowLevel preset =
+            new PresetWindowLevel(
+                explanation + dicomKeyWord, windowList.get(i), levelList.get(i), defaultLutShape);
+        // Only set shortcuts for the two first presets
+        if (k == 1) {
+          preset.setKeyCode(0x31);
+        } else if (k == 2) {
+          preset.setKeyCode(0x32);
+        }
+        if (!presetList.contains(preset)) {
+          presetList.add(preset);
+          k++;
+        }
+      }
+    }
+  }
+
   private static List<Double> getWindowCenter(VoiLutModule vLut, WlPresentation wl) {
     List<Double> luts = new ArrayList<>();
-    PresentationStateLut pr = wl.getPresentationState();
-    if (pr instanceof PrDicomObject) {
-      Optional<VoiLutModule> voiLUT = ((PrDicomObject) pr).getVoiLUT();
+    if (wl.getPresentationState() instanceof PrDicomObject pr) {
+      Optional<VoiLutModule> voiLUT = pr.getVoiLUT();
       voiLUT.ifPresent(voiLutModule -> luts.addAll(voiLutModule.getWindowCenter()));
     }
     if (!vLut.getWindowCenter().isEmpty()) {
@@ -253,9 +275,8 @@ public class PresetWindowLevel {
 
   private static List<LookupTableCV> getVoiLutData(VoiLutModule vLut, WlPresentation wl) {
     List<LookupTableCV> luts = new ArrayList<>();
-    PresentationStateLut pr = wl.getPresentationState();
-    if (pr instanceof PrDicomObject) {
-      Optional<VoiLutModule> vlut = ((PrDicomObject) pr).getVoiLUT();
+    if (wl.getPresentationState() instanceof PrDicomObject pr) {
+      Optional<VoiLutModule> vlut = pr.getVoiLUT();
       vlut.ifPresent(voiLutModule -> luts.addAll(voiLutModule.getLut()));
     }
     if (!vLut.getLut().isEmpty()) {
@@ -266,9 +287,8 @@ public class PresetWindowLevel {
 
   private static List<String> getVoiLUTExplanation(VoiLutModule vLut, WlPresentation wl) {
     List<String> luts = new ArrayList<>();
-    PresentationStateLut pr = wl.getPresentationState();
-    if (pr instanceof PrDicomObject) {
-      Optional<VoiLutModule> vlut = ((PrDicomObject) pr).getVoiLUT();
+    if (wl.getPresentationState() instanceof PrDicomObject pr) {
+      Optional<VoiLutModule> vlut = pr.getVoiLUT();
       vlut.ifPresent(voiLutModule -> luts.addAll(voiLutModule.getLutExplanation()));
     }
     if (!vLut.getLutExplanation().isEmpty()) {
@@ -316,7 +336,6 @@ public class PresetWindowLevel {
   }
 
   public static Map<String, List<PresetWindowLevel>> getPresetListByModality() {
-
     Map<String, List<PresetWindowLevel>> presets = new TreeMap<>();
 
     XMLStreamReader xmler = null;

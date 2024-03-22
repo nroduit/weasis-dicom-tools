@@ -114,7 +114,7 @@ public class CIELab {
    * href="http://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.10.7.html#sect_C.10.7.1.1">DICOM
    * encoded L*a*b* values</a> to RGB values.
    *
-   * @param lab
+   * @param lab integer array of 3 DICOM encoded L*a*b* values
    * @return int array of 3 RGB components
    */
   public static int[] dicomLab2rgb(int[] lab) {

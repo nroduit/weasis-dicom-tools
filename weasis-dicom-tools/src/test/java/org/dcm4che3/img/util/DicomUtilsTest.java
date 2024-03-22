@@ -14,91 +14,86 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.TemporalAccessor;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
+import java.util.TimeZone;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 class DicomUtilsTest {
+  static final Locale defaultLocale = Locale.getDefault();
 
   @BeforeAll
   static void setUp() {
-    Locale.setDefault(Locale.US);
+    Locale.setDefault(Locale.US); // Force Locale for testing date format
+  }
+
+  @AfterAll
+  static void tearDown() {
+    Locale.setDefault(defaultLocale);
   }
 
   @Test
+  @DisplayName("Get Period with different dates")
   void testGetPeriod() {
     assertEquals(
+        "1967Y", DicomUtils.getPeriod(LocalDate.ofYearDay(2, 2), LocalDate.of(1970, 1, 1)));
+    assertEquals(
         "050Y",
-        DicomUtils.getPeriod(
-            DateTimeUtils.parseDA("19610625"), DateTimeUtils.parseDA("20120624"))); // NON-NLS
+        DicomUtils.getPeriod(DateTimeUtils.parseDA("19610625"), DateTimeUtils.parseDA("20120624")));
     assertEquals(
         "051Y",
-        DicomUtils.getPeriod(
-            DateTimeUtils.parseDA("19610625"), DateTimeUtils.parseDA("20120625"))); // NON-NLS
+        DicomUtils.getPeriod(DateTimeUtils.parseDA("19610625"), DateTimeUtils.parseDA("20120625")));
     assertEquals(
         "050Y",
-        DicomUtils.getPeriod(
-            DateTimeUtils.parseDA("19610714"), DateTimeUtils.parseDA("20120625"))); // NON-NLS
+        DicomUtils.getPeriod(DateTimeUtils.parseDA("19610714"), DateTimeUtils.parseDA("20120625")));
 
     assertEquals(
         "005M",
-        DicomUtils.getPeriod(
-            DateTimeUtils.parseDA("20120103"), DateTimeUtils.parseDA("20120625"))); // NON-NLS
+        DicomUtils.getPeriod(DateTimeUtils.parseDA("20120103"), DateTimeUtils.parseDA("20120625")));
     assertEquals(
         "031D",
-        DicomUtils.getPeriod(
-            DateTimeUtils.parseDA("20120525"), DateTimeUtils.parseDA("20120625"))); // NON-NLS
+        DicomUtils.getPeriod(DateTimeUtils.parseDA("20120525"), DateTimeUtils.parseDA("20120625")));
     assertEquals(
         "003D",
-        DicomUtils.getPeriod(
-            DateTimeUtils.parseDA("20120622"), DateTimeUtils.parseDA("20120625"))); // NON-NLS
+        DicomUtils.getPeriod(DateTimeUtils.parseDA("20120622"), DateTimeUtils.parseDA("20120625")));
 
     assertEquals(
         "011Y",
-        DicomUtils.getPeriod(
-            DateTimeUtils.parseDA("20000229"), DateTimeUtils.parseDA("20110301"))); // NON-NLS
+        DicomUtils.getPeriod(DateTimeUtils.parseDA("20000229"), DateTimeUtils.parseDA("20110301")));
     assertEquals(
         "010Y",
-        DicomUtils.getPeriod(
-            DateTimeUtils.parseDA("20000229"), DateTimeUtils.parseDA("20110228"))); // NON-NLS
+        DicomUtils.getPeriod(DateTimeUtils.parseDA("20000229"), DateTimeUtils.parseDA("20110228")));
     assertEquals(
         "011Y",
-        DicomUtils.getPeriod(
-            DateTimeUtils.parseDA("20000229"), DateTimeUtils.parseDA("20120228"))); // NON-NLS
+        DicomUtils.getPeriod(DateTimeUtils.parseDA("20000229"), DateTimeUtils.parseDA("20120228")));
     assertEquals(
         "012Y",
-        DicomUtils.getPeriod(
-            DateTimeUtils.parseDA("20000229"), DateTimeUtils.parseDA("20120229"))); // NON-NLS
+        DicomUtils.getPeriod(DateTimeUtils.parseDA("20000229"), DateTimeUtils.parseDA("20120229")));
     assertEquals(
         "012Y",
-        DicomUtils.getPeriod(
-            DateTimeUtils.parseDA("20000229"), DateTimeUtils.parseDA("20120301"))); // NON-NLS
+        DicomUtils.getPeriod(DateTimeUtils.parseDA("20000229"), DateTimeUtils.parseDA("20120301")));
     assertEquals(
         "012Y",
-        DicomUtils.getPeriod(
-            DateTimeUtils.parseDA("20000228"), DateTimeUtils.parseDA("20120228"))); // NON-NLS
+        DicomUtils.getPeriod(DateTimeUtils.parseDA("20000228"), DateTimeUtils.parseDA("20120228")));
     assertEquals(
         "012Y",
-        DicomUtils.getPeriod(
-            DateTimeUtils.parseDA("20000228"), DateTimeUtils.parseDA("20120229"))); // NON-NLS
+        DicomUtils.getPeriod(DateTimeUtils.parseDA("20000228"), DateTimeUtils.parseDA("20120229")));
 
     LocalDate date1 = DateTimeUtils.parseDA("20000228");
 
@@ -115,75 +110,52 @@ class DicomUtilsTest {
   }
 
   @Test
-  void testGetStringFromDicomElement() {
-    String[] STRING_ARRAY = {"RECTANGULAR", "CIRCULAR", "POLYGONAL"};
-    Attributes attributes = new Attributes();
-    attributes.setString(Tag.ShutterShape, VR.CS, STRING_ARRAY);
-    assertEquals(
-        "RECTANGULAR\\CIRCULAR\\POLYGONAL",
-        DicomUtils.getStringFromDicomElement(attributes, Tag.ShutterShape)); // NON-NLS
-    assertNull(DicomUtils.getStringFromDicomElement(attributes, Tag.ShutterPresentationValue));
-  }
-
-  @Test
-  void testGetStringArrayFromDicomElementAttributesInt() {
-    String[] STRING_ARRAY = {"RECTANGULAR", "CIRCULAR", "POLYGONAL"};
-    Attributes attributes = new Attributes();
-    attributes.setString(Tag.ShutterShape, VR.CS, STRING_ARRAY);
-    assertEquals(
-        STRING_ARRAY, DicomUtils.getStringArrayFromDicomElement(attributes, Tag.ShutterShape));
-    assertNull(DicomUtils.getStringArrayFromDicomElement(attributes, Tag.ShutterPresentationValue));
-  }
-
-  /** Method under test: {@link DicomUtils#formatValue(String, boolean, String)} */
-  @Test
-  void testFormatValue() {
-    // Arrange, Act and Assert
-    assertEquals("42", DicomUtils.formatValue("42", true, "Format"));
-    assertEquals("42", DicomUtils.formatValue("42", true, "$V"));
-  }
-
-  /** Method under test: {@link DicomUtils#isVideo(String)} */
-  @Test
+  @DisplayName("Is a video transfer syntax")
   void testIsVideo() {
-    // Arrange, Act and Assert
     assertFalse(DicomUtils.isVideo("1234"));
-    assertTrue(DicomUtils.isVideo((String) "1.2.840.10008.1.2.4.100"));
-    assertTrue(DicomUtils.isVideo((String) "1.2.840.10008.1.2.4.101"));
-    assertTrue(DicomUtils.isVideo((String) "1.2.840.10008.1.2.4.102"));
-    assertTrue(DicomUtils.isVideo((String) "1.2.840.10008.1.2.4.103"));
-    assertTrue(DicomUtils.isVideo((String) "1.2.840.10008.1.2.4.104"));
-    assertTrue(DicomUtils.isVideo((String) "1.2.840.10008.1.2.4.105"));
-    assertTrue(DicomUtils.isVideo((String) "1.2.840.10008.1.2.4.106"));
-    assertTrue(DicomUtils.isVideo((String) "1.2.840.10008.1.2.4.107"));
-    assertTrue(DicomUtils.isVideo((String) "1.2.840.10008.1.2.4.108"));
+    assertFalse(DicomUtils.isVideo("1.2.840.10008.1.2.5"));
+
+    assertTrue(DicomUtils.isVideo("1.2.840.10008.1.2.4.100"));
+    assertTrue(DicomUtils.isVideo("1.2.840.10008.1.2.4.101"));
+    assertTrue(DicomUtils.isVideo("1.2.840.10008.1.2.4.102"));
+    assertTrue(DicomUtils.isVideo("1.2.840.10008.1.2.4.103"));
+    assertTrue(DicomUtils.isVideo("1.2.840.10008.1.2.4.104"));
+    assertTrue(DicomUtils.isVideo("1.2.840.10008.1.2.4.105"));
+    assertTrue(DicomUtils.isVideo("1.2.840.10008.1.2.4.106"));
+    assertTrue(DicomUtils.isVideo("1.2.840.10008.1.2.4.107"));
+    assertTrue(DicomUtils.isVideo("1.2.840.10008.1.2.4.108"));
   }
 
-  /** Method under test: {@link DicomUtils#isJpeg2000(String)} */
   @Test
+  @DisplayName("Is a jpeg2000 transfer syntax")
   void testIsJpeg2000() {
-    // Arrange, Act and Assert
     assertFalse(DicomUtils.isJpeg2000("1234"));
-    assertTrue(DicomUtils.isJpeg2000((String) "1.2.840.10008.1.2.4.90"));
-    assertTrue(DicomUtils.isJpeg2000((String) "1.2.840.10008.1.2.4.91"));
-    assertTrue(DicomUtils.isJpeg2000((String) "1.2.840.10008.1.2.4.92"));
-    assertTrue(DicomUtils.isJpeg2000((String) "1.2.840.10008.1.2.4.93"));
+    assertFalse(DicomUtils.isJpeg2000("1.2.840.10008.1.2.5"));
+
+    assertTrue(DicomUtils.isJpeg2000("1.2.840.10008.1.2.4.90"));
+    assertTrue(DicomUtils.isJpeg2000("1.2.840.10008.1.2.4.91"));
+    assertTrue(DicomUtils.isJpeg2000("1.2.840.10008.1.2.4.92"));
+    assertTrue(DicomUtils.isJpeg2000("1.2.840.10008.1.2.4.93"));
+    assertTrue(DicomUtils.isJpeg2000("1.2.840.10008.1.2.4.201"));
+    assertTrue(DicomUtils.isJpeg2000("1.2.840.10008.1.2.4.202"));
+    assertTrue(DicomUtils.isJpeg2000("1.2.840.10008.1.2.4.203"));
   }
 
-  /** Method under test: {@link DicomUtils#isNative(String)} */
   @Test
+  @DisplayName("Is a native transfer syntax")
   void testIsNative() {
     // Arrange, Act and Assert
     assertFalse(DicomUtils.isNative("1234"));
-    assertTrue(DicomUtils.isNative((String) "1.2.840.10008.1.2"));
-    assertTrue(DicomUtils.isNative((String) "1.2.840.10008.1.2.1"));
-    assertTrue(DicomUtils.isNative((String) "1.2.840.10008.1.2.2"));
+    assertFalse(DicomUtils.isNative("1.2.840.10008.1.3"));
+
+    assertTrue(DicomUtils.isNative("1.2.840.10008.1.2"));
+    assertTrue(DicomUtils.isNative("1.2.840.10008.1.2.1"));
+    assertTrue(DicomUtils.isNative("1.2.840.10008.1.2.2"));
   }
 
-  /** Method under test: {@link DicomUtils#getFormattedText(Object, String)} */
   @Test
+  @DisplayName("Format text with different values and formats")
   void testGetFormattedText() {
-    // Arrange, Act and Assert
     assertEquals("Value", DicomUtils.getFormattedText("Value", "Format"));
     assertEquals("", DicomUtils.getFormattedText(null, "foo"));
     assertEquals("42", DicomUtils.getFormattedText("42", "foo"));
@@ -193,24 +165,67 @@ class DicomUtilsTest {
     assertEquals("Value", DicomUtils.getFormattedText("Value", "$V"));
     assertEquals("Value", DicomUtils.getFormattedText("Value", null));
     assertEquals("Value", DicomUtils.getFormattedText("Value", ""));
+    assertEquals(
+        "Test1\\Test2", DicomUtils.getFormattedText(new String[] {"Test1", "Test2"}, "Format"));
+
+    assertEquals("1, 2", DicomUtils.getFormattedText(new int[] {1, 2}, "Format"));
+    assertEquals("1.0, 2.0", DicomUtils.getFormattedText(new float[] {1.0f, 2.0f}, "Format"));
+    assertEquals("1.0, 2.0", DicomUtils.getFormattedText(new double[] {1.0, 2.0}, "Format"));
+
+    TemporalAccessor[] temporalAccessors = {LocalDate.of(2022, 12, 25), LocalDate.of(2022, 12, 26)};
+    assertEquals(
+        "Dec 25, 2022, Dec 26, 2022", DicomUtils.getFormattedText(temporalAccessors, "Format"));
     assertEquals("Jan 1, 1970", DicomUtils.getFormattedText(LocalDate.of(1970, 1, 1), "Format"));
     assertEquals(
-        "Jan 1, 1970, 12:00:00 AM",
+        "Jan 1, 1970, 12:00:00 AM",
         DicomUtils.getFormattedText(LocalDate.of(1970, 1, 1).atStartOfDay(), "Format"));
-    assertEquals("12:00:00 AM", DicomUtils.getFormattedText(LocalTime.MIDNIGHT, "Format"));
+    assertEquals("12:00:00 AM", DicomUtils.getFormattedText(LocalTime.MIDNIGHT, "Format"));
     assertEquals("", DicomUtils.getFormattedText(DayOfWeek.MONDAY, "Format"));
     assertEquals(
-        "Jan 1, 1970, 12:00:00 AM",
+        "Jan 1, 1970, 12:00:00 AM",
         DicomUtils.getFormattedText(
             LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC), "Format"));
   }
 
-  /**
-   * Method under test: {@link DicomUtils#getStringArrayFromDicomElement(Attributes, int, String)}
-   */
   @Test
+  @DisplayName("Format text with non-string value")
+  void shouldFormatNonStringValue() {
+    Object object = new Object();
+    String result = DicomUtils.getFormattedText(object, "Format");
+    assertEquals(object.toString(), result);
+  }
+
+  @Test
+  @DisplayName("Format value with decimal and pattern")
+  void shouldFormatValueWithDecimalAndPattern() {
+    String result = DicomUtils.formatValue("1.2345", true, "$V:f$0.00$");
+    assertEquals("1.23", result);
+  }
+
+  @Test
+  @DisplayName("Format value with non-decimal and pattern")
+  void shouldFormatValueWithNonDecimalAndPattern() {
+    String result = DicomUtils.formatValue("TestTestTest", false, "$V:l$5$");
+    assertEquals("TestT...", result);
+  }
+
+  @Test
+  @DisplayName("Get string and string array from Dicom Element containing multiple values")
+  void testGetStringFromDicomElement() {
+    String[] STRING_ARRAY = {"RECTANGULAR", "CIRCULAR", "POLYGONAL"};
+    Attributes attributes = new Attributes();
+    attributes.setString(Tag.ShutterShape, VR.CS, STRING_ARRAY);
+    assertEquals(
+        "RECTANGULAR\\CIRCULAR\\POLYGONAL",
+        DicomUtils.getStringFromDicomElement(attributes, Tag.ShutterShape));
+
+    assertEquals(
+        STRING_ARRAY, DicomUtils.getStringArrayFromDicomElement(attributes, Tag.ShutterShape));
+  }
+
+  @Test
+  @DisplayName("Get String array from Dicom Element with default value")
   void testGetStringArrayFromDicomElement() {
-    // Arrange, Act and Assert
     assertNull(
         DicomUtils.getStringArrayFromDicomElement(new Attributes(), 1, "Private Creator ID"));
     assertNull(DicomUtils.getStringArrayFromDicomElement(null, 1, (String) null));
@@ -229,110 +244,47 @@ class DicomUtilsTest {
         DicomUtils.getStringArrayFromDicomElement(null, 1, new String[] {"foo"}));
   }
 
-  /** Method under test: {@link DicomUtils#getDateFromDicomElement(Attributes, int, Date)} */
   @Test
+  @DisplayName("Get Date from Dicom Element")
   void testGetDateFromDicomElement() {
-    // Arrange
-    Attributes dicom = mock(Attributes.class);
-    when(dicom.getDate(anyInt(), Mockito.<Date>any()))
-        .thenReturn(
-            Date.from(LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC).toInstant()));
-    when(dicom.containsValue(anyInt())).thenReturn(true);
+    TimeZone timeZone = TimeZone.getDefault();
+    Attributes attributes = new Attributes();
+    attributes.setTimezone(timeZone);
 
-    // Act
-    DicomUtils.getDateFromDicomElement(
-        dicom,
-        1,
-        Date.from(LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC).toInstant()));
+    Calendar calendarA = Calendar.getInstance(timeZone);
+    calendarA.set(2024, Calendar.JUNE, 21, 0, 0, 0);
+    calendarA.set(Calendar.MILLISECOND, 0);
+    Date date = calendarA.getTime();
 
-    // Assert
-    verify(dicom).containsValue(anyInt());
-    verify(dicom).getDate(anyInt(), Mockito.<Date>any());
+    Date defaultDate =
+        Date.from(LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC).toInstant());
+    assertNull(DicomUtils.getDateFromDicomElement(null, Tag.StudyDate, null));
+    assertEquals(defaultDate, DicomUtils.getDateFromDicomElement(null, Tag.StudyDate, defaultDate));
+    assertEquals(
+        defaultDate, DicomUtils.getDateFromDicomElement(attributes, Tag.StudyDate, defaultDate));
+
+    attributes.setDate(Tag.StudyDate, VR.DA, date);
+    assertEquals(date, DicomUtils.getDateFromDicomElement(attributes, Tag.StudyDate, null));
   }
 
-  /** Method under test: {@link DicomUtils#getDateFromDicomElement(Attributes, int, Date)} */
   @Test
-  void testGetDateFromDicomElement2() {
-    // Arrange
-    Attributes dicom = mock(Attributes.class);
-    when(dicom.getDate(anyInt(), Mockito.<Date>any())).thenThrow(new NumberFormatException("foo"));
-    when(dicom.containsValue(anyInt())).thenReturn(true);
-
-    // Act and Assert
-    assertThrows(
-        NumberFormatException.class,
-        () ->
-            DicomUtils.getDateFromDicomElement(
-                dicom,
-                1,
-                Date.from(
-                    LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC).toInstant())));
-    verify(dicom).containsValue(anyInt());
-    verify(dicom).getDate(anyInt(), Mockito.<Date>any());
-  }
-
-  /**
-   * Method under test: {@link DicomUtils#getDatesFromDicomElement(Attributes, int, String, Date[])}
-   */
-  @Test
+  @DisplayName("Get date array from Dicom Element with default value")
   void testGetDatesFromDicomElement() {
-    // Arrange
     Attributes dicom = new Attributes();
     Date fromResult =
         Date.from(LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC).toInstant());
 
-    // Act
     Date[] actualDatesFromDicomElement =
         DicomUtils.getDatesFromDicomElement(
             dicom, 1, "Private Creator ID", new Date[] {fromResult});
 
-    // Assert
     assertEquals(1, actualDatesFromDicomElement.length);
     assertSame(fromResult, actualDatesFromDicomElement[0]);
   }
 
-  /**
-   * Method under test: {@link DicomUtils#getDatesFromDicomElement(Attributes, int, String, Date[])}
-   */
   @Test
-  void testGetDatesFromDicomElement2() {
-    // Arrange
-    Date fromResult =
-        Date.from(LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC).toInstant());
-
-    // Act
-    Date[] actualDatesFromDicomElement =
-        DicomUtils.getDatesFromDicomElement(null, 1, null, new Date[] {fromResult});
-
-    // Assert
-    assertEquals(1, actualDatesFromDicomElement.length);
-    assertSame(fromResult, actualDatesFromDicomElement[0]);
-  }
-
-  /**
-   * Method under test: {@link DicomUtils#getDatesFromDicomElement(Attributes, int, String,
-   * java.util.Date[])}
-   */
-  @Test
-  void testGetDatesFromDicomElement3() {
-    // Arrange, Act and Assert
-    assertEquals(
-        1,
-        DicomUtils.getDatesFromDicomElement(
-                new Attributes(),
-                1,
-                "Private Creator ID",
-                new java.util.Date[] {mock(java.sql.Date.class)})
-            .length);
-  }
-
-  /**
-   * Method under test: {@link DicomUtils#getPatientAgeInPeriod(Attributes, int, String, String,
-   * boolean)}
-   */
-  @Test
+  @DisplayName("Get Patient Age in Period")
   void testGetPatientAgeInPeriod() {
-    // Arrange, Act and Assert
     assertEquals("foo", DicomUtils.getPatientAgeInPeriod(null, 1, "foo", "foo", false));
     assertNull(DicomUtils.getPatientAgeInPeriod(new Attributes(), 1, "foo", "foo", false));
     assertEquals(
@@ -357,152 +309,161 @@ class DicomUtilsTest {
     assertNull(DicomUtils.getPatientAgeInPeriod(new Attributes(), 1, false));
   }
 
-  /** Method under test: {@link DicomUtils#getPeriod(LocalDate, LocalDate)} */
   @Test
-  void testGetPeriod2() {
-    // Arrange
-    LocalDate first = LocalDate.ofYearDay(2, 2);
-
-    // Act and Assert
-    assertEquals("1967Y", DicomUtils.getPeriod(first, LocalDate.of(1970, 1, 1)));
-  }
-
-  /** Method under test: {@link DicomUtils#getFloatFromDicomElement(Attributes, int, Float)} */
-  @Test
-  void testGetFloatFromDicomElement() {
-    // Arrange, Act and Assert
-    assertEquals(
-        10.0f, DicomUtils.getFloatFromDicomElement(new Attributes(), 1, 10.0f).floatValue());
-    assertEquals(10.0f, DicomUtils.getFloatFromDicomElement(null, 1, 10.0f).floatValue());
-    assertEquals(
-        10.0f,
-        DicomUtils.getFloatFromDicomElement(new Attributes(), 1, "Private Creator ID", 10.0f)
-            .floatValue());
-    assertEquals(
-        10.0f,
-        DicomUtils.getFloatFromDicomElement(null, 1, "Private Creator ID", 10.0f).floatValue());
-  }
-
-  /** Method under test: {@link DicomUtils#getIntegerFromDicomElement(Attributes, int, Integer)} */
-  @Test
+  @DisplayName("Get Integer from Dicom Element")
   void testGetIntegerFromDicomElement() {
-    // Arrange, Act and Assert
-    assertEquals(42, DicomUtils.getIntegerFromDicomElement(new Attributes(), 1, 42).intValue());
-    assertEquals(42, DicomUtils.getIntegerFromDicomElement(null, 1, 42).intValue());
+    Attributes attributes = new Attributes();
+    Integer defaultValue = 5;
+    Integer value = 10;
+
+    assertNull(DicomUtils.getIntegerFromDicomElement(null, Tag.NumberOfFrames, null));
     assertEquals(
-        42,
-        DicomUtils.getIntegerFromDicomElement(new Attributes(), 1, "Private Creator ID", 42)
-            .intValue());
+        defaultValue,
+        DicomUtils.getIntegerFromDicomElement(null, Tag.NumberOfFrames, defaultValue));
     assertEquals(
-        42, DicomUtils.getIntegerFromDicomElement(null, 1, "Private Creator ID", 42).intValue());
+        defaultValue,
+        DicomUtils.getIntegerFromDicomElement(attributes, Tag.NumberOfFrames, defaultValue));
+
+    attributes.setInt(Tag.NumberOfFrames, VR.IS, value);
+    assertEquals(
+        value, DicomUtils.getIntegerFromDicomElement(attributes, Tag.NumberOfFrames, null));
+
+    attributes.setString(Tag.NumberOfFrames, VR.LO, "non-integer");
+    // Cannot covert non-integer to integer
+    assertEquals(
+        defaultValue,
+        DicomUtils.getIntegerFromDicomElement(attributes, Tag.NumberOfFrames, defaultValue));
   }
 
-  /** Method under test: {@link DicomUtils#getLongFromDicomElement(Attributes, int, Long)} */
   @Test
-  void testGetLongFromDicomElement() {
-    // Arrange, Act and Assert
-    assertEquals(42L, DicomUtils.getLongFromDicomElement(new Attributes(), 1, 42L).longValue());
-    assertEquals(42L, DicomUtils.getLongFromDicomElement(null, 1, 42L).longValue());
+  @DisplayName("Get Float from Dicom Element")
+  void testGetFloatFromDicomElement() {
+    Attributes attributes = new Attributes();
+    Float defaultValue = 5f;
+    Float value = 10f;
+
+    assertNull(DicomUtils.getFloatFromDicomElement(null, Tag.LineThickness, null));
     assertEquals(
-        42L,
-        DicomUtils.getLongFromDicomElement(new Attributes(), 1, "Private Creator ID", 42L)
-            .longValue());
+        defaultValue, DicomUtils.getFloatFromDicomElement(null, Tag.LineThickness, defaultValue));
     assertEquals(
-        42L, DicomUtils.getLongFromDicomElement(null, 1, "Private Creator ID", 42L).longValue());
+        defaultValue,
+        DicomUtils.getFloatFromDicomElement(attributes, Tag.LineThickness, defaultValue));
+
+    attributes.setFloat(Tag.LineThickness, VR.FL, value);
+    assertEquals(value, DicomUtils.getFloatFromDicomElement(attributes, Tag.LineThickness, null));
+
+    attributes.setString(Tag.LineThickness, VR.LO, "non-float");
+    // Cannot covert non-float to float
+    assertEquals(
+        defaultValue,
+        DicomUtils.getFloatFromDicomElement(attributes, Tag.LineThickness, defaultValue));
   }
 
-  /** Method under test: {@link DicomUtils#getDoubleFromDicomElement(Attributes, int, Double)} */
   @Test
+  @DisplayName("Get Double from Dicom Element")
   void testGetDoubleFromDicomElement() {
-    // Arrange, Act and Assert
+    Attributes attributes = new Attributes();
+    Double defaultValue = 1.0;
+    Double value = 0.85;
+
+    assertNull(DicomUtils.getDoubleFromDicomElement(null, Tag.FilterLowFrequency, null));
     assertEquals(
-        10.0d, DicomUtils.getDoubleFromDicomElement(new Attributes(), 1, 10.0d).doubleValue());
-    assertEquals(10.0d, DicomUtils.getDoubleFromDicomElement(null, 1, 10.0d).doubleValue());
+        defaultValue,
+        DicomUtils.getDoubleFromDicomElement(null, Tag.FilterLowFrequency, defaultValue));
     assertEquals(
-        10.0d,
-        DicomUtils.getDoubleFromDicomElement(new Attributes(), 1, "Private Creator ID", 10.0d)
-            .doubleValue());
+        defaultValue,
+        DicomUtils.getDoubleFromDicomElement(attributes, Tag.FilterLowFrequency, defaultValue));
+
+    attributes.setDouble(Tag.FilterLowFrequency, VR.DS, value);
     assertEquals(
-        10.0d,
-        DicomUtils.getDoubleFromDicomElement(null, 1, "Private Creator ID", 10.0d).doubleValue());
+        value, DicomUtils.getDoubleFromDicomElement(attributes, Tag.FilterLowFrequency, null));
+
+    attributes.setString(Tag.FilterLowFrequency, VR.LO, "non-double");
+    // Cannot covert non-double to double
+    assertEquals(
+        defaultValue,
+        DicomUtils.getDoubleFromDicomElement(attributes, Tag.FilterLowFrequency, defaultValue));
   }
 
-  /**
-   * Method under test: {@link DicomUtils#getIntArrayFromDicomElement(Attributes, int, String,
-   * int[])}
-   */
   @Test
+  @DisplayName("Get Integer array from Dicom Element")
   void testGetIntArrayFromDicomElement() {
-    // Arrange, Act and Assert
-    assertArrayEquals(
-        new int[] {42, 1, 42, 1},
+    Attributes attributes = new Attributes();
+    int[] defaultValue = {5, 10, 15};
+    int[] value = {10, 20, 30};
+
+    assertNull(
         DicomUtils.getIntArrayFromDicomElement(
-            new Attributes(), 1, "Private Creator ID", new int[] {42, 1, 42, 1}));
+            null, Tag.GraphicLayerRecommendedDisplayCIELabValue, null));
     assertArrayEquals(
-        new int[] {42, 1, 42, 1},
+        defaultValue,
         DicomUtils.getIntArrayFromDicomElement(
-            null, 1, "Private Creator ID", new int[] {42, 1, 42, 1}));
+            null, Tag.GraphicLayerRecommendedDisplayCIELabValue, defaultValue));
     assertArrayEquals(
-        new int[] {42, 1, 42, 1},
-        DicomUtils.getIntArrayFromDicomElement(new Attributes(), 1, new int[] {42, 1, 42, 1}));
+        defaultValue,
+        DicomUtils.getIntArrayFromDicomElement(
+            attributes, Tag.GraphicLayerRecommendedDisplayCIELabValue, defaultValue));
+
+    attributes.setInt(Tag.GraphicLayerRecommendedDisplayCIELabValue, VR.IS, value);
     assertArrayEquals(
-        new int[] {42, 1, 42, 1},
-        DicomUtils.getIntArrayFromDicomElement(null, 1, new int[] {42, 1, 42, 1}));
+        value,
+        DicomUtils.getIntArrayFromDicomElement(
+            attributes, Tag.GraphicLayerRecommendedDisplayCIELabValue, null));
+
+    attributes.setString(Tag.GraphicLayerRecommendedDisplayCIELabValue, VR.LO, "non-integer");
+    assertArrayEquals(
+        defaultValue,
+        DicomUtils.getIntArrayFromDicomElement(
+            attributes, Tag.GraphicLayerRecommendedDisplayCIELabValue, defaultValue));
   }
 
-  /**
-   * Method under test: {@link DicomUtils#getFloatArrayFromDicomElement(Attributes, int, String,
-   * float[])}
-   */
   @Test
+  @DisplayName("Get Float array from Dicom Element")
   void testGetFloatArrayFromDicomElement() {
-    // Arrange, Act and Assert
+    Attributes attributes = new Attributes();
+    float[] defaultValue = {1.0f, 1.0f};
+    float[] value = {0.85f, 0.47f};
+
+    assertNull(DicomUtils.getFloatArrayFromDicomElement(null, Tag.RotationPoint, null));
     assertArrayEquals(
-        new float[] {10.0f, 0.5f, 10.0f, 0.5f},
-        DicomUtils.getFloatArrayFromDicomElement(
-            new Attributes(), 1, "Private Creator ID", new float[] {10.0f, 0.5f, 10.0f, 0.5f}),
-        0.0f);
+        defaultValue,
+        DicomUtils.getFloatArrayFromDicomElement(null, Tag.RotationPoint, defaultValue));
     assertArrayEquals(
-        new float[] {10.0f, 0.5f, 10.0f, 0.5f},
-        DicomUtils.getFloatArrayFromDicomElement(
-            null, 1, "Private Creator ID", new float[] {10.0f, 0.5f, 10.0f, 0.5f}),
-        0.0f);
+        defaultValue,
+        DicomUtils.getFloatArrayFromDicomElement(attributes, Tag.RotationPoint, defaultValue));
+
+    attributes.setFloat(Tag.RotationPoint, VR.FL, value);
     assertArrayEquals(
-        new float[] {10.0f, 0.5f, 10.0f, 0.5f},
-        DicomUtils.getFloatArrayFromDicomElement(
-            new Attributes(), 1, new float[] {10.0f, 0.5f, 10.0f, 0.5f}),
-        0.0f);
+        value, DicomUtils.getFloatArrayFromDicomElement(attributes, Tag.RotationPoint, null));
+
+    attributes.setString(Tag.RotationPoint, VR.LO, "non-float");
     assertArrayEquals(
-        new float[] {10.0f, 0.5f, 10.0f, 0.5f},
-        DicomUtils.getFloatArrayFromDicomElement(null, 1, new float[] {10.0f, 0.5f, 10.0f, 0.5f}),
-        0.0f);
+        defaultValue,
+        DicomUtils.getFloatArrayFromDicomElement(attributes, Tag.RotationPoint, defaultValue));
   }
 
-  /**
-   * Method under test: {@link DicomUtils#getDoubleArrayFromDicomElement(Attributes, int, String,
-   * double[])}
-   */
   @Test
+  @DisplayName("Get Double array from Dicom Element")
   void testGetDoubleArrayFromDicomElement() {
-    // Arrange, Act and Assert
+    Attributes attributes = new Attributes();
+    double[] defaultValue = {1.0, 1.0};
+    double[] value = {0.85, 0.47};
+
+    assertNull(DicomUtils.getDoubleArrayFromDicomElement(null, Tag.PixelSpacing, null));
     assertArrayEquals(
-        new double[] {10.0d, 0.5d, 10.0d, 0.5d},
-        DicomUtils.getDoubleArrayFromDicomElement(
-            new Attributes(), 1, "Private Creator ID", new double[] {10.0d, 0.5d, 10.0d, 0.5d}),
-        0.0);
+        defaultValue,
+        DicomUtils.getDoubleArrayFromDicomElement(null, Tag.PixelSpacing, defaultValue));
     assertArrayEquals(
-        new double[] {10.0d, 0.5d, 10.0d, 0.5d},
-        DicomUtils.getDoubleArrayFromDicomElement(
-            null, 1, "Private Creator ID", new double[] {10.0d, 0.5d, 10.0d, 0.5d}),
-        0.0);
+        defaultValue,
+        DicomUtils.getDoubleArrayFromDicomElement(attributes, Tag.PixelSpacing, defaultValue));
+
+    attributes.setDouble(Tag.PixelSpacing, VR.DS, value);
     assertArrayEquals(
-        new double[] {10.0d, 0.5d, 10.0d, 0.5d},
-        DicomUtils.getDoubleArrayFromDicomElement(
-            new Attributes(), 1, new double[] {10.0d, 0.5d, 10.0d, 0.5d}),
-        0.0);
+        value, DicomUtils.getDoubleArrayFromDicomElement(attributes, Tag.PixelSpacing, null));
+
+    attributes.setString(Tag.PixelSpacing, VR.LO, "non-double");
     assertArrayEquals(
-        new double[] {10.0d, 0.5d, 10.0d, 0.5d},
-        DicomUtils.getDoubleArrayFromDicomElement(null, 1, new double[] {10.0d, 0.5d, 10.0d, 0.5d}),
-        0.0);
+        defaultValue,
+        DicomUtils.getDoubleArrayFromDicomElement(attributes, Tag.PixelSpacing, defaultValue));
   }
 }

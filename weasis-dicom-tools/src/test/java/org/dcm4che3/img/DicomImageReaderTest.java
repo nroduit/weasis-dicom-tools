@@ -10,12 +10,9 @@
 package org.dcm4che3.img;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
-import java.util.Objects;
 import org.dcm4che3.img.stream.DicomFileInputStream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
@@ -28,14 +25,14 @@ import org.weasis.opencv.data.PlanarImage;
  * @author Nicolas Roduit
  */
 @DisplayName("DicomImageReader")
-class DicomImageReaderTest {
+public class DicomImageReaderTest {
 
-  static Path IN_DIR;
+  static final Path IN_DIR =
+      FileSystems.getDefault().getPath("target/test-classes/org/dcm4che3/img");
   static DicomImageReader reader;
 
   @BeforeAll
-  static void setUp() throws URISyntaxException {
-    IN_DIR = Paths.get(Objects.requireNonNull(DicomImageReaderTest.class.getResource("")).toURI());
+  static void setUp() {
     reader = new DicomImageReader(new DicomImageReaderSpi());
   }
 

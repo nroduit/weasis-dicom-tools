@@ -28,7 +28,9 @@ import org.dcm4che3.img.Transcoder.Format;
 import org.dcm4che3.img.data.ImageContentHash;
 import org.dcm4che3.img.data.PrDicomObject;
 import org.dcm4che3.img.stream.DicomFileInputStream;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -41,19 +43,26 @@ import org.weasis.opencv.op.ImageProcessor;
 @DisplayName("Transcoder")
 class TranscoderTest {
 
-  static Path IN_DIR = FileSystems.getDefault().getPath("target/test-classes/org/dcm4che3/img");
+  static final Path IN_DIR =
+      FileSystems.getDefault().getPath("target/test-classes/org/dcm4che3/img");
 
   static final Path OUT_DIR = FileSystems.getDefault().getPath("target/test-out/");
+  static DicomImageReader reader;
 
-  private static final DicomImageReader reader = new DicomImageReader(new DicomImageReaderSpi());
-
-  static {
+  @BeforeAll
+  static void setUp() {
     FileUtil.delete(OUT_DIR);
     try {
       Files.createDirectories(OUT_DIR);
     } catch (IOException e) {
       System.err.println(e.getMessage());
     }
+    reader = new DicomImageReader(new DicomImageReaderSpi());
+  }
+
+  @AfterAll
+  static void tearDown() {
+    if (reader != null) reader.dispose();
   }
 
   static final Consumer<Double> zeroDiff =
@@ -199,6 +208,20 @@ class TranscoderTest {
     enumMap.put(ImageContentHash.COLOR_MOMENT, zeroDiff);
     DicomTranscodeParam params = new DicomTranscodeParam(losslessUID);
     transcodeDicom("ybr422-raw.dcm", params, enumMap);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {UID.JPEG2000Lossless, UID.JPEGLosslessSV1, UID.JPEGLSLossless})
+  @DisplayName("Transcode palette-multiframe with JPEG_LS compression")
+  void paletteMultiframe(String losslessUID) throws Exception {
+    Map<ImageContentHash, Consumer<Double>> enumMap = new EnumMap<>(ImageContentHash.class);
+    // The image content must be fully preserved with lossless compression
+    enumMap.put(ImageContentHash.AVERAGE, zeroDiff);
+    enumMap.put(ImageContentHash.PHASH, zeroDiff);
+    enumMap.put(ImageContentHash.BLOCK_MEAN_ONE, zeroDiff);
+    enumMap.put(ImageContentHash.COLOR_MOMENT, zeroDiff);
+    DicomTranscodeParam params = new DicomTranscodeParam(losslessUID);
+    transcodeDicom("palette-multiframe-jpeg-ls.dcm", params, enumMap);
   }
 
   private static void compareImageContent(

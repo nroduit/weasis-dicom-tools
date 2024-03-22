@@ -28,6 +28,8 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Sequence;
 import org.dcm4che3.data.Tag;
@@ -108,63 +110,31 @@ class DicomObjectUtilTest {
   }
 
   @Test
-  @DisplayName("Check DicomDate")
-  void testGetDicomDate() {
-    assertNull(DicomObjectUtil.getDicomDate("2020-12-25"));
-    assertNull(DicomObjectUtil.getDicomDate(""));
+  @DisplayName("Memoize supplier returns same value on multiple invocations")
+  void shouldReturnSameValueOnMultipleInvocations() throws Exception {
+    SupplierEx<Integer, Exception> original = () -> new Random().nextInt();
+    SupplierEx<Integer, Exception> memoized = DicomObjectUtil.memoize(original);
 
-    LocalDate day = LocalDate.of(2020, Month.DECEMBER, 25);
-    // Dicom compliant
-    assertEquals(day, DicomObjectUtil.getDicomDate("20201225"));
-    assertEquals(day, DicomObjectUtil.getDicomDate(" 20201225"));
-    assertEquals(day, DicomObjectUtil.getDicomDate("20201225 "));
-    // Dicom compliant (old)
-    assertEquals(day, DicomObjectUtil.getDicomDate("2020.12.25"));
+    int firstInvocationResult = memoized.get();
+    for (int i = 0; i < 10; i++) {
+      assertEquals(firstInvocationResult, memoized.get());
+    }
   }
 
   @Test
-  @DisplayName("Check DicomTime")
-  void testGetDicomTime() {
-    assertNull(DicomObjectUtil.getDicomTime("2020-12-25"));
-    assertNull(DicomObjectUtil.getDicomTime(" "));
-    assertNull(DicomObjectUtil.getDicomTime("235959000151"));
+  @DisplayName("Memoize supplier does not invoke original supplier after first invocation")
+  void shouldNotInvokeOriginalSupplierAfterFirstInvocation() throws Exception {
+    AtomicInteger invocationCount = new AtomicInteger(0);
+    SupplierEx<Integer, Exception> original =
+        () -> {
+          invocationCount.incrementAndGet();
+          return new Random().nextInt();
+        };
+    SupplierEx<Integer, Exception> memoized = DicomObjectUtil.memoize(original);
 
-    LocalTime time = LocalTime.of(23, 59, 59, 151_000);
-    // Dicom compliant
-    assertEquals(time, DicomObjectUtil.getDicomTime("235959.000151"));
-    assertEquals(LocalTime.of(23, 59, 59, 21_000_000), DicomObjectUtil.getDicomTime("235959.021"));
-    assertEquals(time, DicomObjectUtil.getDicomTime(" 235959.000151"));
-    assertEquals(time, DicomObjectUtil.getDicomTime("235959.000151 "));
-    // Dicom compliant (old)
-    assertEquals(time, DicomObjectUtil.getDicomTime("23:59:59.000151"));
-  }
-
-  @Test
-  @DisplayName("Check DateTime")
-  void testDateTime() {
-    assertNull(DicomObjectUtil.dateTime(new Attributes(), 1, 1));
-    assertNull(DicomObjectUtil.dateTime(null, 1, 1));
-
-    LocalDate day = LocalDate.of(2020, Month.DECEMBER, 25);
-    // Conversion to Date only supports milli an not micro seconds as defined in DICOM
-    LocalTime time = LocalTime.of(23, 59, 59, 21_000_000);
-    DateTimeUtils.dateTime(day, time);
-    LocalDateTime dateTime = DateTimeUtils.dateTime(day, time);
-    // Get system offset to match with Date (using system timezone)
-    ZoneOffset currentOffsetForMyZone = ZoneOffset.systemDefault().getRules().getOffset(dateTime);
-    Instant instant = DateTimeUtils.dateTime(day, time).toInstant(currentOffsetForMyZone);
-    Date date = Date.from(instant);
-    Attributes dcm = new Attributes(2);
-    dcm.setDate(Tag.StudyDate, VR.DA, date);
-    dcm.setDate(Tag.StudyTime, VR.TM, date);
-    assertEquals(
-        instant,
-        DicomObjectUtil.dateTime(dcm, Tag.StudyDate, Tag.StudyTime)
-            .toInstant(currentOffsetForMyZone));
-    assertEquals(
-        DateTimeUtils.dateTime(day, null).toInstant(currentOffsetForMyZone),
-        DicomObjectUtil.dateTime(dcm, Tag.StudyDate, Tag.AcquisitionTime)
-            .toInstant(currentOffsetForMyZone));
+    memoized.get();
+    memoized.get();
+    assertEquals(1, invocationCount.get());
   }
 
   @Test
@@ -189,11 +159,13 @@ class DicomObjectUtilTest {
     area.intersect(new Area(ellipse));
 
     Polygon polygon = new Polygon();
-    polygon.addPoint(5, 5);
-    polygon.addPoint(150, 3);
-    polygon.addPoint(3, 40);
+    polygon.addPoint(5, 0);
+    polygon.addPoint(0, 0);
+    polygon.addPoint(0, 70);
+    polygon.addPoint(5, 70);
+
     // VerticesOfThePolygonalShutter order is y1, x1, y2, x2...
-    dcm.setInt(Tag.VerticesOfThePolygonalShutter, VR.IS, 5, 5, 3, 150, 40, 3);
+    dcm.setInt(Tag.VerticesOfThePolygonalShutter, VR.IS, 0, 5, 0, 0, 70, 0, 70, 5);
     area.intersect(new Area(polygon));
 
     assertTrue(area.equals(DicomObjectUtil.getShutterShape(dcm)));
@@ -228,5 +200,33 @@ class DicomObjectUtilTest {
     // Color transparency
     assertEquals(
         new Color(255, 200, 0, 128), DicomObjectUtil.getRGBColor(0, new int[] {255, 200, 0, 128}));
+  }
+
+  @Test
+  @DisplayName("Get DateTime")
+  void testGetDateTime() {
+    assertNull(DicomObjectUtil.dateTime(new Attributes(), 1, 1));
+    assertNull(DicomObjectUtil.dateTime(null, 1, 1));
+
+    LocalDate day = LocalDate.of(2020, Month.DECEMBER, 25);
+    // Conversion to Date only supports milli an not micro seconds as defined in DICOM
+    LocalTime time = LocalTime.of(23, 59, 59, 21_000_000);
+    DateTimeUtils.dateTime(day, time);
+    LocalDateTime dateTime = DateTimeUtils.dateTime(day, time);
+    // Get system offset to match with Date (using system timezone)
+    ZoneOffset currentOffsetForMyZone = ZoneOffset.systemDefault().getRules().getOffset(dateTime);
+    Instant instant = DateTimeUtils.dateTime(day, time).toInstant(currentOffsetForMyZone);
+    Date date = Date.from(instant);
+    Attributes dcm = new Attributes(2);
+    dcm.setDate(Tag.StudyDate, VR.DA, date);
+    dcm.setDate(Tag.StudyTime, VR.TM, date);
+    assertEquals(
+        instant,
+        DicomObjectUtil.dateTime(dcm, Tag.StudyDate, Tag.StudyTime)
+            .toInstant(currentOffsetForMyZone));
+    assertEquals(
+        DateTimeUtils.dateTime(day, null).toInstant(currentOffsetForMyZone),
+        DicomObjectUtil.dateTime(dcm, Tag.StudyDate, Tag.AcquisitionTime)
+            .toInstant(currentOffsetForMyZone));
   }
 }

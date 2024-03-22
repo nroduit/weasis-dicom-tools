@@ -17,6 +17,7 @@ import java.awt.Color;
 import java.awt.Shape;
 import java.util.List;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.opencv.core.CvType;
 import org.opencv.core.Scalar;
@@ -32,8 +33,8 @@ class MaskAreaTest {
     loader.init();
   }
 
-  /** Method under test: {@link MaskArea#MaskArea(List, Color)} */
   @Test
+  @DisplayName("Check MaskArea constructor")
   void testConstructor() {
     int w = 16;
     int h = 16;
@@ -63,7 +64,23 @@ class MaskAreaTest {
       }
     }
 
-    actualMaskArea = new MaskArea(shapeList, null);
+    actualMaskArea = new MaskArea(shapeList, Color.BLACK);
+    assertSame(Color.BLACK, actualMaskArea.getColor());
+    assertSame(shapeList, actualMaskArea.getShapeList());
+    try (ImageCV img = new ImageCV(new Size(w, h), CvType.CV_16UC1, new Scalar(1024))) {
+      try (ImageCV result = MaskArea.drawShape(img, actualMaskArea)) {
+        assertNotNull(result);
+        short[] data = new short[256];
+        result.get(0, 0, data);
+        assertEquals(1024, data[0]);
+        assertEquals(1024, data[3]);
+        assertEquals(0, data[4] & 0xFFFF);
+        assertEquals(0, data[5] & 0xFFFF);
+        assertEquals(1024, data[255]);
+      }
+    }
+
+    actualMaskArea = new MaskArea(shapeList);
     assertSame(null, actualMaskArea.getColor());
     assertSame(shapeList, actualMaskArea.getShapeList());
     try (ImageCV img = new ImageCV(new Size(w, h), CvType.CV_16UC1, new Scalar(1024))) {
@@ -71,10 +88,11 @@ class MaskAreaTest {
         assertNotNull(result);
         short[] data = new short[256];
         result.get(0, 0, data);
-        //        assertEquals(1024, data[0]);
-        //        assertEquals(1024, data[3]);
-        //        assertEquals((short) 65535, data[7]);
-        //        assertEquals((short) 65535, data[16]);
+        assertEquals(1024, data[0]);
+        assertEquals(1024, data[3]);
+        assertEquals(1024, data[4] & 0xFFFF); // Blur effect
+        assertEquals(1024, data[5] & 0xFFFF); // Blur effect
+        assertEquals(1024, data[255]);
       }
     }
   }

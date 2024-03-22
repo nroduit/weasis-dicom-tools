@@ -172,19 +172,20 @@ class DicomUtilsTest {
     assertEquals("1.0, 2.0", DicomUtils.getFormattedText(new float[] {1.0f, 2.0f}, "Format"));
     assertEquals("1.0, 2.0", DicomUtils.getFormattedText(new double[] {1.0, 2.0}, "Format"));
 
+    // Replace non-breaking spaces with regular spaces before comparing
     TemporalAccessor[] temporalAccessors = {LocalDate.of(2022, 12, 25), LocalDate.of(2022, 12, 26)};
     assertEquals(
-        "Dec 25, 2022, Dec 26, 2022", DicomUtils.getFormattedText(temporalAccessors, "Format"));
-    assertEquals("Jan 1, 1970", DicomUtils.getFormattedText(LocalDate.of(1970, 1, 1), "Format"));
+        "Dec 25, 2022, Dec 26, 2022", DicomUtils.getFormattedText(temporalAccessors, "Format").replace(" ", " "));
+    assertEquals("Jan 1, 1970", DicomUtils.getFormattedText(LocalDate.of(1970, 1, 1), "Format").replace(" ", " "));
     assertEquals(
-        "Jan 1, 1970, 12:00:00 AM",
-        DicomUtils.getFormattedText(LocalDate.of(1970, 1, 1).atStartOfDay(), "Format"));
-    assertEquals("12:00:00 AM", DicomUtils.getFormattedText(LocalTime.MIDNIGHT, "Format"));
-    assertEquals("", DicomUtils.getFormattedText(DayOfWeek.MONDAY, "Format"));
+        "Jan 1, 1970, 12:00:00 AM",
+        DicomUtils.getFormattedText(LocalDate.of(1970, 1, 1).atStartOfDay(), "Format", Locale.US).replace(" ", " "));
+    assertEquals("12:00:00 AM", DicomUtils.getFormattedText(LocalTime.MIDNIGHT, "Format", Locale.US).replace(" ", " "));
+    assertEquals("", DicomUtils.getFormattedText(DayOfWeek.MONDAY, "Format").replace(" ", " "));
     assertEquals(
-        "Jan 1, 1970, 12:00:00 AM",
+        "Jan 1, 1970, 12:00:00 AM",
         DicomUtils.getFormattedText(
-            LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC), "Format"));
+            LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC), "Format", Locale.US).replace(" ", " "));
   }
 
   @Test

@@ -261,7 +261,7 @@ public class DicomImageReader extends ImageReader {
         () -> {
           try (SeekableByteChannel channel =
               Files.newByteChannel(dis.getPath(), StandardOpenOption.READ)) {
-            channel.position(seg.getSegmentPositions()[frame]);
+            channel.position(seg.segmentPositions()[frame]);
             return isYbrModel(channel, pmi, param);
           } catch (IOException e) {
             LOG.error("Cannot read jpeg header", e);
@@ -472,7 +472,7 @@ public class DicomImageReader extends ImageReader {
 
     ExtendSegmentedInputImageStream seg =
         buildSegmentedImageInputStream(frame, pixeldataFragments, bulkData);
-    if (seg.getSegmentPositions() == null) {
+    if (seg.segmentPositions() == null) {
       return null;
     }
 
@@ -506,9 +506,8 @@ public class DicomImageReader extends ImageReader {
     MatOfDouble positions = null;
     MatOfDouble lengths = null;
     try {
-      positions =
-          new MatOfDouble(Arrays.stream(seg.getSegmentPositions()).asDoubleStream().toArray());
-      lengths = new MatOfDouble(Arrays.stream(seg.getSegmentLengths()).asDoubleStream().toArray());
+      positions = new MatOfDouble(Arrays.stream(seg.segmentPositions()).asDoubleStream().toArray());
+      lengths = new MatOfDouble(Arrays.stream(seg.segmentLengths()).asDoubleStream().toArray());
       if (rawData) {
         int bits = bitsStored <= 8 && desc.getBitsAllocated() > 8 ? 9 : bitsStored;
         int streamVR = pixeldataVR.vr.numEndianBytes();
@@ -526,17 +525,13 @@ public class DicomImageReader extends ImageReader {
         ImageCV imageCV =
             ImageCV.toImageCV(
                 Imgcodecs.dicomRawFileRead(
-                    seg.getPath().toString(), positions, lengths, dicomparams, pmi.name()));
+                    seg.path().toString(), positions, lengths, dicomparams, pmi.name()));
         return applyReleaseImageAfterProcessing(imageCV, param);
       }
       ImageCV imageCV =
           ImageCV.toImageCV(
               Imgcodecs.dicomJpgFileRead(
-                  seg.getPath().toString(),
-                  positions,
-                  lengths,
-                  dcmFlags,
-                  Imgcodecs.IMREAD_UNCHANGED));
+                  seg.path().toString(), positions, lengths, dcmFlags, Imgcodecs.IMREAD_UNCHANGED));
       return applyReleaseImageAfterProcessing(imageCV, param);
     } finally {
       closeMat(positions);

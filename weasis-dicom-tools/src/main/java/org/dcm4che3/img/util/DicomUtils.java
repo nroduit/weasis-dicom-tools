@@ -16,6 +16,7 @@ import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAccessor;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
@@ -58,6 +59,9 @@ public class DicomUtils {
       case UID.JPEG2000:
       case UID.JPEG2000MCLossless:
       case UID.JPEG2000MC:
+      case UID.HTJ2KLossless:
+      case UID.HTJ2KLosslessRPCL:
+      case UID.HTJ2K:
         return true;
       default:
         return false;
@@ -76,6 +80,10 @@ public class DicomUtils {
   }
 
   public static String getFormattedText(Object value, String format) {
+    return getFormattedText(value, format, Locale.getDefault());
+  }
+
+  public static String getFormattedText(Object value, String format, Locale locale) {
     if (value == null) {
       return StringUtil.EMPTY_STRING;
     }
@@ -87,11 +95,11 @@ public class DicomUtils {
     } else if (value instanceof String[]) {
       str = String.join("\\", Arrays.asList((String[]) value));
     } else if (value instanceof TemporalAccessor) {
-      str = DateTimeUtils.formatDateTime((TemporalAccessor) value);
+      str = DateTimeUtils.formatDateTime((TemporalAccessor) value, locale);
     } else if (value instanceof TemporalAccessor[]) {
       str =
           Stream.of((TemporalAccessor[]) value)
-              .map(DateTimeUtils::formatDateTime)
+              .map(v -> DateTimeUtils.formatDateTime(v, locale))
               .collect(Collectors.joining(", "));
     } else if (value instanceof float[]) {
       float[] array = (float[]) value;
@@ -298,11 +306,11 @@ public class DicomUtils {
     if (years < 2) {
       long months = ChronoUnit.MONTHS.between(first, last);
       if (months < 2) {
-        return String.format("%03dD", ChronoUnit.DAYS.between(first, last)); // NON-NLS
+        return String.format("%03dD", ChronoUnit.DAYS.between(first, last));
       }
-      return String.format("%03dM", months); // NON-NLS
+      return String.format("%03dM", months);
     }
-    return String.format("%03dY", years); // NON-NLS
+    return String.format("%03dY", years);
   }
 
   public static Float getFloatFromDicomElement(Attributes dicom, int tag, Float defaultValue) {

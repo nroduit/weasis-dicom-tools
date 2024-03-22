@@ -36,9 +36,18 @@ import java.util.concurrent.Flow;
 import java.util.function.Supplier;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
+import org.dcm4che3.img.DicomImageReadParam;
+import org.dcm4che3.img.DicomImageReader;
+import org.dcm4che3.img.DicomJpegWriteParam;
+import org.dcm4che3.img.DicomOutputData;
+import org.dcm4che3.img.Transcoder;
+import org.dcm4che3.img.stream.BytesWithImageDescriptor;
+import org.dcm4che3.img.stream.ImageAdapter.AdaptTransferSyntax;
+import org.dcm4che3.img.util.Editable;
 import org.dcm4che3.io.DicomOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.weasis.opencv.data.PlanarImage;
 
 public class DicomStowRS implements AutoCloseable {
   private static final Logger LOGGER = LoggerFactory.getLogger(DicomStowRS.class);
@@ -295,5 +304,61 @@ public class DicomStowRS implements AutoCloseable {
     //                promptHeaders("< ", response.headers());
     //            }
     //            response.body().forEach(LOGGER::info);
+  }
+
+  public static Payload preparePayload(
+      Attributes data,
+      AdaptTransferSyntax syntax,
+      BytesWithImageDescriptor desc,
+      Editable<PlanarImage> editable)
+      throws IOException {
+    DicomImageReader reader = new DicomImageReader(Transcoder.dicomImageReaderSpi);
+    reader.setInput(desc);
+    DicomImageReadParam dicomImageReadParam = new DicomImageReadParam();
+    dicomImageReadParam.setReleaseImageAfterProcessing(true);
+    var images = reader.getLazyPlanarImages(dicomImageReadParam, editable);
+    DicomOutputData imgData =
+        new DicomOutputData(images, desc.getImageDescriptor(), syntax.getRequested());
+    if (!syntax.getRequested().equals(imgData.getTsuid())) {
+      syntax.setSuitable(imgData.getTsuid());
+      LOGGER.warn(
+          "Transcoding into {} is not possible, used instead {}",
+          syntax.getRequested(),
+          syntax.getSuitable());
+    }
+    Attributes dataSet = new Attributes(data);
+    dataSet.remove(Tag.PixelData);
+
+    return new Payload() {
+      @Override
+      public long size() {
+        return -1;
+      }
+
+      @Override
+      public InputStream newInputStream() {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try (DicomOutputStream dos = new DicomOutputStream(out, imgData.getTsuid())) {
+          dos.writeFileMetaInformation(dataSet.createFileMetaInformation(imgData.getTsuid()));
+          if (DicomOutputData.isNativeSyntax(imgData.getTsuid())) {
+            imgData.writRawImageData(dos, dataSet);
+          } else {
+            int[] jpegWriteParams =
+                imgData.adaptTagsToCompressedImage(
+                    dataSet,
+                    imgData.getFirstImage().get(),
+                    desc.getImageDescriptor(),
+                    DicomJpegWriteParam.buildDicomImageWriteParam(imgData.getTsuid()));
+            imgData.writeCompressedImageData(dos, dataSet, jpegWriteParams);
+          }
+        } catch (IOException e) {
+          LOGGER.error("Cannot write DICOM", e);
+          return new ByteArrayInputStream(new byte[] {});
+        } finally {
+          reader.dispose();
+        }
+        return new ByteArrayInputStream(out.toByteArray());
+      }
+    };
   }
 }

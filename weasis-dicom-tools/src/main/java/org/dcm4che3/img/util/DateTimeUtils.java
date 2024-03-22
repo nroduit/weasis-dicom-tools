@@ -21,6 +21,7 @@ import java.time.temporal.Temporal;
 import java.time.temporal.TemporalAccessor;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -198,40 +199,27 @@ public class DateTimeUtils {
   }
 
   private static long nanosToAdd(int length) {
-    switch (length) {
-      case 2:
-        return 3599999999999L;
-      case 4:
-        return 59999999999L;
-      case 6:
-      case 7:
-        return 999999999L;
-      case 8:
-        return 99999999L;
-      case 9:
-        return 9999999L;
-      case 10:
-        return 999999L;
-      case 11:
-        return 99999L;
-      case 12:
-        return 9999L;
-      case 13:
-        return 999L;
-    }
-    throw new IllegalArgumentException("length: " + length);
+    return switch (length) {
+      case 2 -> 3599999999999L;
+      case 4 -> 59999999999L;
+      case 6, 7 -> 999999999L;
+      case 8 -> 99999999L;
+      case 9 -> 9999999L;
+      case 10 -> 999999L;
+      case 11 -> 99999L;
+      case 12 -> 9999L;
+      case 13 -> 999L;
+      default -> throw new IllegalArgumentException("length: " + length);
+    };
   }
 
   private static ChronoUnit yearsMonthsDays(int length) {
-    switch (length) {
-      case 4:
-        return ChronoUnit.YEARS;
-      case 6:
-        return ChronoUnit.MONTHS;
-      case 8:
-        return ChronoUnit.DAYS;
-    }
-    throw new IllegalArgumentException("length: " + length);
+    return switch (length) {
+      case 4 -> ChronoUnit.YEARS;
+      case 6 -> ChronoUnit.MONTHS;
+      case 8 -> ChronoUnit.DAYS;
+      default -> throw new IllegalArgumentException("length: " + length);
+    };
   }
 
   private static int lengthWithoutZone(String value) {
@@ -256,11 +244,7 @@ public class DateTimeUtils {
     return maxLength < fractionPos ? maxLength & ~1 : maxLength;
   }
 
-  /**
-   * Conversion from old to new Time API
-   *
-   * @author Nicolas Roduit
-   */
+  /** Conversion from old to new Time API */
   private static final DateTimeFormatter defaultDateFormatter =
       DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM);
 
@@ -272,18 +256,24 @@ public class DateTimeUtils {
   /**
    * Convert date or time object to display date in String with FormatStyle.MEDIUM
    *
-   * @param date
+   * @param date the date or time object
    * @return the time to display with FormatStyle.MEDIUM
    */
   public static String formatDateTime(TemporalAccessor date) {
+    return formatDateTime(date, Locale.getDefault());
+  }
+
+  public static String formatDateTime(TemporalAccessor date, Locale locale) {
     if (date instanceof LocalDate) {
-      return defaultDateFormatter.format(date);
+      return defaultDateFormatter.withLocale(locale).format(date);
     } else if (date instanceof LocalTime) {
-      return defaultTimeFormatter.format(date);
+      return defaultTimeFormatter.withLocale(locale).format(date);
     } else if (date instanceof LocalDateTime || date instanceof ZonedDateTime) {
-      return defaultDateTimeFormatter.format(date);
+      return defaultDateTimeFormatter.withLocale(locale).format(date);
     } else if (date instanceof Instant) {
-      return defaultDateTimeFormatter.format(((Instant) date).atZone(ZoneId.systemDefault()));
+      return defaultDateTimeFormatter
+          .withLocale(locale)
+          .format(((Instant) date).atZone(ZoneId.systemDefault()));
     }
     return "";
   }

@@ -10,12 +10,10 @@
 package org.dcm4che3.img.stream;
 
 import java.io.BufferedOutputStream;
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import org.dcm4che3.data.Attributes;
@@ -25,6 +23,7 @@ import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.data.VR.Holder;
+import org.dcm4che3.imageio.codec.TransferSyntaxType;
 import org.dcm4che3.imageio.codec.jpeg.JPEGParser;
 import org.dcm4che3.img.*;
 import org.dcm4che3.img.util.DicomUtils;
@@ -36,7 +35,6 @@ import org.slf4j.LoggerFactory;
 import org.weasis.core.util.FileUtil;
 import org.weasis.core.util.StringUtil;
 import org.weasis.dicom.param.AttributeEditorContext;
-import org.weasis.dicom.web.Payload;
 import org.weasis.opencv.data.PlanarImage;
 
 public class ImageAdapter {
@@ -96,7 +94,9 @@ public class ImageAdapter {
     }
 
     public void setSuitable(String suitable) {
-      this.suitable = suitable;
+      if (TransferSyntaxType.forUID(suitable) != TransferSyntaxType.UNKNOWN) {
+        this.suitable = suitable;
+      }
     }
   }
 
@@ -401,57 +401,6 @@ public class ImageAdapter {
     if (original.containsValue(tag)) {
       copy.setValue(tag, original.getVR(tag), original.getValue(tag));
     }
-  }
-
-  public static Payload preparePlayload(
-      Attributes data,
-      AdaptTransferSyntax syntax,
-      BytesWithImageDescriptor desc,
-      Editable<PlanarImage> editable)
-      throws IOException {
-    DicomImageReader reader = new DicomImageReader(Transcoder.dicomImageReaderSpi);
-    DicomOutputData imgData = geDicomOutputData(reader, syntax.requested, desc, editable);
-    if (!syntax.requested.equals(imgData.getTsuid())) {
-      syntax.suitable = imgData.getTsuid();
-      LOGGER.warn(
-          "Transcoding into {} is not possible, used instead {}",
-          syntax.requested,
-          syntax.suitable);
-    }
-    Attributes dataSet = new Attributes(data);
-    dataSet.remove(Tag.PixelData);
-
-    return new Payload() {
-      @Override
-      public long size() {
-        return -1;
-      }
-
-      @Override
-      public InputStream newInputStream() {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        try (DicomOutputStream dos = new DicomOutputStream(out, imgData.getTsuid())) {
-          dos.writeFileMetaInformation(dataSet.createFileMetaInformation(imgData.getTsuid()));
-          if (DicomOutputData.isNativeSyntax(imgData.getTsuid())) {
-            imgData.writRawImageData(dos, dataSet);
-          } else {
-            int[] jpegWriteParams =
-                imgData.adaptTagsToCompressedImage(
-                    dataSet,
-                    imgData.getFirstImage().get(),
-                    desc.getImageDescriptor(),
-                    DicomJpegWriteParam.buildDicomImageWriteParam(imgData.getTsuid()));
-            imgData.writeCompressedImageData(dos, dataSet, jpegWriteParams);
-          }
-        } catch (IOException e) {
-          LOGGER.error("Cannot write DICOM", e);
-          return new ByteArrayInputStream(new byte[] {});
-        } finally {
-          reader.dispose();
-        }
-        return new ByteArrayInputStream(out.toByteArray());
-      }
-    };
   }
 
   private static DicomOutputData geDicomOutputData(

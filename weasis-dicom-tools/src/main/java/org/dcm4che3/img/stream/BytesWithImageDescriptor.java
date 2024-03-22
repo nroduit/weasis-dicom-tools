@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.VR;
+import org.weasis.core.util.annotations.Generated;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
@@ -23,6 +24,7 @@ public interface BytesWithImageDescriptor extends ImageReaderDescriptor {
 
   String getTransferSyntax();
 
+  @Generated
   default boolean bigEndian() {
     return false;
   }

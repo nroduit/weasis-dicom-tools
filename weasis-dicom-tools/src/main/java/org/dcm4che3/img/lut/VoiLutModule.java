@@ -23,6 +23,7 @@ import org.dcm4che3.img.DicomImageUtils;
 import org.dcm4che3.img.util.DicomUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.weasis.core.util.annotations.Generated;
 import org.weasis.opencv.data.LookupTableCV;
 
 /**
@@ -90,19 +91,24 @@ public class VoiLutModule {
     }
 
     if (LOGGER.isDebugEnabled()) {
-      // If multiple Window center and window width values are present, both Attributes shall have
-      // the same number of values and shall be considered as pairs. Multiple values indicate that
-      // multiple alternative views may be presented
-      if (windowCenter.isEmpty() && !windowWidth.isEmpty()) {
-        LOGGER.debug("VOI Window Center is required if Window Width is present");
-      } else if (!windowCenter.isEmpty() && windowWidth.isEmpty()) {
-        LOGGER.debug("VOI Window Width is required if Window Center is present");
-      } else if (windowWidth.size() != windowCenter.size()) {
-        LOGGER.debug(
-            "VOI Window Center and Width attributes have different number of values : {} => {}",
-            windowCenter.size(),
-            windowWidth.size());
-      }
+      logLutConsistency();
+    }
+  }
+
+  @Generated
+  private void logLutConsistency() {
+    // If multiple Window center and window width values are present, both Attributes shall have
+    // the same number of values and shall be considered as pairs. Multiple values indicate that
+    // multiple alternative views may be presented
+    if (windowCenter.isEmpty() && !windowWidth.isEmpty()) {
+      LOGGER.debug("VOI Window Center is required if Window Width is present");
+    } else if (!windowCenter.isEmpty() && windowWidth.isEmpty()) {
+      LOGGER.debug("VOI Window Width is required if Window Center is present");
+    } else if (windowWidth.size() != windowCenter.size()) {
+      LOGGER.debug(
+          "VOI Window Center and Width attributes have different number of values : {} => {}",
+          windowCenter.size(),
+          windowWidth.size());
     }
   }
 

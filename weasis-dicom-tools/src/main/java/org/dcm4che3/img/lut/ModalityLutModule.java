@@ -18,6 +18,7 @@ import org.dcm4che3.img.DicomImageUtils;
 import org.dcm4che3.img.util.DicomUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.weasis.core.util.annotations.Generated;
 import org.weasis.opencv.data.LookupTableCV;
 
 /**
@@ -108,6 +109,7 @@ public class ModalityLutModule {
     }
   }
 
+  @Generated
   private void logModalityLutConsistency() {
     if (LOGGER.isTraceEnabled()) {
       if (lut.isPresent()) {

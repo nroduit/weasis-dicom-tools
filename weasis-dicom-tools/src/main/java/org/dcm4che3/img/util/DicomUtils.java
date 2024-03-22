@@ -340,23 +340,6 @@ public class DicomUtils {
     return defaultValue;
   }
 
-  public static Long getLongFromDicomElement(Attributes dicom, int tag, Long defaultValue) {
-    return getLongFromDicomElement(dicom, tag, null, defaultValue);
-  }
-
-  public static Long getLongFromDicomElement(
-      Attributes dicom, int tag, String privateCreatorID, Long defaultValue) {
-    if (dicom == null || !dicom.containsValue(tag)) {
-      return defaultValue;
-    }
-    try {
-      return dicom.getLong(privateCreatorID, tag, defaultValue == null ? 0L : defaultValue);
-    } catch (NumberFormatException e) {
-      LOGGER.error("Cannot parse Long of {}: {} ", TagUtils.toString(tag), e.getMessage());
-    }
-    return defaultValue;
-  }
-
   public static Double getDoubleFromDicomElement(Attributes dicom, int tag, Double defaultValue) {
     return getDoubleFromDicomElement(dicom, tag, null, defaultValue);
   }
@@ -384,7 +367,10 @@ public class DicomUtils {
       return defaultValue;
     }
     try {
-      return dicom.getInts(privateCreatorID, tag);
+      int[] val = dicom.getInts(privateCreatorID, tag);
+      if (val != null && val.length != 0) {
+        return val;
+      }
     } catch (NumberFormatException e) {
       LOGGER.error("Cannot parse int[] of {}: {} ", TagUtils.toString(tag), e.getMessage());
     }
@@ -402,7 +388,10 @@ public class DicomUtils {
       return defaultValue;
     }
     try {
-      return dicom.getFloats(privateCreatorID, tag);
+      float[] val = dicom.getFloats(privateCreatorID, tag);
+      if (val != null && val.length != 0) {
+        return val;
+      }
     } catch (NumberFormatException e) {
       LOGGER.error("Cannot parse float[] of {}: {} ", TagUtils.toString(tag), e.getMessage());
     }
@@ -420,7 +409,10 @@ public class DicomUtils {
       return defaultValue;
     }
     try {
-      return dicom.getDoubles(privateCreatorID, tag);
+      double[] val = dicom.getDoubles(privateCreatorID, tag);
+      if (val != null && val.length != 0) {
+        return val;
+      }
     } catch (NumberFormatException e) {
       LOGGER.error("Cannot parse double[] of {}: {} ", TagUtils.toString(tag), e.getMessage());
     }

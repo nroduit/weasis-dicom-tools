@@ -116,7 +116,7 @@ public final class ImageDescriptor {
 
   public boolean hasPaletteColorLookupTable() {
     return photometricInterpretation == PhotometricInterpretation.PALETTE_COLOR
-        || (pixelPresentation != null && !"MONOCHROME".equals(pixelPresentation));
+        || "COLOR".equals(pixelPresentation);
   }
 
   public int getPixelRepresentation() {

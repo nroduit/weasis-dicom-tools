@@ -182,7 +182,7 @@ public class DicomObjectUtil {
       }
       if (shutterShape.contains("POLYGONAL")) { // $NON-NLS-1$
         int[] points = dcm.getInts(Tag.VerticesOfThePolygonalShutter);
-        if (points != null) {
+        if (points != null && points.length >= 6) {
           Polygon polygon = new Polygon();
           for (int i = 0; i < points.length / 2; i++) {
             // Thanks DICOM for reversing x,y by row,column
@@ -208,12 +208,12 @@ public class DicomObjectUtil {
     int[] yPoints = polygon.ypoints;
     double area = 0;
     for (int i = 0; i < polygon.npoints; i++) {
-      area += (xPoints[i] * yPoints[i + 1]) - (xPoints[i + 1] * yPoints[i]);
-      if (area > 0) {
-        return true;
-      }
+      area +=
+          (xPoints[i] * yPoints[(i + 1) % polygon.npoints])
+              - (xPoints[(i + 1) % polygon.npoints] * yPoints[i]);
     }
-    return false;
+    // Evaluating if this is a polygon, not a line
+    return area != 0 && polygon.npoints > 2;
   }
 
   /**

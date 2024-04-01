@@ -15,15 +15,7 @@
     <sha1/>
 
     <dcm4che.version>5.31.2</dcm4che.version>
-    <weasis.core.img.version>4.8.1.2</weasis.core.img.version>
-    <!-- @NOTE: import weasis.core.img is now optional in dependencyManagement  -->
-    <!-- Setting its version explicitly override the transitivity inherited from dcm4che, including weasis.opencv.native.version-->
-
-    <slf4j.version>2.0.12</slf4j.version>
-    <junit-bom.version>5.10.2</junit-bom.version>
-    <mockito.version>5.11.0</mockito.version>
-    <mockito-inline.version>5.2.0</mockito-inline.version>
-    <junit-pioneer.version>2.2.0</junit-pioneer.version>
+    <weasis.core.img.version>4.9.0.1</weasis.core.img.version>
   </properties>
 
   <modules>
@@ -66,78 +58,6 @@
     </repository>
   </repositories>
 
-  <dependencyManagement>
-    <dependencies>
-      <dependency>
-        <groupId>org.weasis.core</groupId>
-        <artifactId>weasis-core-img-bom</artifactId>
-        <version>${weasis.core.img.version}</version>
-        <scope>import</scope>
-        <type>pom</type>
-      </dependency>
-      <dependency>
-        <groupId>org.weasis.core</groupId>
-        <artifactId>weasis-core-img</artifactId>
-        <version>${weasis.core.img.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.dcm4che</groupId>
-        <artifactId>dcm4che-parent</artifactId>
-        <version>${dcm4che.version}</version>
-        <scope>import</scope>
-        <type>pom</type>
-      </dependency>
-
-      <dependency>
-        <groupId>org.dcm4che</groupId>
-        <artifactId>dcm4che-core</artifactId>
-        <version>${dcm4che.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.dcm4che</groupId>
-        <artifactId>dcm4che-dict</artifactId>
-        <version>${dcm4che.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.dcm4che</groupId>
-        <artifactId>dcm4che-net</artifactId>
-        <version>${dcm4che.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.dcm4che</groupId>
-        <artifactId>dcm4che-json</artifactId>
-        <version>${dcm4che.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.dcm4che</groupId>
-        <artifactId>dcm4che-image</artifactId>
-        <version>${dcm4che.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-bom</artifactId>
-        <version>${slf4j.version}</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.junit</groupId>
-        <artifactId>junit-bom</artifactId>
-        <version>${junit-bom.version}</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.mockito</groupId>
-        <artifactId>mockito-bom</artifactId>
-        <version>${mockito.version}</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
 
   <build>
     <pluginManagement>
@@ -265,38 +185,6 @@
       </plugin>
     </plugins>
   </build>
-
-<dependencies>
-  <!-- FOR TESTS -->
-  <dependency>
-    <groupId>org.mockito</groupId>
-    <artifactId>mockito-junit-jupiter</artifactId>
-    <scope>test</scope>
-  </dependency>
-  <dependency>
-    <groupId>org.mockito</groupId>
-    <artifactId>mockito-inline</artifactId>
-    <version>${mockito-inline.version}</version>
-    <scope>test</scope>
-  </dependency>
-
-  <dependency>
-    <groupId>org.junit.jupiter</groupId>
-    <artifactId>junit-jupiter-params</artifactId>
-    <scope>test</scope>
-  </dependency>
-  <dependency>
-    <groupId>org.junit-pioneer</groupId>
-    <artifactId>junit-pioneer</artifactId>
-    <version>${junit-pioneer.version}</version>
-    <scope>test</scope>
-  </dependency>
-  <dependency>
-    <groupId>org.slf4j</groupId>
-    <artifactId>slf4j-simple</artifactId>
-    <scope>test</scope>
-  </dependency>
-</dependencies>
 
   <profiles>
     <profile>

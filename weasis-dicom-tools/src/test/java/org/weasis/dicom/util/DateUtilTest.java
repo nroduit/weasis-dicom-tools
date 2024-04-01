@@ -9,16 +9,14 @@
  */
 package org.weasis.dicom.util;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.TimeZone;
 import javax.xml.datatype.DatatypeConfigurationException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.weasis.dicom.util.DateUtil;
-
-import java.time.LocalDate;
-import java.time.LocalTime;
 
 class DateUtilTest {
 
@@ -26,12 +24,11 @@ class DateUtilTest {
   void getDicomDateReturnsCorrectDateForValidInput() {
     LocalDate result = DateUtil.getDicomDate("20220321");
     Assertions.assertEquals(LocalDate.of(2022, 3, 21), result);
-    Assertions.assertEquals(result, DateUtil.getDicomDate("2022.03.21"));// Old format
+    Assertions.assertEquals(result, DateUtil.getDicomDate("2022.03.21")); // Old format
 
     result = DateUtil.getDicomDate("invalid");
     Assertions.assertNull(result);
   }
-
 
   @Test
   void getDicomTimeReturnsCorrectTimeForValidInput() {
@@ -41,7 +38,6 @@ class DateUtilTest {
     result = DateUtil.getDicomTime("invalid");
     Assertions.assertNull(result);
   }
-
 
   @Test
   void dateTimeReturnsCorrectDateTimeForValidInput() {
@@ -64,13 +60,17 @@ class DateUtilTest {
 
   @Test
   void parseXmlDateTimeReturnsCorrectDateForValidInput() throws DatatypeConfigurationException {
+    TimeZone utc = TimeZone.getTimeZone("UTC");
     GregorianCalendar result = DateUtil.parseXmlDateTime("2022-03-21T12:00:00");
-    result.setTimeZone(TimeZone.getDefault());
+    result.setTimeZone(utc);
     GregorianCalendar expected = new GregorianCalendar(2022, Calendar.MARCH, 21, 12, 0, 0);
+    expected.setTimeZone(utc);
     Assertions.assertEquals(expected.getTime(), result.getTime());
 
-     result = DateUtil.parseXmlDateTime("2022-03-21T12:00:00+01:00");
-     expected = new GregorianCalendar(2022, Calendar.MARCH, 21, 12, 0, 0); // Adjusted for timezone
+    utc = TimeZone.getTimeZone("UTC+1");
+    result = DateUtil.parseXmlDateTime("2022-03-21T12:00:00+01:00");
+    expected = new GregorianCalendar(2022, Calendar.MARCH, 21, 11, 0, 0);
+    expected.setTimeZone(utc);
     Assertions.assertEquals(expected.getTime(), result.getTime());
   }
 }

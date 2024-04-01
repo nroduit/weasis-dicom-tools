@@ -11,7 +11,6 @@ package org.weasis.dicom.util;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.weasis.dicom.util.Hmac;
 
 class HmacTest {
 
@@ -24,7 +23,8 @@ class HmacTest {
   @Test
   void byteToHexConvertsCorrectly() {
     String hexVal = "5e80b11ce89d46e490a244fde301d339";
-    byte[] bytesVal = new byte[]{94, -128, -79, 28, -24, -99, 70, -28, -112, -94, 68, -3, -29, 1, -45, 57};
+    byte[] bytesVal =
+        new byte[] {94, -128, -79, 28, -24, -99, 70, -28, -112, -94, 68, -3, -29, 1, -45, 57};
     byte[] bytes = Hmac.hexToByte(hexVal);
     Assertions.assertArrayEquals(bytesVal, bytes);
     String hex = Hmac.byteToHex(bytes);
@@ -42,7 +42,7 @@ class HmacTest {
 
     Hmac hmac = new Hmac(bytes);
     String uid1 = hmac.uidHash("5e80b11c-e89d-46e4-90a2-44fde301d339");
-    Assertions.assertEquals(uid1,  new Hmac(bytes).uidHash("5e80b11c-e89d-46e4-90a2-44fde301d339"));
+    Assertions.assertEquals(uid1, new Hmac(bytes).uidHash("5e80b11c-e89d-46e4-90a2-44fde301d339"));
   }
 
   @Test
@@ -63,7 +63,6 @@ class HmacTest {
     result = hmac.scaleHash("small", Integer.MIN_VALUE, Integer.MAX_VALUE);
     Assertions.assertTrue(result >= Integer.MIN_VALUE && result < Integer.MAX_VALUE);
   }
-
 
   @Test
   void uidHashReturnsNullForEmptyInput() {

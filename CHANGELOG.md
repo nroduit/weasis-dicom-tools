@@ -1,5 +1,13 @@
 # Changelog
 
+## [v5.32.0](https://github.com/nroduit/weasis-dicom-tools/tree/v5.32.0) (2024-05-01)
+
+[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.31.2...v5.32.0)
+
+**Merged pull requests:**
+
+- Bom dependencies [\#28](https://github.com/nroduit/weasis-dicom-tools/pull/28) ([bjacquemoud](https://github.com/bjacquemoud))
+
 ## [v5.31.2](https://github.com/nroduit/weasis-dicom-tools/tree/v5.31.2) (2024-02-16)
 
 [Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.31.1...v5.31.2)

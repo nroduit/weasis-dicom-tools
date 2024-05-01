@@ -10,11 +10,11 @@
   <version>${revision}${sha1}${changelist}</version>
 
   <properties>
-    <revision>${dcm4che.version}.1</revision>
-    <changelist>-SNAPSHOT</changelist> <!-- Remove "-SNAPSHOT" for release -->
+    <revision>${dcm4che.version}</revision>
+    <changelist></changelist> <!-- Remove "-SNAPSHOT" for release -->
     <sha1/>
 
-    <dcm4che.version>5.31.2</dcm4che.version>
+    <dcm4che.version>5.32.0</dcm4che.version>
     <weasis.core.img.version>4.9.0.1</weasis.core.img.version>
   </properties>
 

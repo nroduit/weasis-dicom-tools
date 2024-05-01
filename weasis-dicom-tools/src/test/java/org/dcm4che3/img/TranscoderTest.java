@@ -54,7 +54,6 @@ class TranscoderTest {
 
   @BeforeAll
   static void setUp() {
-    FileUtil.delete(OUT_DIR);
     try {
       Files.createDirectories(OUT_DIR);
     } catch (IOException e) {

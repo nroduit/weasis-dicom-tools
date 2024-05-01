@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URISyntaxException;
 import java.nio.file.FileSystems;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import org.dcm4che3.data.Attributes;
@@ -48,6 +49,11 @@ class ImageAdapterTest {
   @BeforeAll
   static void setUp() throws URISyntaxException {
     reader = new DicomImageReader(new DicomImageReaderSpi());
+    try {
+      Files.createDirectories(OUT_DIR);
+    } catch (IOException e) {
+      System.err.println(e.getMessage());
+    }
   }
 
   @AfterAll

@@ -36,6 +36,8 @@ public class AnatomicBuilder {
       Arrays.stream(SurfacePart.values())
           .collect(Collectors.toMap(SurfacePart::getCodeValue, Function.identity()));
 
+  private AnatomicBuilder() {}
+
   public static List<BodyPart> getAllBodyParts() {
     return Arrays.asList(BodyPart.values());
   }

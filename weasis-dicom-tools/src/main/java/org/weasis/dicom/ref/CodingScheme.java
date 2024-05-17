@@ -91,4 +91,9 @@ public enum CodingScheme {
   public String getCodeName() {
     return codeName;
   }
+
+  @Override
+  public String toString() {
+    return designator;
+  }
 }

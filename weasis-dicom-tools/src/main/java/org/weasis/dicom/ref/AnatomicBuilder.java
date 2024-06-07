@@ -20,7 +20,7 @@ import org.weasis.core.util.StringUtil;
 
 public class AnatomicBuilder {
 
-  private static final Map<Integer, BodyPart> CODE_TO_BODY_PART =
+  private static final Map<String, BodyPart> CODE_TO_BODY_PART =
       Arrays.stream(BodyPart.values())
           .collect(Collectors.toMap(BodyPart::getCodeValue, Function.identity()));
   private static final Map<String, BodyPart> LEGACY_CODE_TO_BODY_PART =
@@ -28,11 +28,11 @@ public class AnatomicBuilder {
           .filter(bp -> StringUtil.hasText(bp.getLegacyCode()))
           .collect(Collectors.toMap(BodyPart::getLegacyCode, Function.identity()));
 
-  private static final Map<Integer, AnatomicModifier> CODE_TO_ANATOMIC_MODIFIER =
+  private static final Map<String, AnatomicModifier> CODE_TO_ANATOMIC_MODIFIER =
       Arrays.stream(AnatomicModifier.values())
           .collect(Collectors.toMap(AnatomicModifier::getCodeValue, Function.identity()));
 
-  private static final Map<Integer, SurfacePart> CODE_TO_SURFACE_PART =
+  private static final Map<String, SurfacePart> CODE_TO_SURFACE_PART =
       Arrays.stream(SurfacePart.values())
           .collect(Collectors.toMap(SurfacePart::getCodeValue, Function.identity()));
 
@@ -62,7 +62,7 @@ public class AnatomicBuilder {
    * @param code Code Value of the body part
    * @return BodyPart
    */
-  public static BodyPart getBodyPartFromCode(int code) {
+  public static BodyPart getBodyPartFromCode(String code) {
     return CODE_TO_BODY_PART.get(code);
   }
 
@@ -105,7 +105,7 @@ public class AnatomicBuilder {
    * @param code Code Value of the anatomic modifier
    * @return AnatomicModifier
    */
-  public static AnatomicModifier getAnatomicModifierFromCode(int code) {
+  public static AnatomicModifier getAnatomicModifierFromCode(String code) {
     return CODE_TO_ANATOMIC_MODIFIER.get(code);
   }
 
@@ -115,7 +115,7 @@ public class AnatomicBuilder {
    * @param code Code Value of the surface part
    * @return SurfacePart
    */
-  public static SurfacePart getSurfacePartFromCode(int code) {
+  public static SurfacePart getSurfacePartFromCode(String code) {
     return CODE_TO_SURFACE_PART.get(code);
   }
 }

@@ -55,7 +55,7 @@ class AnatomicBuilderTest {
         BodyPart.values()[0],
         AnatomicBuilder.getBodyPartFromCode(BodyPart.values()[0].getCodeValue()));
 
-    BodyPart bodyPart = AnatomicBuilder.getBodyPartFromCode(128559007);
+    BodyPart bodyPart = AnatomicBuilder.getBodyPartFromCode("128559007");
     assertEquals("Artère géniculaire", bodyPart.getCodeMeaning());
     assertEquals("Artère géniculaire", bodyPart.toString());
     assertEquals(CodingScheme.SCT, bodyPart.getScheme());
@@ -108,7 +108,7 @@ class AnatomicBuilderTest {
         AnatomicModifier.values()[0],
         AnatomicBuilder.getAnatomicModifierFromCode(AnatomicModifier.values()[0].getCodeValue()));
 
-    AnatomicModifier modifier = AnatomicBuilder.getAnatomicModifierFromCode(49370004);
+    AnatomicModifier modifier = AnatomicBuilder.getAnatomicModifierFromCode("49370004");
     assertNotNull(modifier);
     assertEquals("Latéral", modifier.toString());
     assertEquals(CodingScheme.SCT, modifier.getScheme());
@@ -124,7 +124,7 @@ class AnatomicBuilderTest {
         SurfacePart.values()[0],
         AnatomicBuilder.getSurfacePartFromCode(SurfacePart.values()[0].getCodeValue()));
 
-    SurfacePart surfacePart = AnatomicBuilder.getSurfacePartFromCode(130319);
+    SurfacePart surfacePart = AnatomicBuilder.getSurfacePartFromCode("130319");
     assertNotNull(surfacePart);
     assertEquals(
         "Peau de l'hélix postérieur supérieur de l'oreille",

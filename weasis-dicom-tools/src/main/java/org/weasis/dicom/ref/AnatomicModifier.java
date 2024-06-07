@@ -61,19 +61,19 @@ public enum AnatomicModifier {
   MARGINAL(SCT, 112233002);
 
   private final CodingScheme scheme;
-  private final int codeValue;
+  private final String codeValue;
 
   AnatomicModifier(CodingScheme scheme, int codeValue) {
     this.scheme = scheme;
-    this.codeValue = codeValue;
+    this.codeValue = String.valueOf(codeValue);
   }
 
-  public int getCodeValue() {
+  public String getCodeValue() {
     return codeValue;
   }
 
   public String getCodeMeaning() {
-    return MesModifier.getString(String.valueOf(codeValue));
+    return MesModifier.getString(codeValue);
   }
 
   public CodingScheme getScheme() {

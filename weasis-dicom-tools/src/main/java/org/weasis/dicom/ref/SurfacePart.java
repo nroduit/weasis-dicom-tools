@@ -223,25 +223,25 @@ public enum SurfacePart {
   VULVAL_VESTIBULE(SCT, 23213005, 0, 516, 0);
 
   private final CodingScheme scheme;
-  private final int codeValue;
+  private final String codeValue;
   private final int left;
   private final int middle;
   private final int right;
 
   SurfacePart(CodingScheme scheme, int codeValue, int left, int middle, int right) {
     this.scheme = scheme;
-    this.codeValue = codeValue;
+    this.codeValue = String.valueOf(codeValue);
     this.left = left;
     this.middle = middle;
     this.right = right;
   }
 
-  public int getCodeValue() {
+  public String getCodeValue() {
     return codeValue;
   }
 
   public String getCodeMeaning() {
-    return MesSurface.getString(String.valueOf(codeValue));
+    return MesSurface.getString(codeValue);
   }
 
   public CodingScheme getScheme() {

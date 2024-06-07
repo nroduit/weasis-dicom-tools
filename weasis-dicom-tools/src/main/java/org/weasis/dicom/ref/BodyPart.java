@@ -383,7 +383,7 @@ public enum BodyPart {
   ZYGOMA(SCT, 13881006, "ZYGOMA", true, true, false);
 
   private final CodingScheme scheme;
-  private final int codeValue;
+  private final String codeValue;
   private final String legacyCode;
   private final boolean paired;
   private final boolean common;
@@ -397,19 +397,19 @@ public enum BodyPart {
       boolean common,
       boolean endoscopic) {
     this.scheme = scheme;
-    this.codeValue = codeValue;
+    this.codeValue = String.valueOf(codeValue);
     this.legacyCode = legacyCode;
     this.paired = paired;
     this.common = common;
     this.endoscopic = endoscopic;
   }
 
-  public int getCodeValue() {
+  public String getCodeValue() {
     return codeValue;
   }
 
   public String getCodeMeaning() {
-    return MesBody.getString(String.valueOf(codeValue));
+    return MesBody.getString(codeValue);
   }
 
   public CodingScheme getScheme() {

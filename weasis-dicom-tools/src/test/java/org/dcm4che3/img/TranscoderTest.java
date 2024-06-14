@@ -191,6 +191,8 @@ class TranscoderTest {
     DicomTranscodeParam params = new DicomTranscodeParam(lossyUID);
     if (lossyUID.equals(UID.JPEGLSNearLossless)) {
       params.getWriteJpegParam().setNearLosslessError(3);
+    } else if (lossyUID.equals(UID.JPEG2000)) {
+      params.getWriteJpegParam().setCompressionRatioFactor(15);
     } else {
       params.getWriteJpegParam().setCompressionQuality(80);
     }

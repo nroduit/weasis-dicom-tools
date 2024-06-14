@@ -54,7 +54,7 @@ class ImageDescriptorTest {
     assertEquals(15, descriptor.getHighBit());
     assertEquals(1, descriptor.getPixelRepresentation());
     assertEquals("1.2.840.10008.5.1.4.1.1.2", descriptor.getSopClassUID());
-    assertEquals("HEAD", descriptor.getBodyPartExamined());
+    assertEquals("HEAD", descriptor.getAnatomicRegion().getRegion().getLegacyCode());
     assertEquals(1, descriptor.getFrames());
     assertEquals(1, descriptor.getPixelRepresentation());
     assertEquals("COLOR", descriptor.getPixelPresentation());
@@ -96,7 +96,7 @@ class ImageDescriptorTest {
     assertEquals(7, descriptor.getHighBit());
     assertEquals(0, descriptor.getPixelRepresentation());
     assertNull(descriptor.getSopClassUID());
-    assertNull(descriptor.getBodyPartExamined());
+    assertNull(descriptor.getAnatomicRegion());
     assertEquals(1, descriptor.getFrames());
     assertEquals(0, descriptor.getPixelRepresentation());
     assertNull(descriptor.getModality());

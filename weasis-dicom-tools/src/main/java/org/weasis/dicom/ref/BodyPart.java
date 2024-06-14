@@ -11,7 +11,7 @@ package org.weasis.dicom.ref;
 
 import static org.weasis.dicom.ref.CodingScheme.SCT;
 
-public enum BodyPart {
+public enum BodyPart implements AnatomicItem {
   ABDOMEN(SCT, 818981001, "ABDOMEN", false, true, false),
   ABDOMEN_AND_PELVIS(SCT, 818982008, "ABDOMENPELVIS", false, true, false),
   ABDOMINAL_AORTA(SCT, 7832008, "ABDOMINALAORTA", false, false, false),

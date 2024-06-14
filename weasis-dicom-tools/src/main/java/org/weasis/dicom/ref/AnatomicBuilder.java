@@ -10,6 +10,7 @@
 package org.weasis.dicom.ref;
 
 import java.util.Arrays;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -19,6 +20,33 @@ import java.util.stream.Collectors;
 import org.weasis.core.util.StringUtil;
 
 public class AnatomicBuilder {
+  public enum Category {
+    SURFACE,
+    ALL_RADIO,
+    COMMON,
+    ENDOSCOPY;
+
+    public String getTitle() {
+      return MesCategory.getString(name());
+    }
+
+    @Override
+    public String toString() {
+      return getTitle();
+    }
+  }
+
+  public static final EnumMap<Category, AnatomicItem[]> categoryEnumMap =
+      new EnumMap<>(Category.class);
+
+  static {
+    categoryEnumMap.put(Category.SURFACE, SurfacePart.values());
+    categoryEnumMap.put(Category.ALL_RADIO, BodyPart.values());
+    categoryEnumMap.put(
+        Category.COMMON, getBodyParts(BodyPart::isCommon).toArray(new AnatomicItem[0]));
+    categoryEnumMap.put(
+        Category.ENDOSCOPY, getBodyParts(BodyPart::isEndoscopic).toArray(new AnatomicItem[0]));
+  }
 
   private static final Map<String, BodyPart> CODE_TO_BODY_PART =
       Arrays.stream(BodyPart.values())

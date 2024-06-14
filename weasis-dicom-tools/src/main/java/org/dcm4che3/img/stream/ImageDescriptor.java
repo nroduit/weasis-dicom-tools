@@ -18,6 +18,7 @@ import org.dcm4che3.img.data.OverlayData;
 import org.dcm4che3.img.lut.ModalityLutModule;
 import org.dcm4che3.img.lut.VoiLutModule;
 import org.dcm4che3.img.util.DicomUtils;
+import org.weasis.dicom.ref.AnatomicRegion;
 
 /**
  * @author Nicolas Roduit
@@ -33,7 +34,7 @@ public final class ImageDescriptor {
   private final int bitsCompressed;
   private final int pixelRepresentation;
   private final String sopClassUID;
-  private final String bodyPartExamined;
+  private final AnatomicRegion anatomicRegion;
   private final int frames;
   private final List<EmbeddedOverlay> embeddedOverlay;
   private final List<OverlayData> overlayData;
@@ -67,7 +68,7 @@ public final class ImageDescriptor {
     this.pixelRepresentation = dcm.getInt(Tag.PixelRepresentation, 0);
     this.planarConfiguration = dcm.getInt(Tag.PlanarConfiguration, 0);
     this.sopClassUID = dcm.getString(Tag.SOPClassUID);
-    this.bodyPartExamined = dcm.getString(Tag.BodyPartExamined);
+    this.anatomicRegion = AnatomicRegion.read(dcm);
     this.stationName = dcm.getString(Tag.StationName);
     this.frames = dcm.getInt(Tag.NumberOfFrames, 1);
     this.embeddedOverlay = EmbeddedOverlay.getEmbeddedOverlay(dcm);
@@ -131,8 +132,8 @@ public final class ImageDescriptor {
     return sopClassUID;
   }
 
-  public String getBodyPartExamined() {
-    return bodyPartExamined;
+  public AnatomicRegion getAnatomicRegion() {
+    return anatomicRegion;
   }
 
   public String getStationName() {

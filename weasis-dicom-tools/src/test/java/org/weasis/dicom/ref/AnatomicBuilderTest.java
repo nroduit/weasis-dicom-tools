@@ -126,10 +126,10 @@ class AnatomicBuilderTest {
 
     SurfacePart surfacePart = AnatomicBuilder.getSurfacePartFromCode("130319");
     assertNotNull(surfacePart);
-    assertEquals(
-        "Peau de l'hélix postérieur supérieur de l'oreille",
-        surfacePart.toString());
+    assertEquals("Peau de l'hélix postérieur supérieur de l'oreille", surfacePart.toString());
     assertEquals(CodingScheme.DCM, surfacePart.getScheme());
+    assertTrue(surfacePart.isPaired());
+    assertNull(surfacePart.getLegacyCode());
     assertEquals(133, surfacePart.getLeft());
     assertEquals(0, surfacePart.getMiddle());
     assertEquals(132, surfacePart.getRight());

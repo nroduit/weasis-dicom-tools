@@ -13,7 +13,7 @@ import static org.weasis.dicom.ref.CodingScheme.DCM;
 import static org.weasis.dicom.ref.CodingScheme.FMA;
 import static org.weasis.dicom.ref.CodingScheme.SCT;
 
-public enum SurfacePart {
+public enum SurfacePart implements AnatomicItem {
   ANTERIOR_TRIANGLE_OF_NECK(SCT, 182329002, 41, 0, 42),
   CORNEA(SCT, 28726007, 109, 0, 108),
   EYELASH(SCT, 85803001, 105, 0, 104),
@@ -246,6 +246,16 @@ public enum SurfacePart {
 
   public CodingScheme getScheme() {
     return scheme;
+  }
+
+  @Override
+  public String getLegacyCode() {
+    return null;
+  }
+
+  @Override
+  public boolean isPaired() {
+    return left != 0;
   }
 
   public int getLeft() {

@@ -18,8 +18,9 @@ import org.dcm4che3.data.Sequence;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
 import org.weasis.core.util.StringUtil;
+import org.weasis.dicom.ref.CodingScheme;
 
-public class Code extends Module {
+public class Code extends Module implements ItemCode {
 
   public Code(Attributes dcmItems) {
     super(dcmItems);
@@ -54,6 +55,7 @@ public class Code extends Module {
     return val;
   }
 
+  @Override
   public String getCodeValue() {
     return dcmItems.getString(Tag.CodeValue);
   }
@@ -94,8 +96,14 @@ public class Code extends Module {
     dcmItems.setString(Tag.CodingSchemeVersion, VR.SH, s);
   }
 
+  @Override
   public String getCodeMeaning() {
     return dcmItems.getString(Tag.CodeMeaning);
+  }
+
+  @Override
+  public CodingScheme getScheme() {
+    return CodingScheme.getSchemeFromDesignator(getCodingSchemeDesignator());
   }
 
   public void setCodeMeaning(String s) {
@@ -108,6 +116,14 @@ public class Code extends Module {
 
   public void setContextIdentifier(String s) {
     dcmItems.setString(Tag.ContextIdentifier, VR.CS, s);
+  }
+
+  public String getContextUID() {
+    return dcmItems.getString(Tag.ContextUID);
+  }
+
+  public void setContextUID(String s) {
+    dcmItems.setString(Tag.ContextUID, VR.UI, s);
   }
 
   public String getMappingResource() {

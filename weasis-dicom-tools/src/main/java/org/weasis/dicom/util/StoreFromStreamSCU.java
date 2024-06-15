@@ -70,6 +70,7 @@ public class StoreFromStreamSCU {
 
   private final TimerTask closeAssociationTask =
       new TimerTask() {
+        @Override
         public void run() {
           close(false);
         }

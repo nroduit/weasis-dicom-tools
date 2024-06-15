@@ -20,6 +20,7 @@ import java.util.Objects;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.weasis.dicom.ref.AnatomicBuilder.Category;
 
 class AnatomicBuilderTest {
   static final Locale defaultLocale = Locale.getDefault();
@@ -52,10 +53,9 @@ class AnatomicBuilderTest {
   @Test
   void getBodyPartFromCode() {
     assertEquals(
-        BodyPart.values()[0],
-        AnatomicBuilder.getBodyPartFromCode(BodyPart.values()[0].getCodeValue()));
+        BodyPart.values()[0], BodyPart.getBodyPartFromCode(BodyPart.values()[0].getCodeValue()));
 
-    BodyPart bodyPart = AnatomicBuilder.getBodyPartFromCode("128559007");
+    BodyPart bodyPart = BodyPart.getBodyPartFromCode("128559007");
     assertEquals("Artère géniculaire", bodyPart.getCodeMeaning());
     assertEquals("Artère géniculaire", bodyPart.toString());
     assertEquals(CodingScheme.SCT, bodyPart.getScheme());
@@ -106,9 +106,9 @@ class AnatomicBuilderTest {
   void getAnatomicModifierFromCode() {
     assertEquals(
         AnatomicModifier.values()[0],
-        AnatomicBuilder.getAnatomicModifierFromCode(AnatomicModifier.values()[0].getCodeValue()));
+        AnatomicModifier.getAnatomicModifierFromCode(AnatomicModifier.values()[0].getCodeValue()));
 
-    AnatomicModifier modifier = AnatomicBuilder.getAnatomicModifierFromCode("49370004");
+    AnatomicModifier modifier = AnatomicModifier.getAnatomicModifierFromCode("49370004");
     assertNotNull(modifier);
     assertEquals("Latéral", modifier.toString());
     assertEquals(CodingScheme.SCT, modifier.getScheme());
@@ -119,12 +119,11 @@ class AnatomicBuilderTest {
 
   @Test
   void getSurfacePartFromCode() {
-
     assertEquals(
         SurfacePart.values()[0],
-        AnatomicBuilder.getSurfacePartFromCode(SurfacePart.values()[0].getCodeValue()));
+        SurfacePart.getSurfacePartFromCode(SurfacePart.values()[0].getCodeValue()));
 
-    SurfacePart surfacePart = AnatomicBuilder.getSurfacePartFromCode("130319");
+    SurfacePart surfacePart = SurfacePart.getSurfacePartFromCode("130319");
     assertNotNull(surfacePart);
     assertEquals("Peau de l'hélix postérieur supérieur de l'oreille", surfacePart.toString());
     assertEquals(CodingScheme.DCM, surfacePart.getScheme());
@@ -144,5 +143,23 @@ class AnatomicBuilderTest {
     assertEquals("SCT", CodingScheme.SCT.toString());
     assertEquals(CodingScheme.SRT.getUid(), CodingScheme.SCT.getUid());
     assertEquals("ACR Index", CodingScheme.ACR.getCodeName());
+
+    assertNull(CodingScheme.getSchemeFromDesignator(null));
+    assertNull(CodingScheme.getSchemeFromDesignator(""));
+    assertNull(CodingScheme.getSchemeFromDesignator("invalid"));
+    assertEquals(CodingScheme.SCT, CodingScheme.getSchemeFromDesignator("SCT"));
+
+    assertNull(CodingScheme.getSchemeFromUid(null));
+    assertNull(CodingScheme.getSchemeFromUid(""));
+    assertNull(CodingScheme.getSchemeFromUid("invalid"));
+    assertEquals(CodingScheme.SCT, CodingScheme.getSchemeFromUid("2.16.840.1.113883.6.96"));
+  }
+
+  @Test
+  void category() {
+    assertEquals("Dermatologie (surface)", Category.SURFACE.toString());
+
+    String key = "nonExistentKey";
+    assertEquals('!' + key + '!', MesCategory.getString(key));
   }
 }

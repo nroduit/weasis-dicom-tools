@@ -7,13 +7,15 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
  */
-package org.weasis.dicom.ref;
+package org.weasis.dicom.macro;
 
-import org.weasis.dicom.macro.ItemCode;
+import org.weasis.dicom.ref.CodingScheme;
 
-public interface AnatomicItem extends ItemCode {
+public interface ItemCode {
 
-  String getLegacyCode();
+  String getCodeValue();
 
-  boolean isPaired();
+  String getCodeMeaning();
+
+  CodingScheme getScheme();
 }

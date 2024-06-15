@@ -356,6 +356,7 @@ public class DicomImageReader extends ImageReader {
             SupplierEx<PlanarImage, IOException> delegate = this::firstTime;
             boolean initialized;
 
+            @Override
             public PlanarImage get() throws IOException {
               return delegate.get();
             }

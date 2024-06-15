@@ -21,10 +21,20 @@ import org.weasis.core.util.StringUtil;
 
 public class AnatomicBuilder {
   public enum Category {
-    SURFACE,
-    ALL_RADIO,
-    COMMON,
-    ENDOSCOPY;
+    SURFACE("1.2.840.10008.6.1.1268"),
+    ALL_REGIONS("1.2.840.10008.6.1.2"),
+    COMMON("1.2.840.10008.6.1.308"),
+    ENDOSCOPY("1.2.840.10008.6.1.311");
+
+    private final String ContextUID;
+
+    Category(String ContextUID) {
+      this.ContextUID = ContextUID;
+    }
+
+    public String getContextUID() {
+      return ContextUID;
+    }
 
     public String getTitle() {
       return MesCategory.getString(name());
@@ -34,6 +44,13 @@ public class AnatomicBuilder {
     public String toString() {
       return getTitle();
     }
+
+    public static Category getCategoryFromContextUID(String uid) {
+      return Arrays.stream(Category.values())
+          .filter(c -> Objects.equals(c.ContextUID, uid))
+          .findFirst()
+          .orElse(null);
+    }
   }
 
   public static final EnumMap<Category, AnatomicItem[]> categoryEnumMap =
@@ -41,7 +58,7 @@ public class AnatomicBuilder {
 
   static {
     categoryEnumMap.put(Category.SURFACE, SurfacePart.values());
-    categoryEnumMap.put(Category.ALL_RADIO, BodyPart.values());
+    categoryEnumMap.put(Category.ALL_REGIONS, BodyPart.values());
     categoryEnumMap.put(
         Category.COMMON, getBodyParts(BodyPart::isCommon).toArray(new AnatomicItem[0]));
     categoryEnumMap.put(

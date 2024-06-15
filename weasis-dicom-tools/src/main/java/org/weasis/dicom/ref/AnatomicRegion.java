@@ -19,6 +19,7 @@ import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
 import org.weasis.core.util.StringUtil;
 import org.weasis.dicom.macro.Code;
+import org.weasis.dicom.macro.ItemCode;
 import org.weasis.dicom.ref.AnatomicBuilder.Category;
 
 public class AnatomicRegion {
@@ -59,8 +60,13 @@ public class AnatomicRegion {
     if (item == null) {
       item = AnatomicBuilder.getSurfacePartFromCode(codeValue);
     }
+    if (item == null) {
+      return null;
+    }
 
-    AnatomicRegion region = new AnatomicRegion(item);
+    Category category =
+        Category.getCategoryFromContextUID(new Code(regionAttributes).getContextUID());
+    AnatomicRegion region = new AnatomicRegion(category, item, null);
     addModifiers(regionAttributes, region);
     return region;
   }
@@ -71,9 +77,10 @@ public class AnatomicRegion {
     }
     Attributes regAttributes = new Attributes();
     AnatomicItem anatomicItem = region.getRegion();
-    regAttributes.setString(Tag.CodeValue, VR.SH, anatomicItem.getCodeValue());
-    regAttributes.setString(Tag.CodeMeaning, VR.LO, anatomicItem.getCodeMeaning());
-    writeScheme(regAttributes, anatomicItem.getScheme());
+    Code code = new Code(regAttributes);
+    writeCode(code, anatomicItem);
+    writeRegionContext(code, region.getCategory());
+
     if (anatomicItem.getLegacyCode() != null) {
       dcm.setString(Tag.BodyPartExamined, VR.CS, anatomicItem.getLegacyCode());
     }
@@ -84,19 +91,24 @@ public class AnatomicRegion {
           regAttributes.newSequence(Tag.AnatomicRegionModifierSequence, modifiers.size());
       for (AnatomicModifier modifier : modifiers) {
         Attributes mod = new Attributes();
-        writeScheme(mod, modifier.getScheme());
-        mod.setString(Tag.CodeValue, VR.SH, modifier.getCodeValue());
-        mod.setString(Tag.CodeMeaning, VR.LO, modifier.getCodeMeaning());
+        Code mcode = new Code(mod);
+        writeCode(mcode, modifier);
         seq.add(mod);
       }
     }
     dcm.newSequence(Tag.AnatomicRegionSequence, 1).add(regAttributes);
   }
 
-  private static void writeScheme(Attributes regionAttributes, CodingScheme scheme) {
-    regionAttributes.setString(Tag.CodingSchemeDesignator, VR.SH, scheme.getDesignator());
-    regionAttributes.setString(Tag.CodingSchemeName, VR.SH, scheme.getCodeName());
-    regionAttributes.setString(Tag.CodingSchemeUID, VR.UI, scheme.getUid());
+  private static void writeRegionContext(Code code, Category category) {
+    if (category != null) {
+      code.setContextUID(category.getContextUID());
+    }
+  }
+
+  private static void writeCode(Code code, ItemCode anatomicCode) {
+    code.setCodingSchemeDesignator(anatomicCode.getScheme().getDesignator());
+    code.setCodeValue(anatomicCode.getCodeValue());
+    code.setCodeMeaning(anatomicCode.getCodeMeaning());
   }
 
   private static void addModifiers(Attributes regionAttributes, AnatomicRegion region) {

@@ -9,6 +9,10 @@
  */
 package org.weasis.dicom.ref;
 
+import java.util.Arrays;
+import java.util.Objects;
+import org.weasis.core.util.StringUtil;
+
 public enum CodingScheme {
   ACR("ACR", "2.16.840.1.113883.6.76", "ACR Index"),
   ASTM_SIGPURPOSE("ASTM-sigpurpose", "1.2.840.10065.1.12", "ASTM E 2084"),
@@ -95,5 +99,25 @@ public enum CodingScheme {
   @Override
   public String toString() {
     return designator;
+  }
+
+  public static CodingScheme getSchemeFromDesignator(String designator) {
+    if (!StringUtil.hasText(designator)) {
+      return null;
+    }
+    return Arrays.stream(CodingScheme.values())
+        .filter(c -> Objects.equals(c.designator, designator))
+        .findFirst()
+        .orElse(null);
+  }
+
+  public static CodingScheme getSchemeFromUid(String uid) {
+    if (!StringUtil.hasText(uid)) {
+      return null;
+    }
+    return Arrays.stream(CodingScheme.values())
+        .filter(c -> Objects.equals(c.uid, uid))
+        .findFirst()
+        .orElse(null);
   }
 }

@@ -71,7 +71,7 @@ class AnatomicRegionTest {
     modifiers.add(AnatomicModifier.LEFT);
     modifiers.add(AnatomicModifier.SURFACE);
     AnatomicRegion.write(
-        dcm, new AnatomicRegion(Category.ALL_RADIO, BodyPart.HEAD_AND_NECK, modifiers));
+        dcm, new AnatomicRegion(Category.ALL_REGIONS, BodyPart.HEAD_AND_NECK, modifiers));
     assertTrue(dcm.contains(Tag.AnatomicRegionSequence));
     assertTrue(dcm.contains(Tag.BodyPartExamined));
 
@@ -94,6 +94,7 @@ class AnatomicRegionTest {
     assertFalse(dcm.contains(Tag.BodyPartExamined));
 
     AnatomicRegion anatomicRegion = AnatomicRegion.read(dcm);
+    assertEquals(Category.SURFACE, anatomicRegion.getCategory());
     assertEquals(SurfacePart.IRIS, anatomicRegion.getRegion());
     assertEquals(2, anatomicRegion.getModifiers().size());
     assertTrue(anatomicRegion.getModifiers().contains(AnatomicModifier.RIGHT));

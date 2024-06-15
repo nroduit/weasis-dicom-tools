@@ -236,14 +236,17 @@ public enum SurfacePart implements AnatomicItem {
     this.right = right;
   }
 
+  @Override
   public String getCodeValue() {
     return codeValue;
   }
 
+  @Override
   public String getCodeMeaning() {
     return MesSurface.getString(codeValue);
   }
 
+  @Override
   public CodingScheme getScheme() {
     return scheme;
   }
@@ -273,5 +276,9 @@ public enum SurfacePart implements AnatomicItem {
   @Override
   public String toString() {
     return getCodeMeaning();
+  }
+
+  public static SurfacePart getSurfacePartFromCode(String code) {
+    return AnatomicBuilder.getSurfacePartFromCode(code);
   }
 }

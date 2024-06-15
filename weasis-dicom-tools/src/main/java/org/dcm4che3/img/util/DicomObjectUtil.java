@@ -79,6 +79,7 @@ public class DicomObjectUtil {
       SupplierEx<T, E> delegate = this::firstTime;
       boolean initialized;
 
+      @Override
       public T get() throws E {
         return delegate.get();
       }

@@ -78,7 +78,8 @@ public class AnatomicRegion {
     if (StringUtil.hasText(contextUID)) {
       category = Category.getCategoryFromContextUID(contextUID);
       if (category == null) {
-        category = new OtherCategory(contextUID, code.getContextIdentifier());
+        category =
+            new OtherCategory(contextUID, code.getContextIdentifier(), code.getContextIdentifier());
         AnatomicBuilder.categoryMap.computeIfAbsent(category, k -> new ArrayList<>()).add(item);
       }
     }

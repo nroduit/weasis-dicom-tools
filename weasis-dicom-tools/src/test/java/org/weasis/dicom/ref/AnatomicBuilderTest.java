@@ -157,7 +157,7 @@ class AnatomicBuilderTest {
 
   @Test
   void category() {
-    assertEquals("Dermatologie (surface)", Category.SURFACE.toString());
+    assertEquals("Sites anatomiques dermatologiques", Category.SURFACE.toString());
 
     String key = "nonExistentKey";
     assertEquals('!' + key + '!', MesCategory.getString(key));

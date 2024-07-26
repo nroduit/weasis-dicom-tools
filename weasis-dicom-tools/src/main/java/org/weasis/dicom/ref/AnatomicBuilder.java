@@ -24,16 +24,24 @@ public class AnatomicBuilder {
     String getContextUID();
 
     String getTIdentifier();
+
+    String getTitle();
   }
 
   public static class OtherCategory implements CategoryBuilder {
 
     private final String ContextUID;
     private final String identifier;
+    private final String title;
 
-    public OtherCategory(String ContextUID, String identifier) {
+    public OtherCategory(String ContextUID, String identifier, String title) {
       this.ContextUID = Objects.requireNonNull(ContextUID);
       this.identifier = Objects.requireNonNull(identifier);
+      if (identifier.length() > 16 || !identifier.matches("[A-Z0-9 _]*")) {
+        throw new IllegalArgumentException(
+            "Identifier must be a valid VR.CS (max 16 characters: uppercase letters, digits, spaces, and underscores)");
+      }
+      this.title = Objects.requireNonNull(title);
     }
 
     public String getContextUID() {
@@ -44,13 +52,17 @@ public class AnatomicBuilder {
       return identifier;
     }
 
+    public String getTitle() {
+      return title;
+    }
+
     public int hashCode() {
       return Objects.hashCode(getContextUID());
     }
 
     @Override
     public String toString() {
-      return getTIdentifier();
+      return getTitle();
     }
 
     @Override
@@ -63,35 +75,46 @@ public class AnatomicBuilder {
   }
 
   public enum Category implements AnatomicBuilder.CategoryBuilder {
-    SURFACE("1.2.840.10008.6.1.1268"),
-    ALL_REGIONS("1.2.840.10008.6.1.2"),
-    COMMON("1.2.840.10008.6.1.308"),
-    ENDOSCOPY("1.2.840.10008.6.1.311");
+    SURFACE("1.2.840.10008.6.1.1268", "CID 4029"),
+    ALL_REGIONS("1.2.840.10008.6.1.2", "CID 4"),
+    COMMON("1.2.840.10008.6.1.308", "CID 4031"),
+    ENDOSCOPY("1.2.840.10008.6.1.311", "CID 4040");
 
-    private final String ContextUID;
+    private final String contextUID;
+    private final String identifier;
 
-    Category(String ContextUID) {
-      this.ContextUID = ContextUID;
+    Category(String ContextUID, String identifier) {
+      this.contextUID = Objects.requireNonNull(ContextUID);
+      this.identifier = Objects.requireNonNull(identifier);
+      if (identifier.length() > 16 || !identifier.matches("[A-Z0-9 _]*")) {
+        throw new IllegalArgumentException(
+            "Identifier must be a valid VR.CS (max 16 characters: uppercase letters, digits, spaces, and underscores)");
+      }
     }
 
     @Override
     public String getContextUID() {
-      return ContextUID;
+      return contextUID;
     }
 
     @Override
     public String getTIdentifier() {
-      return MesCategory.getString(name());
+      return identifier;
+    }
+
+    @Override
+    public String getTitle() {
+      return MesCategory.getString(contextUID);
     }
 
     @Override
     public String toString() {
-      return getTIdentifier();
+      return getTitle();
     }
 
     public static Category getCategoryFromContextUID(String uid) {
       return Arrays.stream(Category.values())
-          .filter(c -> Objects.equals(c.ContextUID, uid))
+          .filter(c -> Objects.equals(c.contextUID, uid))
           .findFirst()
           .orElse(null);
     }

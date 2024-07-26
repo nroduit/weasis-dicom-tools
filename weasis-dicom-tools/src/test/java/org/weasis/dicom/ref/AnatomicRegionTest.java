@@ -108,7 +108,7 @@ class AnatomicRegionTest {
     Set<AnatomicModifier> modifiers = new HashSet<>();
     modifiers.add(AnatomicModifier.SURFACE);
     OtherPart otherPart = new OtherPart("86381001", "Skin of trunk", CodingScheme.SCT, false);
-    OtherCategory otherCategory = new OtherCategory("1.2.840.3.5.98", "Custom");
+    OtherCategory otherCategory = new OtherCategory("1.2.840.3.5.98", "C13", "Custom Test");
     AnatomicRegion.write(dcm, new AnatomicRegion(otherCategory, otherPart, modifiers));
     dcm.setString(Tag.FrameLaterality, VR.CS, "U");
 

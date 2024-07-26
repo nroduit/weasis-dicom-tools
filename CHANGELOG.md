@@ -1,5 +1,9 @@
 # Changelog
 
+## [v5.32.0.2](https://github.com/nroduit/weasis-dicom-tools/tree/v5.32.0.2) (2024-07-26)
+
+[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.32.0...v5.32.0.2)
+
 ## [v5.32.0](https://github.com/nroduit/weasis-dicom-tools/tree/v5.32.0) (2024-05-01)
 
 [Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.31.2...v5.32.0)

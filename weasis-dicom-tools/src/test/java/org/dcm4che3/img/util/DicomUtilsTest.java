@@ -29,24 +29,14 @@ import java.util.TimeZone;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junitpioneer.jupiter.DefaultLocale;
+import org.junitpioneer.jupiter.DefaultTimeZone;
 
+@DefaultLocale(language = "en", country = "US")
 class DicomUtilsTest {
-  static final Locale defaultLocale = Locale.getDefault();
-
-  @BeforeAll
-  static void setUp() {
-    Locale.setDefault(Locale.US); // Force Locale for testing date format
-  }
-
-  @AfterAll
-  static void tearDown() {
-    Locale.setDefault(defaultLocale);
-  }
 
   @Test
   @DisplayName("Get Period with different dates")
@@ -254,6 +244,7 @@ class DicomUtilsTest {
 
   @Test
   @DisplayName("Get Date from Dicom Element")
+  @DefaultTimeZone("Europe/Paris")
   void testGetDateFromDicomElement() {
     TimeZone timeZone = TimeZone.getDefault();
     Attributes attributes = new Attributes();
@@ -277,6 +268,7 @@ class DicomUtilsTest {
 
   @Test
   @DisplayName("Get date array from Dicom Element with default value")
+  @DefaultTimeZone("Europe/Paris")
   void testGetDatesFromDicomElement() {
     TimeZone timeZone = TimeZone.getDefault();
     Attributes dicom = new Attributes();

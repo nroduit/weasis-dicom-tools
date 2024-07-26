@@ -23,7 +23,7 @@ public class AnatomicBuilder {
   public interface CategoryBuilder {
     String getContextUID();
 
-    String getTIdentifier();
+    String getIdentifier();
 
     String getTitle();
   }
@@ -48,7 +48,7 @@ public class AnatomicBuilder {
       return ContextUID;
     }
 
-    public String getTIdentifier() {
+    public String getIdentifier() {
       return identifier;
     }
 
@@ -98,7 +98,7 @@ public class AnatomicBuilder {
     }
 
     @Override
-    public String getTIdentifier() {
+    public String getIdentifier() {
       return identifier;
     }
 

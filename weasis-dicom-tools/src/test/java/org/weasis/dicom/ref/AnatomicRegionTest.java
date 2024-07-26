@@ -20,9 +20,11 @@ import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
 import org.junit.jupiter.api.Test;
+import org.junitpioneer.jupiter.DefaultLocale;
 import org.weasis.dicom.ref.AnatomicBuilder.Category;
 import org.weasis.dicom.ref.AnatomicBuilder.OtherCategory;
 
+@DefaultLocale(language = "en", country = "US")
 class AnatomicRegionTest {
 
   @Test

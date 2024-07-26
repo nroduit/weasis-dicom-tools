@@ -24,6 +24,7 @@ import java.util.Date;
 import java.util.TimeZone;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junitpioneer.jupiter.DefaultTimeZone;
 
 class DateTimeUtilsTest {
   @Test
@@ -60,6 +61,7 @@ class DateTimeUtilsTest {
 
   @Test
   @DisplayName("Convert Date to LocalDate")
+  @DefaultTimeZone("UTC")
   void testGetDateToLocalDate() {
     assertNull(DateTimeUtils.toLocalDate(null));
 
@@ -75,6 +77,7 @@ class DateTimeUtilsTest {
 
   @Test
   @DisplayName("Convert Date to LocalTime")
+  @DefaultTimeZone("UTC")
   void testGetDateToLocalTime() {
     assertNull(DateTimeUtils.toLocalTime(null));
 
@@ -90,6 +93,7 @@ class DateTimeUtilsTest {
 
   @Test
   @DisplayName("Convert date to LocalDateTime")
+  @DefaultTimeZone("UTC")
   void testGetDateToLocalDateTime() {
     assertNull(DateTimeUtils.toLocalDateTime(null));
 
@@ -105,6 +109,7 @@ class DateTimeUtilsTest {
 
   @Test
   @DisplayName("Get DateTime")
+  @DefaultTimeZone("UTC")
   void testGetDateTime() {
     assertNull(DateTimeUtils.dateTime((LocalDate) null, null));
 

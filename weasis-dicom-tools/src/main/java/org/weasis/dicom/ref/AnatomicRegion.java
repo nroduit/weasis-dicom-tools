@@ -119,7 +119,7 @@ public class AnatomicRegion {
   private static void writeRegionContext(Code code, CategoryBuilder category) {
     if (category != null) {
       code.setContextUID(category.getContextUID());
-      code.setContextIdentifier(category.getTIdentifier());
+      code.setContextIdentifier(category.getIdentifier());
     }
   }
 

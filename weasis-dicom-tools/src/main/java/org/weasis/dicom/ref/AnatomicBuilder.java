@@ -10,7 +10,7 @@
 package org.weasis.dicom.ref;
 
 import java.util.Arrays;
-import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -20,7 +20,49 @@ import java.util.stream.Collectors;
 import org.weasis.core.util.StringUtil;
 
 public class AnatomicBuilder {
-  public enum Category {
+  public interface CategoryBuilder {
+    String getContextUID();
+
+    String getTIdentifier();
+  }
+
+  public static class OtherCategory implements CategoryBuilder {
+
+    private final String ContextUID;
+    private final String identifier;
+
+    public OtherCategory(String ContextUID, String identifier) {
+      this.ContextUID = Objects.requireNonNull(ContextUID);
+      this.identifier = Objects.requireNonNull(identifier);
+    }
+
+    public String getContextUID() {
+      return ContextUID;
+    }
+
+    public String getTIdentifier() {
+      return identifier;
+    }
+
+    public int hashCode() {
+      return Objects.hashCode(getContextUID());
+    }
+
+    @Override
+    public String toString() {
+      return getTIdentifier();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      OtherCategory that = (OtherCategory) o;
+      return Objects.equals(ContextUID, that.ContextUID);
+    }
+  }
+
+  public enum Category implements AnatomicBuilder.CategoryBuilder {
     SURFACE("1.2.840.10008.6.1.1268"),
     ALL_REGIONS("1.2.840.10008.6.1.2"),
     COMMON("1.2.840.10008.6.1.308"),
@@ -32,17 +74,19 @@ public class AnatomicBuilder {
       this.ContextUID = ContextUID;
     }
 
+    @Override
     public String getContextUID() {
       return ContextUID;
     }
 
-    public String getTitle() {
+    @Override
+    public String getTIdentifier() {
       return MesCategory.getString(name());
     }
 
     @Override
     public String toString() {
-      return getTitle();
+      return getTIdentifier();
     }
 
     public static Category getCategoryFromContextUID(String uid) {
@@ -53,16 +97,23 @@ public class AnatomicBuilder {
     }
   }
 
-  public static final EnumMap<Category, AnatomicItem[]> categoryEnumMap =
-      new EnumMap<>(Category.class);
+  public static final Map<CategoryBuilder, List<AnatomicItem>> categoryMap = new HashMap<>();
 
   static {
-    categoryEnumMap.put(Category.SURFACE, SurfacePart.values());
-    categoryEnumMap.put(Category.ALL_REGIONS, BodyPart.values());
-    categoryEnumMap.put(
-        Category.COMMON, getBodyParts(BodyPart::isCommon).toArray(new AnatomicItem[0]));
-    categoryEnumMap.put(
-        Category.ENDOSCOPY, getBodyParts(BodyPart::isEndoscopic).toArray(new AnatomicItem[0]));
+    categoryMap.put(Category.SURFACE, List.of(SurfacePart.values()));
+    categoryMap.put(Category.ALL_REGIONS, List.of(BodyPart.values()));
+    categoryMap.put(
+        Category.COMMON,
+        Arrays.stream(BodyPart.values())
+            .filter(BodyPart::isCommon)
+            .map(b -> (AnatomicItem) b)
+            .toList());
+    categoryMap.put(
+        Category.ENDOSCOPY,
+        Arrays.stream(BodyPart.values())
+            .filter(BodyPart::isEndoscopic)
+            .map(b -> (AnatomicItem) b)
+            .toList());
   }
 
   private static final Map<String, BodyPart> CODE_TO_BODY_PART =

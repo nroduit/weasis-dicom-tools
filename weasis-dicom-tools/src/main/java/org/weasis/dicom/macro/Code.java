@@ -102,8 +102,14 @@ public class Code extends Module implements ItemCode {
   }
 
   @Override
-  public CodingScheme getScheme() {
+  public CodingScheme getCodingScheme() {
     return CodingScheme.getSchemeFromDesignator(getCodingSchemeDesignator());
+  }
+
+  public void setCodingScheme(CodingScheme codingScheme) {
+    if (codingScheme != null) {
+      setCodingSchemeDesignator(codingScheme.getDesignator());
+    }
   }
 
   public void setCodeMeaning(String s) {

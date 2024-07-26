@@ -17,5 +17,5 @@ public interface ItemCode {
 
   String getCodeMeaning();
 
-  CodingScheme getScheme();
+  CodingScheme getCodingScheme();
 }

@@ -9,6 +9,7 @@
  */
 package org.weasis.dicom.ref;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
@@ -21,10 +22,12 @@ import org.weasis.core.util.StringUtil;
 import org.weasis.dicom.macro.Code;
 import org.weasis.dicom.macro.ItemCode;
 import org.weasis.dicom.ref.AnatomicBuilder.Category;
+import org.weasis.dicom.ref.AnatomicBuilder.CategoryBuilder;
+import org.weasis.dicom.ref.AnatomicBuilder.OtherCategory;
 
 public class AnatomicRegion {
 
-  private final Category category;
+  private final CategoryBuilder category;
   private final AnatomicItem region;
   private final Set<AnatomicModifier> modifiers;
 
@@ -32,7 +35,8 @@ public class AnatomicRegion {
     this(null, region, null);
   }
 
-  public AnatomicRegion(Category category, AnatomicItem region, Set<AnatomicModifier> modifiers) {
+  public AnatomicRegion(
+      CategoryBuilder category, AnatomicItem region, Set<AnatomicModifier> modifiers) {
     this.category = category;
     this.region = Objects.requireNonNull(region);
     this.modifiers = modifiers == null ? new HashSet<>() : modifiers;
@@ -55,17 +59,29 @@ public class AnatomicRegion {
       return null;
     }
 
-    String codeValue = new Code(regionAttributes).getExistingCodeValue();
+    Code code = new Code(regionAttributes);
+    String codeValue = code.getExistingCodeValue();
+    if (!StringUtil.hasText(codeValue)) {
+      return null;
+    }
     AnatomicItem item = AnatomicBuilder.getBodyPartFromCode(codeValue);
     if (item == null) {
       item = AnatomicBuilder.getSurfacePartFromCode(codeValue);
     }
     if (item == null) {
-      return null;
+      boolean paired = isPaired(dcm, regionAttributes);
+      item = new OtherPart(codeValue, code.getCodeMeaning(), code.getCodingScheme(), paired);
     }
 
-    Category category =
-        Category.getCategoryFromContextUID(new Code(regionAttributes).getContextUID());
+    CategoryBuilder category = null;
+    String contextUID = code.getContextUID();
+    if (StringUtil.hasText(contextUID)) {
+      category = Category.getCategoryFromContextUID(contextUID);
+      if (category == null) {
+        category = new OtherCategory(contextUID, code.getContextIdentifier());
+        AnatomicBuilder.categoryMap.computeIfAbsent(category, k -> new ArrayList<>()).add(item);
+      }
+    }
     AnatomicRegion region = new AnatomicRegion(category, item, null);
     addModifiers(regionAttributes, region);
     return region;
@@ -81,7 +97,7 @@ public class AnatomicRegion {
     writeCode(code, anatomicItem);
     writeRegionContext(code, region.getCategory());
 
-    if (anatomicItem.getLegacyCode() != null) {
+    if (StringUtil.hasText(anatomicItem.getLegacyCode())) {
       dcm.setString(Tag.BodyPartExamined, VR.CS, anatomicItem.getLegacyCode());
     }
 
@@ -99,14 +115,15 @@ public class AnatomicRegion {
     dcm.newSequence(Tag.AnatomicRegionSequence, 1).add(regAttributes);
   }
 
-  private static void writeRegionContext(Code code, Category category) {
+  private static void writeRegionContext(Code code, CategoryBuilder category) {
     if (category != null) {
       code.setContextUID(category.getContextUID());
+      code.setContextIdentifier(category.getTIdentifier());
     }
   }
 
   private static void writeCode(Code code, ItemCode anatomicCode) {
-    code.setCodingSchemeDesignator(anatomicCode.getScheme().getDesignator());
+    code.setCodingScheme(anatomicCode.getCodingScheme());
     code.setCodeValue(anatomicCode.getCodeValue());
     code.setCodeMeaning(anatomicCode.getCodeMeaning());
   }
@@ -124,11 +141,32 @@ public class AnatomicRegion {
     }
   }
 
+  private static boolean isPaired(Attributes dcm, Attributes regionAttributes) {
+    String laterality =
+        dcm.getString(Tag.FrameLaterality, regionAttributes.getString(Tag.ImageLaterality));
+    if (StringUtil.hasText(laterality) && !laterality.equals("U")) {
+      return true;
+    }
+    Sequence seq = regionAttributes.getSequence(Tag.AnatomicRegionModifierSequence);
+    if (seq != null) {
+      for (Attributes attribute : seq) {
+        AnatomicModifier modifier =
+            AnatomicBuilder.getAnatomicModifierFromCode(new Code(attribute).getExistingCodeValue());
+        if (modifier == AnatomicModifier.LEFT
+            || modifier == AnatomicModifier.RIGHT
+            || modifier == AnatomicModifier.BILATERAL) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   public AnatomicItem getRegion() {
     return region;
   }
 
-  public Category getCategory() {
+  public CategoryBuilder getCategory() {
     return category;
   }
 

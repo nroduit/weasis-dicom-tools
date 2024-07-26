@@ -81,7 +81,7 @@ public enum AnatomicModifier implements ItemCode {
   }
 
   @Override
-  public CodingScheme getScheme() {
+  public CodingScheme getCodingScheme() {
     return scheme;
   }
 

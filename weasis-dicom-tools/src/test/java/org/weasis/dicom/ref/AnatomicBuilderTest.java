@@ -58,7 +58,7 @@ class AnatomicBuilderTest {
     BodyPart bodyPart = BodyPart.getBodyPartFromCode("128559007");
     assertEquals("Artère géniculaire", bodyPart.getCodeMeaning());
     assertEquals("Artère géniculaire", bodyPart.toString());
-    assertEquals(CodingScheme.SCT, bodyPart.getScheme());
+    assertEquals(CodingScheme.SCT, bodyPart.getCodingScheme());
     assertTrue(bodyPart.isPaired());
     assertFalse(bodyPart.isCommon());
     assertFalse(bodyPart.isEndoscopic());
@@ -75,7 +75,7 @@ class AnatomicBuilderTest {
     BodyPart bodyPart = AnatomicBuilder.getBodyPartFromLegacyCode("PANCREATICDUCT");
     assertNotNull(bodyPart);
     assertEquals("Canal pancréatique", bodyPart.toString());
-    assertEquals(CodingScheme.SCT, bodyPart.getScheme());
+    assertEquals(CodingScheme.SCT, bodyPart.getCodingScheme());
     assertFalse(bodyPart.isPaired());
     assertTrue(bodyPart.isCommon());
     assertTrue(bodyPart.isEndoscopic());
@@ -111,7 +111,7 @@ class AnatomicBuilderTest {
     AnatomicModifier modifier = AnatomicModifier.getAnatomicModifierFromCode("49370004");
     assertNotNull(modifier);
     assertEquals("Latéral", modifier.toString());
-    assertEquals(CodingScheme.SCT, modifier.getScheme());
+    assertEquals(CodingScheme.SCT, modifier.getCodingScheme());
 
     String key = "nonExistentKey";
     assertEquals('!' + key + '!', MesModifier.getString(key));
@@ -126,7 +126,7 @@ class AnatomicBuilderTest {
     SurfacePart surfacePart = SurfacePart.getSurfacePartFromCode("130319");
     assertNotNull(surfacePart);
     assertEquals("Peau de l'hélix postérieur supérieur de l'oreille", surfacePart.toString());
-    assertEquals(CodingScheme.DCM, surfacePart.getScheme());
+    assertEquals(CodingScheme.DCM, surfacePart.getCodingScheme());
     assertTrue(surfacePart.isPaired());
     assertNull(surfacePart.getLegacyCode());
     assertEquals(133, surfacePart.getLeft());
@@ -161,5 +161,8 @@ class AnatomicBuilderTest {
 
     String key = "nonExistentKey";
     assertEquals('!' + key + '!', MesCategory.getString(key));
+
+    Category category = Category.getCategoryFromContextUID("1.2.840.10008.6.1.2");
+    assertNotNull(category);
   }
 }

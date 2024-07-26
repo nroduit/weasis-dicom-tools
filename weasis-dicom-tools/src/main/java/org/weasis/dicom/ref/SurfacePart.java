@@ -247,7 +247,7 @@ public enum SurfacePart implements AnatomicItem {
   }
 
   @Override
-  public CodingScheme getScheme() {
+  public CodingScheme getCodingScheme() {
     return scheme;
   }
 

@@ -10,7 +10,7 @@
   <version>${revision}${sha1}${changelist}</version>
 
   <properties>
-    <revision>${dcm4che.version}.3</revision>
+    <revision>${dcm4che.version}</revision>
     <changelist></changelist> <!-- Remove "-SNAPSHOT" for release -->
     <sha1/>
 

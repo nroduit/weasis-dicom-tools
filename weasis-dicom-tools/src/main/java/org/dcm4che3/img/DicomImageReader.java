@@ -479,6 +479,9 @@ public class DicomImageReader extends ImageReader {
     if (seg.segmentPositions() == null) {
       return null;
     }
+    if (seg.segmentPositions().length <= frame) {
+      frame = 0;
+    }
 
     String tsuid = dis.getMetadata().getTransferSyntaxUID();
     TransferSyntaxType type = TransferSyntaxType.forUID(tsuid);

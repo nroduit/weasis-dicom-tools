@@ -1,5 +1,13 @@
 # Changelog
 
+## [v5.33.0](https://github.com/nroduit/weasis-dicom-tools/tree/v5.33.0) (2024-12-13)
+
+[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.32.0.2...v5.33.0)
+
+**Closed issues:**
+
+- ImageAdapter cannot deal with IncludeBulkData.YES and compressed image data [\#30](https://github.com/nroduit/weasis-dicom-tools/issues/30)
+
 ## [v5.32.0.2](https://github.com/nroduit/weasis-dicom-tools/tree/v5.32.0.2) (2024-07-26)
 
 [Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.32.0...v5.32.0.2)

@@ -198,7 +198,7 @@ public class StoreSCP {
   private static Attributes parse(File file) throws IOException {
     try (DicomInputStream in = new DicomInputStream(file)) {
       in.setIncludeBulkData(IncludeBulkData.NO);
-      return in.readDataset(-1, Tag.PixelData);
+      return in.readDatasetUntilPixelData();
     }
   }
 

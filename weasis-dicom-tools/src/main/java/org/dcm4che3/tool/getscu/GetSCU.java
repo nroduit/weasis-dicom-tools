@@ -259,7 +259,7 @@ public class GetSCU implements AutoCloseable {
   public void retrieve(File f) throws IOException, InterruptedException {
     Attributes attrs = new Attributes();
     try (DicomInputStream dis = new DicomInputStream(f)) {
-      attrs.addSelected(dis.readDataset(-1, -1), inFilter);
+      attrs.addSelected(dis.readDataset(), inFilter);
     }
     attrs.addAll(keys);
     retrieve(attrs);
@@ -324,6 +324,7 @@ public class GetSCU implements AutoCloseable {
       if (e instanceof InterruptedException) {
         Thread.currentThread().interrupt();
       }
+      LOGGER.error("Stop GetSCU", e);
     }
     ServiceUtil.shutdownService((ExecutorService) device.getExecutor());
     ServiceUtil.shutdownService(device.getScheduledExecutor());

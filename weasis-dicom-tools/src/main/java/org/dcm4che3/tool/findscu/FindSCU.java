@@ -247,7 +247,7 @@ public class FindSCU implements AutoCloseable {
       attrs = SAXReader.parse(filePath);
     } else {
       try (DicomInputStream dis = new DicomInputStream(f)) {
-        attrs = dis.readDataset(-1, -1);
+        attrs = dis.readDataset();
       }
     }
     if (inFilter != null) {

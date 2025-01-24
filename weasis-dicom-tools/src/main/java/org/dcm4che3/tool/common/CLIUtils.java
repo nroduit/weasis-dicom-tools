@@ -99,8 +99,8 @@ public class CLIUtils {
 
   public static void addEmptyAttributes(Attributes attrs, String[] optVals) {
     if (optVals != null) {
-      for (int i = 0; i < optVals.length; i++) {
-        addAttributes(attrs, toTags(StringUtils.split(optVals[i], '/')));
+      for (String optVal : optVals) {
+        addAttributes(attrs, toTags(StringUtils.split(optVal, '/')));
       }
     }
   }

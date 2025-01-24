@@ -11,6 +11,7 @@ package org.dcm4che3.img.stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.io.File;
 import java.nio.file.Path;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
@@ -37,7 +38,7 @@ class ExtendSegmentedInputImageStreamTest {
         new ExtendSegmentedInputImageStream(
             Path.of("/test/path"), new long[] {1, 2, 3}, new int[] {4, 5, 6}, descriptor);
 
-    assertTrue(stream1.toString().contains("/test/path"));
+    assertTrue(stream1.toString().contains(File.separator + "test" + File.separator + "path"));
     assertEquals(stream1, stream1);
     assertNotEquals(stream1, null);
     assertNotEquals(stream1, new Object());

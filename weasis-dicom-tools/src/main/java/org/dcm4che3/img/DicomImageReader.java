@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
 import javax.imageio.ImageReadParam;
@@ -106,7 +107,7 @@ public class DicomImageReader extends ImageReader {
 
   public static final BulkDataDescriptor BULKDATA_DESCRIPTOR =
       (itemPointer, privateCreator, tag, vr, length) -> {
-        var tagNormalized = TagUtils.normalizeRepeatingGroup(tag);
+        int tagNormalized = TagUtils.normalizeRepeatingGroup(tag);
         if (tagNormalized == Tag.WaveformData) {
           return itemPointer.size() == 1 && itemPointer.get(0).sequenceTag == Tag.WaveformSequence;
         } else if (BULK_TAGS.contains(tagNormalized)) {
@@ -291,7 +292,7 @@ public class DicomImageReader extends ImageReader {
     if (param == null) {
       keepRgbForLossyJpeg = false;
     } else {
-      keepRgbForLossyJpeg = param.getKeepRgbForLossyJpeg().orElse(false);
+      keepRgbForLossyJpeg = param.getKeepRgbForLossyJpeg().orElse(Boolean.FALSE);
     }
 
     if (pmi == PhotometricInterpretation.RGB && !keepRgbForLossyJpeg) {
@@ -399,6 +400,8 @@ public class DicomImageReader extends ImageReader {
 
   public PlanarImage getPlanarImage(int frame, DicomImageReadParam param) throws IOException {
     PlanarImage img = getRawImage(frame, param);
+    ImageDescriptor desc =
+        dis == null ? bdis.getImageDescriptor() : dis.getMetadata().getImageDescriptor();
     PlanarImage out = img;
     if (getImageDescriptor().hasPaletteColorLookupTable()) {
       if (dis == null) {
@@ -417,6 +420,15 @@ public class DicomImageReader extends ImageReader {
     if (param != null && param.getSourceRenderSize() != null) {
       out = ImageProcessor.scale(out.toMat(), param.getSourceRenderSize(), Imgproc.INTER_LANCZOS4);
     }
+
+    OptionalDouble rescaleSlope = desc.getModalityLUT().getRescaleSlope();
+    if (rescaleSlope.isPresent() && rescaleSlope.getAsDouble() < 0.5) {
+      double intercept = desc.getModalityLUT().getRescaleIntercept().orElse(0.0);
+      ImageCV dstImg = new ImageCV();
+      out.toImageCV().convertTo(dstImg, CvType.CV_32F, rescaleSlope.getAsDouble(), intercept);
+      out = dstImg;
+    }
+
     if (!img.equals(out)) {
       img.release();
     }

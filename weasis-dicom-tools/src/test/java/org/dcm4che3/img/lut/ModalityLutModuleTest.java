@@ -48,8 +48,8 @@ class ModalityLutModuleTest {
     attributes.setDouble(Tag.RescaleSlope, VR.DS, 2.0);
     attributes.setDouble(Tag.RescaleIntercept, VR.DS, 1.0);
     ModalityLutModule modalityLutModule = new ModalityLutModule(attributes);
-    assertTrue(modalityLutModule.getRescaleIntercept().isEmpty());
-    assertTrue(modalityLutModule.getRescaleSlope().isEmpty());
+    assertEquals(2.0, modalityLutModule.getRescaleSlope().getAsDouble());
+    assertEquals(1.0, modalityLutModule.getRescaleIntercept().getAsDouble());
 
     attributes.setString(Tag.Modality, VR.LO, "XRF");
     attributes.setString(Tag.PixelIntensityRelationship, VR.CS, "DISP");
@@ -62,14 +62,15 @@ class ModalityLutModuleTest {
     seq.add(dcm);
 
     modalityLutModule = new ModalityLutModule(attributes);
-    assertTrue(modalityLutModule.getRescaleIntercept().isEmpty());
-    assertTrue(modalityLutModule.getRescaleSlope().isEmpty());
+    assertEquals(2.0, modalityLutModule.getRescaleSlope().getAsDouble());
+    assertEquals(1.0, modalityLutModule.getRescaleIntercept().getAsDouble());
     assertTrue(modalityLutModule.getLutExplanation().isEmpty());
 
     attributes.setString(Tag.Modality, VR.LO, "PT");
     dcm.setString(Tag.ModalityLUTType, VR.LO, "MGML");
     modalityLutModule = new ModalityLutModule(attributes);
     assertEquals("Explanation", modalityLutModule.getLutExplanation().get());
+    assertEquals("MGML", modalityLutModule.getLutType().get());
   }
 
   @Test

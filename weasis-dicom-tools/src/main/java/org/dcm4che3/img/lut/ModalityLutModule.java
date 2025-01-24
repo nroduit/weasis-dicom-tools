@@ -58,20 +58,11 @@ public class ModalityLutModule {
   private void init(Attributes dcm) {
     String modality = DicomImageUtils.getModality(dcm);
     if (dcm.containsValue(Tag.RescaleIntercept) && dcm.containsValue(Tag.RescaleSlope)) {
-      if ("MR".equals(modality)
-          //          || "PT".equals(modality) // bug https://github.com/nroduit/Weasis/issues/399
-          || "XA".equals(modality)
-          || "XRF".equals(modality)) {
-        // IHE BIR: Windowing and Rendering 4.16.4.2.2.5.4
-        LOGGER.trace("Do not apply RescaleSlope and RescaleIntercept to {}", modality);
-      } else {
-        this.rescaleSlope =
-            OptionalDouble.of(DicomUtils.getDoubleFromDicomElement(dcm, Tag.RescaleSlope, null));
-        this.rescaleIntercept =
-            OptionalDouble.of(
-                DicomUtils.getDoubleFromDicomElement(dcm, Tag.RescaleIntercept, null));
-        this.rescaleType = Optional.ofNullable(dcm.getString(Tag.RescaleType));
-      }
+      this.rescaleSlope =
+          OptionalDouble.of(DicomUtils.getDoubleFromDicomElement(dcm, Tag.RescaleSlope, null));
+      this.rescaleIntercept =
+          OptionalDouble.of(DicomUtils.getDoubleFromDicomElement(dcm, Tag.RescaleIntercept, null));
+      this.rescaleType = Optional.ofNullable(dcm.getString(Tag.RescaleType));
     }
 
     initModalityLUTSequence(dcm, modality);

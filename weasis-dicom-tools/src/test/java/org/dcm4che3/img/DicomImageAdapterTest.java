@@ -100,8 +100,8 @@ class DicomImageAdapterTest {
     assertEquals(0, adapter.getMinMax().minVal);
 
     WlPresentation wlp = new WindLevelParameters(adapter);
-    assertEquals(22.3726703241119, adapter.getDefaultLevel(wlp));
-    assertEquals(44.5507956888837, adapter.getDefaultWindow(wlp));
+    assertEquals(920, adapter.getDefaultLevel(wlp));
+    assertEquals(1832, adapter.getDefaultWindow(wlp));
 
     img = ImageRendering.getModalityLutImage(imageSource, adapter, readParam);
     assertEquals(256, img.width());

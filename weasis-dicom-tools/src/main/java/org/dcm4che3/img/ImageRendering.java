@@ -13,6 +13,7 @@ import java.awt.image.DataBuffer;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import org.dcm4che3.img.data.EmbeddedOverlay;
 import org.dcm4che3.img.data.OverlayData;
 import org.dcm4che3.img.lut.WindLevelParameters;
@@ -45,6 +46,15 @@ public class ImageRendering {
     int datatype = Objects.requireNonNull(img).type();
 
     if (datatype >= CvType.CV_8U && datatype < CvType.CV_32S) {
+      OptionalDouble rescaleSlope = adapter.getImageDescriptor().getModalityLUT().getRescaleSlope();
+      if (rescaleSlope.isPresent() && rescaleSlope.getAsDouble() < 0.5) {
+        double intercept =
+            adapter.getImageDescriptor().getModalityLUT().getRescaleIntercept().orElse(0.0);
+        ImageCV dstImg = new ImageCV();
+        img.toImageCV().convertTo(dstImg, CvType.CV_32F, rescaleSlope.getAsDouble(), intercept);
+        adapter.setBitsStored(32);
+        return dstImg;
+      }
       LookupTableCV modalityLookup = adapter.getModalityLookup(p, p.isInverseLut());
       return modalityLookup == null ? img.toImageCV() : modalityLookup.lookup(img.toMat());
     }

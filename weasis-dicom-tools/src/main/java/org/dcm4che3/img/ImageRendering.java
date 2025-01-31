@@ -47,7 +47,8 @@ public class ImageRendering {
 
     if (datatype >= CvType.CV_8U && datatype < CvType.CV_32S) {
       OptionalDouble rescaleSlope = adapter.getImageDescriptor().getModalityLUT().getRescaleSlope();
-      if (rescaleSlope.isPresent() && rescaleSlope.getAsDouble() < 0.5) {
+      if (rescaleSlope.isPresent()
+          && DicomImageReader.hasVerySmallOutputValues(rescaleSlope.getAsDouble())) {
         double intercept =
             adapter.getImageDescriptor().getModalityLUT().getRescaleIntercept().orElse(0.0);
         ImageCV dstImg = new ImageCV();

@@ -422,7 +422,7 @@ public class DicomImageReader extends ImageReader {
     }
 
     OptionalDouble rescaleSlope = desc.getModalityLUT().getRescaleSlope();
-    if (rescaleSlope.isPresent() && rescaleSlope.getAsDouble() < 0.5) {
+    if (rescaleSlope.isPresent() && hasVerySmallOutputValues(rescaleSlope.getAsDouble())) {
       double intercept = desc.getModalityLUT().getRescaleIntercept().orElse(0.0);
       ImageCV dstImg = new ImageCV();
       out.toImageCV().convertTo(dstImg, CvType.CV_32F, rescaleSlope.getAsDouble(), intercept);
@@ -433,6 +433,10 @@ public class DicomImageReader extends ImageReader {
       img.release();
     }
     return out;
+  }
+
+  static boolean hasVerySmallOutputValues(double rescaleSlope) {
+    return rescaleSlope < 0.5;
   }
 
   public PlanarImage getRawImage(int frame, DicomImageReadParam param) throws IOException {

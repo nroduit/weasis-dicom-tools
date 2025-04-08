@@ -18,6 +18,7 @@ import org.dcm4che3.img.data.OverlayData;
 import org.dcm4che3.img.lut.ModalityLutModule;
 import org.dcm4che3.img.lut.VoiLutModule;
 import org.dcm4che3.img.util.DicomUtils;
+import org.opencv.core.Core.MinMaxLocResult;
 import org.weasis.dicom.ref.AnatomicRegion;
 
 /**
@@ -48,6 +49,8 @@ public final class ImageDescriptor {
   private final int highBit;
   private final String stationName;
   private final String pixelPresentation;
+
+  private MinMaxLocResult minMaxPixelValue;
 
   public ImageDescriptor(Attributes dcm) {
     this(dcm, 0);
@@ -206,5 +209,13 @@ public final class ImageDescriptor {
 
   public List<OverlayData> getOverlayData() {
     return overlayData;
+  }
+
+  public MinMaxLocResult getMinMaxPixelValue() {
+    return minMaxPixelValue;
+  }
+
+  public void setMinMaxPixelValue(MinMaxLocResult minMaxPixelValue) {
+    this.minMaxPixelValue = minMaxPixelValue;
   }
 }

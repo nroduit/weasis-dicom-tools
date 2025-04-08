@@ -48,6 +48,7 @@ import org.dcm4che3.img.util.SupplierEx;
 import org.dcm4che3.io.BulkDataDescriptor;
 import org.dcm4che3.io.DicomInputStream.IncludeBulkData;
 import org.dcm4che3.util.TagUtils;
+import org.opencv.core.Core.MinMaxLocResult;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfDouble;
@@ -58,6 +59,7 @@ import org.opencv.osgi.OpenCVNativeLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.util.FileUtil;
+import org.weasis.core.util.Pair;
 import org.weasis.opencv.data.ImageCV;
 import org.weasis.opencv.data.PlanarImage;
 import org.weasis.opencv.op.ImageConversion;
@@ -124,7 +126,7 @@ public class DicomImageReader extends ImageReader {
         };
       };
 
-  private final ArrayList<Integer> fragmentsPositions = new ArrayList<>();
+  private final List<Integer> fragmentsPositions = new ArrayList<>();
 
   private BytesWithImageDescriptor bdis;
   private DicomFileInputStream dis;
@@ -421,13 +423,8 @@ public class DicomImageReader extends ImageReader {
       out = ImageProcessor.scale(out.toMat(), param.getSourceRenderSize(), Imgproc.INTER_LANCZOS4);
     }
 
-    OptionalDouble rescaleSlope = desc.getModalityLUT().getRescaleSlope();
-    if (rescaleSlope.isPresent() && hasVerySmallOutputValues(rescaleSlope.getAsDouble())) {
-      double intercept = desc.getModalityLUT().getRescaleIntercept().orElse(0.0);
-      ImageCV dstImg = new ImageCV();
-      out.toImageCV().convertTo(dstImg, CvType.CV_32F, rescaleSlope.getAsDouble(), intercept);
-      out = dstImg;
-    }
+    MinMaxLocResult minMax = DicomImageAdapter.getMinMaxValues(out, desc);
+    out = rangeOutsideLut(out, desc, minMax);
 
     if (!img.equals(out)) {
       img.release();
@@ -435,8 +432,44 @@ public class DicomImageReader extends ImageReader {
     return out;
   }
 
-  static boolean hasVerySmallOutputValues(double rescaleSlope) {
-    return rescaleSlope < 0.5;
+  static PlanarImage rangeOutsideLut(
+      PlanarImage input, ImageDescriptor desc, MinMaxLocResult minMax) {
+    OptionalDouble rescaleSlope = desc.getModalityLUT().getRescaleSlope();
+    if (rescaleSlope.isPresent()) {
+      double slope = rescaleSlope.getAsDouble();
+      double intercept = desc.getModalityLUT().getRescaleIntercept().orElse(0.0);
+      if (minMax == null) {
+        minMax = DicomImageAdapter.getMinMaxValues(input, desc);
+      }
+      Pair<Double, Double> rescale = getRescaleSlopeAndIntercept(slope, intercept, minMax);
+      if (slope < 0.5 || rangeOutsideLut(rescale, desc)) {
+        ImageCV dstImg = new ImageCV();
+        boolean invertLUT =
+            desc.getPhotometricInterpretation() == PhotometricInterpretation.MONOCHROME1;
+        double alpha = slope;
+        double beta = intercept;
+        if (invertLUT) {
+          alpha = -slope;
+          beta = rescale.second() + rescale.first() - intercept;
+        }
+        input.toImageCV().convertTo(dstImg, CvType.CV_32F, alpha, beta);
+        return dstImg;
+      }
+    }
+    return input;
+  }
+
+  private static boolean rangeOutsideLut(Pair<Double, Double> rescale, ImageDescriptor desc) {
+    boolean outputSigned = rescale.first() < 0 || desc.isSigned();
+    Pair<Double, Double> minMax = DicomImageUtils.getMinMax(desc.getBitsAllocated(), outputSigned);
+    return rescale.first() + 1 < minMax.first() || rescale.second() - 1 > minMax.second();
+  }
+
+  private static Pair<Double, Double> getRescaleSlopeAndIntercept(
+      double slope, double intercept, MinMaxLocResult minMax) {
+    double min = minMax.minVal * slope + intercept;
+    double max = minMax.maxVal * slope + intercept;
+    return new Pair<>(Math.min(min, max), Math.max(min, max));
   }
 
   public PlanarImage getRawImage(int frame, DicomImageReadParam param) throws IOException {

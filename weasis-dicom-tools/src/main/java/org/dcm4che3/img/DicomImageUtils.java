@@ -23,6 +23,7 @@ import org.opencv.core.CvType;
 import org.opencv.imgproc.Imgproc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.weasis.core.util.Pair;
 import org.weasis.opencv.data.ImageCV;
 import org.weasis.opencv.data.LookupTableCV;
 import org.weasis.opencv.data.PlanarImage;
@@ -60,6 +61,19 @@ public class DicomImageUtils {
       }
     }
     return modality;
+  }
+
+  public static Pair<Double, Double> getMinMax(int bitsStored, boolean signed) {
+    double minValue, maxValue;
+    int stored = (bitsStored > 16) ? 16 : Math.max(bitsStored, 1);
+    if (signed) {
+      minValue = -(1 << (stored - 1));
+      maxValue = (1 << (stored - 1)) - 1;
+    } else {
+      minValue = 0;
+      maxValue = (1 << stored) - 1;
+    }
+    return new Pair<>(minValue, maxValue);
   }
 
   public static PlanarImage getRGBImageFromPaletteColorModel(PlanarImage source, Attributes ds) {

@@ -52,7 +52,12 @@ public class DicomImageAdapter {
     int depth = CvType.depth(Objects.requireNonNull(image).type());
     this.desc = Objects.requireNonNull(desc);
     this.bitsStored = depth > CvType.CV_16S ? (int) image.elemSize1() * 8 : desc.getBitsStored();
-    this.minMax = findMinMaxValues(image);
+    MinMaxLocResult minMax = desc.getMinMaxPixelValue();
+    if (minMax == null) {
+      minMax = findMinMaxValues(image);
+      desc.setMinMaxPixelValue(minMax);
+    }
+    this.minMax = minMax;
     /*
      * Lazily compute image pixel transformation here since inner class Load is called from a separate and dedicated
      * worker Thread. Also, it will be computed only once
@@ -62,16 +67,11 @@ public class DicomImageAdapter {
     getModalityLookup(null, false);
   }
 
-  private MinMaxLocResult findMinMaxValues(PlanarImage image) {
-    /*
-     * This function can be called several times from the inner class Load. min and max will be computed only once.
-     */
-
-    MinMaxLocResult val = null;
-    // Cannot trust SmallestImagePixelValue and LargestImagePixelValue values! So search min and max
-    // values
-    int bitsAllocated = desc.getBitsAllocated();
-
+  public static MinMaxLocResult getMinMaxValues(PlanarImage image, ImageDescriptor desc) {
+    MinMaxLocResult val = desc.getMinMaxPixelValue();
+    if (val != null) {
+      return val;
+    }
     boolean monochrome = desc.getPhotometricInterpretation().isMonochrome();
     if (monochrome) {
       Integer paddingValue = desc.getPixelPaddingValue();
@@ -90,15 +90,24 @@ public class DicomImageAdapter {
     if (val == null) {
       val = ImageProcessor.findRawMinMaxValues(image, !monochrome);
     }
+    return val;
+  }
 
+  private MinMaxLocResult findMinMaxValues(PlanarImage image) {
+    /*
+     * This function can be called several times from the inner class Load. min and max will be computed only once.
+     */
+
+    MinMaxLocResult val = getMinMaxValues(image, desc);
+    // Cannot trust SmallestImagePixelValue and LargestImagePixelValue values! So search min and max
+    // values
+    int bitsAllocated = desc.getBitsAllocated();
     if (bitsStored < bitsAllocated) {
       boolean isSigned = desc.isSigned();
       int minInValue = isSigned ? -(1 << (bitsStored - 1)) : 0;
       int maxInValue = isSigned ? (1 << (bitsStored - 1)) - 1 : (1 << bitsStored) - 1;
       if (val.minVal < minInValue || val.maxVal > maxInValue) {
         /*
-         *
-         *
          * When the image contains values outside the bits stored values, the bits stored is replaced by the
          * bits allocated for having a LUT which handles all the values.
          *
@@ -116,7 +125,7 @@ public class DicomImageAdapter {
    * @param paddingValueMin padding value to exclude from min value
    * @param paddingValueMax padding value to exclude from max value
    */
-  private MinMaxLocResult findMinMaxValues(
+  private static MinMaxLocResult findMinMaxValues(
       PlanarImage image, Integer paddingValueMin, Integer paddingValueMax) {
     MinMaxLocResult val;
     if (CvType.depth(image.type()) <= CvType.CV_8S) {

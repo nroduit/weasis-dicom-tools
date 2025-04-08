@@ -101,9 +101,11 @@ public class DicomImageUtils {
   }
 
   /**
-   * @param dicomLutObject defines LUT data dicom structure
-   * @return LookupTableJAI object if Data Element and Descriptors are consistent
-   * @see - Dicom Standard 2011 - PS 3.3 § C.11 LOOK UP TABLES AND PRESENTATION STATES
+   * @param dicomLutObject the DICOM LUT attributes
+   * @return a LookupTableCV object or an empty Optional if the LUT cannot be created
+   * @see <a
+   *     href="https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.11.html">C.11
+   *     Look Up Tables and Presentation State</a>
    */
   public static Optional<LookupTableCV> createLut(Attributes dicomLutObject) {
     if (dicomLutObject == null || dicomLutObject.isEmpty()) {
@@ -219,14 +221,14 @@ public class DicomImageUtils {
    * - when bitsStored=16 bits unsigned => minOutValue= 0 and maxOutValue= 65535 <br>
    * - when bitsStored=16 bits signed => minOutValue= -32768 and maxOutValue= 32767 <br>
    *
-   * @param lutShape
-   * @param window
-   * @param level
-   * @param minValue
-   * @param maxValue
-   * @param bitsStored
-   * @param isSigned
-   * @param inverse
+   * @param lutShape the LUT shape
+   * @param window the window width
+   * @param level the window center
+   * @param minValue the minimum input value
+   * @param maxValue the maximum input value
+   * @param bitsStored the number of bits stored
+   * @param isSigned true if the data is signed
+   * @param inverse true if the LUT should be inverted
    * @return a LookupTableJAI for data between minValue and maxValue according to all given
    *     parameters <br>
    */
@@ -244,8 +246,8 @@ public class DicomImageUtils {
       return null;
     }
 
-    int bStored = bitsStored > 16 ? 16 : (bitsStored < 1) ? 1 : bitsStored;
-    double win = window < 1.0 ? 1.0 : window;
+    int bStored = bitsStored > 16 ? 16 : Math.max(bitsStored, 1);
+    double win = Math.max(window, 1.0);
 
     int bitsAllocated = (bStored <= 8) ? 8 : 16;
     int outRangeSize = (1 << bitsAllocated) - 1;
@@ -347,7 +349,7 @@ public class DicomImageUtils {
       boolean outputSigned,
       int bitsOutput) {
 
-    int stored = (bitsStored > 16) ? 16 : ((bitsStored < 1) ? 1 : bitsStored);
+    int stored = (bitsStored > 16) ? 16 : Math.max(bitsStored, 1);
 
     int bitsOutLut = bitsOutput <= 8 ? 8 : 16;
     int outRangeSize = (1 << bitsOutLut) - 1;
@@ -357,8 +359,8 @@ public class DicomImageUtils {
     int minInValue = isSigned ? -(1 << (stored - 1)) : 0;
     int maxInValue = isSigned ? (1 << (stored - 1)) - 1 : (1 << stored) - 1;
 
-    minInValue = Math.max(minInValue, maxValue < minValue ? maxValue : minValue);
-    maxInValue = Math.min(maxInValue, maxValue < minValue ? minValue : maxValue);
+    minInValue = Math.max(minInValue, Math.min(maxValue, minValue));
+    maxInValue = Math.min(maxInValue, Math.max(maxValue, minValue));
 
     int numEntries = maxInValue - minInValue + 1;
     Object outLut = (bitsOutLut == 8) ? new byte[numEntries] : new short[numEntries];
@@ -366,45 +368,27 @@ public class DicomImageUtils {
     for (int i = 0; i < numEntries; i++) {
       int value = (int) Math.round((i + minInValue) * slope + intercept);
 
-      value = (value >= maxOutValue) ? maxOutValue : ((value <= minOutValue) ? minOutValue : value);
+      value = (value >= maxOutValue) ? maxOutValue : Math.max(value, minOutValue);
       value = inverse ? (maxOutValue + minOutValue - value) : value;
 
       if (outLut instanceof byte[]) {
         Array.set(outLut, i, (byte) value);
-      } else if (outLut instanceof short[]) {
+      } else {
         Array.set(outLut, i, (short) value);
       }
     }
 
     return (outLut instanceof byte[])
         ? new LookupTableCV((byte[]) outLut, minInValue)
-        : //
-        new LookupTableCV((short[]) outLut, minInValue, !outputSigned);
+        : new LookupTableCV((short[]) outLut, minInValue, !outputSigned);
   }
 
   /**
    * Apply the pixel padding to the modality LUT
    *
-   * @see - DICOM standard PS 3.3
-   *     <p>§C.7.5.1.1.2 Pixel Padding Value and Pixel Padding Range Limit If Photometric
-   *     Interpretation
-   *     <p>* If a Pixel Padding Value (0028,0120) only is present in the image then image contrast
-   *     manipulations shall be not be applied to those pixels with the value specified in Pixel
-   *     Padding Value (0028,0120). If both Pixel Padding Value (0028,0120) and Pixel Padding Range
-   *     Limit (0028,0121) are present in the image then image contrast manipulations shall not be
-   *     applied to those pixels with values in the range between the values of Pixel Padding Value
-   *     (0028,0120) and Pixel Padding Range Limit (0028,0121), inclusive."
-   *     <p>(0028,0004) is MONOCHROME2, Pixel Padding Value (0028,0120) shall be less than (closer
-   *     to or equal to the minimum possible pixel value) or equal to Pixel Padding Range Limit
-   *     (0028,0121). If Photometric Interpretation (0028,0004) is MONOCHROME1, Pixel Padding Value
-   *     (0028,0120) shall be greater than (closer to or equal to the maximum possible pixel value)
-   *     or equal to Pixel Padding Range Limit (0028,0121).
-   *     <p>When the relationship between pixel value and X-Ray Intensity is unknown, it is
-   *     recommended that the following values be used to pad with black when the image is unsigned:
-   *     <p>0 if Photometric Interpretation (0028,0004) is MONOCHROME2. 2BitsStored - 1 if
-   *     Photometric Interpretation (0028,0004) is MONOCHROME1.
-   *     <p>and when the image is signed: -2BitsStored-1 if Photometric Interpretation (0028,0004)
-   *     is MONOCHROME2. 2BitsStored-1 - 1 if Photometric Interpretation (0028,0004) is MONOCHROME1.
+   * @see <a
+   *     href="https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.7.5.html#sect_C.7.5.1.1.2">Pixel
+   *     Padding Value and Pixel Padding Range Limit</a>
    */
   public static void applyPixelPaddingToModalityLUT(
       LookupTableCV modalityLookup, LutParameters lutparams) {
@@ -469,7 +453,7 @@ public class DicomImageUtils {
       int maxOutValue,
       boolean inverse) {
 
-    /** Pseudo code defined in Dicom Standard 2011 - PS 3.3 § C.11.2 VOI LUT Module */
+    // Pseudo code defined in Dicom Standard - C.11.2 VOI LUT Module
     double lowLevel = (level - 0.5) - (window - 1.0) / 2.0;
     double highLevel = (level - 0.5) + (window - 1.0) / 2.0;
 
@@ -487,15 +471,19 @@ public class DicomImageUtils {
                         * (maxOutValue - minOutValue)
                     + minOutValue);
       }
+      setLutValue(outLut, minOutValue, maxOutValue, inverse, i, value);
+    }
+  }
 
-      value = (value >= maxOutValue) ? maxOutValue : ((value <= minOutValue) ? minOutValue : value);
-      value = inverse ? (maxOutValue + minOutValue - value) : value;
+  private static void setLutValue(
+      Object outLut, int minOutValue, int maxOutValue, boolean inverse, int i, int value) {
+    value = (value >= maxOutValue) ? maxOutValue : Math.max(value, minOutValue);
+    value = inverse ? (maxOutValue + minOutValue - value) : value;
 
-      if (outLut instanceof byte[]) {
-        Array.set(outLut, i, (byte) value);
-      } else if (outLut instanceof short[]) {
-        Array.set(outLut, i, (short) value);
-      }
+    if (outLut instanceof byte[]) {
+      Array.set(outLut, i, (byte) value);
+    } else if (outLut instanceof short[]) {
+      Array.set(outLut, i, (short) value);
     }
   }
 
@@ -514,14 +502,7 @@ public class DicomImageUtils {
     for (int i = 0; i < Array.getLength(outLut); i++) {
       int value = (int) ((i + minInValue) * slope + intercept);
 
-      value = (value >= maxOutValue) ? maxOutValue : ((value <= minOutValue) ? minOutValue : value);
-      value = inverse ? (maxOutValue + minOutValue - value) : value;
-
-      if (outLut instanceof byte[]) {
-        Array.set(outLut, i, (byte) value);
-      } else if (outLut instanceof short[]) {
-        Array.set(outLut, i, (short) value);
-      }
+      setLutValue(outLut, minOutValue, maxOutValue, inverse, i, value);
     }
   }
 
@@ -570,22 +551,16 @@ public class DicomImageUtils {
     for (int i = 0; i < Array.getLength(outLut); i++) {
       double value =
           outRange / (1d + Math.exp((2d * nFactor / 10d) * (i + minInValue - center) / width));
-
-      if (normalize) {
-        value = (value - minValue) * outRescaleRatio;
-      }
-
-      value = (int) Math.round(value + minOutValue);
-      value =
-          (int)
-              ((value > maxOutValue) ? maxOutValue : ((value < minOutValue) ? minOutValue : value));
-      value = (int) (inverse ? (maxOutValue + minOutValue - value) : value);
-
-      if (outLut instanceof byte[]) {
-        Array.set(outLut, i, (byte) value);
-      } else if (outLut instanceof short[]) {
-        Array.set(outLut, i, (short) value);
-      }
+      setLutValue(
+          outLut,
+          minOutValue,
+          maxOutValue,
+          inverse,
+          normalize,
+          minValue,
+          outRescaleRatio,
+          i,
+          value);
     }
   }
 
@@ -630,22 +605,16 @@ public class DicomImageUtils {
 
     for (int i = 0; i < Array.getLength(outLut); i++) {
       double value = outRange * Math.exp((nFactor / 10d) * (i + minInValue - center) / width);
-
-      if (normalize) {
-        value = (value - minValue) * outRescaleRatio;
-      }
-
-      value = (int) Math.round(value + minOutValue);
-      value =
-          (int)
-              ((value > maxOutValue) ? maxOutValue : ((value < minOutValue) ? minOutValue : value));
-      value = (int) (inverse ? (maxOutValue + minOutValue - value) : value);
-
-      if (outLut instanceof byte[]) {
-        Array.set(outLut, i, (byte) value);
-      } else if (outLut instanceof short[]) {
-        Array.set(outLut, i, (short) value);
-      }
+      setLutValue(
+          outLut,
+          minOutValue,
+          maxOutValue,
+          inverse,
+          normalize,
+          minValue,
+          outRescaleRatio,
+          i,
+          value);
     }
   }
 
@@ -693,21 +662,42 @@ public class DicomImageUtils {
     for (int i = 0; i < Array.getLength(outLut); i++) {
       double value = outRange * Math.log((nFactor / 10d) * (1 + (i + minInValue - center) / width));
 
-      if (normalize) {
-        value = (value - minValue) * outRescaleRatio;
-      }
+      setLutValue(
+          outLut,
+          minOutValue,
+          maxOutValue,
+          inverse,
+          normalize,
+          minValue,
+          outRescaleRatio,
+          i,
+          value);
+    }
+  }
 
-      value = (int) Math.round(value + minOutValue);
-      value =
-          (int)
-              ((value > maxOutValue) ? maxOutValue : ((value < minOutValue) ? minOutValue : value));
-      value = (int) (inverse ? (maxOutValue + minOutValue - value) : value);
+  private static void setLutValue(
+      Object outLut,
+      int minOutValue,
+      int maxOutValue,
+      boolean inverse,
+      boolean normalize,
+      double minValue,
+      double outRescaleRatio,
+      int i,
+      double value) {
+    if (normalize) {
+      value = (value - minValue) * outRescaleRatio;
+    }
 
-      if (outLut instanceof byte[]) {
-        Array.set(outLut, i, (byte) value);
-      } else if (outLut instanceof short[]) {
-        Array.set(outLut, i, (short) value);
-      }
+    value = (int) Math.round(value + minOutValue);
+    value =
+        (int) ((value > maxOutValue) ? maxOutValue : ((value < minOutValue) ? minOutValue : value));
+    value = (int) (inverse ? (maxOutValue + minOutValue - value) : value);
+
+    if (outLut instanceof byte[]) {
+      Array.set(outLut, i, (byte) value);
+    } else if (outLut instanceof short[]) {
+      Array.set(outLut, i, (short) value);
     }
   }
 
@@ -723,18 +713,6 @@ public class DicomImageUtils {
     return lutDataArray;
   }
 
-  /**
-   * @param width
-   * @param center
-   * @param lookupSequence
-   * @param minInValue
-   * @param maxInValue
-   * @param outLut
-   * @param minOutValue
-   * @param maxOutValue
-   * @param inverse
-   * @return a normalized LookupTableJAI based upon given lutSequence <br>
-   */
   private static void setWindowLevelSequenceLut(
       double width,
       double center,

@@ -100,7 +100,7 @@ public class DicomObjectUtil {
       try {
         return DateTimeUtils.parseDA(date);
       } catch (Exception e) {
-        LOGGER.error("Parse DICOM date", e); // $NON-NLS-1$
+        LOGGER.error("Parse DICOM date", e);
       }
     }
     return null;
@@ -111,7 +111,7 @@ public class DicomObjectUtil {
       try {
         return DateTimeUtils.parseTM(time);
       } catch (Exception e1) {
-        LOGGER.error("Parse DICOM time", e1); // $NON-NLS-1$
+        LOGGER.error("Parse DICOM time", e1);
       }
     }
     return null;

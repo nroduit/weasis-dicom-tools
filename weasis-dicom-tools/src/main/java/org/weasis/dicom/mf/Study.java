@@ -24,7 +24,8 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
 import org.dcm4che3.data.Tag;
-import org.weasis.dicom.util.DateUtil;
+import org.dcm4che3.img.util.DateTimeUtils;
+import org.dcm4che3.img.util.DicomObjectUtil;
 
 public class Study implements Xml, Comparable<Study> {
 
@@ -170,11 +171,13 @@ public class Study implements Xml, Comparable<Study> {
   @Override
   public int compareTo(Study s) {
     LocalDateTime date1 =
-        DateUtil.dateTime(
-            DateUtil.getDicomDate(getStudyDate()), DateUtil.getDicomTime(getStudyTime()));
+        DateTimeUtils.dateTime(
+            DicomObjectUtil.getDicomDate(getStudyDate()),
+            DicomObjectUtil.getDicomTime(getStudyTime()));
     LocalDateTime date2 =
-        DateUtil.dateTime(
-            DateUtil.getDicomDate(s.getStudyDate()), DateUtil.getDicomTime(s.getStudyTime()));
+        DateTimeUtils.dateTime(
+            DicomObjectUtil.getDicomDate(s.getStudyDate()),
+            DicomObjectUtil.getDicomTime(s.getStudyTime()));
 
     int c = -1;
     if (date1 != null && date2 != null) {

@@ -10,6 +10,7 @@
 package org.dcm4che3.img.util;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -21,7 +22,13 @@ import java.time.ZonedDateTime;
 import java.time.temporal.Temporal;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.TimeZone;
+import javax.xml.datatype.DatatypeConfigurationException;
+import org.dcm4che3.data.Attributes;
+import org.dcm4che3.data.Tag;
+import org.dcm4che3.data.VR;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junitpioneer.jupiter.DefaultTimeZone;
@@ -111,26 +118,69 @@ class DateTimeUtilsTest {
   @DisplayName("Get DateTime")
   @DefaultTimeZone("UTC")
   void testGetDateTime() {
-    assertNull(DateTimeUtils.dateTime((LocalDate) null, null));
+    assertNull(DateTimeUtils.dateTime(null, null));
 
-    TimeZone timeZone = TimeZone.getDefault();
-    Calendar calendarA = Calendar.getInstance(timeZone);
+    TimeZone timeZone1 = TimeZone.getTimeZone(ZoneOffset.ofHours(-10));
+    TimeZone timeZone2 = TimeZone.getTimeZone(ZoneOffset.ofHours(+10));
+    Calendar calendarA = Calendar.getInstance();
     calendarA.set(2024, Calendar.JUNE, 21, 0, 0, 0);
     calendarA.set(Calendar.MILLISECOND, 0);
     Date date = calendarA.getTime();
     calendarA.set(1970, Calendar.JANUARY, 1, 5, 27, 54);
-    calendarA.set(Calendar.MILLISECOND, 5394);
+    calendarA.set(Calendar.MILLISECOND, 394);
     Date time = calendarA.getTime();
-    Date result = DateTimeUtils.dateTime(date, null);
+    Date result = DateTimeUtils.dateTime(null, date, null, true);
     assertEquals(date, result);
 
-    result = DateTimeUtils.dateTime(null, time);
+    result = DateTimeUtils.dateTime(null, null, time, true);
+    assertEquals(time, result);
+    result = DateTimeUtils.dateTime(timeZone1, null, time, true);
+    assertEquals(time, result);
+    result = DateTimeUtils.dateTime(timeZone2, null, time, true);
     assertEquals(time, result);
 
-    result = DateTimeUtils.dateTime(date, time);
-    calendarA.set(2024, Calendar.JUNE, 21, 5, 27, 54);
-    calendarA.set(Calendar.MILLISECOND, 5394);
-    assertEquals(calendarA.getTime(), result);
+    result = DateTimeUtils.dateTime(timeZone1, date, time, false);
+    Calendar calendar1 = Calendar.getInstance(timeZone1);
+    calendar1.set(2024, Calendar.JUNE, 21, 5, 27, 54);
+    calendar1.set(Calendar.MILLISECOND, 394);
+    assertEquals(calendar1.getTime(), result);
+
+    result = DateTimeUtils.dateTime(timeZone2, date, time, false);
+    calendar1 = Calendar.getInstance(timeZone2);
+    calendar1.set(2024, Calendar.JUNE, 21, 5, 27, 54);
+    calendar1.set(Calendar.MILLISECOND, 394);
+    assertEquals(calendar1.getTime(), result);
+
+    assertNull(DateTimeUtils.dateTime(null, null, time, false));
+    assertNull(DateTimeUtils.dateTime(null, date, null, false));
+    assertNull(DateTimeUtils.dateTime(timeZone1, null, null, false));
+  }
+
+  @Test
+  @DisplayName("Combine Date and Time")
+  @DefaultTimeZone("UTC")
+  void testCombineDateTime() {
+    assertNull(DateTimeUtils.dateTime(null, 0, 0));
+
+    Attributes attributes = new Attributes();
+    attributes.setString(Tag.TimezoneOffsetFromUTC, VR.SH, "+1500");
+    attributes.setString(Tag.RadiopharmaceuticalStartDateTime, VR.DT, "20250212084500");
+    attributes.setString(Tag.SeriesDate, VR.DA, "20250212");
+    attributes.setString(Tag.SeriesTime, VR.TM, "091530");
+
+    Date radioPharmaceuticalStartDateTime =
+        attributes.getDate(Tag.RadiopharmaceuticalStartDateTime);
+
+    Date seriesDateTime = attributes.getDate(Tag.SeriesDateAndTime);
+    Date result = DateTimeUtils.dateTime(attributes, Tag.SeriesDate, Tag.SeriesTime);
+    assertEquals(seriesDateTime, result);
+
+    Date seriesDate = attributes.getDate(Tag.SeriesDate);
+    Date seriesTime = attributes.getDate(Tag.SeriesTime);
+    result = DateTimeUtils.dateTime(attributes.getTimeZone(), seriesDate, seriesTime, false);
+    assertEquals(seriesDateTime, result);
+
+    assertEquals(1830000, seriesDateTime.getTime() - radioPharmaceuticalStartDateTime.getTime());
   }
 
   @Test
@@ -246,5 +296,21 @@ class DateTimeUtilsTest {
 
     // Truncate DT String with invalid length
     assertThrows(IllegalArgumentException.class, () -> DateTimeUtils.truncateDT(dateTime, 3));
+  }
+
+  @Test
+  void parseXmlDateTimeReturnsCorrectDateForValidInput() throws DatatypeConfigurationException {
+    TimeZone utc = TimeZone.getTimeZone("UTC");
+    GregorianCalendar result = DateTimeUtils.parseXmlDateTime("2022-03-21T12:00:00");
+    result.setTimeZone(utc);
+    GregorianCalendar expected = new GregorianCalendar(2022, Calendar.MARCH, 21, 12, 0, 0);
+    expected.setTimeZone(utc);
+    Assertions.assertEquals(expected.getTime(), result.getTime());
+
+    utc = TimeZone.getTimeZone("UTC+1");
+    result = DateTimeUtils.parseXmlDateTime("2022-03-21T12:00:00+01:00");
+    expected = new GregorianCalendar(2022, Calendar.MARCH, 21, 11, 0, 0);
+    expected.setTimeZone(utc);
+    Assertions.assertEquals(expected.getTime(), result.getTime());
   }
 }

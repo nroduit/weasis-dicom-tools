@@ -20,8 +20,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BooleanSupplier;
 import javax.imageio.ImageReadParam;
 import javax.imageio.ImageReader;
@@ -60,6 +62,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.util.FileUtil;
 import org.weasis.core.util.Pair;
+import org.weasis.core.util.StringUtil;
 import org.weasis.opencv.data.ImageCV;
 import org.weasis.opencv.data.PlanarImage;
 import org.weasis.opencv.op.ImageConversion;
@@ -126,6 +129,9 @@ public class DicomImageReader extends ImageReader {
         };
       };
 
+  private static final Map<String, Boolean> series2FloatImages = new ConcurrentHashMap<>();
+
+  private static boolean allowFloatImageConversion = false;
   private final List<Integer> fragmentsPositions = new ArrayList<>();
 
   private BytesWithImageDescriptor bdis;
@@ -423,8 +429,19 @@ public class DicomImageReader extends ImageReader {
       out = ImageProcessor.scale(out.toMat(), param.getSourceRenderSize(), Imgproc.INTER_LANCZOS4);
     }
 
-    MinMaxLocResult minMax = DicomImageAdapter.getMinMaxValues(out, desc);
-    out = rangeOutsideLut(out, desc, minMax);
+    String seriesUID = desc.getSeriesInstanceUID();
+    if (allowFloatImageConversion && StringUtil.hasText(seriesUID)) {
+      Boolean isFloatPixelData = series2FloatImages.get(seriesUID);
+      if (isFloatPixelData != Boolean.FALSE) {
+        MinMaxLocResult minMax = DicomImageAdapter.getMinMaxValues(out, desc);
+        if (isFloatPixelData == null) {
+          out = rangeOutsideLut(out, desc, minMax, false);
+          series2FloatImages.put(seriesUID, CvType.depth(out.type()) == CvType.CV_32F);
+        } else {
+          out = rangeOutsideLut(out, desc, minMax, true);
+        }
+      }
+    }
 
     if (!img.equals(out)) {
       img.release();
@@ -433,16 +450,16 @@ public class DicomImageReader extends ImageReader {
   }
 
   static PlanarImage rangeOutsideLut(
-      PlanarImage input, ImageDescriptor desc, MinMaxLocResult minMax) {
+      PlanarImage input, ImageDescriptor desc, MinMaxLocResult minMax, boolean forceFloat) {
     OptionalDouble rescaleSlope = desc.getModalityLUT().getRescaleSlope();
-    if (rescaleSlope.isPresent()) {
-      double slope = rescaleSlope.getAsDouble();
+    if (forceFloat || rescaleSlope.isPresent()) {
+      double slope = rescaleSlope.orElse(1.0);
       double intercept = desc.getModalityLUT().getRescaleIntercept().orElse(0.0);
       if (minMax == null) {
         minMax = DicomImageAdapter.getMinMaxValues(input, desc);
       }
       Pair<Double, Double> rescale = getRescaleSlopeAndIntercept(slope, intercept, minMax);
-      if (slope < 0.5 || rangeOutsideLut(rescale, desc)) {
+      if (forceFloat || slope < 0.5 || rangeOutsideLut(rescale, desc)) {
         ImageCV dstImg = new ImageCV();
         boolean invertLUT =
             desc.getPhotometricInterpretation() == PhotometricInterpretation.MONOCHROME1;
@@ -777,5 +794,30 @@ public class DicomImageReader extends ImageReader {
           true;
       default -> false;
     };
+  }
+
+  public static void addSeriesToFloatImages(String seriesInstanceUID, Boolean forceToFloatImages) {
+    series2FloatImages.put(seriesInstanceUID, forceToFloatImages);
+  }
+
+  public static Boolean getForceToFloatImages(String seriesInstanceUID) {
+    return series2FloatImages.get(seriesInstanceUID);
+  }
+
+  public static void removeSeriesToFloatImages(String seriesInstanceUID) {
+    series2FloatImages.remove(seriesInstanceUID);
+  }
+
+  /**
+   * Allow to convert images into float images when the result of the Modality LUT is outside the
+   * range of original image type.
+   *
+   * <p>Note: by default, the conversion is not allowed. If the conversion is set to true, <code>
+   * removeSeriesToFloatImages()</code> must be called when the series is disposed.
+   *
+   * @param allowFloatImageConversion true to allow conversion
+   */
+  public static void setAllowFloatImageConversion(boolean allowFloatImageConversion) {
+    DicomImageReader.allowFloatImageConversion = allowFloatImageConversion;
   }
 }

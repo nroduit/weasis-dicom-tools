@@ -45,12 +45,6 @@ public class ImageRendering {
     int datatype = Objects.requireNonNull(img).type();
 
     if (datatype >= CvType.CV_8U && datatype < CvType.CV_32S) {
-      PlanarImage out =
-          DicomImageReader.rangeOutsideLut(img, adapter.getImageDescriptor(), adapter.getMinMax());
-      if (out.type() == CvType.CV_32F) {
-        adapter.setBitsStored(32);
-        return out;
-      }
       LookupTableCV modalityLookup = adapter.getModalityLookup(p, p.isInverseLut());
       return modalityLookup == null ? img.toImageCV() : modalityLookup.lookup(img.toMat());
     }

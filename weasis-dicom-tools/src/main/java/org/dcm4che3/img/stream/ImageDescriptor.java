@@ -49,6 +49,7 @@ public final class ImageDescriptor {
   private final int highBit;
   private final String stationName;
   private final String pixelPresentation;
+  private final String seriesInstanceUID;
 
   private MinMaxLocResult minMaxPixelValue;
 
@@ -82,8 +83,9 @@ public final class ImageDescriptor {
         DicomUtils.getIntegerFromDicomElement(dcm, Tag.PixelPaddingValue, null);
     this.pixelPaddingRangeLimit =
         DicomUtils.getIntegerFromDicomElement(dcm, Tag.PixelPaddingRangeLimit, null);
-    this.modalityLUT = new ModalityLutModule(dcm); // TODO handle PixelValueTransformationSequence
-    this.voiLUT = new VoiLutModule(dcm); // TODO handle PixelValueTransformationSequence
+    this.modalityLUT = new ModalityLutModule(dcm);
+    this.voiLUT = new VoiLutModule(dcm);
+    this.seriesInstanceUID = dcm.getString(Tag.SeriesInstanceUID);
   }
 
   public int getRows() {
@@ -209,6 +211,10 @@ public final class ImageDescriptor {
 
   public List<OverlayData> getOverlayData() {
     return overlayData;
+  }
+
+  public String getSeriesInstanceUID() {
+    return seriesInstanceUID;
   }
 
   public MinMaxLocResult getMinMaxPixelValue() {

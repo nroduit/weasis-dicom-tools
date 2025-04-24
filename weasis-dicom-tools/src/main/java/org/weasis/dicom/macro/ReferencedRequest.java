@@ -98,8 +98,7 @@ public class ReferencedRequest extends Module {
   }
 
   public Code getRequestedProcedureCode() {
-    Attributes item = dcmItems.getNestedDataset(Tag.RequestedProcedureCodeSequence);
-    return item != null ? new Code(item) : null;
+    return Code.getNestedCode(dcmItems,Tag.RequestedProcedureCodeSequence);
   }
 
   public void setRequestedProcedureCode(Code code) {
@@ -115,8 +114,7 @@ public class ReferencedRequest extends Module {
   }
 
   public Code getReasonForRequestedProcedureCode() {
-    Attributes item = dcmItems.getNestedDataset(Tag.ReasonForRequestedProcedureCodeSequence);
-    return item != null ? new Code(item) : null;
+    return Code.getNestedCode(dcmItems,Tag.ReasonForRequestedProcedureCodeSequence);
   }
 
   public void setReasonForRequestedProcedureCode(Code code) {

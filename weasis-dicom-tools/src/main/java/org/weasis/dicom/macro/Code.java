@@ -44,6 +44,11 @@ public class Code extends Module implements ItemCode {
     return list;
   }
 
+  public static Code getNestedCode(Attributes dcmItems, int tag) {
+    Attributes item = dcmItems.getNestedDataset(tag);
+    return item != null ? new Code(item) : null;
+  }
+
   public String getExistingCodeValue() {
     String val = getCodeValue();
     if (!StringUtil.hasText(val)) {

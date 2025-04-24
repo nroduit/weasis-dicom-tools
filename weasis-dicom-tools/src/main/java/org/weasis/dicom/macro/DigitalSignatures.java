@@ -108,8 +108,7 @@ public class DigitalSignatures extends Module {
   }
 
   public Code getDigitalSignaturePurposeCode() {
-    Attributes item = dcmItems.getNestedDataset(Tag.DigitalSignaturePurposeCodeSequence);
-    return item != null ? new Code(item) : null;
+    return Code.getNestedCode(dcmItems, Tag.DigitalSignaturePurposeCodeSequence);
   }
 
   public void setDigitalSignaturePurposeCode(Code code) {

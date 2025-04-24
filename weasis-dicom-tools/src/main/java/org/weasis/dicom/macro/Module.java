@@ -24,10 +24,36 @@ public class Module {
     this.dcmItems = dcmItems;
   }
 
-  public Attributes getAttributes() {
+  /**
+   * Get the attributes. Direct modifications of the returned <tt>Attributes</tt> is strongly
+   * discouraged as it may cause inconsistencies in the internal state of this object.
+   *
+   * @return the attributes
+   */
+  public final Attributes getAttributes() {
     return dcmItems;
   }
 
+  public final void removeAllSequenceItems(int SeqTag) {
+    Sequence seq = dcmItems.getSequence(SeqTag);
+    if (seq != null) {
+      seq.clear();
+    }
+  }
+
+  public final void removeSequenceItem(int SeqTag, int index) {
+    Sequence seq = dcmItems.getSequence(SeqTag);
+    if (seq != null && index < seq.size()) {
+      seq.remove(index);
+    }
+  }
+
+  public final void removeSequenceItem(int SeqTag, Attributes item) {
+    Sequence seq = dcmItems.getSequence(SeqTag);
+    if (seq != null) {
+      seq.remove(item);
+    }
+  }
   protected void updateSequence(int tag, Module module) {
 
     Sequence oldSequence = dcmItems.getSequence(tag);

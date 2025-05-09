@@ -43,7 +43,7 @@ public class SOPInstanceReferenceAndPurpose extends SOPInstanceReference {
   }
 
   public Code getPurposeOfReferenceCode() {
-    return Code.getNestedCode(dcmItems,Tag.PurposeOfReferenceCodeSequence);
+    return Code.getNestedCode(dcmItems, Tag.PurposeOfReferenceCodeSequence);
   }
 
   public void setPurposeOfReferenceCode(Code code) {

@@ -44,18 +44,20 @@ public class DicomImageAdapter {
 
   private final ImageDescriptor desc;
   private final MinMaxLocResult minMax;
+  private final int frameIndex;
 
   private int bitsStored;
   private List<PresetWindowLevel> windowingPresetCollection = null;
 
-  public DicomImageAdapter(PlanarImage image, ImageDescriptor desc) {
+  public DicomImageAdapter(PlanarImage image, ImageDescriptor desc, int frameIndex) {
     int depth = CvType.depth(Objects.requireNonNull(image).type());
     this.desc = Objects.requireNonNull(desc);
     this.bitsStored = depth > CvType.CV_16S ? (int) image.elemSize1() * 8 : desc.getBitsStored();
-    MinMaxLocResult minMax = desc.getMinMaxPixelValue();
+    this.frameIndex = frameIndex;
+    MinMaxLocResult minMax = desc.getMinMaxPixelValue(frameIndex);
     if (minMax == null) {
-      minMax = findMinMaxValues(image);
-      desc.setMinMaxPixelValue(minMax);
+      minMax = findMinMaxValues(image, frameIndex);
+      desc.setMinMaxPixelValue(frameIndex, minMax);
     }
     this.minMax = minMax;
     /*
@@ -67,8 +69,9 @@ public class DicomImageAdapter {
     getModalityLookup(null, false);
   }
 
-  public static MinMaxLocResult getMinMaxValues(PlanarImage image, ImageDescriptor desc) {
-    MinMaxLocResult val = desc.getMinMaxPixelValue();
+  public static MinMaxLocResult getMinMaxValues(
+      PlanarImage image, ImageDescriptor desc, int frameIndex) {
+    MinMaxLocResult val = desc.getMinMaxPixelValue(frameIndex);
     if (val != null) {
       return val;
     }
@@ -85,20 +88,19 @@ public class DicomImageAdapter {
       }
     }
 
-    // This function can be called several times from the inner class Load.
-    // Do not compute min and max it has already be done
+    // When not monochrome and no padding value, use the default min and max values
     if (val == null) {
       val = ImageProcessor.findRawMinMaxValues(image, !monochrome);
     }
     return val;
   }
 
-  private MinMaxLocResult findMinMaxValues(PlanarImage image) {
+  private MinMaxLocResult findMinMaxValues(PlanarImage image, int frameIndex) {
     /*
      * This function can be called several times from the inner class Load. min and max will be computed only once.
      */
 
-    MinMaxLocResult val = getMinMaxValues(image, desc);
+    MinMaxLocResult val = getMinMaxValues(image, desc, frameIndex);
     // Cannot trust SmallestImagePixelValue and LargestImagePixelValue values! So search min and max
     // values
     int bitsAllocated = desc.getBitsAllocated();
@@ -134,7 +136,7 @@ public class DicomImageAdapter {
       val.maxVal = 255.0;
     } else {
       val = ImageProcessor.findMinMaxValues(image.toMat(), paddingValueMin, paddingValueMax);
-      // Handle special case when min and max are equal, ex. black image
+      // Handle a special case when min and max are equal, ex. Black image
       // + 1 to max enables to display the correct value
       if (val != null && val.minVal == val.maxVal) {
         val.maxVal += 1.0;
@@ -157,6 +159,10 @@ public class DicomImageAdapter {
 
   public ImageDescriptor getImageDescriptor() {
     return desc;
+  }
+
+  public int getFrameIndex() {
+    return frameIndex;
   }
 
   public int getMinAllocatedValue(WlPresentation wl) {

@@ -9,6 +9,7 @@
  */
 package org.dcm4che3.img.stream;
 
+import java.util.ArrayList;
 import java.util.List;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
@@ -19,12 +20,15 @@ import org.dcm4che3.img.lut.ModalityLutModule;
 import org.dcm4che3.img.lut.VoiLutModule;
 import org.dcm4che3.img.util.DicomUtils;
 import org.opencv.core.Core.MinMaxLocResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.weasis.dicom.ref.AnatomicRegion;
 
 /**
  * @author Nicolas Roduit
  */
 public final class ImageDescriptor {
+  private static final Logger LOGGER = LoggerFactory.getLogger(ImageDescriptor.class);
 
   private final int rows;
   private final int columns;
@@ -50,8 +54,7 @@ public final class ImageDescriptor {
   private final String stationName;
   private final String pixelPresentation;
   private final String seriesInstanceUID;
-
-  private MinMaxLocResult minMaxPixelValue;
+  private final List<MinMaxLocResult> minMaxPixelValues;
 
   public ImageDescriptor(Attributes dcm) {
     this(dcm, 0);
@@ -65,8 +68,9 @@ public final class ImageDescriptor {
         PhotometricInterpretation.fromString(
             dcm.getString(Tag.PhotometricInterpretation, "MONOCHROME2"));
     this.pixelPresentation = dcm.getString(Tag.PixelPresentation);
-    this.bitsAllocated = dcm.getInt(Tag.BitsAllocated, 8);
-    this.bitsStored = dcm.getInt(Tag.BitsStored, bitsAllocated);
+    this.bitsAllocated = Math.max(dcm.getInt(Tag.BitsAllocated, 8), 1);
+    this.bitsStored =
+        Math.min(Math.max(dcm.getInt(Tag.BitsStored, bitsAllocated), 1), bitsAllocated);
     this.highBit = dcm.getInt(Tag.HighBit, bitsStored - 1);
     this.bitsCompressed = bitsCompressed > 0 ? Math.min(bitsCompressed, bitsAllocated) : bitsStored;
     this.pixelRepresentation = dcm.getInt(Tag.PixelRepresentation, 0);
@@ -74,7 +78,7 @@ public final class ImageDescriptor {
     this.sopClassUID = dcm.getString(Tag.SOPClassUID);
     this.anatomicRegion = AnatomicRegion.read(dcm);
     this.stationName = dcm.getString(Tag.StationName);
-    this.frames = dcm.getInt(Tag.NumberOfFrames, 1);
+    this.frames = Math.max(dcm.getInt(Tag.NumberOfFrames, 1), 1);
     this.embeddedOverlay = EmbeddedOverlay.getEmbeddedOverlay(dcm);
     this.overlayData = OverlayData.getOverlayData(dcm, 0xffff);
     this.presentationLUTShape = dcm.getString(Tag.PresentationLUTShape);
@@ -86,6 +90,7 @@ public final class ImageDescriptor {
     this.modalityLUT = new ModalityLutModule(dcm);
     this.voiLUT = new VoiLutModule(dcm);
     this.seriesInstanceUID = dcm.getString(Tag.SeriesInstanceUID);
+    this.minMaxPixelValues = new ArrayList<>(frames);
   }
 
   public int getRows() {
@@ -217,11 +222,19 @@ public final class ImageDescriptor {
     return seriesInstanceUID;
   }
 
-  public MinMaxLocResult getMinMaxPixelValue() {
-    return minMaxPixelValue;
+  public MinMaxLocResult getMinMaxPixelValue(int frame) {
+    if (frame < 0 || frame >= minMaxPixelValues.size()) {
+      LOGGER.error("Invalid frame index: {}", frame);
+      return null;
+    }
+    return minMaxPixelValues.get(frame);
   }
 
-  public void setMinMaxPixelValue(MinMaxLocResult minMaxPixelValue) {
-    this.minMaxPixelValue = minMaxPixelValue;
+  public void setMinMaxPixelValue(int frame, MinMaxLocResult minMaxPixelValue) {
+    if (frame < 0 || frame >= minMaxPixelValues.size()) {
+      LOGGER.error("Unable to set MinMaxPixelValue for invalid frame index: {}", frame);
+      return;
+    }
+    minMaxPixelValues.set(frame, minMaxPixelValue);
   }
 }

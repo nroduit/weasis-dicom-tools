@@ -107,7 +107,7 @@ public class Transcoder {
         if (rawImg) {
           img =
               ImageRendering.getRawRenderedImage(
-                  img, reader.getImageDescriptor(), params.getReadParam());
+                  img, reader.getImageDescriptor(), params.getReadParam(), i);
         } else {
           img =
               ImageRendering.getDefaultRenderedImage(

@@ -433,12 +433,11 @@ public class DicomImageReader extends ImageReader {
     if (allowFloatImageConversion && StringUtil.hasText(seriesUID)) {
       Boolean isFloatPixelData = series2FloatImages.get(seriesUID);
       if (isFloatPixelData != Boolean.FALSE) {
-        MinMaxLocResult minMax = DicomImageAdapter.getMinMaxValues(out, desc);
         if (isFloatPixelData == null) {
-          out = rangeOutsideLut(out, desc, minMax, false);
+          out = rangeOutsideLut(out, desc, frame, false);
           series2FloatImages.put(seriesUID, CvType.depth(out.type()) == CvType.CV_32F);
         } else {
-          out = rangeOutsideLut(out, desc, minMax, true);
+          out = rangeOutsideLut(out, desc, frame, true);
         }
       }
     }
@@ -450,14 +449,12 @@ public class DicomImageReader extends ImageReader {
   }
 
   static PlanarImage rangeOutsideLut(
-      PlanarImage input, ImageDescriptor desc, MinMaxLocResult minMax, boolean forceFloat) {
+      PlanarImage input, ImageDescriptor desc, int frameIndex, boolean forceFloat) {
     OptionalDouble rescaleSlope = desc.getModalityLUT().getRescaleSlope();
     if (forceFloat || rescaleSlope.isPresent()) {
       double slope = rescaleSlope.orElse(1.0);
       double intercept = desc.getModalityLUT().getRescaleIntercept().orElse(0.0);
-      if (minMax == null) {
-        minMax = DicomImageAdapter.getMinMaxValues(input, desc);
-      }
+      MinMaxLocResult minMax = DicomImageAdapter.getMinMaxValues(input, desc, frameIndex);
       Pair<Double, Double> rescale = getRescaleSlopeAndIntercept(slope, intercept, minMax);
       if (forceFloat || slope < 0.5 || rangeOutsideLut(rescale, desc)) {
         ImageCV dstImg = new ImageCV();

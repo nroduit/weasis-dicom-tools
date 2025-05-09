@@ -60,7 +60,7 @@ class DicomImageAdapterTest {
     ImageDescriptor desc = reader.getImageDescriptor();
     PlanarImage imageSource = reader.getPlanarImage(0, readParam);
     PlanarImage img = ImageRendering.getImageWithoutEmbeddedOverlay(imageSource, desc);
-    DicomImageAdapter adapter = new DicomImageAdapter(img, desc);
+    DicomImageAdapter adapter = new DicomImageAdapter(img, desc, 0);
     assertEquals(0, adapter.getPresetCollectionSize());
     assertEquals(8, adapter.getBitsStored());
     assertEquals(255, adapter.getMinMax().maxVal);
@@ -78,7 +78,7 @@ class DicomImageAdapterTest {
     attributes.setInt(Tag.BitsStored, VR.US, 6);
     attributes.setInt(Tag.PixelPaddingValue, VR.US, 20);
     ImageDescriptor descriptor = new ImageDescriptor(attributes);
-    adapter = new DicomImageAdapter(img, descriptor);
+    adapter = new DicomImageAdapter(img, descriptor, 0);
     assertEquals(8, adapter.getBitsStored());
   }
 
@@ -93,7 +93,7 @@ class DicomImageAdapterTest {
     ImageDescriptor desc = reader.getImageDescriptor();
     PlanarImage imageSource = reader.getPlanarImage(0, readParam);
     PlanarImage img = ImageRendering.getImageWithoutEmbeddedOverlay(imageSource, desc);
-    DicomImageAdapter adapter = new DicomImageAdapter(img, desc);
+    DicomImageAdapter adapter = new DicomImageAdapter(img, desc, 0);
     assertEquals(0, adapter.getPresetCollectionSize());
     assertEquals(8, adapter.getBitsStored());
     assertEquals(48, adapter.getMinMax().maxVal);

@@ -62,7 +62,7 @@ class ImageRenderingTest {
     reader.setInput(new DicomFileInputStream(srcPath));
     ImageDescriptor desc = reader.getImageDescriptor();
     PlanarImage img = reader.getPlanarImage(0, params);
-    img = ImageRendering.getRawRenderedImage(img, desc, params);
+    img = ImageRendering.getRawRenderedImage(img, desc, params, 0);
     double[][] val =
         ImageProcessor.meanStdDev(
             img.toMat(), shape, desc.getPixelPaddingValue(), desc.getPixelPaddingRangeLimit());

@@ -10,6 +10,7 @@
 package org.weasis.dicom.macro;
 
 import java.util.Collection;
+import java.util.Objects;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Sequence;
 
@@ -18,10 +19,7 @@ public class Module {
   protected final Attributes dcmItems;
 
   public Module(Attributes dcmItems) {
-    if (dcmItems == null) {
-      throw new NullPointerException("dcmItems");
-    }
-    this.dcmItems = dcmItems;
+    this.dcmItems = Objects.requireNonNull(dcmItems);
   }
 
   /**
@@ -54,6 +52,7 @@ public class Module {
       seq.remove(item);
     }
   }
+
   protected void updateSequence(int tag, Module module) {
 
     Sequence oldSequence = dcmItems.getSequence(tag);
@@ -63,14 +62,12 @@ public class Module {
         oldSequence.clear(); // Allows removing parents of Attributes
       }
       Attributes attributes = module.getAttributes();
-      if (attributes != null) {
-        Attributes parent = attributes.getParent();
-        if (parent != null) {
-          // Copy attributes and set parent to null
-          attributes = new Attributes(attributes);
-        }
-        dcmItems.newSequence(tag, 1).add(attributes);
+      Attributes parent = attributes.getParent();
+      if (parent != null) {
+        // Copy attributes and set parent to null
+        attributes = new Attributes(attributes);
       }
+      dcmItems.newSequence(tag, 1).add(attributes);
     }
   }
 
@@ -85,14 +82,12 @@ public class Module {
       Sequence newSequence = dcmItems.newSequence(tag, modules.size());
       for (Module module : modules) {
         Attributes attributes = module.getAttributes();
-        if (attributes != null) {
-          Attributes parent = attributes.getParent();
-          if (parent != null) {
-            // Copy attributes and set parent to null
-            attributes = new Attributes(attributes);
-          }
-          newSequence.add(attributes);
+        Attributes parent = attributes.getParent();
+        if (parent != null) {
+          // Copy attributes and set parent to null
+          attributes = new Attributes(attributes);
         }
+        newSequence.add(attributes);
       }
     }
   }

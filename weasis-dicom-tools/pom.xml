@@ -371,13 +371,6 @@
     <dependency>
       <groupId>org.weasis.thirdparty.org.opencv</groupId>
       <artifactId>libopencv_java</artifactId>
-      <type>so</type>
-      <classifier>linux-armv7a</classifier>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.weasis.thirdparty.org.opencv</groupId>
-      <artifactId>libopencv_java</artifactId>
       <type>dylib</type>
       <classifier>macosx-x86-64</classifier>
       <scope>provided</scope>
@@ -394,13 +387,6 @@
       <artifactId>opencv_java</artifactId>
       <type>dll</type>
       <classifier>windows-x86-64</classifier>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.weasis.thirdparty.org.opencv</groupId>
-      <artifactId>opencv_java</artifactId>
-      <type>dll</type>
-      <classifier>windows-x86</classifier>
       <scope>provided</scope>
     </dependency>
 

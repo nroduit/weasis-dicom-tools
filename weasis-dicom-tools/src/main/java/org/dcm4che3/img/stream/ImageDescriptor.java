@@ -91,6 +91,9 @@ public final class ImageDescriptor {
     this.voiLUT = new VoiLutModule(dcm);
     this.seriesInstanceUID = dcm.getString(Tag.SeriesInstanceUID);
     this.minMaxPixelValues = new ArrayList<>(frames);
+    for (int i = 0; i < frames; i++) {
+      this.minMaxPixelValues.add(null);
+    }
   }
 
   public int getRows() {

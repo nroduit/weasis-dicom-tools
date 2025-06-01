@@ -1,5 +1,13 @@
 # Changelog
 
+## [v5.33.1.2](https://github.com/nroduit/weasis-dicom-tools/tree/v5.33.1.2) (2025-05-30)
+
+[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.33.1.1...v5.33.1.2)
+
+**Closed issues:**
+
+- Window/Level issue with multiframe [\#34](https://github.com/nroduit/weasis-dicom-tools/issues/34)
+
 ## [v5.33.1.1](https://github.com/nroduit/weasis-dicom-tools/tree/v5.33.1.1) (2025-04-09)
 
 [Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.33.1...v5.33.1.1)

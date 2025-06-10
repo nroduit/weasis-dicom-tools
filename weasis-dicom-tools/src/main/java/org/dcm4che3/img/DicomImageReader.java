@@ -728,7 +728,7 @@ public class DicomImageReader extends ImageReader {
             length[i] = b.length();
           }
         } else {
-          // Multi-frames where each frames can have multiple fragments.
+          // Multi-frames where each frame can have multiple fragments.
           if (fragmentsPositions.isEmpty()) {
             try (SeekableByteChannel channel =
                 Files.newByteChannel(dis.getPath(), StandardOpenOption.READ)) {

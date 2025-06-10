@@ -42,14 +42,18 @@ public class MPEGHeader {
 
   public MPEGHeader(byte[] data) {
     this.data = data;
-    int remaining = data.length;
     int i = 0;
-    do {
-      while (remaining-- > 0 && data[i++] != 0)
-        ;
-      if (remaining-- > 0 && data[i++] != 0) continue;
-    } while (remaining > 8 && (data[i] != 1 || data[i + 1] != (byte) 0xb3));
-    seqHeaderOffset = remaining > 8 ? i + 1 : -1;
+    while (i < data.length - 8) {
+      if (data[i++] == 0 && data[i++] == 0 && data[i] == 1 && data[i + 1] == (byte) 0xb3) {
+        seqHeaderOffset = i + 1;
+        return;
+      }
+    }
+    seqHeaderOffset = -1;
+  }
+
+  public boolean isValid() {
+    return seqHeaderOffset != -1;
   }
 
   /**

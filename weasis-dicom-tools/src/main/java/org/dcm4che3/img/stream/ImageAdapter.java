@@ -321,7 +321,7 @@ public class ImageAdapter {
                 }
                 return ByteBuffer.wrap(out.toByteArray());
               } else {
-                // Multi-frames where each frames can have multiple fragments.
+                // Multi-frames where each frame can have multiple fragments.
                 if (fragmentsPositions.isEmpty()) {
                   if (UID.RLELossless.equals(syntax.original)) {
                     for (int i = 1; i < nbFragments; i++) {

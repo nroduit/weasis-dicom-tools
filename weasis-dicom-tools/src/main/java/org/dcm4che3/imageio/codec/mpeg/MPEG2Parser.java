@@ -37,16 +37,6 @@ public class MPEG2Parser implements XPEGParser {
   private static final String[][] ASPECT_RATIOS = {
     ASPECT_RATIO_1_1, ASPECT_RATIO_4_3, ASPECT_RATIO_16_9, ASPECT_RATIO_221_100
   };
-  private static int[] FPS = {
-    24, 1001,
-    24, 1000,
-    25, 1000,
-    30, 1001,
-    30, 1000,
-    50, 1000,
-    60, 1001,
-    60, 1000
-  };
 
   private final byte[] data = new byte[BUFFER_SIZE];
   private final ByteBuffer buf = ByteBuffer.wrap(data);
@@ -98,24 +88,13 @@ public class MPEG2Parser implements XPEGParser {
     if (attrs == null) attrs = new Attributes(15);
 
     int frameRate2 = (frameRate - 1) << 1;
-    int fps = FPS[frameRate2];
+    int fps = MPEGHeader.FPS[frameRate2];
     attrs.setInt(Tag.CineRate, VR.IS, fps);
-    attrs.setFloat(Tag.FrameTime, VR.DS, ((float) FPS[frameRate2 + 1]) / fps);
-    attrs.setInt(Tag.SamplesPerPixel, VR.US, 3);
-    attrs.setString(Tag.PhotometricInterpretation, VR.CS, "YBR_PARTIAL_420");
-    attrs.setInt(Tag.PlanarConfiguration, VR.US, 0);
-    attrs.setInt(Tag.FrameIncrementPointer, VR.AT, Tag.FrameTime);
-    attrs.setInt(Tag.NumberOfFrames, VR.IS, (int) (duration * fps * 1000L / FPS[frameRate2 + 1]));
-    attrs.setInt(Tag.Rows, VR.US, rows);
-    attrs.setInt(Tag.Columns, VR.US, columns);
+    attrs.setFloat(Tag.FrameTime, VR.DS, ((float) MPEGHeader.FPS[frameRate2 + 1]) / fps);
     if (aspectRatio > 0 && aspectRatio < 5)
       attrs.setString(Tag.PixelAspectRatio, VR.IS, ASPECT_RATIOS[aspectRatio - 1]);
-    attrs.setInt(Tag.BitsAllocated, VR.US, 8);
-    attrs.setInt(Tag.BitsStored, VR.US, 8);
-    attrs.setInt(Tag.HighBit, VR.US, 7);
-    attrs.setInt(Tag.PixelRepresentation, VR.US, 0);
-    attrs.setString(Tag.LossyImageCompression, VR.CS, "01");
-    return attrs;
+    int numFrames = (int) (duration * fps * 1000L / MPEGHeader.FPS[frameRate2 + 1]);
+    return MPEGHeader.setImageAttributes(attrs, numFrames, rows, columns);
   }
 
   @Override

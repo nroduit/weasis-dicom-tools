@@ -60,6 +60,7 @@ import org.weasis.dicom.param.DicomState;
  * and waits for responses.
  *
  * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Vrinda Nayak <vrinda.nayak@j4care.com>
  */
 public class FindSCU implements AutoCloseable {
   private static final Logger LOGGER = LoggerFactory.getLogger(FindSCU.class);

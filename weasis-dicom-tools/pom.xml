@@ -17,15 +17,14 @@
   <properties>
     <java-version>17</java-version>
     <enforcer.jdk-version>[${java-version},)</enforcer.jdk-version>
-    <enforcer.maven-version>[3.6.3,)</enforcer.maven-version>
+    <enforcer.maven-version>[3.8.1,)</enforcer.maven-version>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
     <slf4j.version>2.0.17</slf4j.version>
-    <junit-bom.version>5.13.0-M3</junit-bom.version>
-    <mockito.version>5.17.0</mockito.version>
-    <mockito-inline.version>5.2.0</mockito-inline.version>
+    <junit-bom.version>5.13.2</junit-bom.version>
+    <mockito.version>5.18.0</mockito.version>
     <junit-pioneer.version>2.3.0</junit-pioneer.version>
 
     <sonar.projectKey>weasis-dicom-tools</sonar.projectKey>
@@ -394,12 +393,6 @@
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-junit-jupiter</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-inline</artifactId>
-      <version>${mockito-inline.version}</version>
       <scope>test</scope>
     </dependency>
 

@@ -43,7 +43,6 @@ import org.dcm4che3.net.Status;
 import org.dcm4che3.net.pdu.AAssociateRQ;
 import org.dcm4che3.net.pdu.PresentationContext;
 import org.dcm4che3.tool.common.CLIUtils;
-import org.dcm4che3.tool.common.DicomFiles;
 import org.dcm4che3.util.SafeClose;
 import org.dcm4che3.util.StringUtils;
 import org.dcm4che3.util.TagUtils;
@@ -178,17 +177,43 @@ public class StoreSCU implements AutoCloseable {
     tmpFile.deleteOnExit();
     try (BufferedWriter fileInfos =
         new BufferedWriter(new OutputStreamWriter(new FileOutputStream(tmpFile)))) {
-      DicomFiles.scan(
-          fnames,
-          printout,
-          (f, fmi, dsPos, ds) -> {
-            if (!addFile(fileInfos, f, dsPos, fmi, ds)) {
-              return false;
-            }
+      for (String fname : fnames) {
+        scan(new File(fname), fileInfos, printout);
+      }
+    }
+  }
 
-            filesScanned++;
-            return true;
-          });
+  private void scan(File f, BufferedWriter fileInfos, boolean printout) {
+    if (f.isDirectory() && f.canRead()) {
+      String[] fileList = f.list();
+      if (fileList != null) {
+        for (String s : fileList) {
+          scan(new File(f, s), fileInfos, printout);
+        }
+      }
+      return;
+    }
+
+    try (DicomInputStream in = new DicomInputStream(f)) {
+      in.setIncludeBulkData(IncludeBulkData.NO);
+      Attributes fmi = in.readFileMetaInformation();
+      long dsPos = in.getPosition();
+      if (fmi == null
+          || !fmi.containsValue(Tag.TransferSyntaxUID)
+          || !fmi.containsValue(Tag.MediaStorageSOPClassUID)
+          || !fmi.containsValue(Tag.MediaStorageSOPInstanceUID)) {
+        Attributes ds = in.readDataset(Tag.SOPInstanceUID + 1);
+        fmi = ds.createFileMetaInformation(in.getTransferSyntax());
+      }
+      boolean b = addFile(fileInfos, f, dsPos, fmi);
+      if (b) filesScanned++;
+      if (printout) {
+        System.out.print(b ? '.' : 'I');
+      }
+    } catch (Exception e) {
+      System.out.println();
+      System.out.println("Failed to scan file " + f + ": " + e.getMessage());
+      LOG.error("Failed to scan file {}", f, e);
     }
   }
 
@@ -226,8 +251,7 @@ public class StoreSCU implements AutoCloseable {
     }
   }
 
-  public boolean addFile(
-      BufferedWriter fileInfos, File f, long endFmi, Attributes fmi, Attributes ds)
+  public boolean addFile(BufferedWriter fileInfos, File f, long endFmi, Attributes fmi)
       throws IOException {
     String cuid = fmi.getString(Tag.MediaStorageSOPClassUID);
     String iuid = fmi.getString(Tag.MediaStorageSOPInstanceUID);

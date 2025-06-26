@@ -110,7 +110,7 @@ public class DicomImageReader extends ImageReader {
     loader.init();
   }
 
-  public static final BulkDataDescriptor BULKDATA_DESCRIPTOR =
+  public static final BulkDataDescriptor BULK_DATA_DESCRIPTOR =
       (itemPointer, privateCreator, tag, vr, length) -> {
         int tagNormalized = TagUtils.normalizeRepeatingGroup(tag);
         if (tagNormalized == Tag.WaveformData) {
@@ -148,8 +148,8 @@ public class DicomImageReader extends ImageReader {
       super.setInput(input, seekForwardOnly, ignoreMetadata);
       this.dis = (DicomFileInputStream) input;
       dis.setIncludeBulkData(IncludeBulkData.URI);
-      dis.setBulkDataDescriptor(BULKDATA_DESCRIPTOR);
-      // avoid a copy of pixeldata into temporary file
+      dis.setBulkDataDescriptor(BULK_DATA_DESCRIPTOR);
+      // Avoid a copy of pixelData into a temporary file
       dis.setURI(dis.getPath().toUri().toString());
     } else if (input instanceof BytesWithImageDescriptor) {
       this.bdis = (BytesWithImageDescriptor) input;

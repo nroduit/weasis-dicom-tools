@@ -20,21 +20,28 @@ import org.weasis.core.util.StringUtil;
 public class SopInstance implements Xml, Comparable<SopInstance> {
 
   private final String sopInstanceUID;
+  private final String sopClassUID;
   private final Integer instanceNumber;
   private String imageComments;
   private String transferSyntaxUID;
   private String directDownloadFile;
   private Object graphicModel;
 
-  /**
-   * Create a new SopInstance. The sopInstanceUID can be the same for multiframes.
-   *
-   * @param sopInstanceUID
-   * @param instanceNumber the DICOM Instance Number (it can be null). The index position for
-   *     multiframes (start by 1).
-   */
   public SopInstance(String sopInstanceUID, Integer instanceNumber) {
+    this(sopInstanceUID, null, instanceNumber);
+  }
+
+  /**
+   * Create a new SopInstance. The sopInstanceUID can be the same for a multi-frame.
+   *
+   * @param sopInstanceUID the DICOM SOP Instance UID (it cannot be null).
+   * @param sopClassUID the DICOM SOP Class UID (it can be null).
+   * @param instanceNumber the DICOM Instance Number (it can be null). The frame position for a
+   *     multi-frame.
+   */
+  public SopInstance(String sopInstanceUID, String sopClassUID, Integer instanceNumber) {
     this.sopInstanceUID = Objects.requireNonNull(sopInstanceUID, "sopInstanceIUID is null");
+    this.sopClassUID = sopClassUID;
     this.instanceNumber = instanceNumber;
   }
 
@@ -49,6 +56,10 @@ public class SopInstance implements Xml, Comparable<SopInstance> {
 
   public String getSopInstanceUID() {
     return sopInstanceUID;
+  }
+
+  public String getSopClassUID() {
+    return sopClassUID;
   }
 
   public Integer getInstanceNumber() {
@@ -110,7 +121,8 @@ public class SopInstance implements Xml, Comparable<SopInstance> {
     result.append(Xml.Level.INSTANCE.getTagName());
     result.append(" ");
     Xml.addXmlAttribute(Tag.SOPInstanceUID, sopInstanceUID, result);
-    // file_tsuid DICOM Transfer Syntax UID (0002,0010)
+    Xml.addXmlAttribute(Tag.SOPClassUID, sopClassUID, result);
+    // File DICOM Transfer Syntax UID (0002,0010)
     Xml.addXmlAttribute(Tag.TransferSyntaxUID, transferSyntaxUID, result);
     Xml.addXmlAttribute(Tag.ImageComments, imageComments, result);
     Xml.addXmlAttribute(Tag.InstanceNumber, getStringInstanceNumber(), result);
@@ -119,27 +131,24 @@ public class SopInstance implements Xml, Comparable<SopInstance> {
   }
 
   @Override
-  public int compareTo(SopInstance s) {
-    Integer val1 = getInstanceNumber();
-    Integer val2 = s.getInstanceNumber();
+  public int compareTo(SopInstance o) {
+    // Step 1: Compare Instance Numbers
+    Integer num1 = getInstanceNumber();
+    Integer num2 = o.getInstanceNumber();
 
-    int c = -1;
-    if (val1 != null && val2 != null) {
-      c = val1.compareTo(val2);
-      if (c != 0) {
-        return c;
+    if (num1 != null && num2 != null) {
+      int cmp = num1.compareTo(num2);
+      if (cmp != 0) {
+        return cmp;
       }
+    } else if (num1 == null && num2 != null) {
+      return 1; // Null instance number is placed after
+    } else if (num1 != null) {
+      return -1; // Non-null instance number is placed before
     }
 
-    if (c == 0 || (val1 == null && val2 == null)) {
-      return compareSopInstanceUID(getSopInstanceUID(), s.getSopInstanceUID());
-    } else {
-      if (val1 == null) {
-        // Add o1 after o2
-        return 1;
-      }
-      return -1;
-    }
+    // Step 2: Compare SOP Instance UIDs
+    return compareSopInstanceUID(getSopInstanceUID(), o.getSopInstanceUID());
   }
 
   private static int compareSopInstanceUID(String s1, String s2) {

@@ -55,9 +55,12 @@ public class CFind {
   public static final DicomParam Modality = new DicomParam(Tag.Modality);
   public static final DicomParam SeriesNumber = new DicomParam(Tag.SeriesNumber);
   public static final DicomParam SeriesDescription = new DicomParam(Tag.SeriesDescription);
+  public static final DicomParam SeriesDate = new DicomParam(Tag.SeriesDate);
+  public static final DicomParam SeriesTime = new DicomParam(Tag.SeriesTime);
 
   public static final DicomParam SOPInstanceUID = new DicomParam(Tag.SOPInstanceUID);
   public static final DicomParam InstanceNumber = new DicomParam(Tag.InstanceNumber);
+  public static final DicomParam SopClassUID = new DicomParam(Tag.SOPClassUID);
 
   private CFind() {}
 

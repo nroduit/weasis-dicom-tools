@@ -13,7 +13,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.Stream;
 import org.dcm4che3.data.Attributes;
@@ -27,6 +26,15 @@ import org.weasis.core.util.annotations.Generated;
 import org.weasis.opencv.data.LookupTableCV;
 
 /**
+ * VOI LUT Module for DICOM Value of Interest transformations.
+ *
+ * <p>This module handles the VOI LUT functionality which defines the transformation of modality
+ * pixel values into pixel values that are meaningful for print and display. It supports both window
+ * center/width values and VOI LUT sequences.
+ *
+ * @see <a
+ *     href="https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.11.2.html#sect_C.11.2">
+ *     C.11.2 VOI LUT Module</a>
  * @author Nicolas Roduit
  */
 public class VoiLutModule {
@@ -40,52 +48,89 @@ public class VoiLutModule {
   private String voiLutFunction;
 
   /**
-   * VOI LUT Module
+   * Creates a new VoiLutModule from DICOM attributes.
    *
-   * @see <a
-   *     href="http://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.12.html">C.11.2
-   *     VOI LUT Module</a>
+   * @param dcm DICOM attributes, must not be null
+   * @throws NullPointerException if dcm is null
    */
   public VoiLutModule(Attributes dcm) {
+    initializeFields();
+    init(Objects.requireNonNull(dcm));
+  }
+
+  /** Initializes all fields to empty collections or null values. */
+  private void initializeFields() {
     this.windowCenter = Collections.emptyList();
     this.windowWidth = Collections.emptyList();
     this.lutExplanation = Collections.emptyList();
     this.lut = Collections.emptyList();
     this.windowCenterWidthExplanation = Collections.emptyList();
     this.voiLutFunction = null;
-    init(Objects.requireNonNull(dcm));
   }
 
+  /** Main initialization method that processes DICOM attributes. */
   private void init(Attributes dcm) {
-    Optional<double[]> wc = Optional.ofNullable(dcm.getDoubles(Tag.WindowCenter));
-    Optional<double[]> ww = Optional.ofNullable(dcm.getDoubles(Tag.WindowWidth));
-    if (wc.isPresent() && ww.isPresent()) {
-      this.windowCenter = DoubleStream.of(wc.get()).boxed().collect(Collectors.toList());
-      this.windowWidth = DoubleStream.of(ww.get()).boxed().collect(Collectors.toList());
-      this.voiLutFunction = dcm.getString(Tag.VOILUTFunction);
-      String[] wexpl =
-          DicomUtils.getStringArrayFromDicomElement(dcm, Tag.WindowCenterWidthExplanation);
-      if (wexpl != null) {
-        this.windowCenterWidthExplanation = Stream.of(wexpl).toList();
-      }
-    }
-
-    Sequence voiSeq = dcm.getSequence(Tag.VOILUTSequence);
-    if (voiSeq != null && !voiSeq.isEmpty()) {
-      this.lutExplanation = voiSeq.stream().map(i -> i.getString(Tag.LUTExplanation, "")).toList();
-      this.lut = voiSeq.stream().map(i -> DicomImageUtils.createLut(i).orElse(null)).toList();
-    }
+    initWindowCenterWidth(dcm);
+    initVoiLutSequence(dcm);
 
     if (LOGGER.isDebugEnabled()) {
       logLutConsistency();
     }
   }
 
+  /** Initializes window center and width values along with related attributes. */
+  private void initWindowCenterWidth(Attributes dcm) {
+    Optional<double[]> wc = Optional.ofNullable(dcm.getDoubles(Tag.WindowCenter));
+    Optional<double[]> ww = Optional.ofNullable(dcm.getDoubles(Tag.WindowWidth));
+    if (wc.isPresent() && ww.isPresent()) {
+      this.windowCenter = convertToDoubleList(wc.get());
+      this.windowWidth = convertToDoubleList(ww.get());
+      this.voiLutFunction = dcm.getString(Tag.VOILUTFunction);
+      initWindowCenterWidthExplanation(dcm);
+    }
+  }
+
+  /** Converts double array to List of Double objects. */
+  private List<Double> convertToDoubleList(double[] values) {
+    return DoubleStream.of(values).boxed().toList();
+  }
+
+  /** Initializes window center width explanation if present. */
+  private void initWindowCenterWidthExplanation(Attributes dcm) {
+    String[] explanations =
+        DicomUtils.getStringArrayFromDicomElement(dcm, Tag.WindowCenterWidthExplanation);
+    if (explanations != null) {
+      this.windowCenterWidthExplanation = Stream.of(explanations).toList();
+    }
+  }
+
+  /** Initializes VOI LUT Sequence if present and valid. */
+  private void initVoiLutSequence(Attributes dcm) {
+    Sequence voiSeq = dcm.getSequence(Tag.VOILUTSequence);
+    if (voiSeq != null && !voiSeq.isEmpty()) {
+      processVoiLutSequence(voiSeq);
+    }
+  }
+
+  /** Processes the VOI LUT Sequence to extract explanations and lookup tables. */
+  private void processVoiLutSequence(Sequence voiSeq) {
+    this.lutExplanation = extractLutExplanations(voiSeq);
+    this.lut = extractLookupTables(voiSeq);
+  }
+
+  /** Extracts LUT explanations from the VOI LUT Sequence. */
+  private List<String> extractLutExplanations(Sequence voiSeq) {
+    return voiSeq.stream().map(item -> item.getString(Tag.LUTExplanation, "")).toList();
+  }
+
+  /** Extracts lookup tables from the VOI LUT Sequence. */
+  private List<LookupTableCV> extractLookupTables(Sequence voiSeq) {
+    return voiSeq.stream().map(DicomImageUtils::createLut).flatMap(Optional::stream).toList();
+  }
+
+  /** Logs consistency warnings and debug information about the VOI LUT configuration. */
   @Generated
   private void logLutConsistency() {
-    // If multiple Window center and window width values are present, both Attributes shall have
-    // the same number of values and shall be considered as pairs. Multiple values indicate that
-    // multiple alternative views may be presented
     if (windowCenter.isEmpty() && !windowWidth.isEmpty()) {
       LOGGER.debug("VOI Window Center is required if Window Width is present");
     } else if (!windowCenter.isEmpty() && windowWidth.isEmpty()) {
@@ -98,26 +143,44 @@ public class VoiLutModule {
     }
   }
 
+  /**
+   * @return The list of window center values
+   */
   public List<Double> getWindowCenter() {
     return windowCenter;
   }
 
+  /**
+   * @return The list of window width values
+   */
   public List<Double> getWindowWidth() {
     return windowWidth;
   }
 
+  /**
+   * @return The list of LUT explanations
+   */
   public List<String> getLutExplanation() {
     return lutExplanation;
   }
 
+  /**
+   * @return The list of lookup tables
+   */
   public List<LookupTableCV> getLut() {
     return lut;
   }
 
+  /**
+   * @return The list of window center width explanations
+   */
   public List<String> getWindowCenterWidthExplanation() {
     return windowCenterWidthExplanation;
   }
 
+  /**
+   * @return The VOI LUT function, or empty if not present
+   */
   public Optional<String> getVoiLutFunction() {
     return Optional.ofNullable(voiLutFunction);
   }

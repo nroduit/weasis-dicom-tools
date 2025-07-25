@@ -15,6 +15,7 @@ import java.util.Objects;
 import java.util.Optional;
 import org.dcm4che3.img.data.EmbeddedOverlay;
 import org.dcm4che3.img.data.OverlayData;
+import org.dcm4che3.img.lut.ModalityLutModule;
 import org.dcm4che3.img.lut.WindLevelParameters;
 import org.dcm4che3.img.stream.ImageDescriptor;
 import org.opencv.core.CvType;
@@ -26,6 +27,21 @@ import org.weasis.opencv.op.ImageTransformer;
 import org.weasis.opencv.op.lut.PresentationStateLut;
 
 /**
+ * Utility class for DICOM image rendering and transformation operations.
+ *
+ * <p>This class provides static methods for applying various DICOM-specific transformations
+ * including modality LUT, VOI (Value of Interest) LUT, and overlay processing. It handles the
+ * complex pixel value transformations required for proper DICOM image display.
+ *
+ * <p>Key features:
+ *
+ * <ul>
+ *   <li>Modality LUT application for raw pixel value transformation
+ *   <li>VOI LUT processing for windowing and leveling
+ *   <li>Embedded overlay extraction and processing
+ *   <li>Support for various pixel data types and color spaces
+ * </ul>
+ *
  * @author Nicolas Roduit
  */
 public class ImageRendering {
@@ -35,11 +51,13 @@ public class ImageRendering {
   /**
    * Returns the raw rendered image with modality LUT applied and without embedded overlays.
    *
-   * @param imageSource the source image
-   * @param desc the image descriptor containing modality LUT and overlay information
-   * @param params the DicomImageReadParam containing window/level parameters
+   * @param imageSource the source image (must not be null)
+   * @param desc the image descriptor containing modality LUT and overlay information (must not be
+   *     null)
+   * @param params the DicomImageReadParam containing window/level parameters (must not be null)
    * @param frameIndex the index of the frame to process (0 for single-frame images)
    * @return the raw rendered image with modality LUT applied
+   * @throws NullPointerException if any parameter is null
    */
   public static PlanarImage getRawRenderedImage(
       final PlanarImage imageSource,
@@ -52,33 +70,35 @@ public class ImageRendering {
   }
 
   /**
-   * Returns the raw rendered image with modality LUT applied.
+   * Returns the image with modality LUT applied based on the provided adapter and parameters.
    *
-   * @param img the source image
-   * @param adapter the DicomImageAdapter containing modality LUT information
+   * @param img the source image (must not be null)
+   * @param adapter the DicomImageAdapter containing modality LUT information (must not be null)
    * @param params the DicomImageReadParam containing window/level parameters
-   * @return the raw rendered image with modality LUT applied
+   * @return the image with modality LUT applied, or the original image if no transformation is
+   *     needed
+   * @throws NullPointerException if any parameter is null
    */
   public static PlanarImage getModalityLutImage(
       PlanarImage img, DicomImageAdapter adapter, DicomImageReadParam params) {
     WindLevelParameters p = new WindLevelParameters(adapter, params);
     int datatype = Objects.requireNonNull(img).type();
 
-    if (datatype >= CvType.CV_8U && datatype < CvType.CV_32S) {
-      LookupTableCV modalityLookup = adapter.getModalityLookup(p, p.isInverseLut());
-      return modalityLookup == null ? img.toImageCV() : modalityLookup.lookup(img.toMat());
+    if (isIntegerDataType(datatype)) {
+      return applyModalityLutToIntegerData(img, adapter, p);
     }
     return img;
   }
 
   /**
-   * Returns the default rendered image with VOI LUT and without embedded overlays.
+   * Returns the default rendered image with VOI LUT and overlays applied.
    *
-   * @param imageSource the source image
-   * @param desc the image descriptor containing VOI LUT and overlay information
-   * @param params the DicomImageReadParam containing window/level parameters
+   * @param imageSource the source image (must not be null)
+   * @param desc the image descriptor containing VOI LUT and overlay information (must not be null)
+   * @param params the DicomImageReadParam containing window/level parameters (must not be null)
    * @param frameIndex the index of the frame to process (0 for single-frame images)
-   * @return the default rendered image with VOI LUT and overlays applied
+   * @return the fully rendered image with VOI LUT and overlays applied
+   * @throws NullPointerException if any parameter is null
    */
   public static PlanarImage getDefaultRenderedImage(
       final PlanarImage imageSource,
@@ -91,13 +111,14 @@ public class ImageRendering {
   }
 
   /**
-   * Returns an image with the VOI LUT applied.
+   * Applies VOI LUT transformation to the specified image.
    *
-   * @param imageSource the source image
-   * @param desc the image descriptor containing VOI LUT information
-   * @param params the DicomImageReadParam containing window/level parameters
+   * @param imageSource the source image (must not be null)
+   * @param desc the image descriptor containing VOI LUT information (must not be null)
+   * @param params the DicomImageReadParam containing window/level parameters (must not be null)
    * @param frameIndex the index of the frame to process (0 for single-frame images)
    * @return the image with VOI LUT applied
+   * @throws NullPointerException if any parameter is null
    */
   public static PlanarImage getVoiLutImage(
       final PlanarImage imageSource,
@@ -109,51 +130,112 @@ public class ImageRendering {
   }
 
   /**
-   * Returns an image with the VOI LUT applied.
+   * Applies VOI LUT transformation using the provided adapter.
    *
-   * @param imageSource the source image
-   * @param adapter the DicomImageAdapter containing VOI LUT information
-   * @param params the DicomImageReadParam containing window/level parameters
-   * @return the image with VOI LUT applied
+   * @param imageSource the source image (must not be null)
+   * @param adapter the DicomImageAdapter containing VOI LUT information (must not be null)
+   * @param params the DicomImageReadParam containing window/level parameters (must not be null)
+   * @return the image with VOI LUT applied, or null if the data type is not supported
+   * @throws NullPointerException if any parameter is null
    */
   public static PlanarImage getVoiLutImage(
       PlanarImage imageSource, DicomImageAdapter adapter, DicomImageReadParam params) {
     WindLevelParameters p = new WindLevelParameters(adapter, params);
     int datatype = Objects.requireNonNull(imageSource).type();
 
-    if (datatype >= CvType.CV_8U && datatype < CvType.CV_32S) {
-      return getImageForByteOrShortData(imageSource, adapter, p);
-    } else if (datatype >= CvType.CV_32S) {
-      return getImageWithFloatOrIntData(imageSource, p, datatype);
+    if (isIntegerDataType(datatype)) {
+      return processIntegerDataForVoi(imageSource, adapter, p);
+    } else if (isFloatingPointDataType(datatype)) {
+      return processFloatingPointDataForVoi(imageSource, p, datatype);
     }
     return null;
   }
 
-  private static ImageCV getImageForByteOrShortData(
+  /**
+   * Removes embedded overlays from the image by masking overlay bits.
+   *
+   * <p>For overlays encoded in Overlay Data Element (60xx,3000), Overlay Bits Allocated (60xx,0100)
+   * is always 1 and Overlay Bit Position (60xx,0102) is always 0.
+   *
+   * @param img the source image (must not be null)
+   * @param desc the image descriptor containing overlay information (must not be null)
+   * @param frameIndex the index of the frame to process (0 for single-frame images)
+   * @return the image without embedded overlays
+   * @throws NullPointerException if any parameter is null
+   * @see <a href="http://dicom.nema.org/medical/dicom/current/output/chtml/part05/chapter_8.html">
+   *     8.1.2 Overlay data encoding of related data elements</a>
+   */
+  public static PlanarImage getImageWithoutEmbeddedOverlay(
+      PlanarImage img, ImageDescriptor desc, int frameIndex) {
+    Objects.requireNonNull(img);
+    List<EmbeddedOverlay> embeddedOverlays = Objects.requireNonNull(desc).getEmbeddedOverlay();
+
+    if (embeddedOverlays.isEmpty()) {
+      return img;
+    }
+
+    int bitsStored = desc.getBitsStored();
+    int bitsAllocated = desc.getBitsAllocated();
+
+    if (shouldApplyOverlayMask(bitsStored, bitsAllocated)) {
+      int overlayMask = calculateOverlayMask(desc, frameIndex, bitsStored);
+      return ImageTransformer.bitwiseAnd(img.toMat(), overlayMask);
+    }
+
+    return img;
+  }
+
+  // ======= Private helper methods =======
+
+  private static boolean isIntegerDataType(int datatype) {
+    return datatype >= CvType.CV_8U && datatype < CvType.CV_32S;
+  }
+
+  private static boolean isFloatingPointDataType(int datatype) {
+    return datatype >= CvType.CV_32S;
+  }
+
+  private static ImageCV applyModalityLutToIntegerData(
+      PlanarImage img, DicomImageAdapter adapter, WindLevelParameters p) {
+    LookupTableCV modalityLookup = adapter.getModalityLookup(p, p.isInverseLut());
+    return modalityLookup == null ? img.toImageCV() : modalityLookup.lookup(img.toMat());
+  }
+
+  private static ImageCV processIntegerDataForVoi(
       PlanarImage imageSource, DicomImageAdapter adapter, WindLevelParameters p) {
     ImageDescriptor desc = adapter.getImageDescriptor();
     LookupTableCV modalityLookup = adapter.getModalityLookup(p, p.isInverseLut());
-    ImageCV imageModalityTransformed =
-        modalityLookup == null
-            ? imageSource.toImageCV()
-            : modalityLookup.lookup(imageSource.toMat());
+    ImageCV imageModalityTransformed = applyModalityTransformation(imageSource, modalityLookup);
 
+    if (shouldSkipVoiLutForColorImage(p, desc)) {
+      return imageModalityTransformed;
+    }
+
+    return applyVoiAndPresentationLuts(imageModalityTransformed, adapter, p);
+  }
+
+  private static ImageCV applyModalityTransformation(
+      PlanarImage imageSource, LookupTableCV modalityLookup) {
+    return modalityLookup == null
+        ? imageSource.toImageCV()
+        : modalityLookup.lookup(imageSource.toMat());
+  }
+
+  private static boolean shouldSkipVoiLutForColorImage(
+      WindLevelParameters p, ImageDescriptor desc) {
     /*
      * C.11.2.1.2 Window center and window width
      *
      * These Attributes shall be used only for Images with Photometric Interpretation (0028,0004) values of
      * MONOCHROME1 and MONOCHROME2. They have no meaning for other Images.
      */
-    if ((!p.isAllowWinLevelOnColorImage()
+    return (!p.isAllowWinLevelOnColorImage()
             || MathUtil.isEqual(p.getWindow(), 255.0) && MathUtil.isEqual(p.getLevel(), 127.5))
-        && !desc.getPhotometricInterpretation().isMonochrome()) {
-      /*
-       * If photometric interpretation is not monochrome, do not apply VOI LUT. It is necessary for
-       * PALETTE_COLOR.
-       */
-      return imageModalityTransformed;
-    }
+        && !desc.getPhotometricInterpretation().isMonochrome();
+  }
 
+  private static ImageCV applyVoiAndPresentationLuts(
+      ImageCV imageModalityTransformed, DicomImageAdapter adapter, WindLevelParameters p) {
     PresentationStateLut prDcm = p.getPresentationState();
     Optional<LookupTableCV> prLut = prDcm == null ? Optional.empty() : prDcm.getPrLut();
     LookupTableCV voiLookup = null;
@@ -169,59 +251,45 @@ public class ImageRendering {
     return prLut.get().lookup(imageVoiTransformed);
   }
 
-  private static ImageCV getImageWithFloatOrIntData(
+  private static ImageCV processFloatingPointDataForVoi(
       PlanarImage imageSource, WindLevelParameters p, int datatype) {
     double low = p.getLevel() - p.getWindow() / 2.0;
     double high = p.getLevel() + p.getWindow() / 2.0;
-    double range = high - low;
-    if (range < 1.0 && datatype == DataBuffer.TYPE_INT) {
-      range = 1.0;
-    }
+    double range = calculateRange(high, low, datatype);
     double slope = 255.0 / range;
     double yint = 255.0 - slope * high;
 
     return ImageTransformer.rescaleToByte(ImageCV.toMat(imageSource), slope, yint);
   }
 
-  /**
-   * Returns an image without embedded overlays. If the image has embedded overlays, it will clear
-   * the bits outside the range defined by bitsStored and highBit.
-   *
-   * <p>For overlays encoded in Overlay Data Element (60xx,3000), Overlay Bits Allocated (60xx,0100)
-   * is always 1 and Overlay Bit Position (60xx,0102) is always 0.
-   *
-   * @param img the source image
-   * @param desc the image descriptor containing overlay information
-   * @param frameIndex the index of the frame to process (0 for single-frame images)
-   * @return the image without embedded overlays
-   * @see <a
-   *     href="http://dicom.nema.org/medical/dicom/current/output/chtml/part05/chapter_8.html">8.1.2
-   *     Overlay data encoding of related data elements</a>
-   */
-  public static PlanarImage getImageWithoutEmbeddedOverlay(
-      PlanarImage img, ImageDescriptor desc, int frameIndex) {
-    Objects.requireNonNull(img);
-    List<EmbeddedOverlay> embeddedOverlays = Objects.requireNonNull(desc).getEmbeddedOverlay();
-    if (!embeddedOverlays.isEmpty()) {
-      int bitsStored = desc.getBitsStored();
-      int bitsAllocated = desc.getBitsAllocated();
-      if (bitsStored < desc.getBitsAllocated() && bitsAllocated >= 8 && bitsAllocated <= 16) {
-        int highBit = desc.getHighBit();
-        int high = highBit + 1;
-        int val = (1 << high) - 1;
-        if (high > bitsStored) {
-          val -= (1 << (high - bitsStored)) - 1;
-        }
-        // Set to 0 all bits upper than highBit and if lower than high-bitsStored (=> all bits
-        // outside bitStored)
-        if (high > bitsStored) {
-          desc.getModalityLutForFrame(frameIndex).adaptWithOverlayBitMask(high - bitsStored);
-        }
-
-        // Set to 0 all bits outside bitStored
-        return ImageTransformer.bitwiseAnd(img.toMat(), val);
-      }
+  private static double calculateRange(double high, double low, int datatype) {
+    double range = high - low;
+    if (range < 1.0 && datatype == DataBuffer.TYPE_INT) {
+      range = 1.0;
     }
-    return img;
+    return range;
+  }
+
+  private static boolean shouldApplyOverlayMask(int bitsStored, int bitsAllocated) {
+    return bitsStored < bitsAllocated && bitsAllocated >= 8 && bitsAllocated <= 16;
+  }
+
+  private static int calculateOverlayMask(ImageDescriptor desc, int frameIndex, int bitsStored) {
+    int highBit = desc.getHighBit();
+    int high = highBit + 1;
+    int val = (1 << high) - 1;
+    if (high > bitsStored) {
+      val -= (1 << (high - bitsStored)) - 1;
+      adaptModalityLutForOverlay(desc, frameIndex, high - bitsStored);
+    }
+    return val;
+  }
+
+  private static void adaptModalityLutForOverlay(
+      ImageDescriptor desc, int frameIndex, int overlayBits) {
+    ModalityLutModule modLut = desc.getModalityLutForFrame(frameIndex);
+    if (modLut != null && !modLut.isOverlayBitMaskApplied()) {
+      modLut.adaptWithOverlayBitMask(overlayBits);
+    }
   }
 }

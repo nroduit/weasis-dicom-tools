@@ -9,6 +9,9 @@
  */
 package org.dcm4che3.img.data;
 
+import static org.dcm4che3.img.data.OverlayData.GROUP_OFFSET_SHIFT;
+import static org.dcm4che3.img.data.OverlayData.MAX_OVERLAY_GROUPS;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -28,30 +31,70 @@ public record EmbeddedOverlay(int groupOffset, int bitPosition) {
   private static final Logger LOGGER = LoggerFactory.getLogger(EmbeddedOverlay.class);
 
   /**
-   * Returns a list of EmbeddedOverlay objects extracted from the given DICOM attributes.
+   * Extracts embedded overlay information from DICOM attributes.
    *
    * @param dcm the DICOM attributes containing the embedded overlays
-   * @return a list of EmbeddedOverlay objects
+   * @return a list of EmbeddedOverlay objects, or empty list if none found
    */
   public static List<EmbeddedOverlay> getEmbeddedOverlay(Attributes dcm) {
-    List<EmbeddedOverlay> data = new ArrayList<>();
+    if (dcm == null) {
+      return Collections.emptyList();
+    }
+
+    List<EmbeddedOverlay> overlays = new ArrayList<>();
+    DicomBitConfiguration bitConfig = extractBitConfiguration(dcm);
+
+    for (int groupIndex = 0; groupIndex < MAX_OVERLAY_GROUPS; groupIndex++) {
+      processOverlayGroup(dcm, groupIndex, bitConfig, overlays);
+    }
+
+    return overlays.isEmpty() ? Collections.emptyList() : overlays;
+  }
+
+  /** Extracts bit allocation and storage configuration from DICOM attributes. */
+  private static DicomBitConfiguration extractBitConfiguration(Attributes dcm) {
     int bitsAllocated = dcm.getInt(Tag.BitsAllocated, 8);
     int bitsStored = dcm.getInt(Tag.BitsStored, bitsAllocated);
-    for (int i = 0; i < 16; i++) {
-      int gg0000 = i << 17;
-      if (dcm.getInt(Tag.OverlayBitsAllocated | gg0000, 1) != 1) {
-        int bitPosition = dcm.getInt(Tag.OverlayBitPosition | gg0000, 0);
-        if (bitPosition < bitsStored) {
-          LOGGER.info(
-              "Ignore embedded overlay #{} from bit #{} < bits stored: {}",
-              (gg0000 >>> 17) + 1,
-              bitPosition,
-              bitsStored);
-        } else {
-          data.add(new EmbeddedOverlay(gg0000, bitPosition));
-        }
+    return new DicomBitConfiguration(bitsAllocated, bitsStored);
+  }
+
+  /** Processes a single overlay group and adds valid embedded overlays to the list. */
+  private static void processOverlayGroup(
+      Attributes dcm,
+      int groupIndex,
+      DicomBitConfiguration bitConfig,
+      List<EmbeddedOverlay> overlays) {
+
+    int groupOffset = groupIndex << GROUP_OFFSET_SHIFT;
+
+    if (isEmbeddedOverlay(dcm, groupOffset)) {
+      int bitPosition = dcm.getInt(Tag.OverlayBitPosition | groupOffset, 0);
+
+      if (isValidBitPosition(bitPosition, bitConfig.bitsStored(), groupIndex)) {
+        overlays.add(new EmbeddedOverlay(groupOffset, bitPosition));
       }
     }
-    return data.isEmpty() ? Collections.emptyList() : data;
   }
+
+  /** An overlay is embedded if OverlayBitsAllocated is not 1 (standard overlays have value 1). */
+  private static boolean isEmbeddedOverlay(Attributes dcm, int groupOffset) {
+    int overlayBitsAllocated = dcm.getInt(Tag.OverlayBitsAllocated | groupOffset, 1);
+    return overlayBitsAllocated != 1;
+  }
+
+  /** Bit position must be >= bitsStored to avoid conflicts with actual image data. */
+  private static boolean isValidBitPosition(int bitPosition, int bitsStored, int groupIndex) {
+    if (bitPosition < bitsStored) {
+      LOGGER.info(
+          "Ignore embedded overlay #{} from bit #{} < bits stored: {}",
+          groupIndex + 1,
+          bitPosition,
+          bitsStored);
+      return false;
+    }
+    return true;
+  }
+
+  /** Internal record to hold DICOM bit configuration. */
+  private record DicomBitConfiguration(int bitsAllocated, int bitsStored) {}
 }

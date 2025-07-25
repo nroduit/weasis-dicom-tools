@@ -17,59 +17,86 @@ import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * A {@link SeekableByteChannel} implementation that wraps a byte[].
+ * A {@link SeekableByteChannel} implementation backed by an in-memory byte array.
  *
- * <p>When this channel is used for writing an internal buffer grows to accommodate incoming data.
- * The natural size limit is the value of {@link Integer#MAX_VALUE} and it is not possible to {@link
- * #position(long) set the position} or {@link #truncate truncate} to a value bigger than that.
- * Internal buffer can be accessed via SeekableInMemoryByteChannel.array().
+ * <p>This implementation provides a seekable byte channel that stores all data in memory. When used
+ * for writing, the internal buffer automatically grows to accommodate incoming data. The maximum
+ * supported size is {@link Integer#MAX_VALUE} bytes.
  *
- * @since 1.13 @NotThreadSafe
+ * <p><strong>Thread Safety:</strong> This class is not thread-safe and should not be used
+ * concurrently from multiple threads without external synchronization.
+ *
+ * <p><strong>Contract Violations:</strong> This implementation intentionally violates some {@link
+ * SeekableByteChannel} contracts for performance reasons:
+ *
+ * <ul>
+ *   <li>{@link #position()} and {@link #size()} do not throw exceptions on closed channels
+ *   <li>{@link #truncate(long)} does not throw exceptions on closed channels
+ * </ul>
  */
 public class SeekableInMemoryByteChannel implements SeekableByteChannel {
 
-  private static final int NAIVE_RESIZE_LIMIT = Integer.MAX_VALUE >> 1;
+  /** Threshold for switching from exponential to linear growth strategy */
+  private static final int EXPONENTIAL_GROWTH_LIMIT = Integer.MAX_VALUE >> 1;
+
+  /** Initial buffer size for empty constructor */
+  private static final int INITIAL_CAPACITY = 32;
 
   private byte[] data;
-  private final AtomicBoolean closed = new AtomicBoolean();
-  private int position, size;
+  private final AtomicBoolean closed = new AtomicBoolean(false);
+  private int position;
+  private int size;
 
   /**
-   * Constructor taking a byte array.
+   * Creates a channel backed by the provided byte array.
    *
-   * <p>This constructor is intended to be used with pre-allocated buffer or when reading from a
-   * given byte array.
+   * <p>The initial size and capacity are set to the array length. The array is used directly (not
+   * copied) and may be modified by write operations.
    *
-   * @param data input data or pre-allocated array.
+   * @param data the backing byte array, must not be null
+   * @throws IllegalArgumentException if data is null
    */
   public SeekableInMemoryByteChannel(byte[] data) {
+    if (data == null) {
+      throw new IllegalArgumentException("Data array cannot be null");
+    }
     this.data = data;
-    size = data.length;
+    this.size = data.length;
+    this.position = 0;
   }
 
-  /** Parameterless constructor - allocates internal buffer by itself. */
+  /** Creates an empty channel with default initial capacity. */
   public SeekableInMemoryByteChannel() {
-    this(new byte[0]);
+    this(INITIAL_CAPACITY);
   }
 
   /**
-   * Constructor taking a size of storage to be allocated.
+   * Creates a channel with the specified initial capacity.
    *
-   * <p>Creates a channel and allocates internal storage of a given size.
-   *
-   * @param size size of internal buffer to allocate, in bytes.
+   * @param initialCapacity the initial buffer capacity in bytes
+   * @throws IllegalArgumentException if initialCapacity is negative
    */
-  public SeekableInMemoryByteChannel(int size) {
-    this(new byte[size]);
+  public SeekableInMemoryByteChannel(int initialCapacity) {
+    if (initialCapacity < 0) {
+      throw new IllegalArgumentException("Initial capacity cannot be negative: " + initialCapacity);
+    }
+    this.data = new byte[initialCapacity];
+    this.size = 0;
+    this.position = 0;
   }
 
   /**
-   * Returns this channel's position.
+   * Returns the backing byte array.
    *
-   * <p>This method violates the contract of {@link SeekableByteChannel#position()} as it will not
-   * throw any exception when invoked on a closed channel. Instead it will return the position the
-   * channel had when close has been called.
+   * <p><strong>Warning:</strong> Direct modification of the returned array may lead to inconsistent
+   * channel state.
+   *
+   * @return the internal byte array
    */
+  public byte[] array() {
+    return data;
+  }
+
   @Override
   public long position() {
     return position;
@@ -78,64 +105,62 @@ public class SeekableInMemoryByteChannel implements SeekableByteChannel {
   @Override
   public SeekableByteChannel position(long newPosition) throws IOException {
     ensureOpen();
-    if (newPosition < 0L || newPosition > Integer.MAX_VALUE) {
-      throw new IllegalArgumentException("Position has to be in range 0.. " + Integer.MAX_VALUE);
-    }
-    position = (int) newPosition;
+    validatePosition(newPosition);
+    this.position = (int) newPosition;
     return this;
   }
 
-  /**
-   * Returns the current size of entity to which this channel is connected.
-   *
-   * <p>This method violates the contract of {@link SeekableByteChannel#size} as it will not throw
-   * any exception when invoked on a closed channel. Instead it will return the size the channel had
-   * when close has been called.
-   */
   @Override
   public long size() {
     return size;
   }
 
-  /**
-   * Truncates the entity, to which this channel is connected, to the given size.
-   *
-   * <p>This method violates the contract of {@link SeekableByteChannel#truncate} as it will not
-   * throw any exception when invoked on a closed channel.
-   */
   @Override
   public SeekableByteChannel truncate(long newSize) {
-    if (newSize < 0L || newSize > Integer.MAX_VALUE) {
-      throw new IllegalArgumentException("Size has to be in range 0.. " + Integer.MAX_VALUE);
+    validateSize(newSize);
+
+    int truncatedSize = (int) newSize;
+    if (size > truncatedSize) {
+      size = truncatedSize;
     }
-    if (size > newSize) {
-      size = (int) newSize;
-    }
-    if (position > newSize) {
-      position = (int) newSize;
+    if (position > truncatedSize) {
+      position = truncatedSize;
     }
     return this;
   }
 
   @Override
-  public int read(ByteBuffer buf) throws IOException {
+  public int read(ByteBuffer buffer) throws IOException {
     ensureOpen();
-    int wanted = buf.remaining();
-    int possible = size - position;
-    if (possible <= 0) {
-      return -1;
+    int bytesToRead = Math.min(buffer.remaining(), size - position);
+    if (bytesToRead <= 0) {
+      return -1; // EOF
     }
-    if (wanted > possible) {
-      wanted = possible;
-    }
-    buf.put(data, position, wanted);
-    position += wanted;
-    return wanted;
+    buffer.put(data, position, bytesToRead);
+    position += bytesToRead;
+    return bytesToRead;
   }
 
   @Override
-  public void close() {
-    closed.set(true);
+  public int write(ByteBuffer buffer) throws IOException {
+    ensureOpen();
+
+    int bytesToWrite = buffer.remaining();
+    int requiredCapacity = position + bytesToWrite;
+
+    // Handle potential overflow
+    if (requiredCapacity < 0) {
+      bytesToWrite = Integer.MAX_VALUE - position;
+      requiredCapacity = Integer.MAX_VALUE;
+    }
+
+    ensureCapacity(requiredCapacity);
+
+    buffer.get(data, position, bytesToWrite);
+    position += bytesToWrite;
+    size = Math.max(size, position);
+
+    return bytesToWrite;
   }
 
   @Override
@@ -144,45 +169,57 @@ public class SeekableInMemoryByteChannel implements SeekableByteChannel {
   }
 
   @Override
-  public int write(ByteBuffer b) throws IOException {
-    ensureOpen();
-    int wanted = b.remaining();
-    int possibleWithoutResize = size - position;
-    if (wanted > possibleWithoutResize) {
-      int newSize = position + wanted;
-      if (newSize < 0) { // overflow
-        resize(Integer.MAX_VALUE);
-        wanted = Integer.MAX_VALUE - position;
-      } else {
-        resize(newSize);
-      }
-    }
-    b.get(data, position, wanted);
-    position += wanted;
-    if (size < position) {
-      size = position;
-    }
-    return wanted;
+  public void close() {
+    closed.set(true);
   }
 
-  private void resize(int newLength) {
-    int len = data.length;
-    if (len <= 0) {
-      len = 1;
+  /** Validates that the position is within acceptable bounds */
+  private void validatePosition(long position) {
+    if (position < 0L || position > Integer.MAX_VALUE) {
+      throw new IllegalArgumentException(
+          String.format("Position must be in range [0, %d], got: %d", Integer.MAX_VALUE, position));
     }
-    if (newLength < NAIVE_RESIZE_LIMIT) {
-      while (len < newLength) {
-        len <<= 1;
-      }
-    } else { // avoid overflow
-      len = newLength;
-    }
-    data = Arrays.copyOf(data, len);
   }
 
+  /** Validates that the size is within acceptable bounds */
+  private void validateSize(long size) {
+    if (size < 0L || size > Integer.MAX_VALUE) {
+      throw new IllegalArgumentException(
+          String.format("Size must be in range [0, %d], got: %d", Integer.MAX_VALUE, size));
+    }
+  }
+
+  /** Ensures the channel is open, throwing ClosedChannelException if not */
   private void ensureOpen() throws ClosedChannelException {
     if (!isOpen()) {
       throw new ClosedChannelException();
     }
+  }
+
+  /** Ensures the internal buffer has at least the specified capacity */
+  private void ensureCapacity(int requiredCapacity) {
+    if (requiredCapacity <= data.length) {
+      return;
+    }
+
+    int newCapacity = calculateNewCapacity(data.length, requiredCapacity);
+    data = Arrays.copyOf(data, newCapacity);
+  }
+
+  /** Calculates optimal new capacity using exponential growth up to a limit, then linear */
+  private int calculateNewCapacity(int currentCapacity, int requiredCapacity) {
+    int newCapacity = Math.max(currentCapacity, 1);
+
+    if (requiredCapacity < EXPONENTIAL_GROWTH_LIMIT) {
+      // Use exponential growth for smaller sizes
+      while (newCapacity < requiredCapacity) {
+        newCapacity <<= 1;
+      }
+    } else {
+      // Use exact size for large allocations to avoid waste
+      newCapacity = requiredCapacity;
+    }
+
+    return newCapacity;
   }
 }

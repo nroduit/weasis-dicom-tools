@@ -46,6 +46,8 @@ import org.dcm4che3.img.stream.ExtendSegmentedInputImageStream;
 import org.dcm4che3.img.stream.ImageDescriptor;
 import org.dcm4che3.img.stream.SeekableInMemoryByteChannel;
 import org.dcm4che3.img.util.Editable;
+import org.dcm4che3.img.util.PaletteColorUtils;
+import org.dcm4che3.img.util.PixelDataUtils;
 import org.dcm4che3.img.util.SupplierEx;
 import org.dcm4che3.io.BulkDataDescriptor;
 import org.dcm4che3.io.DicomInputStream.IncludeBulkData;
@@ -64,15 +66,26 @@ import org.weasis.core.util.Pair;
 import org.weasis.core.util.StreamUtil;
 import org.weasis.core.util.StringUtil;
 import org.weasis.opencv.data.ImageCV;
+import org.weasis.opencv.data.LookupTableCV;
 import org.weasis.opencv.data.PlanarImage;
 import org.weasis.opencv.op.ImageConversion;
 import org.weasis.opencv.op.ImageTransformer;
 
 /**
- * Reads image data from a DICOM object.
+ * DICOM image reader supporting compressed and uncompressed pixel data using OpenCV.
  *
- * <p>Supports all the DICOM objects containing pixel data. Use the OpenCV native library to read
- * compressed and uncompressed pixel data.
+ * <p>This reader handles all DICOM objects containing pixel data, including:
+ *
+ * <ul>
+ *   <li>Multi-frame images with fragment-based compression
+ *   <li>Various photometric interpretations (RGB, YBR, Monochrome, etc.)
+ *   <li>Different bit depths and pixel representations
+ *   <li>Palette color lookup tables
+ *   <li>Modality and VOI LUT transformations
+ * </ul>
+ *
+ * <p>The reader uses OpenCV's native library for efficient image processing and supports both
+ * file-based and memory-based DICOM input streams.
  *
  * @author Nicolas Roduit
  * @since Jan 2020
@@ -81,7 +94,8 @@ public class DicomImageReader extends ImageReader {
 
   private static final Logger LOG = LoggerFactory.getLogger(DicomImageReader.class);
 
-  public static Set<Integer> BULK_TAGS =
+  /** DICOM tags that should be treated as bulk data (not loaded into memory) */
+  public static final Set<Integer> BULK_TAGS =
       Set.of(
           Tag.PixelDataProviderURL,
           Tag.AudioSampleData,
@@ -104,23 +118,19 @@ public class DicomImageReader extends ImageReader {
           Tag.DoubleFloatPixelData,
           Tag.PixelData);
 
-  static {
-    // Load the native OpenCV library
-    OpenCVNativeLoader loader = new OpenCVNativeLoader();
-    loader.init();
-  }
-
+  /** Bulk data descriptor for determining which DICOM elements should be treated as bulk data */
   public static final BulkDataDescriptor BULK_DATA_DESCRIPTOR =
       (itemPointer, privateCreator, tag, vr, length) -> {
         int tagNormalized = TagUtils.normalizeRepeatingGroup(tag);
         if (tagNormalized == Tag.WaveformData) {
           return itemPointer.size() == 1 && itemPointer.get(0).sequenceTag == Tag.WaveformSequence;
-        } else if (BULK_TAGS.contains(tagNormalized)) {
+        }
+        if (BULK_TAGS.contains(tagNormalized)) {
           return itemPointer.isEmpty();
         }
 
         if (TagUtils.isPrivateTag(tag)) {
-          return length > 1000; // Do no read in memory private value more than 1 KB
+          return length > 1000; // Don't read private values larger than 1KB into memory
         }
 
         return switch (vr) {
@@ -129,9 +139,17 @@ public class DicomImageReader extends ImageReader {
         };
       };
 
-  private static final Map<String, Boolean> series2FloatImages = new ConcurrentHashMap<>();
+  static {
+    // Initialize OpenCV native library
+    OpenCVNativeLoader loader = new OpenCVNativeLoader();
+    loader.init();
+  }
 
+  // Cache for series that require float image conversion
+  private static final Map<String, Boolean> series2FloatImages = new ConcurrentHashMap<>();
   private static boolean allowFloatImageConversion = false;
+
+  // Instance fields
   private final List<Integer> fragmentsPositions = new ArrayList<>();
 
   private BytesWithImageDescriptor bdis;
@@ -141,29 +159,48 @@ public class DicomImageReader extends ImageReader {
     super(originatingProvider);
   }
 
+  /**
+   * Sets the input source for reading DICOM images.
+   *
+   * @param input the input source (DicomFileInputStream or BytesWithImageDescriptor)
+   * @param seekForwardOnly whether seeking is allowed only forward
+   * @param ignoreMetadata whether to ignore metadata
+   * @throws IllegalArgumentException if input type is not supported
+   */
   @Override
   public void setInput(Object input, boolean seekForwardOnly, boolean ignoreMetadata) {
     resetInternalState();
-    if (input instanceof DicomFileInputStream) {
-      super.setInput(input, seekForwardOnly, ignoreMetadata);
-      this.dis = (DicomFileInputStream) input;
-      dis.setIncludeBulkData(IncludeBulkData.URI);
-      dis.setBulkDataDescriptor(BULK_DATA_DESCRIPTOR);
-      // Avoid a copy of pixelData into a temporary file
-      dis.setURI(dis.getPath().toUri().toString());
-    } else if (input instanceof BytesWithImageDescriptor) {
-      this.bdis = (BytesWithImageDescriptor) input;
+    if (input instanceof DicomFileInputStream dicomStream) {
+      configureFileInputStream(dicomStream, seekForwardOnly, ignoreMetadata);
+    } else if (input instanceof BytesWithImageDescriptor bytesDescriptor) {
+      this.bdis = bytesDescriptor;
     } else {
-      throw new IllegalArgumentException("Unsupported inputStream: " + input.getClass().getName());
+      throw new IllegalArgumentException("Unsupported input type: " + input.getClass().getName());
     }
   }
 
+  private void configureFileInputStream(
+      DicomFileInputStream dicomStream, boolean seekForwardOnly, boolean ignoreMetadata) {
+    super.setInput(dicomStream, seekForwardOnly, ignoreMetadata);
+    this.dis = dicomStream;
+    dis.setIncludeBulkData(IncludeBulkData.URI);
+    dis.setBulkDataDescriptor(BULK_DATA_DESCRIPTOR);
+    // Avoid copying pixel data to temporary file
+    dis.setURI(dis.getPath().toUri().toString());
+  }
+
+  /** Gets the image descriptor containing DICOM image metadata. */
   public ImageDescriptor getImageDescriptor() {
-    if (bdis != null) return bdis.getImageDescriptor();
+    if (bdis != null) {
+      return bdis.getImageDescriptor();
+    }
+    if (dis == null) {
+      throw new IllegalStateException("DicomInputStream is not set");
+    }
     return dis.getImageDescriptor();
   }
 
-  /** Returns the number of regular images in the study. This excludes overlays. */
+  /** Returns the number of regular images (frames), excluding overlays. */
   @Override
   public int getNumImages(boolean allowSearch) {
     return getImageDescriptor().getFrames();
@@ -183,7 +220,7 @@ public class DicomImageReader extends ImageReader {
 
   @Override
   public Iterator<ImageTypeSpecifier> getImageTypes(int frameIndex) {
-    throw new UnsupportedOperationException("not implemented");
+    throw new UnsupportedOperationException("getImageTypes not implemented");
   }
 
   @Override
@@ -191,10 +228,7 @@ public class DicomImageReader extends ImageReader {
     return new DicomImageReadParam();
   }
 
-  /**
-   * Gets the stream metadata. May not contain post pixel data unless there are no images or the
-   * getStreamMetadata has been called with the post pixel data node being specified.
-   */
+  /** Gets the stream metadata. May not contain post-pixel data unless specifically requested. */
   @Override
   public DicomMetaData getStreamMetadata() throws IOException {
     return dis == null ? null : dis.getMetadata();
@@ -216,7 +250,7 @@ public class DicomImageReader extends ImageReader {
       PlanarImage img = getPlanarImage(frameIndex, getDefaultReadParam(param));
       return ImageConversion.toBufferedImage(img).getRaster();
     } catch (Exception e) {
-      LOG.error("Reading image", e);
+      LOG.error("Error reading raster for frame {}", frameIndex, e);
       return null;
     }
   }
@@ -227,58 +261,496 @@ public class DicomImageReader extends ImageReader {
       PlanarImage img = getPlanarImage(frameIndex, getDefaultReadParam(param));
       return ImageConversion.toBufferedImage(img);
     } catch (Exception e) {
-      LOG.error("Reading image", e);
+      LOG.error("Error reading image for frame {}", frameIndex, e);
       return null;
     }
   }
 
-  protected DicomImageReadParam getDefaultReadParam(ImageReadParam param) {
-    DicomImageReadParam dcmParam;
-    if (param instanceof DicomImageReadParam readParam) {
-      dcmParam = readParam;
-    } else {
-      if (param == null) {
-        dcmParam = new DicomImageReadParam();
-      } else {
-        dcmParam = new DicomImageReadParam(param);
+  /**
+   * Creates lazy suppliers for all planar images to enable on-demand loading.
+   *
+   * @param param read parameters
+   * @param editor optional image editor for post-processing
+   * @return list of image suppliers
+   */
+  public List<SupplierEx<PlanarImage, IOException>> getLazyPlanarImages(
+      DicomImageReadParam param, Editable<PlanarImage> editor) {
+    int frameCount = getImageDescriptor().getFrames();
+    List<SupplierEx<PlanarImage, IOException>> suppliers = new ArrayList<>(frameCount);
+
+    for (int i = 0; i < frameCount; i++) {
+      suppliers.add(createLazyImageSupplier(i, param, editor));
+    }
+    return suppliers;
+  }
+
+  private SupplierEx<PlanarImage, IOException> createLazyImageSupplier(
+      int frameIndex, DicomImageReadParam param, Editable<PlanarImage> editor) {
+    return new SupplierEx<>() {
+      private SupplierEx<PlanarImage, IOException> delegate = this::loadFirstTime;
+      private boolean initialized = false;
+
+      @Override
+      public PlanarImage get() throws IOException {
+        return delegate.get();
+      }
+
+      private synchronized PlanarImage loadFirstTime() throws IOException {
+        if (!initialized) {
+          PlanarImage img = getPlanarImage(frameIndex, param);
+          PlanarImage processedImg = editor != null ? editor.process(img) : img;
+
+          if (editor != null && !img.equals(processedImg)) {
+            img.release();
+          }
+          delegate = () -> processedImg;
+          initialized = true;
+        }
+        return delegate.get();
+      }
+    };
+  }
+
+  /** Gets all planar images with default parameters. */
+  public List<PlanarImage> getPlanarImages() throws IOException {
+    return getPlanarImages(null);
+  }
+
+  /** Gets all planar images with specified parameters. */
+  public List<PlanarImage> getPlanarImages(DicomImageReadParam param) throws IOException {
+    List<PlanarImage> images = new ArrayList<>();
+    int frameCount = getImageDescriptor().getFrames();
+
+    for (int i = 0; i < frameCount; i++) {
+      images.add(getPlanarImage(i, param));
+    }
+    return images;
+  }
+
+  /** Gets the first planar image with default parameters. */
+  public PlanarImage getPlanarImage() throws IOException {
+    return getPlanarImage(0, null);
+  }
+
+  /**
+   * Gets a planar image for the specified frame with optional transformations applied.
+   *
+   * @param frameIndex the frame index to read
+   * @param param read parameters for region selection, scaling, etc.
+   * @return the processed planar image
+   * @throws IOException if reading fails
+   */
+  public PlanarImage getPlanarImage(int frameIndex, DicomImageReadParam param) throws IOException {
+    PlanarImage rawImage = getRawImage(frameIndex, param);
+    return applyImageTransformations(rawImage, frameIndex, param);
+  }
+
+  private PlanarImage applyImageTransformations(
+      PlanarImage rawImage, int frameIndex, DicomImageReadParam param) {
+    ImageDescriptor desc = getImageDescriptor();
+    PlanarImage processedImage = rawImage;
+
+    // Apply palette color lookup table if present
+    processedImage = applyPaletteColorLUT(processedImage);
+
+    // Apply region and scaling transformations
+    processedImage = applyRegionTransformations(processedImage, param);
+
+    // Apply float conversion if needed
+    processedImage = applyFloatConversion(processedImage, desc, frameIndex);
+
+    // Release original image if it was replaced
+    if (!rawImage.equals(processedImage)) {
+      rawImage.release();
+    }
+
+    return processedImage;
+  }
+
+  private PlanarImage applyPaletteColorLUT(PlanarImage image) {
+    if (getImageDescriptor().hasPaletteColorLookupTable()) {
+      LookupTableCV paletteColorLUT = getImageDescriptor().getPaletteColorLookupTable();
+      return PaletteColorUtils.getRGBImageFromPaletteColorModel(image, paletteColorLUT);
+    }
+    return image;
+  }
+
+  private PlanarImage applyRegionTransformations(PlanarImage image, DicomImageReadParam param) {
+    if (param == null) return image;
+
+    PlanarImage result = image;
+
+    // Apply source region cropping
+    if (param.getSourceRegion() != null) {
+      result = ImageTransformer.crop(result.toMat(), param.getSourceRegion());
+      if (!result.equals(image)) image.release();
+    }
+    // Apply scaling
+    if (param.getSourceRenderSize() != null) {
+      PlanarImage scaledImage =
+          ImageTransformer.scale(
+              result.toMat(), param.getSourceRenderSize(), Imgproc.INTER_LANCZOS4);
+      if (!scaledImage.equals(result)) result.release();
+      result = scaledImage;
+    }
+    return result;
+  }
+
+  private PlanarImage applyFloatConversion(
+      PlanarImage image, ImageDescriptor desc, int frameIndex) {
+    if (!allowFloatImageConversion) return image;
+
+    String seriesUID = desc.getSeriesInstanceUID();
+    if (!StringUtil.hasText(seriesUID)) return image;
+    Boolean isFloatPixelData = series2FloatImages.get(seriesUID);
+    if (isFloatPixelData == Boolean.FALSE) return image;
+
+    PlanarImage result = rangeOutsideLut(image, desc, frameIndex, isFloatPixelData != null);
+    series2FloatImages.put(seriesUID, CvType.depth(result.type()) == CvType.CV_32F);
+
+    return result;
+  }
+
+  /** Converts image to float if modality LUT values exceed standard ranges. */
+  static PlanarImage rangeOutsideLut(
+      PlanarImage input, ImageDescriptor desc, int frameIndex, boolean forceFloat) {
+    OptionalDouble rescaleSlope = desc.getModalityLutForFrame(frameIndex).getRescaleSlope();
+    if (!forceFloat && rescaleSlope.isEmpty()) return input;
+    double slope = rescaleSlope.orElse(1.0);
+    double intercept = desc.getModalityLutForFrame(frameIndex).getRescaleIntercept().orElse(0.0);
+    MinMaxLocResult minMax = DicomImageAdapter.getMinMaxValues(input, desc, frameIndex);
+    Pair<Double, Double> rescale = getRescaleSlopeAndIntercept(slope, intercept, minMax);
+    if (forceFloat || slope < 0.5 || rangeOutsideLut(rescale, desc)) {
+      return convertToFloatImage(input, slope, intercept, rescale, desc);
+    }
+
+    return input;
+  }
+
+  private static PlanarImage convertToFloatImage(
+      PlanarImage input,
+      double slope,
+      double intercept,
+      Pair<Double, Double> rescale,
+      ImageDescriptor desc) {
+    ImageCV dstImg = new ImageCV();
+    boolean invertLUT =
+        desc.getPhotometricInterpretation() == PhotometricInterpretation.MONOCHROME1;
+    double alpha = slope;
+    double beta = intercept;
+    if (invertLUT) {
+      alpha = -slope;
+      beta = rescale.second() + rescale.first() - intercept;
+    }
+    input.toImageCV().convertTo(dstImg, CvType.CV_32F, alpha, beta);
+    return dstImg;
+  }
+
+  private static boolean rangeOutsideLut(Pair<Double, Double> rescale, ImageDescriptor desc) {
+    boolean outputSigned = rescale.first() < 0 || desc.isSigned();
+    Pair<Double, Double> minMax = PixelDataUtils.getMinMax(desc.getBitsAllocated(), outputSigned);
+    return rescale.first() + 1 < minMax.first() || rescale.second() - 1 > minMax.second();
+  }
+
+  private static Pair<Double, Double> getRescaleSlopeAndIntercept(
+      double slope, double intercept, MinMaxLocResult minMax) {
+    double min = minMax.minVal * slope + intercept;
+    double max = minMax.maxVal * slope + intercept;
+    return new Pair<>(Math.min(min, max), Math.max(min, max));
+  }
+
+  /** Gets the raw image data without transformations. */
+  public PlanarImage getRawImage(int frameIndex, DicomImageReadParam param) throws IOException {
+    return dis != null
+        ? getRawImageFromFile(frameIndex, param)
+        : getRawImageFromBytes(frameIndex, param);
+  }
+
+  /** Reads raw image data from file-based DICOM stream. */
+  protected PlanarImage getRawImageFromFile(int frameIndex, DicomImageReadParam param)
+      throws IOException {
+    if (dis == null) {
+      throw new IOException("No DicomInputStream available");
+    }
+    Attributes dcm = dis.getMetadata().getDicomObject();
+    PixelDataInfo pixelInfo = extractPixelDataInfo(dcm);
+
+    if (pixelInfo.pixelData == null || getImageDescriptor().getBitsStored() < 1) {
+      throw new IllegalStateException("No valid pixel data in DICOM object");
+    }
+    ExtendSegmentedInputImageStream segmentedStream =
+        buildSegmentedImageInputStream(frameIndex, pixelInfo.fragments, pixelInfo.bulkData);
+
+    return readImageFromSegments(segmentedStream, frameIndex, pixelInfo, param);
+  }
+
+  /** Container for pixel data information extracted from DICOM attributes. */
+  private static class PixelDataInfo {
+    Object pixelData;
+    Fragments fragments;
+    BulkData bulkData;
+    boolean bigEndian;
+    boolean floatPixelData;
+    Holder pixelDataVR = new Holder();
+  }
+
+  private PixelDataInfo extractPixelDataInfo(Attributes dcm) {
+    PixelDataInfo info = new PixelDataInfo();
+
+    // Try different pixel data tags
+    info.pixelData = dcm.getValue(Tag.PixelData, info.pixelDataVR);
+    if (info.pixelData == null) {
+      info.pixelData = dcm.getValue(Tag.FloatPixelData, info.pixelDataVR);
+      info.floatPixelData = info.pixelData != null;
+    }
+    if (info.pixelData == null) {
+      info.pixelData = dcm.getValue(Tag.DoubleFloatPixelData, info.pixelDataVR);
+      info.floatPixelData = info.pixelData != null;
+    }
+
+    // Determine data structure and endianness
+    if (info.pixelData instanceof BulkData bulkData) {
+      info.bulkData = bulkData;
+      info.bigEndian = bulkData.bigEndian();
+    } else if (info.pixelData instanceof Fragments fragments) {
+      info.fragments = fragments;
+      info.bigEndian = fragments.bigEndian();
+    }
+
+    return info;
+  }
+
+  private PlanarImage readImageFromSegments(
+      ExtendSegmentedInputImageStream segmentedStream,
+      int frameIndex,
+      PixelDataInfo pixelInfo,
+      DicomImageReadParam param)
+      throws IOException {
+
+    if (segmentedStream.getSegmentCount() <= 0) {
+      return null;
+    }
+
+    if (segmentedStream.getSegmentCount() <= frameIndex) {
+      frameIndex = 0;
+    }
+
+    String tsuid = dis.getMetadata().getTransferSyntaxUID();
+    ImageDescriptor desc = getImageDescriptor();
+    int dcmFlags = buildDecodingFlags(tsuid, desc, pixelInfo, segmentedStream, frameIndex, param);
+
+    MatOfDouble positions =
+        new MatOfDouble(
+            Arrays.stream(segmentedStream.segmentPositions()).asDoubleStream().toArray());
+    MatOfDouble lengths =
+        new MatOfDouble(Arrays.stream(segmentedStream.segmentLengths()).asDoubleStream().toArray());
+    try {
+      TransferSyntaxType type = TransferSyntaxType.forUID(tsuid);
+      boolean isRawData =
+          pixelInfo.fragments == null
+              || type == TransferSyntaxType.NATIVE
+              || type == TransferSyntaxType.RLE;
+
+      ImageCV imageCV =
+          isRawData
+              ? readRawImageData(segmentedStream, dcmFlags, desc, pixelInfo, positions, lengths)
+              : readCompressedImageData(segmentedStream, dcmFlags, positions, lengths);
+
+      return applyReleaseImageAfterProcessing(imageCV, param);
+
+    } finally {
+      closeMat(positions);
+      closeMat(lengths);
+    }
+  }
+
+  private ImageCV readRawImageData(
+      ExtendSegmentedInputImageStream segmentedStream,
+      int dcmFlags,
+      ImageDescriptor desc,
+      DicomImageReader.PixelDataInfo pixelInfo,
+      MatOfDouble positions,
+      MatOfDouble lengths) {
+    int bitsStored = desc.getBitsStored();
+    int bits = bitsStored <= 8 && desc.getBitsAllocated() > 8 ? 9 : bitsStored;
+    int streamVR = pixelInfo.pixelDataVR.vr.numEndianBytes();
+
+    MatOfInt dicomParams =
+        new MatOfInt(
+            Imgcodecs.IMREAD_UNCHANGED,
+            dcmFlags,
+            desc.getColumns(),
+            desc.getRows(),
+            Imgcodecs.DICOM_CP_UNKNOWN,
+            desc.getSamples(),
+            bits,
+            desc.isBanded() ? Imgcodecs.ILV_NONE : Imgcodecs.ILV_SAMPLE,
+            streamVR);
+    return ImageCV.fromMat(
+        Imgcodecs.dicomRawFileRead(
+            segmentedStream.path().toString(),
+            positions,
+            lengths,
+            dicomParams,
+            desc.getPhotometricInterpretation().name()));
+  }
+
+  private ImageCV readCompressedImageData(
+      ExtendSegmentedInputImageStream segmentedStream,
+      int dcmFlags,
+      MatOfDouble positions,
+      MatOfDouble lengths) {
+    return ImageCV.fromMat(
+        Imgcodecs.dicomJpgFileRead(
+            segmentedStream.path().toString(),
+            positions,
+            lengths,
+            dcmFlags,
+            Imgcodecs.IMREAD_UNCHANGED));
+  }
+
+  private int buildDecodingFlags(
+      String tsuid,
+      ImageDescriptor desc,
+      PixelDataInfo pixelInfo,
+      ExtendSegmentedInputImageStream segmentedStream,
+      int frameIndex,
+      DicomImageReadParam param) {
+    TransferSyntaxType type = TransferSyntaxType.forUID(tsuid);
+    PhotometricInterpretation pmi = desc.getPhotometricInterpretation();
+
+    int dcmFlags =
+        (type.canEncodeSigned() && desc.isSigned())
+            ? Imgcodecs.DICOM_FLAG_SIGNED
+            : Imgcodecs.DICOM_FLAG_UNSIGNED;
+
+    boolean rawData =
+        pixelInfo.fragments == null
+            || type == TransferSyntaxType.NATIVE
+            || type == TransferSyntaxType.RLE;
+    if (!rawData && fileYbr2rgb(pmi, tsuid, segmentedStream, frameIndex, param)) {
+      dcmFlags |= Imgcodecs.DICOM_FLAG_YBR;
+      if (type == TransferSyntaxType.JPEG_LS) {
+        dcmFlags |= Imgcodecs.DICOM_FLAG_FORCE_RGB_CONVERSION;
       }
     }
-    return dcmParam;
+
+    if (pixelInfo.bigEndian) dcmFlags |= Imgcodecs.DICOM_FLAG_BIGENDIAN;
+    if (pixelInfo.floatPixelData) dcmFlags |= Imgcodecs.DICOM_FLAG_FLOAT;
+    if (UID.RLELossless.equals(tsuid)) dcmFlags |= Imgcodecs.DICOM_FLAG_RLE;
+
+    return dcmFlags;
   }
 
-  private void resetInternalState() {
-    StreamUtil.safeClose(dis);
-    dis = null;
-    bdis = null;
-    fragmentsPositions.clear();
+  /** Reads raw image data from byte-based DICOM stream. */
+  protected PlanarImage getRawImageFromBytes(int frameIndex, DicomImageReadParam param)
+      throws IOException {
+    if (bdis == null) {
+      throw new IOException("No BytesWithImageDescriptor available");
+    }
+
+    ImageDescriptor desc = getImageDescriptor();
+    String tsuid = bdis.getTransferSyntax();
+    int dcmFlags = buildBytesDecodingFlags(tsuid, desc, frameIndex, param);
+
+    Mat buffer = null;
+    try {
+      ByteBuffer byteBuffer = bdis.getBytes(frameIndex);
+      buffer = new Mat(1, byteBuffer.limit(), CvType.CV_8UC1);
+      buffer.put(0, 0, byteBuffer.array());
+
+      TransferSyntaxType type = TransferSyntaxType.forUID(tsuid);
+      boolean isRawData = type == TransferSyntaxType.NATIVE || type == TransferSyntaxType.RLE;
+
+      ImageCV imageCV =
+          isRawData
+              ? readRawBytesData(buffer, dcmFlags, desc)
+              : readCompressedBytesData(buffer, dcmFlags);
+      return applyReleaseImageAfterProcessing(imageCV, param);
+
+    } finally {
+      closeMat(buffer);
+    }
   }
 
-  private void checkIndex(int frameIndex) {
-    if (frameIndex < 0 || frameIndex >= getImageDescriptor().getFrames())
-      throw new IndexOutOfBoundsException("imageIndex: " + frameIndex);
+  private ImageCV readRawBytesData(Mat buffer, int dcmFlags, ImageDescriptor desc) {
+    int bitsStored = desc.getBitsStored();
+    int bits = bitsStored <= 8 && desc.getBitsAllocated() > 8 ? 9 : bitsStored;
+    int streamVR = bdis.getPixelDataVR().numEndianBytes();
+
+    MatOfInt dicomParams =
+        new MatOfInt(
+            Imgcodecs.IMREAD_UNCHANGED,
+            dcmFlags,
+            desc.getColumns(),
+            desc.getRows(),
+            Imgcodecs.DICOM_CP_UNKNOWN,
+            desc.getSamples(),
+            bits,
+            desc.isBanded() ? Imgcodecs.ILV_NONE : Imgcodecs.ILV_SAMPLE,
+            streamVR);
+
+    return ImageCV.fromMat(
+        Imgcodecs.dicomRawMatRead(buffer, dicomParams, desc.getPhotometricInterpretation().name()));
   }
 
-  @Override
-  public void dispose() {
-    resetInternalState();
+  private ImageCV readCompressedBytesData(Mat buffer, int dcmFlags) {
+    return ImageCV.fromMat(Imgcodecs.dicomJpgMatRead(buffer, dcmFlags, Imgcodecs.IMREAD_UNCHANGED));
+  }
+
+  private int buildBytesDecodingFlags(
+      String tsuid, ImageDescriptor desc, int frameIndex, DicomImageReadParam param) {
+    TransferSyntaxType type = TransferSyntaxType.forUID(tsuid);
+    PhotometricInterpretation pmi = desc.getPhotometricInterpretation();
+    int dcmFlags =
+        (type.canEncodeSigned() && desc.isSigned())
+            ? Imgcodecs.DICOM_FLAG_SIGNED
+            : Imgcodecs.DICOM_FLAG_UNSIGNED;
+    boolean rawData = type == TransferSyntaxType.NATIVE || type == TransferSyntaxType.RLE;
+    if (!rawData && byteYbr2rgb(pmi, tsuid, frameIndex, param)) {
+      dcmFlags |= Imgcodecs.DICOM_FLAG_YBR;
+      if (type == TransferSyntaxType.JPEG_LS) {
+        dcmFlags |= Imgcodecs.DICOM_FLAG_FORCE_RGB_CONVERSION;
+      }
+    }
+    if (bdis.bigEndian()) dcmFlags |= Imgcodecs.DICOM_FLAG_BIGENDIAN;
+    if (bdis.floatPixelData()) dcmFlags |= Imgcodecs.DICOM_FLAG_FLOAT;
+    if (UID.RLELossless.equals(tsuid)) dcmFlags |= Imgcodecs.DICOM_FLAG_RLE;
+
+    return dcmFlags;
   }
 
   private boolean fileYbr2rgb(
       PhotometricInterpretation pmi,
       String tsuid,
-      ExtendSegmentedInputImageStream seg,
-      int frame,
+      ExtendSegmentedInputImageStream segmentedStream,
+      int frameIndex,
       DicomImageReadParam param) {
     BooleanSupplier isYbrModel =
         () -> {
           try (SeekableByteChannel channel =
               Files.newByteChannel(dis.getPath(), StandardOpenOption.READ)) {
-            channel.position(seg.segmentPositions()[frame]);
+            channel.position(segmentedStream.segmentPositions()[frameIndex]);
             return isYbrModel(channel, pmi, param);
           } catch (IOException e) {
-            LOG.error("Cannot read jpeg header", e);
+            LOG.error("Cannot read JPEG header", e);
+            return false;
           }
-          return false;
+        };
+    return ybr2rgb(pmi, tsuid, isYbrModel);
+  }
+
+  private boolean byteYbr2rgb(
+      PhotometricInterpretation pmi, String tsuid, int frameIndex, DicomImageReadParam param) {
+    BooleanSupplier isYbrModel =
+        () -> {
+          try (SeekableInMemoryByteChannel channel =
+              new SeekableInMemoryByteChannel(bdis.getBytes(frameIndex).array())) {
+            return isYbrModel(channel, pmi, param);
+          } catch (Exception e) {
+            LOG.error("Cannot read JPEG header", e);
+            return false;
+          }
         };
     return ybr2rgb(pmi, tsuid, isYbrModel);
   }
@@ -291,55 +763,32 @@ public class DicomImageReader extends ImageReader {
     try {
       tsuid = parser.getTransferSyntaxUID();
     } catch (XPEGParserException e) {
-      LOG.warn("Cannot parse jpeg type", e);
+      LOG.warn("Cannot parse JPEG type", e);
     }
+
     if (tsuid != null && !TransferSyntaxType.isLossyCompression(tsuid)) {
       return false;
     }
-    boolean keepRgbForLossyJpeg;
-    if (param == null) {
-      keepRgbForLossyJpeg = false;
-    } else {
-      keepRgbForLossyJpeg = param.getKeepRgbForLossyJpeg().orElse(Boolean.FALSE);
-    }
-
+    boolean keepRgbForLossyJpeg =
+        param != null && param.getKeepRgbForLossyJpeg().orElse(Boolean.FALSE);
     if (pmi == PhotometricInterpretation.RGB && !keepRgbForLossyJpeg) {
-      // Force JPEG Baseline (1.2.840.10008.1.2.4.50) to YBR_FULL_422 color model when RGB with
-      // JFIF header or not RGB components (error made by some constructors).
+      // Force YBR color model for JPEG Baseline when RGB has JFIF header or incorrect components
       return !"RGB".equals(parser.getParams().colorPhotometricInterpretation());
     }
     return false;
   }
 
-  private boolean byteYbr2rgb(
-      PhotometricInterpretation pmi, String tsuid, int frame, DicomImageReadParam param) {
-    BooleanSupplier isYbrModel =
-        () -> {
-          try (SeekableInMemoryByteChannel channel =
-              new SeekableInMemoryByteChannel(bdis.getBytes(frame).array())) {
-            return isYbrModel(channel, pmi, param);
-          } catch (Exception e) {
-            LOG.error("Cannot read jpeg header", e);
-          }
-          return false;
-        };
-    return ybr2rgb(pmi, tsuid, isYbrModel);
-  }
-
   private static boolean ybr2rgb(
       PhotometricInterpretation pmi, String tsuid, BooleanSupplier isYbrModel) {
-    // Option only for IJG native decoder
+    // Only apply for IJG native decoder
     switch (pmi) {
-      case MONOCHROME1:
-      case MONOCHROME2:
-      case PALETTE_COLOR:
-      case YBR_ICT:
-      case YBR_RCT:
+      case MONOCHROME1, MONOCHROME2, PALETTE_COLOR, YBR_ICT, YBR_RCT -> {
         return false;
-      default:
-        break;
+      }
+      default -> {
+        /* continue */
+      }
     }
-
     return switch (tsuid) {
       case UID.JPEGBaseline8Bit,
           UID.JPEGExtended12Bit,
@@ -348,267 +797,166 @@ public class DicomImageReader extends ImageReader {
         if (pmi == PhotometricInterpretation.RGB) {
           yield isYbrModel.getAsBoolean();
         }
+
         yield true;
       }
       default -> pmi.name().startsWith("YBR");
     };
   }
 
-  public List<SupplierEx<PlanarImage, IOException>> getLazyPlanarImages(
-      DicomImageReadParam param, Editable<PlanarImage> editor) {
-    int size = getImageDescriptor().getFrames();
-    List<SupplierEx<PlanarImage, IOException>> suppliers = new ArrayList<>(size);
-    for (int i = 0; i < size; i++) {
-      final int index = i;
-      suppliers.add(
-          new SupplierEx<>() {
-            SupplierEx<PlanarImage, IOException> delegate = this::firstTime;
-            boolean initialized;
-
-            @Override
-            public PlanarImage get() throws IOException {
-              return delegate.get();
-            }
-
-            private synchronized PlanarImage firstTime() throws IOException {
-              if (!initialized) {
-                PlanarImage img = getPlanarImage(index, param);
-                PlanarImage value;
-                if (editor == null) {
-                  value = img;
-                } else {
-                  value = editor.process(img);
-                  img.release();
-                }
-                delegate = () -> value;
-                initialized = true;
-              }
-              return delegate.get();
-            }
-          });
-    }
-    return suppliers;
-  }
-
-  public List<PlanarImage> getPlanarImages() throws IOException {
-    return getPlanarImages(null);
-  }
-
-  public List<PlanarImage> getPlanarImages(DicomImageReadParam param) throws IOException {
-    List<PlanarImage> list = new ArrayList<>();
-    for (int i = 0; i < getImageDescriptor().getFrames(); i++) {
-      list.add(getPlanarImage(i, param));
-    }
-    return list;
-  }
-
-  public PlanarImage getPlanarImage() throws IOException {
-    return getPlanarImage(0, null);
-  }
-
-  public PlanarImage getPlanarImage(int frame, DicomImageReadParam param) throws IOException {
-    PlanarImage img = getRawImage(frame, param);
-    ImageDescriptor desc =
-        dis == null ? bdis.getImageDescriptor() : dis.getMetadata().getImageDescriptor();
-    PlanarImage out = img;
-    if (getImageDescriptor().hasPaletteColorLookupTable()) {
-      if (dis == null) {
-        out =
-            DicomImageUtils.getRGBImageFromPaletteColorModel(
-                out, bdis.getPaletteColorLookupTable());
-      } else {
-        out =
-            DicomImageUtils.getRGBImageFromPaletteColorModel(
-                out, dis.getMetadata().getDicomObject());
-      }
-    }
-    if (param != null && param.getSourceRegion() != null) {
-      out = ImageTransformer.crop(out.toMat(), param.getSourceRegion());
-    }
-    if (param != null && param.getSourceRenderSize() != null) {
-      out =
-          ImageTransformer.scale(out.toMat(), param.getSourceRenderSize(), Imgproc.INTER_LANCZOS4);
-    }
-
-    String seriesUID = desc.getSeriesInstanceUID();
-    if (allowFloatImageConversion && StringUtil.hasText(seriesUID)) {
-      Boolean isFloatPixelData = series2FloatImages.get(seriesUID);
-      if (isFloatPixelData != Boolean.FALSE) {
-        if (isFloatPixelData == null) {
-          out = rangeOutsideLut(out, desc, frame, false);
-          series2FloatImages.put(seriesUID, CvType.depth(out.type()) == CvType.CV_32F);
-        } else {
-          out = rangeOutsideLut(out, desc, frame, true);
-        }
-      }
-    }
-
-    if (!img.equals(out)) {
-      img.release();
-    }
-    return out;
-  }
-
-  static PlanarImage rangeOutsideLut(
-      PlanarImage input, ImageDescriptor desc, int frameIndex, boolean forceFloat) {
-    OptionalDouble rescaleSlope = desc.getModalityLutForFrame(frameIndex).getRescaleSlope();
-    if (forceFloat || rescaleSlope.isPresent()) {
-      double slope = rescaleSlope.orElse(1.0);
-      double intercept = desc.getModalityLutForFrame(frameIndex).getRescaleIntercept().orElse(0.0);
-      MinMaxLocResult minMax = DicomImageAdapter.getMinMaxValues(input, desc, frameIndex);
-      Pair<Double, Double> rescale = getRescaleSlopeAndIntercept(slope, intercept, minMax);
-      if (forceFloat || slope < 0.5 || rangeOutsideLut(rescale, desc)) {
-        ImageCV dstImg = new ImageCV();
-        boolean invertLUT =
-            desc.getPhotometricInterpretation() == PhotometricInterpretation.MONOCHROME1;
-        double alpha = slope;
-        double beta = intercept;
-        if (invertLUT) {
-          alpha = -slope;
-          beta = rescale.second() + rescale.first() - intercept;
-        }
-        input.toImageCV().convertTo(dstImg, CvType.CV_32F, alpha, beta);
-        return dstImg;
-      }
-    }
-    return input;
-  }
-
-  private static boolean rangeOutsideLut(Pair<Double, Double> rescale, ImageDescriptor desc) {
-    boolean outputSigned = rescale.first() < 0 || desc.isSigned();
-    Pair<Double, Double> minMax = DicomImageUtils.getMinMax(desc.getBitsAllocated(), outputSigned);
-    return rescale.first() + 1 < minMax.first() || rescale.second() - 1 > minMax.second();
-  }
-
-  private static Pair<Double, Double> getRescaleSlopeAndIntercept(
-      double slope, double intercept, MinMaxLocResult minMax) {
-    double min = minMax.minVal * slope + intercept;
-    double max = minMax.maxVal * slope + intercept;
-    return new Pair<>(Math.min(min, max), Math.max(min, max));
-  }
-
-  public PlanarImage getRawImage(int frame, DicomImageReadParam param) throws IOException {
-    if (dis == null) {
-      return getRawImageFromBytes(frame, param);
-    } else {
-      return getRawImageFromFile(frame, param);
-    }
-  }
-
-  protected PlanarImage getRawImageFromFile(int frame, DicomImageReadParam param)
-      throws IOException {
-    if (dis == null) {
-      throw new IOException("No DicomInputStream found");
-    }
-    Attributes dcm = dis.getMetadata().getDicomObject();
-    boolean floatPixData = false;
-    Holder pixeldataVR = new Holder();
-    Object pixdata = dcm.getValue(Tag.PixelData, pixeldataVR);
-    if (pixdata == null) {
-      pixdata = dcm.getValue(Tag.FloatPixelData, pixeldataVR);
-      if (pixdata != null) {
-        floatPixData = true;
-      }
-    }
-    if (pixdata == null) {
-      pixdata = dcm.getValue(Tag.DoubleFloatPixelData, pixeldataVR);
-      if (pixdata != null) {
-        floatPixData = true;
-      }
-    }
-
+  /** Builds segmented input stream for frame data access. */
+  private ExtendSegmentedInputImageStream buildSegmentedImageInputStream(
+      int frameIndex, Fragments fragments, BulkData bulkData) throws IOException {
     ImageDescriptor desc = getImageDescriptor();
-    int bitsStored = desc.getBitsStored();
-    if (pixdata == null || bitsStored < 1) {
-      throw new IllegalStateException("No pixel data in this DICOM object");
-    }
-
-    Fragments pixeldataFragments = null;
-    BulkData bulkData = null;
-    boolean bigendian = false;
-    if (pixdata instanceof BulkData) {
-      bulkData = (BulkData) pixdata;
-      bigendian = bulkData.bigEndian();
-    } else if (dcm.getString(Tag.PixelDataProviderURL) != null) {
-      // TODO Handle JPIP
-      // always little endian:
-      // http://dicom.nema.org/medical/dicom/2017b/output/chtml/part05/sect_A.6.html
-    } else if (pixdata instanceof Fragments) {
-      pixeldataFragments = (Fragments) pixdata;
-      bigendian = pixeldataFragments.bigEndian();
-    }
-
-    ExtendSegmentedInputImageStream seg =
-        buildSegmentedImageInputStream(frame, pixeldataFragments, bulkData);
-    if (seg.segmentPositions() == null) {
-      return null;
-    }
-    if (seg.segmentPositions().length <= frame) {
-      frame = 0;
-    }
-
-    String tsuid = dis.getMetadata().getTransferSyntaxUID();
-    TransferSyntaxType type = TransferSyntaxType.forUID(tsuid);
-    PhotometricInterpretation pmi = desc.getPhotometricInterpretation();
-    boolean rawData =
-        pixeldataFragments == null
-            || type == TransferSyntaxType.NATIVE
-            || type == TransferSyntaxType.RLE;
-    int dcmFlags =
-        (type.canEncodeSigned() && desc.isSigned())
-            ? Imgcodecs.DICOM_FLAG_SIGNED
-            : Imgcodecs.DICOM_FLAG_UNSIGNED;
-    if (!rawData && fileYbr2rgb(pmi, tsuid, seg, frame, param)) {
-      dcmFlags |= Imgcodecs.DICOM_FLAG_YBR;
-      if (type == TransferSyntaxType.JPEG_LS) {
-        dcmFlags |= Imgcodecs.DICOM_FLAG_FORCE_RGB_CONVERSION;
-      }
-    }
-    if (bigendian) {
-      dcmFlags |= Imgcodecs.DICOM_FLAG_BIGENDIAN;
-    }
-    if (floatPixData) {
-      dcmFlags |= Imgcodecs.DICOM_FLAG_FLOAT;
-    }
-    if (UID.RLELossless.equals(tsuid)) {
-      dcmFlags |= Imgcodecs.DICOM_FLAG_RLE;
-    }
-
-    MatOfDouble positions = null;
-    MatOfDouble lengths = null;
-    try {
-      positions = new MatOfDouble(Arrays.stream(seg.segmentPositions()).asDoubleStream().toArray());
-      lengths = new MatOfDouble(Arrays.stream(seg.segmentLengths()).asDoubleStream().toArray());
-      if (rawData) {
-        int bits = bitsStored <= 8 && desc.getBitsAllocated() > 8 ? 9 : bitsStored;
-        int streamVR = pixeldataVR.vr.numEndianBytes();
-        MatOfInt dicomparams =
-            new MatOfInt(
-                Imgcodecs.IMREAD_UNCHANGED,
-                dcmFlags,
-                desc.getColumns(),
-                desc.getRows(),
-                Imgcodecs.DICOM_CP_UNKNOWN,
-                desc.getSamples(),
-                bits,
-                desc.isBanded() ? Imgcodecs.ILV_NONE : Imgcodecs.ILV_SAMPLE,
-                streamVR);
-        ImageCV imageCV =
-            ImageCV.fromMat(
-                Imgcodecs.dicomRawFileRead(
-                    seg.path().toString(), positions, lengths, dicomparams, pmi.name()));
-        return applyReleaseImageAfterProcessing(imageCV, param);
-      }
-      ImageCV imageCV =
-          ImageCV.fromMat(
-              Imgcodecs.dicomJpgFileRead(
-                  seg.path().toString(), positions, lengths, dcmFlags, Imgcodecs.IMREAD_UNCHANGED));
-      return applyReleaseImageAfterProcessing(imageCV, param);
-    } finally {
-      closeMat(positions);
-      closeMat(lengths);
+    boolean hasFragments = fragments != null;
+    if (!hasFragments && bulkData != null) {
+      return buildBulkDataStream(frameIndex, bulkData, desc);
+    } else if (hasFragments) {
+      return buildFragmentedStream(frameIndex, fragments, desc);
+    } else {
+      throw new IOException("Neither fragments nor BulkData available");
     }
   }
+
+  private ExtendSegmentedInputImageStream buildBulkDataStream(
+      int frameIndex, BulkData bulkData, ImageDescriptor desc) {
+    int frameLength =
+        desc.getPhotometricInterpretation()
+            .frameLength(
+                desc.getColumns(), desc.getRows(), desc.getSamples(), desc.getBitsAllocated());
+
+    long[] offsets = {bulkData.offset() + (long) frameIndex * frameLength};
+    int[] lengths = {frameLength};
+
+    return new ExtendSegmentedInputImageStream(dis.getPath(), offsets, lengths, desc);
+  }
+
+  private ExtendSegmentedInputImageStream buildFragmentedStream(
+      int frameIndex, Fragments fragments, ImageDescriptor desc) throws IOException {
+    int fragmentCount = fragments.size();
+    int frameCount = desc.getFrames();
+
+    if (frameCount >= fragmentCount - 1) {
+      return buildSingleFragmentStream(frameIndex, fragments, fragmentCount);
+    } else {
+      return buildMultiFragmentStream(frameIndex, fragments, frameCount, fragmentCount, desc);
+    }
+  }
+
+  private ExtendSegmentedInputImageStream buildSingleFragmentStream(
+      int frameIndex, Fragments fragments, int fragmentCount) {
+    int index = frameIndex < fragmentCount - 1 ? frameIndex + 1 : fragmentCount - 1;
+    BulkData bulkData = (BulkData) fragments.get(index);
+
+    long[] offsets = {bulkData.offset()};
+    int[] lengths = {bulkData.length()};
+
+    return new ExtendSegmentedInputImageStream(
+        dis.getPath(), offsets, lengths, getImageDescriptor());
+  }
+
+  private ExtendSegmentedInputImageStream buildMultiFragmentStream(
+      int frameIndex, Fragments fragments, int frameCount, int fragmentCount, ImageDescriptor desc)
+      throws IOException {
+
+    if (frameCount == 1) {
+      // Single frame with multiple fragments
+      return buildAllFragmentsStream(frameIndex, fragments, fragmentCount);
+    } else {
+      // Multi-frame with multiple fragments per frame
+      return buildPerFrameFragmentStream(frameIndex, fragments, frameCount, fragmentCount);
+    }
+  }
+
+  private ExtendSegmentedInputImageStream buildAllFragmentsStream(
+      int frameIndex, Fragments fragments, int fragmentCount) {
+    long[] offsets = new long[fragmentCount - 1];
+    int[] lengths = new int[offsets.length];
+
+    for (int i = 0; i < lengths.length; i++) {
+      BulkData bulkData = (BulkData) fragments.get(i + frameIndex + 1);
+      offsets[i] = bulkData.offset();
+      lengths[i] = bulkData.length();
+    }
+
+    return new ExtendSegmentedInputImageStream(
+        dis.getPath(), offsets, lengths, getImageDescriptor());
+  }
+
+  private ExtendSegmentedInputImageStream buildPerFrameFragmentStream(
+      int frameIndex, Fragments fragments, int frameCount, int fragmentCount) throws IOException {
+    if (fragmentsPositions.isEmpty()) {
+      identifyFrameFragments(fragments, fragmentCount);
+    }
+
+    if (fragmentsPositions.size() != frameCount) {
+      throw new IOException(
+          "Cannot match fragments to frames: " + fragmentsPositions.size() + " vs " + frameCount);
+    }
+
+    int startFragment = fragmentsPositions.get(frameIndex);
+    int endFragment =
+        (frameIndex + 1) >= fragmentsPositions.size()
+            ? fragmentCount
+            : fragmentsPositions.get(frameIndex + 1);
+
+    long[] offsets = new long[endFragment - startFragment];
+    int[] lengths = new int[offsets.length];
+
+    for (int i = 0; i < offsets.length; i++) {
+      BulkData bulkData = (BulkData) fragments.get(startFragment + i);
+      offsets[i] = bulkData.offset();
+      lengths[i] = bulkData.length();
+    }
+
+    return new ExtendSegmentedInputImageStream(
+        dis.getPath(), offsets, lengths, getImageDescriptor());
+  }
+
+  private void identifyFrameFragments(Fragments fragments, int fragmentCount) throws IOException {
+    try (SeekableByteChannel channel =
+        Files.newByteChannel(dis.getPath(), StandardOpenOption.READ)) {
+      for (int i = 1; i < fragmentCount; i++) {
+        BulkData bulkData = (BulkData) fragments.get(i);
+        channel.position(bulkData.offset());
+        try {
+          new JPEGParser(channel);
+          fragmentsPositions.add(i);
+        } catch (Exception e) {
+          // Not a JPEG stream - skip
+        }
+      }
+    }
+  }
+
+  protected DicomImageReadParam getDefaultReadParam(ImageReadParam param) {
+    if (param instanceof DicomImageReadParam dicomParam) {
+      return dicomParam;
+    }
+    return param == null ? new DicomImageReadParam() : new DicomImageReadParam(param);
+  }
+
+  private void resetInternalState() {
+    StreamUtil.safeClose(dis);
+    dis = null;
+    bdis = null;
+    fragmentsPositions.clear();
+  }
+
+  private void checkIndex(int frameIndex) {
+    int maxFrames = getImageDescriptor().getFrames();
+    if (frameIndex < 0 || frameIndex >= maxFrames) {
+      throw new IndexOutOfBoundsException(
+          "Frame index " + frameIndex + " out of bounds [0, " + maxFrames + ")");
+    }
+  }
+
+  @Override
+  public void dispose() {
+    resetInternalState();
+  }
+
+  // Static utility methods
 
   public static ImageCV applyReleaseImageAfterProcessing(
       ImageCV imageCV, DicomImageReadParam param) {
@@ -622,154 +970,13 @@ public class DicomImageReader extends ImageReader {
     return param != null && param.getReleaseImageAfterProcessing().orElse(Boolean.FALSE);
   }
 
-  protected PlanarImage getRawImageFromBytes(int frame, DicomImageReadParam param)
-      throws IOException {
-    if (bdis == null) {
-      throw new IOException("No BytesWithImageDescriptor found");
-    }
-
-    ImageDescriptor desc = getImageDescriptor();
-    int bitsStored = desc.getBitsStored();
-
-    String tsuid = bdis.getTransferSyntax();
-    TransferSyntaxType type = TransferSyntaxType.forUID(tsuid);
-    PhotometricInterpretation pmi = desc.getPhotometricInterpretation();
-    boolean rawData = type == TransferSyntaxType.NATIVE || type == TransferSyntaxType.RLE;
-    int dcmFlags =
-        (type.canEncodeSigned() && desc.isSigned())
-            ? Imgcodecs.DICOM_FLAG_SIGNED
-            : Imgcodecs.DICOM_FLAG_UNSIGNED;
-    if (!rawData && byteYbr2rgb(pmi, tsuid, frame, param)) {
-      dcmFlags |= Imgcodecs.DICOM_FLAG_YBR;
-      if (type == TransferSyntaxType.JPEG_LS) {
-        dcmFlags |= Imgcodecs.DICOM_FLAG_FORCE_RGB_CONVERSION;
-      }
-    }
-    if (bdis.bigEndian()) {
-      dcmFlags |= Imgcodecs.DICOM_FLAG_BIGENDIAN;
-    }
-    if (bdis.floatPixelData()) {
-      dcmFlags |= Imgcodecs.DICOM_FLAG_FLOAT;
-    }
-    if (UID.RLELossless.equals(tsuid)) {
-      dcmFlags |= Imgcodecs.DICOM_FLAG_RLE;
-    }
-
-    Mat buf = null;
-    try {
-      ByteBuffer b = bdis.getBytes(frame);
-      buf = new Mat(1, b.limit(), CvType.CV_8UC1);
-      buf.put(0, 0, b.array());
-      if (rawData) {
-        int bits = bitsStored <= 8 && desc.getBitsAllocated() > 8 ? 9 : bitsStored; // Fix #94
-        int streamVR = bdis.getPixelDataVR().numEndianBytes();
-        MatOfInt dicomparams =
-            new MatOfInt(
-                Imgcodecs.IMREAD_UNCHANGED,
-                dcmFlags,
-                desc.getColumns(),
-                desc.getRows(),
-                Imgcodecs.DICOM_CP_UNKNOWN,
-                desc.getSamples(),
-                bits,
-                desc.isBanded() ? Imgcodecs.ILV_NONE : Imgcodecs.ILV_SAMPLE,
-                streamVR);
-        ImageCV imageCV = ImageCV.fromMat(Imgcodecs.dicomRawMatRead(buf, dicomparams, pmi.name()));
-        return applyReleaseImageAfterProcessing(imageCV, param);
-      }
-      ImageCV imageCV =
-          ImageCV.fromMat(Imgcodecs.dicomJpgMatRead(buf, dcmFlags, Imgcodecs.IMREAD_UNCHANGED));
-      return applyReleaseImageAfterProcessing(imageCV, param);
-    } finally {
-      closeMat(buf);
-    }
-  }
-
   public static void closeMat(Mat mat) {
     if (mat != null) {
       mat.release();
     }
   }
 
-  private ExtendSegmentedInputImageStream buildSegmentedImageInputStream(
-      int frameIndex, Fragments fragments, BulkData bulkData) throws IOException {
-    long[] offsets;
-    int[] length;
-    ImageDescriptor desc = getImageDescriptor();
-    boolean hasFragments = fragments != null;
-    if (!hasFragments && bulkData != null) {
-      int frameLength =
-          desc.getPhotometricInterpretation()
-              .frameLength(
-                  desc.getColumns(), desc.getRows(), desc.getSamples(), desc.getBitsAllocated());
-      offsets = new long[1];
-      length = new int[offsets.length];
-      offsets[0] = bulkData.offset() + (long) frameIndex * frameLength;
-      length[0] = frameLength;
-    } else if (hasFragments) {
-      int nbFragments = fragments.size();
-      int numberOfFrame = desc.getFrames();
-
-      if (numberOfFrame >= nbFragments - 1) {
-        // nbFrames > nbFragments should never happen
-        offsets = new long[1];
-        length = new int[offsets.length];
-        int index = frameIndex < nbFragments - 1 ? frameIndex + 1 : nbFragments - 1;
-        BulkData b = (BulkData) fragments.get(index);
-        offsets[0] = b.offset();
-        length[0] = b.length();
-      } else {
-        if (numberOfFrame == 1) {
-          offsets = new long[nbFragments - 1];
-          length = new int[offsets.length];
-          for (int i = 0; i < length.length; i++) {
-            BulkData b = (BulkData) fragments.get(i + frameIndex + 1);
-            offsets[i] = b.offset();
-            length[i] = b.length();
-          }
-        } else {
-          // Multi-frames where each frame can have multiple fragments.
-          if (fragmentsPositions.isEmpty()) {
-            try (SeekableByteChannel channel =
-                Files.newByteChannel(dis.getPath(), StandardOpenOption.READ)) {
-              for (int i = 1; i < nbFragments; i++) {
-                BulkData b = (BulkData) fragments.get(i);
-                channel.position(b.offset());
-                try {
-                  new JPEGParser(channel);
-                  fragmentsPositions.add(i);
-                } catch (Exception e) {
-                  // Not jpeg stream
-                }
-              }
-            }
-          }
-
-          if (fragmentsPositions.size() == numberOfFrame) {
-            int start = fragmentsPositions.get(frameIndex);
-            int end =
-                (frameIndex + 1) >= fragmentsPositions.size()
-                    ? nbFragments
-                    : fragmentsPositions.get(frameIndex + 1);
-
-            offsets = new long[end - start];
-            length = new int[offsets.length];
-            for (int i = 0; i < offsets.length; i++) {
-              BulkData b = (BulkData) fragments.get(start + i);
-              offsets[i] = b.offset();
-              length[i] = b.length();
-            }
-          } else {
-            throw new IOException("Cannot match all the fragments to all the frames!");
-          }
-        }
-      }
-    } else {
-      throw new IOException("Neither fragments nor BulkData!");
-    }
-    return new ExtendSegmentedInputImageStream(dis.getPath(), offsets, length, desc);
-  }
-
+  /** Checks if the transfer syntax is supported by this reader. */
   public static boolean isSupportedSyntax(String uid) {
     return switch (uid) {
       case UID.ImplicitVRLittleEndian,
@@ -793,24 +1000,43 @@ public class DicomImageReader extends ImageReader {
     };
   }
 
+  /**
+   * Adds a series to the cache for float image conversion.
+   *
+   * @param seriesInstanceUID the series instance UID
+   * @param forceToFloatImages true to force conversion to float images
+   */
   public static void addSeriesToFloatImages(String seriesInstanceUID, Boolean forceToFloatImages) {
     series2FloatImages.put(seriesInstanceUID, forceToFloatImages);
   }
 
+  /**
+   * Checks if a series is marked for float image conversion.
+   *
+   * @param seriesInstanceUID the series instance UID
+   * @return true if the series is marked for float conversion, false otherwise
+   */
   public static Boolean getForceToFloatImages(String seriesInstanceUID) {
     return series2FloatImages.get(seriesInstanceUID);
   }
 
+  /**
+   * Removes a series from the cache for float image conversion.
+   *
+   * <p><strong>Note:</strong> This should be called when the series is disposed to prevent memory
+   * leaks.
+   *
+   * @param seriesInstanceUID the series instance UID
+   */
   public static void removeSeriesToFloatImages(String seriesInstanceUID) {
     series2FloatImages.remove(seriesInstanceUID);
   }
 
   /**
-   * Allow to convert images into float images when the result of the Modality LUT is outside the
-   * range of original image type.
+   * Enables conversion to float images when modality LUT results exceed original image type range.
    *
-   * <p>Note: by default, the conversion is not allowed. If the conversion is set to true, <code>
-   * removeSeriesToFloatImages()</code> must be called when the series is disposed.
+   * <p><strong>Note:</strong> When enabled, {@link #removeSeriesToFloatImages(String)} must be
+   * called when the series is disposed to prevent memory leaks.
    *
    * @param allowFloatImageConversion true to allow conversion
    */

@@ -18,145 +18,253 @@ import org.dcm4che3.img.DicomImageUtils;
 import org.dcm4che3.img.util.DicomUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.weasis.core.util.LangUtil;
 import org.weasis.core.util.annotations.Generated;
 import org.weasis.opencv.data.LookupTableCV;
 
 /**
+ * Modality LUT Module for DICOM pixel value transformations.
+ *
+ * <p>According to DICOM standard, either a Modality LUT Sequence containing a single Item or
+ * Rescale Slope and Intercept values shall be present but not both. This implementation only
+ * applies a warning in such cases.
+ *
+ * @see <a href="http://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.11.html">
+ *     C.11.1 Modality LUT Module</a>
  * @author Nicolas Roduit
  */
 public class ModalityLutModule {
   private static final Logger LOGGER = LoggerFactory.getLogger(ModalityLutModule.class);
 
-  private OptionalDouble rescaleSlope;
-  private OptionalDouble rescaleIntercept;
-  private Optional<String> rescaleType;
-  private Optional<String> lutType;
-  private Optional<String> lutExplanation;
-  private Optional<LookupTableCV> lut;
+  // Constants for modalities that require special handling
+  private static final String MODALITY_XA = "XA";
+  private static final String MODALITY_XRF = "XRF";
+  private static final String PIXEL_INTENSITY_LOG = "LOG";
+  private static final String PIXEL_INTENSITY_DISP = "DISP";
+  private static final String DEFAULT_RESCALE_TYPE = "US";
+  private static final double DEFAULT_RESCALE_INTERCEPT = 0.0;
+  private static final double DEFAULT_RESCALE_SLOPE = 1.0;
+
+  private boolean overlayBitMaskApplied = false;
+  private Double rescaleSlope;
+  private Double rescaleIntercept;
+  private String rescaleType;
+  private String lutType;
+  private String lutExplanation;
+  private LookupTableCV lut;
 
   /**
-   * Modality LUT Module
+   * Creates a new ModalityLutModule from DICOM attributes.
    *
-   * <p>Note: Either a Modality LUT Sequence containing a single Item or Rescale Slope and Intercept
-   * values shall be present but not both. This implementation only applies a warning in such a
-   * case.
-   *
-   * @see <a
-   *     href="http://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.11.html">C.11.1
-   *     Modality LUT Module</a>
+   * @param dcm DICOM attributes, must not be null
+   * @throws NullPointerException if dcm is null
    */
   public ModalityLutModule(Attributes dcm) {
-    this.rescaleSlope = OptionalDouble.empty();
-    this.rescaleIntercept = OptionalDouble.empty();
-    this.rescaleType = Optional.empty();
-    this.lutType = Optional.empty();
-    this.lutExplanation = Optional.empty();
-    this.lut = Optional.empty();
+    initializeFields();
     init(Objects.requireNonNull(dcm));
   }
 
+  /** Initializes all fields to null/default values. */
+  private void initializeFields() {
+    this.rescaleSlope = null;
+    this.rescaleIntercept = null;
+    this.rescaleType = null;
+    this.lutType = null;
+    this.lutExplanation = null;
+    this.lut = null;
+  }
+
+  /** Main initialization method that processes DICOM attributes. */
   private void init(Attributes dcm) {
     String modality = DicomImageUtils.getModality(dcm);
-    if (dcm.containsValue(Tag.RescaleIntercept) && dcm.containsValue(Tag.RescaleSlope)) {
-      this.rescaleSlope =
-          OptionalDouble.of(DicomUtils.getDoubleFromDicomElement(dcm, Tag.RescaleSlope, null));
-      this.rescaleIntercept =
-          OptionalDouble.of(DicomUtils.getDoubleFromDicomElement(dcm, Tag.RescaleIntercept, null));
-      this.rescaleType = Optional.ofNullable(dcm.getString(Tag.RescaleType));
-    }
-
+    initRescaleValues(dcm);
     initModalityLUTSequence(dcm, modality);
     logModalityLutConsistency();
   }
 
+  /** Initializes rescale slope, intercept and type from DICOM attributes. */
+  private void initRescaleValues(Attributes dcm) {
+    this.rescaleSlope = DicomUtils.getDoubleFromDicomElement(dcm, Tag.RescaleSlope, null);
+    this.rescaleIntercept = DicomUtils.getDoubleFromDicomElement(dcm, Tag.RescaleIntercept, null);
+    this.rescaleType = dcm.getString(Tag.RescaleType);
+  }
+
+  /** Initializes the Modality LUT Sequence if present and valid. */
   private void initModalityLUTSequence(Attributes dcm, String modality) {
     Attributes dcmLut = dcm.getNestedDataset(Tag.ModalityLUTSequence);
-    if (dcmLut != null
-        && dcmLut.containsValue(Tag.ModalityLUTType)
-        && dcmLut.containsValue(Tag.LUTDescriptor)
-        && dcmLut.containsValue(Tag.LUTData)) {
-      applyMLUT(dcm, modality, dcmLut);
+    if (isValidModalityLUT(dcmLut)) {
+      processModalityLUT(dcm, modality, dcmLut);
     }
   }
 
-  private void applyMLUT(Attributes dcm, String modality, Attributes dcmLut) {
-    boolean canApplyMLUT = true;
+  /** Validates if the Modality LUT contains all required fields. */
+  private boolean isValidModalityLUT(Attributes dcmLut) {
+    return dcmLut != null
+        && dcmLut.containsValue(Tag.ModalityLUTType)
+        && dcmLut.containsValue(Tag.LUTDescriptor)
+        && dcmLut.containsValue(Tag.LUTData);
+  }
 
-    // See http://dicom.nema.org/medical/dicom/current/output/html/part04.html#figure_N.2-1 and
-    // http://dicom.nema.org/medical/dicom/current/output/html/part03.html#sect_C.8.7.1.1.2
-    if ("XA".equals(modality) || "XRF".equals(modality)) {
-      String pixRel = dcm.getString(Tag.PixelIntensityRelationship);
-      if (("LOG".equalsIgnoreCase(pixRel) || "DISP".equalsIgnoreCase(pixRel))) {
-        canApplyMLUT = false;
-      }
+  /** Processes the Modality LUT if it can be applied based on modality constraints. */
+  private void processModalityLUT(Attributes dcm, String modality, Attributes dcmLut) {
+    if (canApplyModalityLUT(dcm, modality)) {
+      applyModalityLUT(dcmLut);
     }
-    if (canApplyMLUT) {
-      this.lutType = Optional.ofNullable(dcmLut.getString(Tag.ModalityLUTType));
-      this.lutExplanation = Optional.ofNullable(dcmLut.getString(Tag.LUTExplanation));
-      this.lut = DicomImageUtils.createLut(dcmLut);
+  }
+
+  /**
+   * Determines if Modality LUT can be applied based on modality and pixel intensity relationship.
+   *
+   * @see <a
+   *     href="http://dicom.nema.org/medical/dicom/current/output/html/part04.html#figure_N.2-1">
+   *     DICOM Part 4 Figure N.2-1</a>
+   * @see <a
+   *     href="http://dicom.nema.org/medical/dicom/current/output/html/part03.html#sect_C.8.7.1.1.2">
+   *     DICOM Part 3 Section C.8.7.1.1.2</a>
+   */
+  private boolean canApplyModalityLUT(Attributes dcm, String modality) {
+    if (MODALITY_XA.equals(modality) || MODALITY_XRF.equals(modality)) {
+      String pixelIntensityRelationship = dcm.getString(Tag.PixelIntensityRelationship);
+      return !isLogOrDispPixelIntensity(pixelIntensityRelationship);
+    }
+    return true;
+  }
+
+  private boolean isLogOrDispPixelIntensity(String pixelIntensityRelationship) {
+    return PIXEL_INTENSITY_LOG.equalsIgnoreCase(pixelIntensityRelationship)
+        || PIXEL_INTENSITY_DISP.equalsIgnoreCase(pixelIntensityRelationship);
+  }
+
+  private void applyModalityLUT(Attributes dcmLut) {
+    this.lutType = dcmLut.getString(Tag.ModalityLUTType);
+    this.lutExplanation = dcmLut.getString(Tag.LUTExplanation);
+    this.lut = DicomImageUtils.createLut(dcmLut).orElse(null);
+  }
+
+  /** Logs consistency warnings and debug information about the Modality LUT configuration. */
+  private void logModalityLutConsistency() {
+    logMutualExclusivityWarning();
+    logDebugInformation();
+  }
+
+  /** Logs a warning if both rescale values and LUT are present (mutual exclusivity violation). */
+  private void logMutualExclusivityWarning() {
+    if (rescaleIntercept != null && lut != null) {
+      LOGGER.warn(
+          "Either a Modality LUT Sequence or Rescale Slope and Intercept values shall be present but not both!");
     }
   }
 
   @Generated
-  private void logModalityLutConsistency() {
-    if (rescaleIntercept.isPresent() && lut.isPresent()) {
-      LOGGER.warn(
-          "Either a Modality LUT Sequence or Rescale Slope and Intercept values shall be present but not both!");
+  private void logDebugInformation() {
+    if (!LOGGER.isTraceEnabled()) {
+      return;
     }
-
-    if (LOGGER.isTraceEnabled()) {
-      if (lut.isPresent()) {
-        if (rescaleIntercept.isPresent()) {
-          LOGGER.trace(
-              "Modality LUT Sequence shall NOT be present if Rescale Intercept is present");
-        }
-        if (lutType.isEmpty()) {
-          LOGGER.trace("Modality Type is required if Modality LUT Sequence is present.");
-        }
-      } else if (rescaleIntercept.isPresent() && rescaleSlope.isEmpty()) {
-        LOGGER.trace("Modality Rescale Slope is required if Rescale Intercept is present.");
-      }
+    if (lut != null) {
+      logLutDebugInfo();
+    } else if (rescaleIntercept != null && rescaleSlope == null) {
+      LOGGER.trace("Modality Rescale Slope is required if Rescale Intercept is present.");
     }
   }
 
+  /** Logs debug information specific to LUT configuration. */
+  @Generated
+  private void logLutDebugInfo() {
+    if (rescaleIntercept != null) {
+      LOGGER.trace("Modality LUT Sequence shall NOT be present if Rescale Intercept is present");
+    }
+    if (lutType == null) {
+      LOGGER.trace("Modality Type is required if Modality LUT Sequence is present.");
+    }
+  }
+
+  /**
+   * @return The rescale slope value, or empty if not present
+   */
   public OptionalDouble getRescaleSlope() {
-    return rescaleSlope;
+    return LangUtil.toOptional(rescaleSlope);
   }
 
+  /**
+   * @return The rescale intercept value, or empty if not present
+   */
   public OptionalDouble getRescaleIntercept() {
-    return rescaleIntercept;
+    return LangUtil.toOptional(rescaleIntercept);
   }
 
+  /**
+   * @return The rescale type, or empty if not present
+   */
   public Optional<String> getRescaleType() {
-    return rescaleType;
+    return Optional.ofNullable(rescaleType);
   }
 
+  /**
+   * @return The LUT type, or empty if not present
+   */
   public Optional<String> getLutType() {
-    return lutType;
+    return Optional.ofNullable(lutType);
   }
 
+  /**
+   * @return The LUT explanation, or empty if not present
+   */
   public Optional<String> getLutExplanation() {
-    return lutExplanation;
+    return Optional.ofNullable(lutExplanation);
   }
 
+  /**
+   * @return The lookup table, or empty if not present
+   */
   public Optional<LookupTableCV> getLut() {
-    return lut;
+    return Optional.ofNullable(lut);
   }
 
+  /**
+   * Adapts the rescale slope to account for overlay bit mask shifting. This method adjusts the
+   * pixel values by dividing by 2^shiftHighBit to remove high bits. Can only be applied once to
+   * prevent multiple adjustments.
+   *
+   * @param shiftHighBit The number of high bits to shift/remove
+   */
   public void adaptWithOverlayBitMask(int shiftHighBit) {
-    // Combine to the slope value
-    double rs = 1.0; // FIXME: 1.0 should we use rescaleSlope.orElse(1.0) instead?
-    if (rescaleSlope.isEmpty()) {
-      // Set valid modality LUT values
-      if (rescaleIntercept.isEmpty()) {
-        rescaleIntercept = OptionalDouble.of(0.0);
+    if (overlayBitMaskApplied) {
+      return;
+    }
+
+    double adjustedSlope = calculateAdjustedSlope(shiftHighBit);
+    ensureValidModalityLutValues();
+    this.rescaleSlope = adjustedSlope;
+    this.overlayBitMaskApplied = true; // Mark as applied
+  }
+
+  /**
+   * Returns whether overlay bit mask adaptation has been applied.
+   *
+   * @return true if adaptation has been applied, false otherwise
+   */
+  public boolean isOverlayBitMaskApplied() {
+    return overlayBitMaskApplied;
+  }
+
+  /** Calculates the adjusted slope value based on the current slope and bit shift. */
+  private double calculateAdjustedSlope(int shiftHighBit) {
+    double baseSlope = getRescaleSlope().orElse(DEFAULT_RESCALE_SLOPE);
+    return baseSlope / (1 << shiftHighBit);
+  }
+
+  /**
+   * Ensures that rescale intercept and type have valid default values when rescale slope is not
+   * set.
+   */
+  private void ensureValidModalityLutValues() {
+    if (rescaleSlope == null) {
+      if (rescaleIntercept == null) {
+        rescaleIntercept = DEFAULT_RESCALE_INTERCEPT;
       }
-      if (rescaleType.isEmpty()) {
-        rescaleType = Optional.of("US");
+      if (rescaleType == null) {
+        rescaleType = DEFAULT_RESCALE_TYPE;
       }
     }
-    // Divide pixel value by (2 ^ rightBit) => remove right bits
-    rs /= 1 << shiftHighBit;
-    this.rescaleSlope = OptionalDouble.of(rs);
   }
 }

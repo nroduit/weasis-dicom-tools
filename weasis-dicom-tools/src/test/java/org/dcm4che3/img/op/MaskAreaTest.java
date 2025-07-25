@@ -27,7 +27,7 @@ import org.weasis.opencv.data.ImageCV;
 
 class MaskAreaTest {
   @BeforeAll
-  public static void loadNativeLib() {
+  static void loadNativeLib() {
     // Load the native OpenCV library
     OpenCVNativeLoader loader = new OpenCVNativeLoader();
     loader.init();

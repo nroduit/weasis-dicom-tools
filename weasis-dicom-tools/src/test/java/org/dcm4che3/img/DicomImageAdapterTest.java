@@ -59,7 +59,7 @@ class DicomImageAdapterTest {
             FileSystems.getDefault().getPath(IN_DIR.toString(), "ybrFull-RLE.dcm")));
     ImageDescriptor desc = reader.getImageDescriptor();
     PlanarImage imageSource = reader.getPlanarImage(0, readParam);
-    PlanarImage img = ImageRendering.getImageWithoutEmbeddedOverlay(imageSource, desc);
+    PlanarImage img = ImageRendering.getImageWithoutEmbeddedOverlay(imageSource, desc, 0);
     DicomImageAdapter adapter = new DicomImageAdapter(img, desc, 0);
     assertEquals(0, adapter.getPresetCollectionSize());
     assertEquals(8, adapter.getBitsStored());
@@ -92,7 +92,7 @@ class DicomImageAdapterTest {
             FileSystems.getDefault().getPath(IN_DIR.toString(), "MR-JPEGLosslessSV1.dcm")));
     ImageDescriptor desc = reader.getImageDescriptor();
     PlanarImage imageSource = reader.getPlanarImage(0, readParam);
-    PlanarImage img = ImageRendering.getImageWithoutEmbeddedOverlay(imageSource, desc);
+    PlanarImage img = ImageRendering.getImageWithoutEmbeddedOverlay(imageSource, desc, 0);
     DicomImageAdapter adapter = new DicomImageAdapter(img, desc, 0);
     assertEquals(0, adapter.getPresetCollectionSize());
     assertEquals(8, adapter.getBitsStored());

@@ -450,10 +450,10 @@ public class DicomImageReader extends ImageReader {
 
   static PlanarImage rangeOutsideLut(
       PlanarImage input, ImageDescriptor desc, int frameIndex, boolean forceFloat) {
-    OptionalDouble rescaleSlope = desc.getModalityLUT().getRescaleSlope();
+    OptionalDouble rescaleSlope = desc.getModalityLutForFrame(frameIndex).getRescaleSlope();
     if (forceFloat || rescaleSlope.isPresent()) {
       double slope = rescaleSlope.orElse(1.0);
-      double intercept = desc.getModalityLUT().getRescaleIntercept().orElse(0.0);
+      double intercept = desc.getModalityLutForFrame(frameIndex).getRescaleIntercept().orElse(0.0);
       MinMaxLocResult minMax = DicomImageAdapter.getMinMaxValues(input, desc, frameIndex);
       Pair<Double, Double> rescale = getRescaleSlopeAndIntercept(slope, intercept, minMax);
       if (forceFloat || slope < 0.5 || rangeOutsideLut(rescale, desc)) {

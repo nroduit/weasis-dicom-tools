@@ -125,7 +125,7 @@ public class PresetWindowLevel {
 
     ArrayList<PresetWindowLevel> presetList = new ArrayList<>();
     ImageDescriptor desc = adapter.getImageDescriptor();
-    VoiLutModule vLut = desc.getVoiLUT();
+    VoiLutModule vLut = desc.getVoiLutForFrame(adapter.getFrameIndex());
     List<Double> levelList = getWindowCenter(vLut, wl);
     List<Double> windowList = getWindowWidth(vLut, wl);
 

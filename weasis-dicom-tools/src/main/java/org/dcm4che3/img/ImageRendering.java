@@ -32,16 +32,33 @@ public class ImageRendering {
 
   private ImageRendering() {}
 
+  /**
+   * Returns the raw rendered image with modality LUT applied and without embedded overlays.
+   *
+   * @param imageSource the source image
+   * @param desc the image descriptor containing modality LUT and overlay information
+   * @param params the DicomImageReadParam containing window/level parameters
+   * @param frameIndex the index of the frame to process (0 for single-frame images)
+   * @return the raw rendered image with modality LUT applied
+   */
   public static PlanarImage getRawRenderedImage(
       final PlanarImage imageSource,
       ImageDescriptor desc,
       DicomImageReadParam params,
       int frameIndex) {
-    PlanarImage img = getImageWithoutEmbeddedOverlay(imageSource, desc);
+    PlanarImage img = getImageWithoutEmbeddedOverlay(imageSource, desc, frameIndex);
     DicomImageAdapter adapter = new DicomImageAdapter(img, desc, frameIndex);
     return getModalityLutImage(imageSource, adapter, params);
   }
 
+  /**
+   * Returns the raw rendered image with modality LUT applied.
+   *
+   * @param img the source image
+   * @param adapter the DicomImageAdapter containing modality LUT information
+   * @param params the DicomImageReadParam containing window/level parameters
+   * @return the raw rendered image with modality LUT applied
+   */
   public static PlanarImage getModalityLutImage(
       PlanarImage img, DicomImageAdapter adapter, DicomImageReadParam params) {
     WindLevelParameters p = new WindLevelParameters(adapter, params);
@@ -54,16 +71,34 @@ public class ImageRendering {
     return img;
   }
 
+  /**
+   * Returns the default rendered image with VOI LUT and without embedded overlays.
+   *
+   * @param imageSource the source image
+   * @param desc the image descriptor containing VOI LUT and overlay information
+   * @param params the DicomImageReadParam containing window/level parameters
+   * @param frameIndex the index of the frame to process (0 for single-frame images)
+   * @return the default rendered image with VOI LUT and overlays applied
+   */
   public static PlanarImage getDefaultRenderedImage(
       final PlanarImage imageSource,
       ImageDescriptor desc,
       DicomImageReadParam params,
       int frameIndex) {
-    PlanarImage img = getImageWithoutEmbeddedOverlay(imageSource, desc);
+    PlanarImage img = getImageWithoutEmbeddedOverlay(imageSource, desc, frameIndex);
     img = getVoiLutImage(img, desc, params, frameIndex);
     return OverlayData.getOverlayImage(imageSource, img, desc, params, frameIndex);
   }
 
+  /**
+   * Returns an image with the VOI LUT applied.
+   *
+   * @param imageSource the source image
+   * @param desc the image descriptor containing VOI LUT information
+   * @param params the DicomImageReadParam containing window/level parameters
+   * @param frameIndex the index of the frame to process (0 for single-frame images)
+   * @return the image with VOI LUT applied
+   */
   public static PlanarImage getVoiLutImage(
       final PlanarImage imageSource,
       ImageDescriptor desc,
@@ -73,6 +108,14 @@ public class ImageRendering {
     return getVoiLutImage(imageSource, adapter, params);
   }
 
+  /**
+   * Returns an image with the VOI LUT applied.
+   *
+   * @param imageSource the source image
+   * @param adapter the DicomImageAdapter containing VOI LUT information
+   * @param params the DicomImageReadParam containing window/level parameters
+   * @return the image with VOI LUT applied
+   */
   public static PlanarImage getVoiLutImage(
       PlanarImage imageSource, DicomImageAdapter adapter, DicomImageReadParam params) {
     WindLevelParameters p = new WindLevelParameters(adapter, params);
@@ -141,16 +184,22 @@ public class ImageRendering {
   }
 
   /**
-   * For overlays encoded in Overlay Data Element (60xx,3000), Overlay Bits Allocated (60xx,0100) is
-   * always 1 and Overlay Bit Position (60xx,0102) is always 0.
+   * Returns an image without embedded overlays. If the image has embedded overlays, it will clear
+   * the bits outside the range defined by bitsStored and highBit.
    *
-   * @param img the image source
-   * @return the bit mask for removing the pixel overlay
+   * <p>For overlays encoded in Overlay Data Element (60xx,3000), Overlay Bits Allocated (60xx,0100)
+   * is always 1 and Overlay Bit Position (60xx,0102) is always 0.
+   *
+   * @param img the source image
+   * @param desc the image descriptor containing overlay information
+   * @param frameIndex the index of the frame to process (0 for single-frame images)
+   * @return the image without embedded overlays
    * @see <a
    *     href="http://dicom.nema.org/medical/dicom/current/output/chtml/part05/chapter_8.html">8.1.2
    *     Overlay data encoding of related data elements</a>
    */
-  public static PlanarImage getImageWithoutEmbeddedOverlay(PlanarImage img, ImageDescriptor desc) {
+  public static PlanarImage getImageWithoutEmbeddedOverlay(
+      PlanarImage img, ImageDescriptor desc, int frameIndex) {
     Objects.requireNonNull(img);
     List<EmbeddedOverlay> embeddedOverlays = Objects.requireNonNull(desc).getEmbeddedOverlay();
     if (!embeddedOverlays.isEmpty()) {
@@ -166,7 +215,7 @@ public class ImageRendering {
         // Set to 0 all bits upper than highBit and if lower than high-bitsStored (=> all bits
         // outside bitStored)
         if (high > bitsStored) {
-          desc.getModalityLUT().adaptWithOverlayBitMask(high - bitsStored);
+          desc.getModalityLutForFrame(frameIndex).adaptWithOverlayBitMask(high - bitsStored);
         }
 
         // Set to 0 all bits outside bitStored

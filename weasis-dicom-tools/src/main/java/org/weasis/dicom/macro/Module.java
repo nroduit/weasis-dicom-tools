@@ -32,22 +32,22 @@ public class Module {
     return dcmItems;
   }
 
-  public final void removeAllSequenceItems(int SeqTag) {
-    Sequence seq = dcmItems.getSequence(SeqTag);
+  public final void removeAllSequenceItems(int seqTag) {
+    Sequence seq = dcmItems.getSequence(seqTag);
     if (seq != null) {
       seq.clear();
     }
   }
 
-  public final void removeSequenceItem(int SeqTag, int index) {
-    Sequence seq = dcmItems.getSequence(SeqTag);
+  public final void removeSequenceItem(int seqTag, int index) {
+    Sequence seq = dcmItems.getSequence(seqTag);
     if (seq != null && index < seq.size()) {
       seq.remove(index);
     }
   }
 
-  public final void removeSequenceItem(int SeqTag, Attributes item) {
-    Sequence seq = dcmItems.getSequence(SeqTag);
+  public final void removeSequenceItem(int seqTag, Attributes item) {
+    Sequence seq = dcmItems.getSequence(seqTag);
     if (seq != null) {
       seq.remove(item);
     }

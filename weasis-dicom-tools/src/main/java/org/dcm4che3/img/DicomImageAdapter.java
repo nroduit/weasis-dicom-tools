@@ -226,7 +226,7 @@ public class DicomImageAdapter {
         return prIntercept.getAsDouble();
       }
     }
-    return desc.getModalityLUT().getRescaleIntercept().orElse(0.0);
+    return desc.getModalityLutForFrame(frameIndex).getRescaleIntercept().orElse(0.0);
   }
 
   public double getRescaleSlope(PrDicomObject dcm) {
@@ -236,7 +236,7 @@ public class DicomImageAdapter {
         return prSlope.getAsDouble();
       }
     }
-    return desc.getModalityLUT().getRescaleSlope().orElse(1.0);
+    return desc.getModalityLutForFrame(frameIndex).getRescaleSlope().orElse(1.0);
   }
 
   public double getFullDynamicWidth(WlPresentation wl) {
@@ -322,7 +322,7 @@ public class DicomImageAdapter {
             : null;
     LookupTableCV prModLut = (pr != null ? pr.getModalityLutModule().getLut().orElse(null) : null);
     final LookupTableCV mLUTSeq =
-        prModLut == null ? desc.getModalityLUT().getLut().orElse(null) : prModLut;
+        prModLut == null ? desc.getModalityLutForFrame(frameIndex).getLut().orElse(null) : prModLut;
     if (mLUTSeq != null) {
       if (!pixelPadding || paddingValue == null) {
         if (minMax.minVal >= mLUTSeq.getOffset()

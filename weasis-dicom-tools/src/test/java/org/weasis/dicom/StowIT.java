@@ -9,6 +9,8 @@
  */
 package org.weasis.dicom;
 
+import static org.junit.jupiter.api.Assertions.assertNull;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.net.URISyntaxException;
@@ -21,7 +23,6 @@ import org.dcm4che3.data.VR;
 import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.io.DicomInputStream.IncludeBulkData;
 import org.dcm4che3.util.UIDUtils;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.weasis.dicom.web.ContentType;
@@ -70,6 +71,6 @@ class StowIT {
       message = e.getMessage();
     }
 
-    Assertions.assertNull(message, message);
+    assertNull(message, message);
   }
 }

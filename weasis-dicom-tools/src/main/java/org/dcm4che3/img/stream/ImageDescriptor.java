@@ -55,6 +55,8 @@ public final class ImageDescriptor {
   private final String pixelPresentation;
   private final String seriesInstanceUID;
   private final List<MinMaxLocResult> minMaxPixelValues;
+  private final List<VoiLutModule> voiLutPerFrame;
+  private final List<ModalityLutModule> modalityLutPerFrame;
 
   public ImageDescriptor(Attributes dcm) {
     this(dcm, 0);
@@ -91,8 +93,12 @@ public final class ImageDescriptor {
     this.voiLUT = new VoiLutModule(dcm);
     this.seriesInstanceUID = dcm.getString(Tag.SeriesInstanceUID);
     this.minMaxPixelValues = new ArrayList<>(frames);
+    this.voiLutPerFrame = new ArrayList<>(frames);
+    this.modalityLutPerFrame = new ArrayList<>(frames);
     for (int i = 0; i < frames; i++) {
       this.minMaxPixelValues.add(null);
+      this.voiLutPerFrame.add(null);
+      this.modalityLutPerFrame.add(null);
     }
   }
 
@@ -227,7 +233,7 @@ public final class ImageDescriptor {
 
   public MinMaxLocResult getMinMaxPixelValue(int frame) {
     if (frame < 0 || frame >= minMaxPixelValues.size()) {
-      LOGGER.error("Invalid frame index: {}", frame);
+      LOGGER.error("Invalid frame index for getting minMax: {}", frame);
       return null;
     }
     return minMaxPixelValues.get(frame);
@@ -239,5 +245,39 @@ public final class ImageDescriptor {
       return;
     }
     minMaxPixelValues.set(frame, minMaxPixelValue);
+  }
+
+  public VoiLutModule getVoiLutForFrame(int frame) {
+    return getLutModule(voiLutPerFrame, voiLUT, frame);
+  }
+
+  private static <T> T getLutModule(List<T> list, T baseLut, int frame) {
+    if (frame < 0 || frame >= list.size()) {
+      if (frame != 0) {
+        LOGGER.error("Invalid frame index for LUT: {}", frame);
+      }
+      return baseLut;
+    }
+    return list.get(frame) != null ? list.get(frame) : baseLut;
+  }
+
+  public void setVoiLutForFrame(int frame, VoiLutModule voiLut) {
+    if (frame < 0 || frame >= voiLutPerFrame.size()) {
+      LOGGER.error("Unable to set VoiLutModule for invalid frame index: {}", frame);
+      return;
+    }
+    voiLutPerFrame.set(frame, voiLut);
+  }
+
+  public ModalityLutModule getModalityLutForFrame(int frame) {
+    return getLutModule(modalityLutPerFrame, modalityLUT, frame);
+  }
+
+  public void setModalityLutForFrame(int frame, ModalityLutModule modalityLut) {
+    if (frame < 0 || frame >= modalityLutPerFrame.size()) {
+      LOGGER.error("Unable to set ModalityLutModule for invalid frame index: {}", frame);
+      return;
+    }
+    modalityLutPerFrame.set(frame, modalityLut);
   }
 }

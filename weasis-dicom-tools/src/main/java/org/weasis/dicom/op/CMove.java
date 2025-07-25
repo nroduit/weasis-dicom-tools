@@ -17,7 +17,7 @@ import org.dcm4che3.tool.movescu.MoveSCU;
 import org.dcm4che3.tool.movescu.MoveSCU.InformationModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.weasis.core.util.FileUtil;
+import org.weasis.core.util.StreamUtil;
 import org.weasis.core.util.StringUtil;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.DeviceOpService;
@@ -126,7 +126,7 @@ public class CMove {
         ServiceUtil.forceGettingAttributes(moveSCU.getState(), moveSCU);
         return DicomState.buildMessage(moveSCU.getState(), null, e);
       } finally {
-        FileUtil.safeClose(moveSCU);
+        StreamUtil.safeClose(moveSCU);
         service.stop();
       }
     } catch (Exception e) {

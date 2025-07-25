@@ -40,11 +40,11 @@ public class ImageTranscodeParam {
   }
 
   public OptionalInt getJpegCompressionQuality() {
-    return LangUtil.getOptionalInteger(jpegCompressionQuality);
+    return LangUtil.toOptional(jpegCompressionQuality);
   }
 
   /**
-   * @param jpegCompressionQuality between 1 to 100 (100 is the best lossy quality).
+   * @param jpegCompressionQuality between 1 and 100 (100 is the best lossy quality).
    */
   public void setJpegCompressionQuality(int jpegCompressionQuality) {
     this.jpegCompressionQuality = jpegCompressionQuality;
@@ -56,9 +56,9 @@ public class ImageTranscodeParam {
 
   /**
    * It preserves the raw data when the pixel depth is more than 8 bit. The default value applies
-   * the W/L and is FALSE, the output image will be always a 8-bit per sample image.
+   * the W/L and is FALSE, the output image will always be an 8-bit per-sample image.
    *
-   * @param preserveRawImage
+   * @param preserveRawImage if TRUE, the output image will be the raw data without W/L
    */
   public void setPreserveRawImage(Boolean preserveRawImage) {
     this.preserveRawImage = preserveRawImage;

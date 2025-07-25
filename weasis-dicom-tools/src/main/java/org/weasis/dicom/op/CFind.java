@@ -21,7 +21,7 @@ import org.dcm4che3.tool.findscu.FindSCU;
 import org.dcm4che3.tool.findscu.FindSCU.InformationModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.weasis.core.util.FileUtil;
+import org.weasis.core.util.StreamUtil;
 import org.weasis.core.util.StringUtil;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.DeviceOpService;
@@ -168,7 +168,7 @@ public class CFind {
         ServiceUtil.forceGettingAttributes(findSCU.getState(), findSCU);
         return DicomState.buildMessage(findSCU.getState(), null, e);
       } finally {
-        FileUtil.safeClose(findSCU);
+        StreamUtil.safeClose(findSCU);
         service.stop();
       }
     } catch (Exception e) {

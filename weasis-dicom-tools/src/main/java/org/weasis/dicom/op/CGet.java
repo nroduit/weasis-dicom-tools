@@ -25,7 +25,7 @@ import org.dcm4che3.tool.getscu.GetSCU.InformationModel;
 import org.dcm4che3.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.weasis.core.util.FileUtil;
+import org.weasis.core.util.StreamUtil;
 import org.weasis.core.util.StringUtil;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.DeviceOpService;
@@ -159,7 +159,7 @@ public class CGet {
         ServiceUtil.forceGettingAttributes(getSCU.getState(), getSCU);
         return DicomState.buildMessage(getSCU.getState(), null, e);
       } finally {
-        FileUtil.safeClose(getSCU);
+        StreamUtil.safeClose(getSCU);
         service.stop();
       }
     } catch (Exception e) {

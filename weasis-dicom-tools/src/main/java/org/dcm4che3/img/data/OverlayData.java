@@ -25,7 +25,7 @@ import org.dcm4che3.img.util.DicomUtils;
 import org.opencv.core.CvType;
 import org.weasis.opencv.data.ImageCV;
 import org.weasis.opencv.data.PlanarImage;
-import org.weasis.opencv.op.ImageProcessor;
+import org.weasis.opencv.op.ImageTransformer;
 
 /**
  * Represents DICOM overlay data for an image.
@@ -143,7 +143,7 @@ public record OverlayData(
 
     applyOverlay(overlays, pixelData, frameIndex, width);
     overlay.put(0, 0, pixelData);
-    return ImageProcessor.overlay(
+    return ImageTransformer.overlay(
         currentImage.toMat(), overlay, params.getOverlayColor().orElse(Color.WHITE));
   }
 

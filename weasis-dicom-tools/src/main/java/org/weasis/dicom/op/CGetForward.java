@@ -50,7 +50,7 @@ import org.dcm4che3.tool.getscu.GetSCU;
 import org.dcm4che3.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.weasis.core.util.FileUtil;
+import org.weasis.core.util.StreamUtil;
 import org.weasis.core.util.StringUtil;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.AttributeEditorContext;
@@ -123,7 +123,7 @@ public class CGetForward implements AutoCloseable {
           DicomProgress p = streamSCU.getState().getProgress();
           if (p != null) {
             if (p.isCancel()) {
-              FileUtil.safeClose(CGetForward.this);
+              StreamUtil.safeClose(CGetForward.this);
               return;
             }
           }
@@ -218,7 +218,7 @@ public class CGetForward implements AutoCloseable {
                   ProgressStatus.FAILED,
                   streamSCU.getNumberOfSuboperations());
             } finally {
-              FileUtil.safeClose(in);
+              StreamUtil.safeClose(in);
               // Force to clean if tmp bulk files
               ServiceUtil.safeClose(in);
             }
@@ -650,7 +650,7 @@ public class CGetForward implements AutoCloseable {
         ServiceUtil.forceGettingAttributes(forward.getState(), forward);
         return DicomState.buildMessage(forward.getState(), null, e);
       } finally {
-        FileUtil.safeClose(forward);
+        StreamUtil.safeClose(forward);
         service.stop();
         forward.getStreamSCUService().stop();
       }

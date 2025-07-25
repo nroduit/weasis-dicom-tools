@@ -22,7 +22,7 @@ import org.weasis.core.util.MathUtil;
 import org.weasis.opencv.data.ImageCV;
 import org.weasis.opencv.data.LookupTableCV;
 import org.weasis.opencv.data.PlanarImage;
-import org.weasis.opencv.op.ImageProcessor;
+import org.weasis.opencv.op.ImageTransformer;
 import org.weasis.opencv.op.lut.PresentationStateLut;
 
 /**
@@ -180,7 +180,7 @@ public class ImageRendering {
     double slope = 255.0 / range;
     double yint = 255.0 - slope * high;
 
-    return ImageProcessor.rescaleToByte(ImageCV.toMat(imageSource), slope, yint);
+    return ImageTransformer.rescaleToByte(ImageCV.toMat(imageSource), slope, yint);
   }
 
   /**
@@ -219,7 +219,7 @@ public class ImageRendering {
         }
 
         // Set to 0 all bits outside bitStored
-        return ImageProcessor.bitwiseAnd(img.toMat(), val);
+        return ImageTransformer.bitwiseAnd(img.toMat(), val);
       }
     }
     return img;

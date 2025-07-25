@@ -137,7 +137,7 @@ class OverlayDataTest {
   @Test
   @DisplayName("Verify getOverlayImage2")
   void verifyGetOverlayImage2() {
-    PlanarImage imageSource = ImageCV.toImageCV(Mat.zeros(9, 9, CvType.CV_8UC1));
+    PlanarImage imageSource = ImageCV.fromMat(Mat.zeros(9, 9, CvType.CV_8UC1));
     OverlayData overlayData =
         new OverlayData(0, 4, 5, 1, 1, new int[] {3, 3}, new byte[] {7, 5, 1});
 

@@ -21,6 +21,7 @@ import org.dcm4che3.io.DicomInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.util.FileUtil;
+import org.weasis.core.util.StreamUtil;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
 
@@ -56,14 +57,14 @@ public class ServiceUtil {
   public static void forceGettingAttributes(DicomState dcmState, AutoCloseable closeable) {
     DicomProgress p = dcmState.getProgress();
     if (p != null) {
-      FileUtil.safeClose(closeable);
+      StreamUtil.safeClose(closeable);
     }
   }
 
   public static void safeClose(DicomInputStream in) {
     if (in != null) {
       for (File file : in.getBulkDataFiles()) {
-        FileUtil.delete(file);
+        FileUtil.delete(file.toPath());
       }
     }
   }

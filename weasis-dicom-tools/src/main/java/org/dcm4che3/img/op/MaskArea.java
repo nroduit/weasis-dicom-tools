@@ -23,7 +23,7 @@ import org.opencv.imgproc.Imgproc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.opencv.data.ImageCV;
-import org.weasis.opencv.op.ImageProcessor;
+import org.weasis.opencv.op.ImageAnalyzer;
 
 /**
  * @author Nicolas Roduit
@@ -67,12 +67,12 @@ public class MaskArea {
             Imgproc.blur(srcImg.submat(rect2d), dstImg.submat(rect2d), new Size(7, 7));
           }
         } else {
-          List<MatOfPoint> pts = ImageProcessor.transformShapeToContour(shape, true);
+          List<MatOfPoint> pts = ImageAnalyzer.transformShapeToContour(shape, true);
           Imgproc.fillPoly(dstImg, pts, color);
         }
       }
       return dstImg;
     }
-    return ImageCV.toImageCV(srcImg);
+    return ImageCV.fromMat(srcImg);
   }
 }

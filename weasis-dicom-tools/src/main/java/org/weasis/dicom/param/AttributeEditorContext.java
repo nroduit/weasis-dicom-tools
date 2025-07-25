@@ -94,6 +94,6 @@ public class AttributeEditorContext {
 
   public boolean hasPixelProcessing() {
     return Objects.nonNull(getMaskArea())
-        || LangUtil.getEmptytoFalse(getProperties().getProperty("defacing"));
+        || LangUtil.emptyToFalse(getProperties().getProperty("defacing"));
   }
 }

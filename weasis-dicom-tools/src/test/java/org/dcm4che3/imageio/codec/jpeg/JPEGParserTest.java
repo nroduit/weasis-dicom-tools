@@ -47,7 +47,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.opencv.core.CvType;
 import org.opencv.osgi.OpenCVNativeLoader;
 import org.weasis.opencv.data.ImageCV;
-import org.weasis.opencv.op.ImageProcessor;
+import org.weasis.opencv.op.ImageIOHandler;
 
 class JPEGParserTest {
 
@@ -534,7 +534,7 @@ class JPEGParserTest {
       @MethodSource("loadJpegTestFiles")
       @DisplayName("Should parse real JPEG files correctly")
       void getAttributesReturnsCorrectAttributesForJPEGParams(Path path) throws IOException {
-        try (ImageCV image = ImageProcessor.readImage(path.toFile(), null)) {
+        try (ImageCV image = ImageIOHandler.readImage(path, null)) {
           try (SeekableByteChannel channel = Files.newByteChannel(path, StandardOpenOption.READ)) {
             channel.position(0);
             JPEGParser parser = new JPEGParser(channel);

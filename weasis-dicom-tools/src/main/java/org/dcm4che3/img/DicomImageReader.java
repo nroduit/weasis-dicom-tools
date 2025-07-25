@@ -60,13 +60,13 @@ import org.opencv.imgproc.Imgproc;
 import org.opencv.osgi.OpenCVNativeLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.weasis.core.util.FileUtil;
 import org.weasis.core.util.Pair;
+import org.weasis.core.util.StreamUtil;
 import org.weasis.core.util.StringUtil;
 import org.weasis.opencv.data.ImageCV;
 import org.weasis.opencv.data.PlanarImage;
 import org.weasis.opencv.op.ImageConversion;
-import org.weasis.opencv.op.ImageProcessor;
+import org.weasis.opencv.op.ImageTransformer;
 
 /**
  * Reads image data from a DICOM object.
@@ -247,7 +247,7 @@ public class DicomImageReader extends ImageReader {
   }
 
   private void resetInternalState() {
-    FileUtil.safeClose(dis);
+    StreamUtil.safeClose(dis);
     dis = null;
     bdis = null;
     fragmentsPositions.clear();
@@ -423,10 +423,11 @@ public class DicomImageReader extends ImageReader {
       }
     }
     if (param != null && param.getSourceRegion() != null) {
-      out = ImageProcessor.crop(out.toMat(), param.getSourceRegion());
+      out = ImageTransformer.crop(out.toMat(), param.getSourceRegion());
     }
     if (param != null && param.getSourceRenderSize() != null) {
-      out = ImageProcessor.scale(out.toMat(), param.getSourceRenderSize(), Imgproc.INTER_LANCZOS4);
+      out =
+          ImageTransformer.scale(out.toMat(), param.getSourceRenderSize(), Imgproc.INTER_LANCZOS4);
     }
 
     String seriesUID = desc.getSeriesInstanceUID();
@@ -593,13 +594,13 @@ public class DicomImageReader extends ImageReader {
                 desc.isBanded() ? Imgcodecs.ILV_NONE : Imgcodecs.ILV_SAMPLE,
                 streamVR);
         ImageCV imageCV =
-            ImageCV.toImageCV(
+            ImageCV.fromMat(
                 Imgcodecs.dicomRawFileRead(
                     seg.path().toString(), positions, lengths, dicomparams, pmi.name()));
         return applyReleaseImageAfterProcessing(imageCV, param);
       }
       ImageCV imageCV =
-          ImageCV.toImageCV(
+          ImageCV.fromMat(
               Imgcodecs.dicomJpgFileRead(
                   seg.path().toString(), positions, lengths, dcmFlags, Imgcodecs.IMREAD_UNCHANGED));
       return applyReleaseImageAfterProcessing(imageCV, param);
@@ -673,12 +674,11 @@ public class DicomImageReader extends ImageReader {
                 bits,
                 desc.isBanded() ? Imgcodecs.ILV_NONE : Imgcodecs.ILV_SAMPLE,
                 streamVR);
-        ImageCV imageCV =
-            ImageCV.toImageCV(Imgcodecs.dicomRawMatRead(buf, dicomparams, pmi.name()));
+        ImageCV imageCV = ImageCV.fromMat(Imgcodecs.dicomRawMatRead(buf, dicomparams, pmi.name()));
         return applyReleaseImageAfterProcessing(imageCV, param);
       }
       ImageCV imageCV =
-          ImageCV.toImageCV(Imgcodecs.dicomJpgMatRead(buf, dcmFlags, Imgcodecs.IMREAD_UNCHANGED));
+          ImageCV.fromMat(Imgcodecs.dicomJpgMatRead(buf, dcmFlags, Imgcodecs.IMREAD_UNCHANGED));
       return applyReleaseImageAfterProcessing(imageCV, param);
     } finally {
       closeMat(buf);

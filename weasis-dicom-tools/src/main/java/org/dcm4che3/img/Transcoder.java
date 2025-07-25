@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
 import org.weasis.core.util.FileUtil;
 import org.weasis.opencv.data.ImageCV;
 import org.weasis.opencv.data.PlanarImage;
-import org.weasis.opencv.op.ImageProcessor;
+import org.weasis.opencv.op.ImageIOHandler;
 
 /**
  * @author Nicolas Roduit
@@ -269,12 +269,12 @@ public class Transcoder {
     Path outPath = adaptFileExtension(path, ".dcm", ext.extension);
     outPath = FileUtil.addFileIndex(outPath, index, indexSize);
     if (map == null) {
-      if (!ImageProcessor.writeImage(img.toMat(), outPath.toFile())) {
+      if (!ImageIOHandler.writeImage(img.toMat(), outPath)) {
         LOGGER.error("Cannot Transform to {} {}", ext, img);
         FileUtil.delete(outPath);
       }
     } else {
-      if (!ImageProcessor.writeImage(img.toMat(), outPath.toFile(), map)) {
+      if (!ImageIOHandler.writeImage(img.toMat(), outPath, map)) {
         LOGGER.error("Cannot Transform to {} {}", ext, img);
         FileUtil.delete(outPath);
       }

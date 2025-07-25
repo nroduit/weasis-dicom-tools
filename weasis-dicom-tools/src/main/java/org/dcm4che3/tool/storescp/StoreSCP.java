@@ -130,7 +130,7 @@ public class StoreSCP {
                 progress.setAttributes(null);
               }
             } catch (Exception e) {
-              FileUtil.delete(file);
+              FileUtil.delete(file.toPath());
               throw new DicomServiceException(Status.ProcessingFailure, e);
             }
           } finally {
@@ -191,7 +191,7 @@ public class StoreSCP {
 
   private static void renameTo(Association as, File from, File dest) throws IOException {
     LOGGER.info("{}: M-RENAME {} to {}", as, from, dest);
-    FileUtil.prepareToWriteFile(dest);
+    FileUtil.prepareToWriteFile(dest.toPath());
     if (!from.renameTo(dest)) throw new IOException("Failed to rename " + from + " to " + dest);
   }
 

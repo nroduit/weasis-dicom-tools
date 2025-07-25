@@ -119,7 +119,7 @@ public class ImageAdapter {
         return true;
       } catch (Exception e) {
         LOGGER.error("Writing DICOM file", e);
-        FileUtil.delete(file);
+        FileUtil.delete(file.toPath());
         return false;
       }
     }
@@ -143,7 +143,7 @@ public class ImageAdapter {
       writeImage(syntax, desc, imgData, dataSet, dstTsuid, dos);
     } catch (Exception e) {
       LOGGER.error("Transcoding image data", e);
-      FileUtil.delete(file);
+      FileUtil.delete(file.toPath());
       return false;
     } finally {
       reader.dispose();

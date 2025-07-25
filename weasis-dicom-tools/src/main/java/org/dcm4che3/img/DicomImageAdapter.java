@@ -27,7 +27,7 @@ import org.weasis.core.util.MathUtil;
 import org.weasis.core.util.SoftHashMap;
 import org.weasis.opencv.data.LookupTableCV;
 import org.weasis.opencv.data.PlanarImage;
-import org.weasis.opencv.op.ImageProcessor;
+import org.weasis.opencv.op.ImageAnalyzer;
 import org.weasis.opencv.op.lut.LutParameters;
 import org.weasis.opencv.op.lut.LutShape;
 import org.weasis.opencv.op.lut.PresentationStateLut;
@@ -90,7 +90,7 @@ public class DicomImageAdapter {
 
     // When not monochrome and no padding value, use the default min and max values
     if (val == null) {
-      val = ImageProcessor.findRawMinMaxValues(image, !monochrome);
+      val = ImageAnalyzer.findRawMinMaxValues(image, !monochrome);
     }
     return val;
   }
@@ -135,7 +135,7 @@ public class DicomImageAdapter {
       val.minVal = 0.0;
       val.maxVal = 255.0;
     } else {
-      val = ImageProcessor.findMinMaxValues(image.toMat(), paddingValueMin, paddingValueMax);
+      val = ImageAnalyzer.findMinMaxValues(image.toMat(), paddingValueMin, paddingValueMax);
       // Handle a special case when min and max are equal, ex. Black image
       // + 1 to max enables to display the correct value
       if (val != null && val.minVal == val.maxVal) {

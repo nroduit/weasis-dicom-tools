@@ -186,10 +186,10 @@ public class Dicomizer {
       } while (codeStreamSize > 0);
       dos.writeHeader(Tag.SequenceDelimitationItem, null, 0);
     } catch (IOException e) {
-      FileUtil.delete(dcmFile);
+      FileUtil.delete(dcmFile.toPath());
       throw e;
     } catch (Exception e) {
-      FileUtil.delete(dcmFile);
+      FileUtil.delete(dcmFile.toPath());
       throw new IOException(e);
     }
   }

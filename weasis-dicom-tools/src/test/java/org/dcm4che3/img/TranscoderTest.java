@@ -30,7 +30,6 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import org.dcm4che3.data.UID;
 import org.dcm4che3.img.Transcoder.Format;
-import org.dcm4che3.img.data.ImageContentHash;
 import org.dcm4che3.img.data.PrDicomObject;
 import org.dcm4che3.img.stream.DicomFileInputStream;
 import org.junit.jupiter.api.AfterAll;
@@ -41,7 +40,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.weasis.opencv.data.PlanarImage;
-import org.weasis.opencv.op.ImageProcessor;
+import org.weasis.opencv.op.ImageContentHash;
+import org.weasis.opencv.op.ImageIOHandler;
 
 class TranscoderTest {
 
@@ -265,7 +265,7 @@ class TranscoderTest {
       return reader.getPlanarImages(null);
     } else {
       return files.stream()
-          .map(p -> ImageProcessor.readImageWithCvException(p.toFile(), null))
+          .map(p -> ImageIOHandler.readImageWithCvException(p, null))
           .collect(Collectors.toList());
     }
   }
@@ -275,8 +275,7 @@ class TranscoderTest {
       reader.setInput(new DicomFileInputStream(path));
       return reader.getPlanarImages(null);
     } else {
-      return Collections.singletonList(
-          ImageProcessor.readImageWithCvException(path.toFile(), null));
+      return Collections.singletonList(ImageIOHandler.readImageWithCvException(path, null));
     }
   }
 

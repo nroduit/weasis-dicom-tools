@@ -19,7 +19,7 @@ import org.dcm4che3.net.Status;
 import org.dcm4che3.tool.storescu.StoreSCU;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.weasis.core.util.FileUtil;
+import org.weasis.core.util.StreamUtil;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.DeviceOpService;
 import org.weasis.dicom.param.DicomNode;
@@ -104,7 +104,7 @@ public class Echo {
         dcmState.addProcessTime(t1, t2, t3);
         return dcmState;
       } finally {
-        FileUtil.safeClose(storeSCU);
+        StreamUtil.safeClose(storeSCU);
         service.stop();
       }
     } catch (Exception e) {

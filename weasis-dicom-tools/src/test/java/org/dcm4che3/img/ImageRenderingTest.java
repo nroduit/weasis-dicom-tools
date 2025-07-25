@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.weasis.core.util.MathUtil;
 import org.weasis.core.util.StringUtil;
 import org.weasis.opencv.data.PlanarImage;
-import org.weasis.opencv.op.ImageProcessor;
+import org.weasis.opencv.op.ImageAnalyzer;
 
 class ImageRenderingTest {
 
@@ -64,7 +64,7 @@ class ImageRenderingTest {
     PlanarImage img = reader.getPlanarImage(0, params);
     img = ImageRendering.getRawRenderedImage(img, desc, params, 0);
     double[][] val =
-        ImageProcessor.meanStdDev(
+        ImageAnalyzer.meanStdDev(
             img.toMat(), shape, desc.getPixelPaddingValue(), desc.getPixelPaddingRangeLimit());
     if (val != null) {
       DecimalFormat df = new DecimalFormat("#.00");

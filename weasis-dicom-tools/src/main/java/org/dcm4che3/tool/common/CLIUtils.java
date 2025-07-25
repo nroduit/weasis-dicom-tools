@@ -26,6 +26,8 @@ import org.dcm4che3.util.StringUtils;
  */
 public class CLIUtils {
 
+  private CLIUtils() {}
+
   public static Properties loadProperties(String url, Properties p) throws IOException {
     if (p == null) {
       p = new Properties();

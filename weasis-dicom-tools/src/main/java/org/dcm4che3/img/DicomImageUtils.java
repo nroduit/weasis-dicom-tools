@@ -27,7 +27,7 @@ import org.weasis.core.util.Pair;
 import org.weasis.opencv.data.ImageCV;
 import org.weasis.opencv.data.LookupTableCV;
 import org.weasis.opencv.data.PlanarImage;
-import org.weasis.opencv.op.ImageProcessor;
+import org.weasis.opencv.op.ImageTransformer;
 import org.weasis.opencv.op.lut.LutParameters;
 import org.weasis.opencv.op.lut.LutShape;
 
@@ -103,7 +103,7 @@ public class DicomImageUtils {
 
       if (source.depth() <= CvType.CV_8S && rDesc[1] == 0 && gDesc[1] == 0 && bDesc[1] == 0) {
         // Replace the original image with the RGB image.
-        return ImageProcessor.applyLUT(source.toMat(), new byte[][] {b, g, r});
+        return ImageTransformer.applyLUT(source.toMat(), new byte[][] {b, g, r});
       } else {
         LookupTableCV lookup =
             new LookupTableCV(
@@ -324,12 +324,12 @@ public class DicomImageUtils {
    */
   public static LookupTableCV createRescaleRampLut(LutParameters params) {
     return createRescaleRampLut(
-        params.getIntercept(),
-        params.getSlope(),
-        params.getBitsStored(),
-        params.isSigned(),
-        params.isOutputSigned(),
-        params.getBitsOutput());
+        params.intercept(),
+        params.slope(),
+        params.bitsStored(),
+        params.signed(),
+        params.outputSigned(),
+        params.bitsOutput());
   }
 
   public static LookupTableCV createRescaleRampLut(
@@ -407,12 +407,12 @@ public class DicomImageUtils {
   public static void applyPixelPaddingToModalityLUT(
       LookupTableCV modalityLookup, LutParameters lutparams) {
     if (modalityLookup != null
-        && lutparams.isApplyPadding()
-        && lutparams.getPaddingMinValue() != null
+        && lutparams.applyPadding()
+        && lutparams.paddingMinValue() != null
         && modalityLookup.getDataType() <= DataBuffer.TYPE_SHORT) {
 
-      int paddingValue = lutparams.getPaddingMinValue();
-      Integer paddingLimit = lutparams.getPaddingMaxValue();
+      int paddingValue = lutparams.paddingMinValue();
+      Integer paddingLimit = lutparams.paddingMaxValue();
       int paddingValueMin =
           (paddingLimit == null) ? paddingValue : Math.min(paddingValue, paddingLimit);
       int paddingValueMax =
@@ -445,13 +445,13 @@ public class DicomImageUtils {
 
       Object outLut = inLut;
       if (isDataTypeByte) {
-        byte fillVal = lutparams.isInversePaddingMLUT() ? (byte) 255 : (byte) 0;
+        byte fillVal = lutparams.inversePaddingMLUT() ? (byte) 255 : (byte) 0;
         byte[] data = (byte[]) outLut;
         Arrays.fill(
             data, paddingValuesStartIndex, paddingValuesStartIndex + numPaddingValues, fillVal);
       } else {
         short[] data = (short[]) outLut;
-        short fillVal = lutparams.isInversePaddingMLUT() ? data[data.length - 1] : data[0];
+        short fillVal = lutparams.inversePaddingMLUT() ? data[data.length - 1] : data[0];
         Arrays.fill(
             data, paddingValuesStartIndex, paddingValuesStartIndex + numPaddingValues, fillVal);
       }

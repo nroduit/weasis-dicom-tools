@@ -24,11 +24,11 @@ import org.dcm4che3.img.data.PrDicomObject;
 import org.dcm4che3.img.stream.ImageDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.weasis.core.util.FileUtil;
+import org.weasis.core.util.StreamUtil;
 import org.weasis.core.util.StringUtil;
 import org.weasis.opencv.data.LookupTableCV;
 import org.weasis.opencv.op.lut.LutShape;
-import org.weasis.opencv.op.lut.LutShape.eFunction;
+import org.weasis.opencv.op.lut.LutShape.Function;
 import org.weasis.opencv.op.lut.PresentationStateLut;
 import org.weasis.opencv.op.lut.WlPresentation;
 
@@ -165,9 +165,9 @@ public class PresetWindowLevel {
     LutShape defaultLutShape = LutShape.LINEAR;
     if (lutFunctionDescriptor.isPresent()) {
       if ("SIGMOID".equalsIgnoreCase(lutFunctionDescriptor.get())) {
-        defaultLutShape = new LutShape(eFunction.SIGMOID, eFunction.SIGMOID + dicomKeyWord);
+        defaultLutShape = new LutShape(Function.SIGMOID, Function.SIGMOID + dicomKeyWord);
       } else if ("LINEAR".equalsIgnoreCase(lutFunctionDescriptor.get())) {
-        defaultLutShape = new LutShape(eFunction.LINEAR, eFunction.LINEAR + dicomKeyWord);
+        defaultLutShape = new LutShape(Function.LINEAR, Function.LINEAR + dicomKeyWord);
       }
     }
     return defaultLutShape;
@@ -371,8 +371,8 @@ public class PresetWindowLevel {
     } catch (Exception e) {
       LOGGER.error("Cannot read presets file! ", e);
     } finally {
-      FileUtil.safeClose(xmler);
-      FileUtil.safeClose(stream);
+      StreamUtil.safeClose(xmler);
+      StreamUtil.safeClose(stream);
     }
     return presets;
   }

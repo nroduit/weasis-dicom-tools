@@ -18,11 +18,13 @@ import javax.imageio.ImageReadParam;
 import javax.imageio.ImageTypeSpecifier;
 import org.dcm4che3.img.data.PrDicomObject;
 import org.weasis.core.util.LangUtil;
+import org.weasis.core.util.annotations.Generated;
 import org.weasis.opencv.op.lut.LutShape;
 
 /**
  * @author Nicolas Roduit
  */
+@Generated
 public class DicomImageReadParam extends ImageReadParam {
 
   private static final String NOT_COMPATIBLE = "Not compatible with the native DICOM Decoder";
@@ -102,7 +104,7 @@ public class DicomImageReadParam extends ImageReadParam {
   }
 
   public OptionalDouble getWindowCenter() {
-    return LangUtil.getOptionalDouble(windowCenter);
+    return LangUtil.toOptional(windowCenter);
   }
 
   /**
@@ -113,7 +115,7 @@ public class DicomImageReadParam extends ImageReadParam {
   }
 
   public OptionalDouble getWindowWidth() {
-    return LangUtil.getOptionalDouble(windowWidth);
+    return LangUtil.toOptional(windowWidth);
   }
 
   /**
@@ -124,7 +126,7 @@ public class DicomImageReadParam extends ImageReadParam {
   }
 
   public OptionalDouble getLevelMin() {
-    return LangUtil.getOptionalDouble(levelMin);
+    return LangUtil.toOptional(levelMin);
   }
 
   /**
@@ -135,7 +137,7 @@ public class DicomImageReadParam extends ImageReadParam {
   }
 
   public OptionalDouble getLevelMax() {
-    return LangUtil.getOptionalDouble(levelMax);
+    return LangUtil.toOptional(levelMax);
   }
 
   /**

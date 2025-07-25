@@ -27,7 +27,7 @@ public class JPEGHeader {
     int n = 0;
     for (int offset = 0; (offset = nextMarker(data, offset)) != -1; ) {
       n++;
-      int marker = data[offset++] & 255;
+      int marker = data[offset++] & 0xff;
       if (JPEG.isStandalone(marker)) continue;
       if (offset + 1 >= data.length) break;
       if (marker == lastMarker) break;
@@ -37,7 +37,7 @@ public class JPEGHeader {
     this.offsets = new int[n];
     for (int i = 0, offset = 0; i < n; i++) {
       offsets[i] = (offset = nextMarker(data, offset));
-      if (!JPEG.isStandalone(data[offset++] & 255))
+      if (!JPEG.isStandalone(data[offset++] & 0xff))
         offset += ByteUtils.bytesToUShortBE(data, offset);
     }
   }
@@ -77,7 +77,7 @@ public class JPEGHeader {
   }
 
   public int marker(int index) {
-    return data[offsets[index]] & 255;
+    return data[offsets[index]] & 0xff;
   }
 
   public int numberOfMarkers() {
@@ -96,7 +96,7 @@ public class JPEGHeader {
 
     if (attrs == null) attrs = new Attributes(10);
 
-    int sof = data[offsetSOF] & 255;
+    int sof = data[offsetSOF] & 0xff;
     int p = data[offsetSOF + 3] & 0xff;
     int y = ((data[offsetSOF + 3 + 1] & 0xff) << 8) | (data[offsetSOF + 3 + 2] & 0xff);
     int x = ((data[offsetSOF + 3 + 3] & 0xff) << 8) | (data[offsetSOF + 3 + 4] & 0xff);
@@ -126,23 +126,18 @@ public class JPEGHeader {
     int sofOffset = offsetSOF();
     if (sofOffset == -1) return null;
 
-    switch (data[sofOffset] & 255) {
-      case JPEG.SOF0:
-        return UID.JPEGBaseline8Bit;
-      case JPEG.SOF1:
-        return UID.JPEGExtended12Bit;
-      case JPEG.SOF2:
-        return UID.JPEGFullProgressionNonHierarchical1012;
-      case JPEG.SOF3:
-        return ss() == 1 ? UID.JPEGLosslessSV1 : UID.JPEGLossless;
-      case JPEG.SOF55:
-        return ss() == 0 ? UID.JPEGLSLossless : UID.JPEGLSNearLossless;
-    }
-    return null;
+    return switch (data[sofOffset] & 0xff) {
+      case JPEG.SOF0 -> UID.JPEGBaseline8Bit;
+      case JPEG.SOF1 -> UID.JPEGExtended12Bit;
+      case JPEG.SOF2 -> UID.JPEGFullProgressionNonHierarchical1012;
+      case JPEG.SOF3 -> ss() == 1 ? UID.JPEGLosslessSV1 : UID.JPEGLossless;
+      case JPEG.SOF55 -> ss() == 0 ? UID.JPEGLSLossless : UID.JPEGLSNearLossless;
+      default -> null;
+    };
   }
 
   private int ss() {
     int offsetSOS = offsetOf(JPEG.SOS);
-    return offsetSOS != -1 ? data[offsetSOS + 6] & 255 : -1;
+    return offsetSOS != -1 ? data[offsetSOS + 6] & 0xff : -1;
   }
 }

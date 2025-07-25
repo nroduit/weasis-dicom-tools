@@ -86,8 +86,8 @@ public class MPEGHeader {
     if (attrs == null) attrs = new Attributes(15);
 
     int off = seqHeaderOffset;
-    int x = ((data[off + 1] & 0xFF) << 4) | ((data[off + 2] & 0xF0) >> 4);
-    int y = ((data[off + 2] & 0x0F) << 8) | (data[off + 3] & 0xFF);
+    int x = ((data[off] & 0xFF) << 4) | ((data[off + 1] & 0xF0) >> 4);
+    int y = ((data[off + 1] & 0x0F) << 8) | (data[off + 2] & 0xFF);
     int aspectRatio = (data[off + 4] >> 4) & 0x0F;
     int frameRate = data[off + 4] & 0x0F;
     int bitRate =

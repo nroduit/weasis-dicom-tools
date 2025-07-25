@@ -11,11 +11,13 @@ package org.dcm4che3.imageio.codec;
 
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.imageio.codec.mp4.MP4FileType;
+import org.weasis.core.util.annotations.Generated;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Jun 2019
  */
+@Generated
 public interface XPEGParser {
   long getCodeStreamPosition();
 

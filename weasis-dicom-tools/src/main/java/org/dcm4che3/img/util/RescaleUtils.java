@@ -254,8 +254,8 @@ public final class RescaleUtils {
 
   private static LookupTableCV createLookupTable(
       Object lutData, int minInValue, boolean outputSigned) {
-    return lutData instanceof byte[]
-        ? new LookupTableCV((byte[]) lutData, minInValue)
+    return lutData instanceof byte[] bytes
+        ? new LookupTableCV(bytes, minInValue)
         : new LookupTableCV((short[]) lutData, minInValue, !outputSigned);
   }
 

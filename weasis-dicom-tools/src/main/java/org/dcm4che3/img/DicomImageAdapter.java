@@ -419,9 +419,7 @@ public class DicomImageAdapter {
   }
 
   private PrDicomObject extractPresentationState(WlPresentation wlp) {
-    return wlp != null && wlp.getPresentationState() instanceof PrDicomObject
-        ? (PrDicomObject) wlp.getPresentationState()
-        : null;
+    return wlp != null && wlp.getPresentationState() instanceof PrDicomObject pr ? pr : null;
   }
 
   private LookupTableCV getModalityLutFromPresentationState(PrDicomObject pr) {
@@ -533,7 +531,7 @@ public class DicomImageAdapter {
     }
 
     Optional<Integer> paddingLimit = desc.getPixelPaddingRangeLimit();
-    int bitsOutputLut = calculateOutputBits(mLUTSeq, slope, intercept, isSigned);
+    int bitsOutputLut = calculateOutputBits(mLUTSeq, slope, intercept);
     boolean outputSigned = calculateOutputSigned(mLUTSeq, slope, intercept, isSigned);
 
     return new LutParameters(
@@ -557,8 +555,7 @@ public class DicomImageAdapter {
         && paddingValue.isEmpty();
   }
 
-  private int calculateOutputBits(
-      LookupTableCV mLUTSeq, double slope, double intercept, boolean isSigned) {
+  private int calculateOutputBits(LookupTableCV mLUTSeq, double slope, double intercept) {
     if (mLUTSeq != null) {
       return mLUTSeq.getDataType() == DataBuffer.TYPE_BYTE ? 8 : 16;
     }

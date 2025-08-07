@@ -10,6 +10,7 @@
 package org.dcm4che3.img.lut;
 
 import java.awt.image.DataBuffer;
+import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Array;
 import java.net.URISyntaxException;
@@ -405,7 +406,7 @@ public class PresetWindowLevel {
     return presets;
   }
 
-  private static InputStream openPresetFile() throws Exception {
+  private static InputStream openPresetFile() throws URISyntaxException, IOException {
     String pathString = System.getProperty("dicom.presets.path");
     Path path = StringUtil.hasText(pathString) ? Paths.get(pathString) : getPresetPath();
 

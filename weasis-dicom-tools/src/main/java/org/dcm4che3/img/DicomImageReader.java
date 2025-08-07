@@ -839,7 +839,7 @@ public class DicomImageReader extends ImageReader {
     if (frameCount >= fragmentCount - 1) {
       return buildSingleFragmentStream(frameIndex, fragments, fragmentCount);
     } else {
-      return buildMultiFragmentStream(frameIndex, fragments, frameCount, fragmentCount, desc);
+      return buildMultiFragmentStream(frameIndex, fragments, frameCount, fragmentCount);
     }
   }
 
@@ -856,8 +856,7 @@ public class DicomImageReader extends ImageReader {
   }
 
   private ExtendSegmentedInputImageStream buildMultiFragmentStream(
-      int frameIndex, Fragments fragments, int frameCount, int fragmentCount, ImageDescriptor desc)
-      throws IOException {
+      int frameIndex, Fragments fragments, int frameCount, int fragmentCount) throws IOException {
 
     if (frameCount == 1) {
       // Single frame with multiple fragments

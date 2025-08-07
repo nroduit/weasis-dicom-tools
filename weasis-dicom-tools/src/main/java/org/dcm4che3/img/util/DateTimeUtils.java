@@ -27,8 +27,6 @@ import java.util.TimeZone;
 import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import org.dcm4che3.data.Attributes;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.weasis.core.util.StringUtil;
 
 /**
@@ -56,7 +54,6 @@ import org.weasis.core.util.StringUtil;
  * @since Apr 2019
  */
 public class DateTimeUtils {
-  private static final Logger LOGGER = LoggerFactory.getLogger(DateTimeUtils.class);
 
   // DICOM DA (Date) formatters
   private static final DateTimeFormatter DA_PARSER =
@@ -151,6 +148,10 @@ public class DateTimeUtils {
       DateTimeFormatter.ofLocalizedTime(FormatStyle.MEDIUM);
   private static final DateTimeFormatter DEFAULT_DATETIME_FORMATTER =
       DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM);
+
+  private DateTimeUtils() {
+    // Prevent instantiation
+  }
 
   /**
    * Parses a DICOM DA (Date) value. Supports both standard format (YYYYMMDD) and legacy format with
@@ -371,10 +372,10 @@ public class DateTimeUtils {
       return DEFAULT_DATETIME_FORMATTER.withLocale(locale).format(date);
     } else if (date instanceof ZonedDateTime) {
       return DEFAULT_DATETIME_FORMATTER.withLocale(locale).format(date);
-    } else if (date instanceof Instant) {
+    } else if (date instanceof Instant instant) {
       return DEFAULT_DATETIME_FORMATTER
           .withLocale(locale)
-          .format(((Instant) date).atZone(ZoneId.systemDefault()));
+          .format((instant).atZone(ZoneId.systemDefault()));
     }
     return "";
   }

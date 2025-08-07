@@ -18,8 +18,8 @@ import java.util.stream.Stream;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Sequence;
 import org.dcm4che3.data.Tag;
-import org.dcm4che3.img.DicomImageUtils;
 import org.dcm4che3.img.util.DicomUtils;
+import org.dcm4che3.img.util.LookupTableUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.util.annotations.Generated;
@@ -125,7 +125,7 @@ public class VoiLutModule {
 
   /** Extracts lookup tables from the VOI LUT Sequence. */
   private List<LookupTableCV> extractLookupTables(Sequence voiSeq) {
-    return voiSeq.stream().map(DicomImageUtils::createLut).flatMap(Optional::stream).toList();
+    return voiSeq.stream().map(LookupTableUtils::createLut).flatMap(Optional::stream).toList();
   }
 
   /** Logs consistency warnings and debug information about the VOI LUT configuration. */

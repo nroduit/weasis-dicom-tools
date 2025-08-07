@@ -510,7 +510,7 @@ public class ImageAdapter {
       return extractFrameFromFragments(fragments, frame);
     }
 
-    private void initializeFragmentPositions(Fragments fragments) throws IOException {
+    private void initializeFragmentPositions(Fragments fragments) {
       int nbFragments = fragments.size();
 
       if (UID.RLELossless.equals(transferSyntax)) {

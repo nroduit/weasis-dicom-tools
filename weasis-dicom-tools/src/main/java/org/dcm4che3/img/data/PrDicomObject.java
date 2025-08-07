@@ -20,11 +20,11 @@ import java.util.Optional;
 import java.util.Set;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
-import org.dcm4che3.img.DicomImageUtils;
 import org.dcm4che3.img.lut.ModalityLutModule;
 import org.dcm4che3.img.lut.VoiLutModule;
 import org.dcm4che3.img.stream.ImageDescriptor;
 import org.dcm4che3.img.util.DicomObjectUtil;
+import org.dcm4che3.img.util.LookupTableUtils;
 import org.dcm4che3.io.DicomInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -287,7 +287,7 @@ public class PrDicomObject implements PresentationStateLut {
 
   // Creates presentation LUT from DICOM LUT sequence with full range transformation
   private PresentationLutData createPresentationLutFromSequence(Attributes dcmLut) {
-    Optional<LookupTableCV> lut = DicomImageUtils.createLut(dcmLut);
+    Optional<LookupTableCV> lut = LookupTableUtils.createLut(dcmLut);
     Optional<String> explanation = Optional.ofNullable(dcmPR.getString(Tag.LUTExplanation));
     Optional<String> shapeMode = Optional.of(IDENTITY_LUT_SHAPE);
 

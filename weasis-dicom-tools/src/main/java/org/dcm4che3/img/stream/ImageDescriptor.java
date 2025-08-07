@@ -17,12 +17,12 @@ import java.util.Optional;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.image.PhotometricInterpretation;
-import org.dcm4che3.img.DicomImageUtils;
 import org.dcm4che3.img.data.EmbeddedOverlay;
 import org.dcm4che3.img.data.OverlayData;
 import org.dcm4che3.img.lut.ModalityLutModule;
 import org.dcm4che3.img.lut.VoiLutModule;
 import org.dcm4che3.img.util.DicomUtils;
+import org.dcm4che3.img.util.PaletteColorUtils;
 import org.opencv.core.Core.MinMaxLocResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -140,10 +140,10 @@ public final class ImageDescriptor {
     this.anatomicRegion = metadata.anatomicRegion();
 
     // Initialize overlay and presentation data
-    var overlayData = initializeOverlayData(dcm);
-    this.embeddedOverlay = overlayData.embeddedOverlays();
-    this.overlayData = overlayData.overlays();
-    this.presentationLUTShape = overlayData.presentationLUTShape();
+    var initializedOverlayData = initializeOverlayData(dcm);
+    this.embeddedOverlay = initializedOverlayData.embeddedOverlays();
+    this.overlayData = initializedOverlayData.overlays();
+    this.presentationLUTShape = initializedOverlayData.presentationLUTShape();
 
     // Initialize pixel padding and LUT modules
     var lutData = initializeLutData(dcm);
@@ -160,7 +160,7 @@ public final class ImageDescriptor {
 
   private LookupTableCV initializePaletteColorLookupTable(Attributes dcm) {
     if (hasPaletteColorLookupTable()) {
-      LookupTableCV lookup = DicomImageUtils.getPaletteColorLookupTable(dcm);
+      LookupTableCV lookup = PaletteColorUtils.getPaletteColorLookupTable(dcm);
       if (lookup != null) {
         return lookup;
       } else {
@@ -171,31 +171,31 @@ public final class ImageDescriptor {
   }
 
   private PixelAttributes initializePixelAttributes(Attributes dcm, int bitsCompressed) {
-    int samples = Math.max(dcm.getInt(Tag.SamplesPerPixel, 1), 1);
-    var photometricInterpretation =
+    int numSamples = Math.max(dcm.getInt(Tag.SamplesPerPixel, 1), 1);
+    var pixelColorModel =
         PhotometricInterpretation.fromString(
             dcm.getString(Tag.PhotometricInterpretation, "MONOCHROME2"));
-    int bitsAllocated = Math.max(dcm.getInt(Tag.BitsAllocated, 8), 1);
-    int bitsStored =
-        Math.min(Math.max(dcm.getInt(Tag.BitsStored, bitsAllocated), 1), bitsAllocated);
-    int highBit = Math.min(dcm.getInt(Tag.HighBit, bitsStored - 1), bitsStored - 1);
+    int maxBitsAllocated = Math.max(dcm.getInt(Tag.BitsAllocated, 8), 1);
+    int bitsStoredValue =
+        Math.min(Math.max(dcm.getInt(Tag.BitsStored, maxBitsAllocated), 1), maxBitsAllocated);
+    int highBitValue = Math.min(dcm.getInt(Tag.HighBit, bitsStoredValue - 1), bitsStoredValue - 1);
     int finalBitsCompressed =
-        bitsCompressed > 0 ? Math.min(bitsCompressed, bitsAllocated) : bitsStored;
+        bitsCompressed > 0 ? Math.min(bitsCompressed, maxBitsAllocated) : bitsStoredValue;
 
-    int pixelRepresentation = dcm.getInt(Tag.PixelRepresentation, 0);
-    int planarConfiguration = dcm.getInt(Tag.PlanarConfiguration, 0);
-    String pixelPresentation = dcm.getString(Tag.PixelPresentation);
+    int pixelRepValue = dcm.getInt(Tag.PixelRepresentation, 0);
+    int planarConfig = dcm.getInt(Tag.PlanarConfiguration, 0);
+    String presentationType = dcm.getString(Tag.PixelPresentation);
 
     return new PixelAttributes(
-        samples,
-        photometricInterpretation,
-        bitsAllocated,
-        bitsStored,
+        numSamples,
+        pixelColorModel,
+        maxBitsAllocated,
+        bitsStoredValue,
         finalBitsCompressed,
-        highBit,
-        pixelRepresentation,
-        planarConfiguration,
-        pixelPresentation);
+        highBitValue,
+        pixelRepValue,
+        planarConfig,
+        presentationType);
   }
 
   private DicomMetadata initializeDicomMetadata(Attributes dcm) {
@@ -210,20 +210,19 @@ public final class ImageDescriptor {
   private OverlayDataContainer initializeOverlayData(Attributes dcm) {
     var embeddedOverlays = EmbeddedOverlay.getEmbeddedOverlay(dcm);
     var overlays = OverlayData.getOverlayData(dcm, 0xffff);
-    String presentationLUTShape = dcm.getString(Tag.PresentationLUTShape);
 
-    return new OverlayDataContainer(embeddedOverlays, overlays, presentationLUTShape);
+    return new OverlayDataContainer(
+        embeddedOverlays, overlays, dcm.getString(Tag.PresentationLUTShape));
   }
 
   private LutDataContainer initializeLutData(Attributes dcm) {
-    Integer pixelPaddingValue =
-        DicomUtils.getIntegerFromDicomElement(dcm, Tag.PixelPaddingValue, null);
-    Integer pixelPaddingRangeLimit =
+    Integer paddingValue = DicomUtils.getIntegerFromDicomElement(dcm, Tag.PixelPaddingValue, null);
+    Integer paddingRangeLimit =
         DicomUtils.getIntegerFromDicomElement(dcm, Tag.PixelPaddingRangeLimit, null);
-    var modalityLUT = new ModalityLutModule(dcm);
-    var voiLUT = new VoiLutModule(dcm);
+    var mLUT = new ModalityLutModule(dcm);
+    var vLUT = new VoiLutModule(dcm);
 
-    return new LutDataContainer(pixelPaddingValue, pixelPaddingRangeLimit, modalityLUT, voiLUT);
+    return new LutDataContainer(paddingValue, paddingRangeLimit, mLUT, vLUT);
   }
 
   private static <T> List<T> initializeFrameCollection(int frames) {

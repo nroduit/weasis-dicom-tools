@@ -181,7 +181,6 @@ public class Transcoder {
       try (DicomOutputStream dos = new DicomOutputStream(outputStream, context.actualTsuid)) {
         writeTranscodedDicom(dos, context);
       } catch (Exception e) {
-        LOGGER.error("Failed to transcode DICOM image: {}", srcPath, e);
         throw new IOException("Transcoding failed", e);
       }
     } finally {
@@ -228,7 +227,7 @@ public class Transcoder {
 
   private static PlanarImage processImageFrame(
       DicomImageReader reader, ImageTranscodeParam params, Format format, int frameIndex)
-      throws Exception {
+      throws IOException {
     PlanarImage image = reader.getPlanarImage(frameIndex, params.getReadParam());
     boolean preserveRaw = isPreserveRawImage(params, format, image.type());
 
@@ -296,7 +295,7 @@ public class Transcoder {
   }
 
   private static void writeTranscodedDicom(DicomOutputStream dos, DicomTranscodeContext context)
-      throws Exception {
+      throws IOException {
     dos.writeFileMetaInformation(context.dataSet.createFileMetaInformation(context.actualTsuid));
 
     if (DicomOutputData.isNativeSyntax(context.actualTsuid)) {
@@ -307,7 +306,7 @@ public class Transcoder {
   }
 
   private static void writeCompressedDicomData(DicomOutputStream dos, DicomTranscodeContext context)
-      throws Exception {
+      throws IOException {
     int[] jpegParams =
         context.outputData.adaptTagsToCompressedImage(
             context.dataSet,

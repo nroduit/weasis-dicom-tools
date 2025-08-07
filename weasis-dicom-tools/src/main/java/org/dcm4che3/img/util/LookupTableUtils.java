@@ -211,8 +211,8 @@ public class LookupTableUtils {
   }
 
   private static LookupTableCV createLookupTable(Object outLut, LutConfiguration config) {
-    return (outLut instanceof byte[])
-        ? new LookupTableCV((byte[]) outLut, config.minInValue)
+    return (outLut instanceof byte[] bytes)
+        ? new LookupTableCV(bytes, config.minInValue)
         : new LookupTableCV((short[]) outLut, config.minInValue, !config.isSigned);
   }
 
@@ -442,7 +442,6 @@ public class LookupTableUtils {
 
     void process() {
       var lookupRange = calculateLookupRange();
-      double widthRescaleRatio = maxInLutIndex / config.window;
       double outRescaleRatio =
           (config.maxOutValue - config.minOutValue) / (double) lookupRange.range;
 
@@ -715,8 +714,8 @@ public class LookupTableUtils {
     }
 
     private int indirectSegment(int n, int y0) {
-      int readPos = read() | (read() << 16);
-      return new InflateSegmentedLut(segm, readPos, data, writePos).inflate(n, y0);
+      int segmentValue = read() | (read() << 16);
+      return new InflateSegmentedLut(segm, segmentValue, data, writePos).inflate(n, y0);
     }
   }
 }

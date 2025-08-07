@@ -14,8 +14,9 @@ import java.util.Optional;
 import java.util.OptionalDouble;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
-import org.dcm4che3.img.DicomImageUtils;
+import org.dcm4che3.img.util.DicomAttributeUtils;
 import org.dcm4che3.img.util.DicomUtils;
+import org.dcm4che3.img.util.LookupTableUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.util.LangUtil;
@@ -76,7 +77,7 @@ public class ModalityLutModule {
 
   /** Main initialization method that processes DICOM attributes. */
   private void init(Attributes dcm) {
-    String modality = DicomImageUtils.getModality(dcm);
+    String modality = DicomAttributeUtils.getModality(dcm);
     initRescaleValues(dcm);
     initModalityLUTSequence(dcm, modality);
     logModalityLutConsistency();
@@ -138,7 +139,7 @@ public class ModalityLutModule {
   private void applyModalityLUT(Attributes dcmLut) {
     this.lutType = dcmLut.getString(Tag.ModalityLUTType);
     this.lutExplanation = dcmLut.getString(Tag.LUTExplanation);
-    this.lut = DicomImageUtils.createLut(dcmLut).orElse(null);
+    this.lut = LookupTableUtils.createLut(dcmLut).orElse(null);
   }
 
   /** Logs consistency warnings and debug information about the Modality LUT configuration. */

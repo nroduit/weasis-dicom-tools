@@ -12,6 +12,7 @@ package org.dcm4che3.img.lut;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.function.DoubleSupplier;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.dcm4che3.img.DicomImageAdapter;
@@ -138,12 +139,12 @@ public class WindLevelParameters implements WlParams {
   private double extractOptionalDoubleParam(
       DicomImageReadParam params,
       Function<DicomImageReadParam, OptionalDouble> extractor,
-      Supplier<Double> defaultSupplier) {
+      DoubleSupplier defaultSupplier) {
     if (params != null) {
       OptionalDouble optional = extractor.apply(params);
-      return optional.isPresent() ? optional.getAsDouble() : defaultSupplier.get();
+      return optional.isPresent() ? optional.getAsDouble() : defaultSupplier.getAsDouble();
     }
-    return defaultSupplier.get();
+    return defaultSupplier.getAsDouble();
   }
 
   /** Extracts a LUT shape parameter with fallback to supplier. */

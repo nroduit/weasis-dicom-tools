@@ -105,13 +105,13 @@ public final class PixelDataUtils {
 
   private static Pair<Double, Double> calculateSignedRange(int bitsStored) {
     double minValue = -(1L << (bitsStored - 1));
-    double maxValue = (1L << (bitsStored - 1)) - 1;
+    double maxValue = (1L << (bitsStored - 1)) - 1.0;
     return new Pair<>(minValue, maxValue);
   }
 
   private static Pair<Double, Double> calculateUnsignedRange(int bitsStored) {
     double minValue = 0.0;
-    double maxValue = (1L << bitsStored) - 1;
+    double maxValue = (1L << bitsStored) - 1.0;
     return new Pair<>(minValue, maxValue);
   }
 

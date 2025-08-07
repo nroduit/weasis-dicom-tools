@@ -17,7 +17,11 @@ import java.nio.channels.ByteChannel;
 import java.nio.channels.FileChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
+import java.util.Objects;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.BulkData;
 import org.dcm4che3.data.Sequence;
@@ -26,15 +30,21 @@ import org.dcm4che3.data.UID;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.imageio.codec.XPEGParser;
 import org.dcm4che3.imageio.codec.jpeg.JPEG;
+import org.dcm4che3.imageio.codec.jpeg.JPEGHeader;
 import org.dcm4che3.imageio.codec.jpeg.JPEGParser;
 import org.dcm4che3.imageio.codec.mp4.MP4Parser;
 import org.dcm4che3.imageio.codec.mpeg.MPEG2Parser;
 import org.dcm4che3.io.DicomOutputStream;
 import org.dcm4che3.util.ByteUtils;
 import org.dcm4che3.util.UIDUtils;
+import org.opencv.core.MatOfInt;
+import org.opencv.imgcodecs.Imgcodecs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.util.FileUtil;
+import org.weasis.core.util.MathUtil;
+import org.weasis.opencv.data.ImageCV;
+import org.weasis.opencv.op.ImageIOHandler;
 
 public class Dicomizer {
   private static final Logger LOGGER = LoggerFactory.getLogger(Dicomizer.class);
@@ -232,5 +242,103 @@ public class Dicomizer {
     if (!attrs.containsValue(tag)) {
       attrs.setString(tag, VR.UI, UIDUtils.createUID());
     }
+  }
+
+  /**
+   * Reads an image, converts it to JPEG format, and writes it to a file.
+   *
+   * @param inputFile the input image file to read (allowed formats: TIFF, BMP, GIF, JPEG, PNG, RAS,
+   *     HDR, and PNM)
+   * @param outputFile the output JPEG file to write (if null, a default output file will be created
+   *     with .jpg extension)
+   * @param quality the JPEG quality (0-100). If null, uses default quality.
+   * @return true if the image was successfully converted and written, false otherwise
+   */
+  public static boolean convertToJpegAndWrite(Path inputFile, Path outputFile, Integer quality) {
+    try {
+      if (inputFile == null || !Files.isReadable(inputFile)) {
+        LOGGER.error("Input file does not exist: {}", inputFile);
+        return false;
+      }
+
+      // If the input file is a JPEG file, we can skip conversion as we can directly dicomize it
+      String inputExtension = FileUtil.getExtension(inputFile.toString()).toLowerCase();
+      if (isJpeg(inputFile, outputFile, inputExtension)) return true;
+
+      // Read the image using the existing readImage method
+      List<String> tags = new ArrayList<>();
+      ImageCV imageCV = ImageIOHandler.readImage(inputFile, tags);
+      if (imageCV == null || imageCV.empty()) {
+        LOGGER.warn("Failed to read image from file: {}", inputFile);
+        return false;
+      }
+
+      // If outputFile is null, create a default output file
+      if (outputFile == null) {
+        String defaultOutputPath = inputFile.toString().replaceAll("\\.[^.]+$", ".jpg");
+        outputFile = Path.of(defaultOutputPath);
+      }
+
+      // Ensure the output file has .jpg or .jpeg extension
+      String outputPath = outputFile.toString();
+      String outputExtension = FileUtil.getExtension(outputPath).toLowerCase();
+      if (!outputExtension.endsWith(".jpg")) {
+        outputPath = outputPath + ".jpg";
+        outputFile = Path.of(outputPath);
+      }
+
+      // Create JPEG encoding parameters
+      MatOfInt params = new MatOfInt();
+      if (quality != null) {
+        int jpegQuality = MathUtil.clamp(quality, 0, 100);
+        params.fromArray(Imgcodecs.IMWRITE_JPEG_QUALITY, jpegQuality);
+      } else {
+        params.fromArray(Imgcodecs.IMWRITE_JPEG_QUALITY, 95);
+      }
+
+      // Write the image as JPEG
+      boolean success = ImageIOHandler.writeImage(imageCV, outputFile, params);
+
+      if (success) {
+        LOGGER.info("Successfully converted and wrote JPEG image to: {}", outputFile);
+      } else {
+        LOGGER.warn("Failed to write JPEG image to: {}", outputFile);
+      }
+      return success;
+    } catch (Exception e) {
+      LOGGER.error("Error converting image to JPEG: {}", e.getMessage(), e);
+      return false;
+    }
+  }
+
+  private static boolean isJpeg(Path inputFile, Path outputFile, String inputExtension) {
+    if (inputExtension.endsWith(".jpg") || inputExtension.endsWith(".jpeg")) {
+      try (SeekableByteChannel channel = Files.newByteChannel(inputFile)) {
+        // JPEG headers are typically within the first few KB of the file
+        // SOF (Start of Frame) segments are usually found within the first 64KB
+        int headerBufferSize = Math.min(65536, (int) Files.size(inputFile));
+        ByteBuffer buffer = ByteBuffer.allocate(headerBufferSize);
+        channel.read(buffer);
+        byte[] headerData = new byte[buffer.position()];
+        buffer.flip();
+        buffer.get(headerData);
+
+        JPEGHeader header = new JPEGHeader(headerData, JPEG.SOF0);
+        if (Objects.equals(header.getTransferSyntaxUID(), UID.JPEGBaseline8Bit)) {
+          LOGGER.info("Input file is already a JPEG image: {}", inputFile);
+          // Optionally, copy the file directly if no conversion is needed
+          if (outputFile != null) {
+            Files.copy(inputFile, outputFile);
+          }
+          return true;
+        }
+      } catch (Exception e) {
+        LOGGER.debug(
+            "Could not parse JPEG header from beginning of file, proceeding with full conversion: {}",
+            e.getMessage());
+        // Fall through to normal conversion process
+      }
+    }
+    return false;
   }
 }

@@ -12,6 +12,7 @@ package org.weasis.dicom.ref;
 import static org.weasis.dicom.ref.CodingScheme.DCM;
 import static org.weasis.dicom.ref.CodingScheme.SCT;
 
+import java.util.Locale;
 import org.weasis.dicom.macro.ItemCode;
 
 public enum AnatomicModifier implements ItemCode {
@@ -78,6 +79,10 @@ public enum AnatomicModifier implements ItemCode {
   @Override
   public String getCodeMeaning() {
     return MesModifier.getString(codeValue);
+  }
+
+  public String getCodeMeaning(Locale locale) {
+    return MesModifier.getString(codeValue, locale);
   }
 
   @Override

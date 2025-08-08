@@ -13,6 +13,8 @@ import static org.weasis.dicom.ref.CodingScheme.DCM;
 import static org.weasis.dicom.ref.CodingScheme.FMA;
 import static org.weasis.dicom.ref.CodingScheme.SCT;
 
+import java.util.Locale;
+
 public enum SurfacePart implements AnatomicItem {
   ANTERIOR_TRIANGLE_OF_NECK(SCT, 182329002, 41, 0, 42),
   CORNEA(SCT, 28726007, 109, 0, 108),
@@ -244,6 +246,10 @@ public enum SurfacePart implements AnatomicItem {
   @Override
   public String getCodeMeaning() {
     return MesSurface.getString(codeValue);
+  }
+
+  public String getCodeMeaning(Locale locale) {
+    return MesSurface.getString(codeValue, locale);
   }
 
   @Override

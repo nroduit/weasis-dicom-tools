@@ -143,8 +143,7 @@ public class AnatomicRegion {
   }
 
   private static boolean isPaired(Attributes dcm, Attributes regionAttributes) {
-    String laterality =
-        dcm.getString(Tag.FrameLaterality, regionAttributes.getString(Tag.ImageLaterality));
+    String laterality = dcm.getString(Tag.FrameLaterality, dcm.getString(Tag.ImageLaterality));
     if (StringUtil.hasText(laterality) && !laterality.equals("U")) {
       return true;
     }

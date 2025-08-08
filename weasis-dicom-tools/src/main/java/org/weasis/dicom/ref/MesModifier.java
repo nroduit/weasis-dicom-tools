@@ -9,6 +9,7 @@
  */
 package org.weasis.dicom.ref;
 
+import java.util.Locale;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 
@@ -22,6 +23,18 @@ public class MesModifier {
   public static String getString(String key) {
     try {
       return RESOURCE_BUNDLE.getString(key);
+    } catch (MissingResourceException e) {
+      return '!' + key + '!';
+    }
+  }
+
+  public static String getString(String key, Locale locale) {
+    try {
+      if (locale == null) {
+        locale = Locale.getDefault();
+      }
+      ResourceBundle bundle = ResourceBundle.getBundle(BUNDLE_NAME, locale);
+      return bundle.getString(key);
     } catch (MissingResourceException e) {
       return '!' + key + '!';
     }

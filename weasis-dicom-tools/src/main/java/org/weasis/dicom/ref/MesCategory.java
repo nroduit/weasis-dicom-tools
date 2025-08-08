@@ -9,6 +9,7 @@
  */
 package org.weasis.dicom.ref;
 
+import java.util.Locale;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 
@@ -24,6 +25,18 @@ public class MesCategory {
       return RESOURCE_BUNDLE.getString(key);
     } catch (MissingResourceException e) {
       return '!' + key + '!';
+    }
+  }
+
+  public static String getString(String contextUID, Locale locale) {
+    try {
+      if (locale == null) {
+        locale = Locale.getDefault();
+      }
+      ResourceBundle bundle = ResourceBundle.getBundle(BUNDLE_NAME, locale);
+      return bundle.getString(contextUID);
+    } catch (MissingResourceException e) {
+      return '!' + contextUID + '!';
     }
   }
 }

@@ -10,8 +10,8 @@
   <version>${revision}${sha1}${changelist}</version>
 
   <properties>
-    <revision>${dcm4che.version}.1</revision>
-    <changelist></changelist> <!-- Remove "-SNAPSHOT" for release -->
+    <revision>${dcm4che.version}.2</revision>
+    <changelist>-SNAPSHOT</changelist> <!-- Remove "-SNAPSHOT" for release -->
     <sha1/>
 
     <dcm4che.version>5.34.0</dcm4che.version>

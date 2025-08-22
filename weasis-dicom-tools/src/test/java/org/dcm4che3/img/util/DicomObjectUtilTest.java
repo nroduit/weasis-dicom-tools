@@ -27,68 +27,52 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import org.dcm4che3.data.Attributes;
-import org.dcm4che3.data.Sequence;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.img.data.CIELab;
-import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.DisplayNameGeneration;
+import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+@DisplayNameGeneration(ReplaceUnderscores.class)
 class DicomObjectUtilTest {
 
   @Nested
-  @DisplayName("DICOM Sequence Operations")
-  class SequenceTests {
+  @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+  class DICOM_Sequence_Operations {
 
     @Test
-    @DisplayName("Should return empty list for null attributes")
-    void shouldReturnEmptyListForNullAttributes() {
-      assertTrue(
-          DicomObjectUtil.getSequence(null, Tag.GroupOfPatientsIdentificationSequence).isEmpty());
+    void should_return_empty_list_for_null_attributes() {
+      var result = DicomObjectUtil.getSequence(null, Tag.GroupOfPatientsIdentificationSequence);
+
+      assertTrue(result.isEmpty());
     }
 
     @Test
-    @DisplayName("Should return empty list for non-existent sequence")
-    void shouldReturnEmptyListForNonExistentSequence() {
-      Attributes attrs = new Attributes();
-      assertTrue(
-          DicomObjectUtil.getSequence(attrs, Tag.GroupOfPatientsIdentificationSequence).isEmpty());
+    void should_return_empty_list_for_non_existent_sequence() {
+      var attrs = new Attributes();
+      var result = DicomObjectUtil.getSequence(attrs, Tag.GroupOfPatientsIdentificationSequence);
+
+      assertTrue(result.isEmpty());
     }
 
     @Test
-    @DisplayName("Should return sequence when present")
-    void shouldReturnSequenceWhenPresent() {
-      Attributes dataset = new Attributes();
-      Sequence sequence = dataset.newSequence(Tag.GroupOfPatientsIdentificationSequence, 2);
+    void should_return_sequence_when_present() {
+      var dataset = createPatientDataset();
 
-      // Add first item
-      Attributes item1 = new Attributes();
-      item1.setString(Tag.PatientID, VR.LO, "PAT001");
-      item1.setString(Tag.PatientName, VR.PN, "Doe^John");
-      sequence.add(item1);
-
-      // Add second item
-      Attributes item2 = new Attributes();
-      item2.setString(Tag.PatientID, VR.LO, "PAT002");
-      item2.setString(Tag.PatientName, VR.PN, "Smith^Jane");
-      sequence.add(item2);
-
-      List<Attributes> result =
-          DicomObjectUtil.getSequence(dataset, Tag.GroupOfPatientsIdentificationSequence);
+      var result = DicomObjectUtil.getSequence(dataset, Tag.GroupOfPatientsIdentificationSequence);
 
       assertEquals(2, result.size());
       assertEquals("PAT001", result.get(0).getString(Tag.PatientID));
@@ -96,67 +80,66 @@ class DicomObjectUtilTest {
     }
 
     @Test
-    @DisplayName("Should handle nested sequences")
-    void shouldHandleNestedSequences() {
-      Attributes dataset = new Attributes();
-      Sequence outerSequence = dataset.newSequence(Tag.GroupOfPatientsIdentificationSequence, 1);
+    void should_handle_nested_sequences() {
+      var dataset = createNestedSequenceDataset();
 
-      Attributes outerItem = new Attributes();
-      outerItem.setString(Tag.PatientID, VR.LO, "12345");
-
-      Sequence innerSequence = outerItem.newSequence(Tag.IssuerOfPatientIDQualifiersSequence, 1);
-      Attributes innerItem = new Attributes();
-      innerItem.setString(Tag.UniversalEntityID, VR.UT, "TEST_UID");
-      innerSequence.add(innerItem);
-
-      outerSequence.add(outerItem);
-
-      List<Attributes> outerResult =
+      var outerResult =
           DicomObjectUtil.getSequence(dataset, Tag.GroupOfPatientsIdentificationSequence);
       assertEquals(1, outerResult.size());
 
-      List<Attributes> innerResult =
+      var innerResult =
           DicomObjectUtil.getSequence(outerResult.get(0), Tag.IssuerOfPatientIDQualifiersSequence);
       assertEquals(1, innerResult.size());
       assertEquals("TEST_UID", innerResult.get(0).getString(Tag.UniversalEntityID));
     }
+
+    @Test
+    void should_return_immutable_empty_list() {
+      var result = DicomObjectUtil.getSequence(null, Tag.GroupOfPatientsIdentificationSequence);
+
+      assertThrows(UnsupportedOperationException.class, () -> result.set(0, new Attributes()));
+    }
+
+    private Attributes createPatientDataset() {
+      var dataset = new Attributes();
+      var sequence = dataset.newSequence(Tag.GroupOfPatientsIdentificationSequence, 2);
+
+      var item1 = new Attributes();
+      item1.setString(Tag.PatientID, VR.LO, "PAT001");
+      item1.setString(Tag.PatientName, VR.PN, "Doe^John");
+      sequence.add(item1);
+
+      var item2 = new Attributes();
+      item2.setString(Tag.PatientID, VR.LO, "PAT002");
+      item2.setString(Tag.PatientName, VR.PN, "Smith^Jane");
+      sequence.add(item2);
+
+      return dataset;
+    }
+
+    private Attributes createNestedSequenceDataset() {
+      var dataset = new Attributes();
+      var outerSequence = dataset.newSequence(Tag.GroupOfPatientsIdentificationSequence, 1);
+
+      var outerItem = new Attributes();
+      outerItem.setString(Tag.PatientID, VR.LO, "12345");
+
+      var innerSequence = outerItem.newSequence(Tag.IssuerOfPatientIDQualifiersSequence, 1);
+      var innerItem = new Attributes();
+      innerItem.setString(Tag.UniversalEntityID, VR.UT, "TEST_UID");
+      innerSequence.add(innerItem);
+
+      outerSequence.add(outerItem);
+      return dataset;
+    }
   }
 
   @Nested
-  @DisplayName("Referenced Image Sequence Validation")
-  class ReferencedImageSequenceTests {
-
-    private List<Attributes> createReferencedImageSequence() {
-      List<Attributes> sequence = new ArrayList<>();
-      String baseUID = "1.2.3.4.5.1.";
-
-      // Image 1: No specific frames (all frames applicable)
-      Attributes ref1 = new Attributes();
-      ref1.setString(Tag.ReferencedSOPClassUID, VR.UI, UID.EnhancedMRImageStorage);
-      ref1.setString(Tag.ReferencedSOPInstanceUID, VR.UI, baseUID + "1");
-      ref1.setInt(Tag.ReferencedFrameNumber, VR.IS, new int[0]);
-      sequence.add(ref1);
-
-      // Image 2: Only frame 1
-      Attributes ref2 = new Attributes();
-      ref2.setString(Tag.ReferencedSOPClassUID, VR.UI, UID.EnhancedMRImageStorage);
-      ref2.setString(Tag.ReferencedSOPInstanceUID, VR.UI, baseUID + "2");
-      ref2.setInt(Tag.ReferencedFrameNumber, VR.IS, new int[] {1});
-      sequence.add(ref2);
-
-      // Image 3: Frames 1 and 3
-      Attributes ref3 = new Attributes();
-      ref3.setString(Tag.ReferencedSOPClassUID, VR.UI, UID.EnhancedMRImageStorage);
-      ref3.setString(Tag.ReferencedSOPInstanceUID, VR.UI, baseUID + "3");
-      ref3.setInt(Tag.ReferencedFrameNumber, VR.IS, new int[] {1, 3});
-      sequence.add(ref3);
-
-      return sequence;
-    }
+  @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+  class Referenced_Image_Sequence_Validation {
 
     @Test
-    @DisplayName("Should return true when sequence is not required and empty")
-    void shouldReturnTrueWhenNotRequiredAndEmpty() {
+    void should_return_true_when_sequence_is_not_required_and_empty() {
       assertTrue(
           DicomObjectUtil.isImageFrameApplicableToReferencedImageSequence(
               Collections.emptyList(), Tag.ReferencedFrameNumber, "1.2.3.4.5.1.1", 1, false));
@@ -167,8 +150,7 @@ class DicomObjectUtilTest {
     }
 
     @Test
-    @DisplayName("Should return false when sequence is required and empty")
-    void shouldReturnFalseWhenRequiredAndEmpty() {
+    void should_return_false_when_sequence_is_required_and_empty() {
       assertFalse(
           DicomObjectUtil.isImageFrameApplicableToReferencedImageSequence(
               Collections.emptyList(), Tag.ReferencedFrameNumber, "1.2.3.4.5.1.1", 1, true));
@@ -176,9 +158,9 @@ class DicomObjectUtilTest {
 
     @ParameterizedTest
     @NullAndEmptySource
-    @DisplayName("Should return false for invalid SOP Instance UID")
-    void shouldReturnFalseForInvalidSopInstanceUID(String sopInstanceUID) {
-      List<Attributes> sequence = createReferencedImageSequence();
+    @ValueSource(strings = {"   ", "\t"})
+    void should_return_false_for_invalid_sop_instance_uid(String sopInstanceUID) {
+      var sequence = createReferencedImageSequence();
 
       assertFalse(
           DicomObjectUtil.isImageFrameApplicableToReferencedImageSequence(
@@ -186,9 +168,8 @@ class DicomObjectUtilTest {
     }
 
     @Test
-    @DisplayName("Should handle frames when no specific frames are referenced")
-    void shouldHandleAllFramesWhenNoneSpecified() {
-      List<Attributes> sequence = createReferencedImageSequence();
+    void should_handle_frames_when_no_specific_frames_are_referenced() {
+      var sequence = createReferencedImageSequence();
 
       // Image 1 has no specific frames, so all frames should be applicable
       assertTrue(
@@ -199,180 +180,109 @@ class DicomObjectUtilTest {
               sequence, Tag.ReferencedFrameNumber, "1.2.3.4.5.1.1", 5, true));
     }
 
-    @Test
-    @DisplayName("Should validate specific frame numbers")
-    void shouldValidateSpecificFrameNumbers() {
-      List<Attributes> sequence = createReferencedImageSequence();
+    @ParameterizedTest
+    @MethodSource("provideSpecificFrameTestCases")
+    void should_validate_specific_frame_numbers(
+        String sopInstanceUID, int frame, boolean expected) {
+      var sequence = createReferencedImageSequence();
 
-      // Image 2: Only frame 1 is referenced
-      assertTrue(
+      boolean result =
           DicomObjectUtil.isImageFrameApplicableToReferencedImageSequence(
-              sequence, Tag.ReferencedFrameNumber, "1.2.3.4.5.1.2", 1, true));
-      assertFalse(
-          DicomObjectUtil.isImageFrameApplicableToReferencedImageSequence(
-              sequence, Tag.ReferencedFrameNumber, "1.2.3.4.5.1.2", 2, true));
+              sequence, Tag.ReferencedFrameNumber, sopInstanceUID, frame, true);
 
-      // Image 3: Frames 1 and 3 are referenced
-      assertTrue(
-          DicomObjectUtil.isImageFrameApplicableToReferencedImageSequence(
-              sequence, Tag.ReferencedFrameNumber, "1.2.3.4.5.1.3", 1, true));
-      assertFalse(
-          DicomObjectUtil.isImageFrameApplicableToReferencedImageSequence(
-              sequence, Tag.ReferencedFrameNumber, "1.2.3.4.5.1.3", 2, true));
-      assertTrue(
-          DicomObjectUtil.isImageFrameApplicableToReferencedImageSequence(
-              sequence, Tag.ReferencedFrameNumber, "1.2.3.4.5.1.3", 3, true));
+      assertEquals(expected, result);
     }
 
     @Test
-    @DisplayName("Should return false for non-existent SOP Instance UID")
-    void shouldReturnFalseForNonExistentSopInstanceUID() {
-      List<Attributes> sequence = createReferencedImageSequence();
+    void should_return_false_for_non_existent_sop_instance_uid() {
+      var sequence = createReferencedImageSequence();
 
       assertFalse(
           DicomObjectUtil.isImageFrameApplicableToReferencedImageSequence(
               sequence, Tag.ReferencedFrameNumber, "1.2.3.4.5.1.999", 1, true));
     }
-  }
 
-  @Nested
-  @DisplayName("Memoization Tests")
-  class MemoizationTests {
+    private Stream<Arguments> provideSpecificFrameTestCases() {
+      return Stream.of(
+          // Image 2: Only frame 1 is referenced
+          Arguments.of("1.2.3.4.5.1.2", 1, true),
+          Arguments.of("1.2.3.4.5.1.2", 2, false),
+          Arguments.of("1.2.3.4.5.1.2", 3, false),
 
-    @Test
-    @DisplayName("Should return same value on multiple invocations")
-    void shouldReturnSameValueOnMultipleInvocations() throws Exception {
-      AtomicInteger counter = new AtomicInteger(0);
-      SupplierEx<Integer, Exception> original = counter::incrementAndGet;
-      SupplierEx<Integer, Exception> memoized = DicomObjectUtil.memoize(original);
-
-      int firstResult = memoized.get();
-      assertEquals(1, firstResult);
-
-      // Subsequent calls should return the same value
-      for (int i = 0; i < 10; i++) {
-        assertEquals(firstResult, memoized.get());
-      }
-
-      // Counter should only be incremented once
-      assertEquals(1, counter.get());
+          // Image 3: Frames 1 and 3 are referenced
+          Arguments.of("1.2.3.4.5.1.3", 1, true),
+          Arguments.of("1.2.3.4.5.1.3", 2, false),
+          Arguments.of("1.2.3.4.5.1.3", 3, true),
+          Arguments.of("1.2.3.4.5.1.3", 4, false));
     }
 
-    @Test
-    @DisplayName("Should be thread-safe")
-    void shouldBeThreadSafe() throws Exception {
-      AtomicInteger invocationCount = new AtomicInteger(0);
-      AtomicInteger resultValue = new AtomicInteger(0);
+    private List<Attributes> createReferencedImageSequence() {
+      var sequence = new ArrayList<Attributes>();
+      var baseUID = "1.2.3.4.5.1.";
 
-      SupplierEx<Integer, Exception> original =
-          () -> {
-            invocationCount.incrementAndGet();
-            // Simulate some computation time
-            Thread.sleep(10);
-            return resultValue.incrementAndGet();
-          };
+      // Image 1: No specific frames (all frames applicable)
+      var ref1 = new Attributes();
+      ref1.setString(Tag.ReferencedSOPClassUID, VR.UI, UID.EnhancedMRImageStorage);
+      ref1.setString(Tag.ReferencedSOPInstanceUID, VR.UI, baseUID + "1");
+      sequence.add(ref1);
 
-      SupplierEx<Integer, Exception> memoized = DicomObjectUtil.memoize(original);
+      // Image 2: Only frame 1
+      var ref2 = new Attributes();
+      ref2.setString(Tag.ReferencedSOPClassUID, VR.UI, UID.EnhancedMRImageStorage);
+      ref2.setString(Tag.ReferencedSOPInstanceUID, VR.UI, baseUID + "2");
+      ref2.setInt(Tag.ReferencedFrameNumber, VR.IS, 1);
+      sequence.add(ref2);
 
-      ExecutorService executor = Executors.newFixedThreadPool(10);
-      List<CompletableFuture<Integer>> futures =
-          IntStream.range(0, 100)
-              .mapToObj(
-                  i ->
-                      CompletableFuture.supplyAsync(
-                          () -> {
-                            try {
-                              return memoized.get();
-                            } catch (Exception e) {
-                              throw new RuntimeException(e);
-                            }
-                          },
-                          executor))
-              .toList();
+      // Image 3: Frames 1 and 3
+      var ref3 = new Attributes();
+      ref3.setString(Tag.ReferencedSOPClassUID, VR.UI, UID.EnhancedMRImageStorage);
+      ref3.setString(Tag.ReferencedSOPInstanceUID, VR.UI, baseUID + "3");
+      ref3.setInt(Tag.ReferencedFrameNumber, VR.IS, 1, 3);
+      sequence.add(ref3);
 
-      // All futures should complete with the same value
-      Integer expectedValue = futures.get(0).get();
-      for (CompletableFuture<Integer> future : futures) {
-        assertEquals(expectedValue, future.get());
-      }
-
-      // Original supplier should only be called once
-      assertEquals(1, invocationCount.get());
-
-      executor.shutdown();
-      assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
-    }
-
-    @Test
-    @DisplayName("Should propagate exceptions")
-    void shouldPropagateExceptions() {
-      SupplierEx<String, RuntimeException> failingSupplier =
-          () -> {
-            throw new RuntimeException("Test exception");
-          };
-
-      SupplierEx<String, RuntimeException> memoized = DicomObjectUtil.memoize(failingSupplier);
-
-      assertThrows(RuntimeException.class, memoized::get);
-      // Second call should also throw the same exception
-      assertThrows(RuntimeException.class, memoized::get);
-    }
-
-    @Test
-    @DisplayName("Should handle null values")
-    void shouldHandleNullValues() throws Exception {
-      SupplierEx<String, Exception> nullSupplier = () -> null;
-      SupplierEx<String, Exception> memoized = DicomObjectUtil.memoize(nullSupplier);
-
-      assertNull(memoized.get());
-      assertNull(memoized.get()); // Should return cached null
+      return sequence;
     }
   }
 
   @Nested
-  @DisplayName("Date and Time Parsing")
-  class DateTimeTests {
+  @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+  class Date_and_Time_Parsing {
 
     @ParameterizedTest
-    @ValueSource(strings = {"20230615", "19991231", "20000229"})
-    @DisplayName("Should parse valid DICOM dates")
-    void shouldParseValidDicomDates(String dateString) {
-      LocalDate result = DicomObjectUtil.getDicomDate(dateString);
+    @ValueSource(strings = {"20230615", "19991231", "20000229", "20231201"})
+    void should_parse_valid_dicom_dates(String dateString) {
+      var result = DicomObjectUtil.getDicomDate(dateString);
+
       assertNotNull(result);
     }
 
     @ParameterizedTest
     @NullAndEmptySource
-    @ValueSource(strings = {"invalid", "20230232", "20001301", "2023"})
-    @DisplayName("Should return null for invalid DICOM dates")
-    void shouldReturnNullForInvalidDicomDates(String dateString) {
+    @ValueSource(strings = {"invalid", "20230232", "20001301", "2023", "20230635"})
+    void should_return_null_for_invalid_dicom_dates(String dateString) {
       assertNull(DicomObjectUtil.getDicomDate(dateString));
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"120000.000", "235959.999", "000000", "120000"})
-    @DisplayName("Should parse valid DICOM times")
-    void shouldParseValidDicomTimes(String timeString) {
-      LocalTime result = DicomObjectUtil.getDicomTime(timeString);
-      assertNotNull(result);
+    @MethodSource("provideValidTimeStrings")
+    void should_parse_valid_dicom_times(String timeString, LocalTime expected) {
+      var result = DicomObjectUtil.getDicomTime(timeString);
+
+      assertEquals(expected, result);
     }
 
     @ParameterizedTest
     @NullAndEmptySource
-    @ValueSource(strings = {"invalid", "250000", "123060", "12;30;00"})
-    @DisplayName("Should return null for invalid DICOM times")
-    void shouldReturnNullForInvalidDicomTimes(String timeString) {
+    @ValueSource(strings = {"invalid", "250000", "123060", "12;30;00", "2500", "12:30:60"})
+    void should_return_null_for_invalid_dicom_times(String timeString) {
       assertNull(DicomObjectUtil.getDicomTime(timeString));
     }
 
     @Test
-    @DisplayName("Should combine date and time correctly")
-    void shouldCombineDateAndTimeCorrectly() {
-      Attributes dcm = new Attributes();
-      dcm.setString(Tag.StudyDate, VR.DA, "20230615");
-      dcm.setString(Tag.StudyTime, VR.TM, "143000.000");
+    void should_combine_date_and_time_correctly() {
+      var dcm = createStudyAttributes("20230615", "143000.000");
 
-      LocalDateTime result = DicomObjectUtil.dateTime(dcm, Tag.StudyDate, Tag.StudyTime);
+      var result = DicomObjectUtil.dateTime(dcm, Tag.StudyDate, Tag.StudyTime);
 
       assertNotNull(result);
       assertEquals(LocalDate.of(2023, 6, 15), result.toLocalDate());
@@ -380,12 +290,11 @@ class DicomObjectUtilTest {
     }
 
     @Test
-    @DisplayName("Should return date at start of day when time is missing")
-    void shouldReturnDateAtStartOfDayWhenTimeMissing() {
-      Attributes dcm = new Attributes();
+    void should_return_date_at_start_of_day_when_time_is_missing() {
+      var dcm = new Attributes();
       dcm.setString(Tag.StudyDate, VR.DA, "20230615");
 
-      LocalDateTime result = DicomObjectUtil.dateTime(dcm, Tag.StudyDate, Tag.StudyTime);
+      var result = DicomObjectUtil.dateTime(dcm, Tag.StudyDate, Tag.StudyTime);
 
       assertNotNull(result);
       assertEquals(LocalDate.of(2023, 6, 15), result.toLocalDate());
@@ -393,81 +302,112 @@ class DicomObjectUtilTest {
     }
 
     @Test
-    @DisplayName("Should return null when date is missing")
-    void shouldReturnNullWhenDateMissing() {
-      Attributes dcm = new Attributes();
+    void should_return_null_when_date_is_missing() {
+      var dcm = new Attributes();
       dcm.setString(Tag.StudyTime, VR.TM, "143000.000");
 
       assertNull(DicomObjectUtil.dateTime(dcm, Tag.StudyDate, Tag.StudyTime));
     }
 
     @Test
-    @DisplayName("Should return null for null attributes")
-    void shouldReturnNullForNullAttributes() {
+    void should_return_null_for_null_attributes() {
       assertNull(DicomObjectUtil.dateTime(null, Tag.StudyDate, Tag.StudyTime));
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideDateTimeCombinations")
+    void should_handle_various_date_time_combinations(
+        String date, String time, LocalDateTime expected) {
+      var dcm = createStudyAttributes(date, time);
+
+      var result = DicomObjectUtil.dateTime(dcm, Tag.StudyDate, Tag.StudyTime);
+
+      assertEquals(expected, result);
+    }
+
+    private Stream<Arguments> provideValidTimeStrings() {
+      return Stream.of(
+          Arguments.of("120000.000", LocalTime.of(12, 0, 0)),
+          Arguments.of("235959.999", LocalTime.of(23, 59, 59, 999_000_000)),
+          Arguments.of("000000", LocalTime.MIDNIGHT),
+          Arguments.of("120000", LocalTime.of(12, 0, 0)),
+          Arguments.of("1230", LocalTime.of(12, 30, 0)));
+    }
+
+    private Stream<Arguments> provideDateTimeCombinations() {
+      return Stream.of(
+          Arguments.of("20230615", "143000", LocalDateTime.of(2023, 6, 15, 14, 30)),
+          Arguments.of("20230615", null, LocalDateTime.of(2023, 6, 15, 0, 0)),
+          Arguments.of(
+              "20231201", "235959.999", LocalDateTime.of(2023, 12, 1, 23, 59, 59, 999_000_000)));
+    }
+
+    private Attributes createStudyAttributes(String date, String time) {
+      var dcm = new Attributes();
+      if (date != null) {
+        dcm.setString(Tag.StudyDate, VR.DA, date);
+      }
+      if (time != null) {
+        dcm.setString(Tag.StudyTime, VR.TM, time);
+      }
+      return dcm;
     }
   }
 
   @Nested
-  @DisplayName("Shutter Shape Tests")
-  class ShutterShapeTests {
+  @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+  class Shutter_Shape_Tests {
 
     @Test
-    @DisplayName("Should return null for null or empty shutter shape")
-    void shouldReturnNullForNullOrEmptyShutterShape() {
-      assertNull(DicomObjectUtil.getShutterShape(new Attributes()));
+    void should_return_null_for_null_attributes() {
+      assertNull(DicomObjectUtil.getShutterShape(null));
+    }
 
-      Attributes dcm = new Attributes();
+    @Test
+    void should_return_null_for_empty_shutter_shape() {
+      assertNull(DicomObjectUtil.getShutterShape(new Attributes()));
+    }
+
+    @Test
+    void should_return_null_for_unknown_shutter_shape() {
+      var dcm = new Attributes();
       dcm.setString(Tag.ShutterShape, VR.CS, "UNKNOWN");
+
       assertNull(DicomObjectUtil.getShutterShape(dcm));
     }
 
     @Test
-    @DisplayName("Should create rectangular shutter")
-    void shouldCreateRectangularShutter() {
-      Attributes dcm = new Attributes();
-      dcm.setString(Tag.ShutterShape, VR.CS, "RECTANGULAR");
-      dcm.setInt(Tag.ShutterLeftVerticalEdge, VR.IS, 10);
-      dcm.setInt(Tag.ShutterUpperHorizontalEdge, VR.IS, 20);
-      dcm.setInt(Tag.ShutterRightVerticalEdge, VR.IS, 100);
-      dcm.setInt(Tag.ShutterLowerHorizontalEdge, VR.IS, 80);
+    void should_create_rectangular_shutter() {
+      var dcm = createRectangularShutterAttributes(10, 20, 100, 80);
 
-      Area result = DicomObjectUtil.getShutterShape(dcm);
+      var result = DicomObjectUtil.getShutterShape(dcm);
 
       assertNotNull(result);
-      Rectangle2D expectedRect = new Rectangle2D.Double(10, 20, 90, 60);
+      var expectedRect = new Rectangle2D.Double(10, 20, 90, 60);
       assertTrue(new Area(expectedRect).equals(result));
     }
 
     @Test
-    @DisplayName("Should create circular shutter")
-    void shouldCreateCircularShutter() {
-      Attributes dcm = new Attributes();
-      dcm.setString(Tag.ShutterShape, VR.CS, "CIRCULAR");
-      dcm.setInt(Tag.CenterOfCircularShutter, VR.IS, 50, 60); // row, column
-      dcm.setInt(Tag.RadiusOfCircularShutter, VR.IS, 25);
+    void should_create_circular_shutter() {
+      var dcm = createCircularShutterAttributes(50, 60, 25);
 
-      Area result = DicomObjectUtil.getShutterShape(dcm);
+      var result = DicomObjectUtil.getShutterShape(dcm);
 
       assertNotNull(result);
       // Expected ellipse: center at (60, 50) with radius 25
-      Ellipse2D expectedEllipse = new Ellipse2D.Double(35, 25, 50, 50);
+      var expectedEllipse = new Ellipse2D.Double(35, 25, 50, 50);
       assertTrue(new Area(expectedEllipse).equals(result));
     }
 
     @Test
-    @DisplayName("Should create polygonal shutter")
-    void shouldCreatePolygonalShutter() {
-      Attributes dcm = new Attributes();
-      dcm.setString(Tag.ShutterShape, VR.CS, "POLYGONAL");
-      // Points in DICOM format: row1, col1, row2, col2, row3, col3
-      dcm.setInt(Tag.VerticesOfThePolygonalShutter, VR.IS, 10, 20, 30, 20, 30, 40, 10, 40);
+    void should_create_polygonal_shutter() {
+      var dcm = createPolygonalShutterAttributes(10, 20, 30, 20, 30, 40, 10, 40);
 
-      Area result = DicomObjectUtil.getShutterShape(dcm);
+      var result = DicomObjectUtil.getShutterShape(dcm);
 
       assertNotNull(result);
 
-      Polygon expectedPolygon = new Polygon();
+      var expectedPolygon = new Polygon();
       expectedPolygon.addPoint(20, 10); // col1, row1
       expectedPolygon.addPoint(20, 30); // col2, row2
       expectedPolygon.addPoint(40, 30); // col3, row3
@@ -477,9 +417,8 @@ class DicomObjectUtilTest {
     }
 
     @Test
-    @DisplayName("Should combine multiple shutter shapes")
-    void shouldCombineMultipleShutterShapes() {
-      Attributes dcm = new Attributes();
+    void should_combine_multiple_shutter_shapes() {
+      var dcm = new Attributes();
       dcm.setString(Tag.ShutterShape, VR.CS, "RECTANGULAR", "CIRCULAR");
 
       // Rectangular shutter
@@ -492,134 +431,237 @@ class DicomObjectUtilTest {
       dcm.setInt(Tag.CenterOfCircularShutter, VR.IS, 50, 50);
       dcm.setInt(Tag.RadiusOfCircularShutter, VR.IS, 30);
 
-      Area result = DicomObjectUtil.getShutterShape(dcm);
+      var result = DicomObjectUtil.getShutterShape(dcm);
 
       assertNotNull(result);
 
       // Result should be intersection of rectangle and circle
-      Rectangle2D rect = new Rectangle2D.Double(0, 0, 100, 100);
-      Ellipse2D circle = new Ellipse2D.Double(20, 20, 60, 60);
-      Area expected = new Area(rect);
+      var rect = new Rectangle2D.Double(0, 0, 100, 100);
+      var circle = new Ellipse2D.Double(20, 20, 60, 60);
+      var expected = new Area(rect);
       expected.intersect(new Area(circle));
 
       assertTrue(expected.equals(result));
     }
 
-    @Test
-    @DisplayName("Should handle invalid polygon data")
-    void shouldHandleInvalidPolygonData() {
-      Attributes dcm = new Attributes();
+    @ParameterizedTest
+    @MethodSource("provideInvalidPolygonData")
+    void should_handle_invalid_polygon_data(int[] points) {
+      var dcm = new Attributes();
       dcm.setString(Tag.ShutterShape, VR.CS, "POLYGONAL");
+      dcm.setInt(Tag.VerticesOfThePolygonalShutter, VR.IS, points);
 
-      // Too few points
-      dcm.setInt(Tag.VerticesOfThePolygonalShutter, VR.IS, 10, 20);
-      assertNull(DicomObjectUtil.getShutterShape(dcm));
-
-      // Degenerate polygon (line)
-      dcm.setInt(Tag.VerticesOfThePolygonalShutter, VR.IS, 10, 20, 10, 30, 10, 40);
       assertNull(DicomObjectUtil.getShutterShape(dcm));
     }
 
     @Test
-    @DisplayName("Should handle empty rectangular shutter")
-    void shouldHandleEmptyRectangularShutter() {
-      Attributes dcm = new Attributes();
-      dcm.setString(Tag.ShutterShape, VR.CS, "RECTANGULAR");
-      dcm.setInt(Tag.ShutterLeftVerticalEdge, VR.IS, 50);
-      dcm.setInt(Tag.ShutterUpperHorizontalEdge, VR.IS, 50);
-      dcm.setInt(Tag.ShutterRightVerticalEdge, VR.IS, 50);
-      dcm.setInt(Tag.ShutterLowerHorizontalEdge, VR.IS, 50);
+    void should_handle_empty_rectangular_shutter() {
+      var dcm = createRectangularShutterAttributes(50, 50, 50, 50);
 
       assertNull(DicomObjectUtil.getShutterShape(dcm));
+    }
+
+    @Test
+    void should_handle_invalid_circular_shutter_data() {
+      var dcm = new Attributes();
+      dcm.setString(Tag.ShutterShape, VR.CS, "CIRCULAR");
+
+      // Missing center
+      dcm.setInt(Tag.RadiusOfCircularShutter, VR.IS, 25);
+      assertNull(DicomObjectUtil.getShutterShape(dcm));
+
+      // Invalid center
+      dcm.setInt(Tag.CenterOfCircularShutter, VR.IS, 50);
+      assertNull(DicomObjectUtil.getShutterShape(dcm));
+
+      // Valid center but invalid radius
+      dcm.setInt(Tag.CenterOfCircularShutter, VR.IS, 50, 60);
+      dcm.setInt(Tag.RadiusOfCircularShutter, VR.IS, 0);
+      assertNull(DicomObjectUtil.getShutterShape(dcm));
+    }
+
+    private Stream<Arguments> provideInvalidPolygonData() {
+      return Stream.of(
+          Arguments.of((Object) new int[] {10, 20}), // Too few points
+          Arguments.of((Object) new int[] {10, 20, 10, 30}), // Only 2 points
+          Arguments.of((Object) new int[] {10, 20, 10, 30, 10, 40}) // Degenerate polygon (line)
+          );
+    }
+
+    private Attributes createRectangularShutterAttributes(
+        int left, int top, int right, int bottom) {
+      var dcm = new Attributes();
+      dcm.setString(Tag.ShutterShape, VR.CS, "RECTANGULAR");
+      dcm.setInt(Tag.ShutterLeftVerticalEdge, VR.IS, left);
+      dcm.setInt(Tag.ShutterUpperHorizontalEdge, VR.IS, top);
+      dcm.setInt(Tag.ShutterRightVerticalEdge, VR.IS, right);
+      dcm.setInt(Tag.ShutterLowerHorizontalEdge, VR.IS, bottom);
+      return dcm;
+    }
+
+    private Attributes createCircularShutterAttributes(int row, int col, int radius) {
+      var dcm = new Attributes();
+      dcm.setString(Tag.ShutterShape, VR.CS, "CIRCULAR");
+      dcm.setInt(Tag.CenterOfCircularShutter, VR.IS, row, col);
+      dcm.setInt(Tag.RadiusOfCircularShutter, VR.IS, radius);
+      return dcm;
+    }
+
+    private Attributes createPolygonalShutterAttributes(int... points) {
+      var dcm = new Attributes();
+      dcm.setString(Tag.ShutterShape, VR.CS, "POLYGONAL");
+      dcm.setInt(Tag.VerticesOfThePolygonalShutter, VR.IS, points);
+      return dcm;
     }
   }
 
   @Nested
-  @DisplayName("Color Conversion Tests")
-  class ColorTests {
+  @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+  class Color_Conversion_Tests {
 
     @Test
-    @DisplayName("Should return black for empty attributes")
-    void shouldReturnBlackForEmptyAttributes() {
+    void should_return_black_for_empty_attributes() {
       assertEquals(Color.BLACK, DicomObjectUtil.getShutterColor(new Attributes()));
     }
 
     @ParameterizedTest
-    @CsvSource({"0x0000, 0, 0, 0", "0x8080, 128, 128, 128", "0xFFFF, 255, 255, 255"})
-    @DisplayName("Should convert P-Values to grayscale colors")
-    void shouldConvertPValuesToGrayscaleColors(
+    @CsvSource({
+      "0x0000, 0, 0, 0",
+      "0x8080, 128, 128, 128",
+      "0xFFFF, 255, 255, 255",
+      "0x4040, 64, 64, 64"
+    })
+    void should_convert_p_values_to_grayscale_colors(
         String pValueHex, int expectedR, int expectedG, int expectedB) {
       int pValue = Integer.decode(pValueHex);
-      Color result = DicomObjectUtil.getRGBColor(pValue, null);
+      var result = DicomObjectUtil.getRGBColor(pValue, null);
 
       assertEquals(new Color(expectedR, expectedG, expectedB, 255), result);
     }
 
-    @Test
-    @DisplayName("Should handle RGB color arrays")
-    void shouldHandleRgbColorArrays() {
-      Color orange = DicomObjectUtil.getRGBColor(0, new int[] {255, 165, 0});
-      assertEquals(new Color(255, 165, 0, 255), orange);
+    @ParameterizedTest
+    @MethodSource("provideRgbColorTestCases")
+    void should_handle_rgb_color_arrays(int[] rgbArray, Color expected) {
+      var result = DicomObjectUtil.getRGBColor(0, rgbArray);
 
-      Color blue = DicomObjectUtil.getRGBColor(0, new int[] {0, 0, 255});
-      assertEquals(new Color(0, 0, 255, 255), blue);
+      assertEquals(expected, result);
     }
 
     @Test
-    @DisplayName("Should handle RGBA color arrays with alpha")
-    void shouldHandleRgbaColorArraysWithAlpha() {
-      Color semiTransparentRed = DicomObjectUtil.getRGBColor(0, new int[] {255, 0, 0, 128});
+    void should_handle_rgba_color_arrays_with_alpha() {
+      var semiTransparentRed = DicomObjectUtil.getRGBColor(0, new int[] {255, 0, 0, 128});
       assertEquals(new Color(255, 0, 0, 128), semiTransparentRed);
+
+      var transparentBlue = DicomObjectUtil.getRGBColor(0, new int[] {0, 0, 255, 0});
+      assertEquals(new Color(0, 0, 255, 0), transparentBlue);
     }
 
     @Test
-    @DisplayName("Should clamp RGB values to valid range")
-    void shouldClampRgbValuesToValidRange() {
-      Color clampedColor = DicomObjectUtil.getRGBColor(0, new int[] {300, -50, 256, 300});
+    void should_clamp_rgb_values_to_valid_range() {
+      var clampedColor = DicomObjectUtil.getRGBColor(0, new int[] {300, -50, 256, 300});
       assertEquals(new Color(255, 0, 255, 255), clampedColor);
     }
 
     @Test
-    @DisplayName("Should handle insufficient RGB array elements")
-    void shouldHandleInsufficientRgbArrayElements() {
+    void should_handle_insufficient_rgb_array_elements() {
       // Array with only 2 elements should use P-Value
-      Color result = DicomObjectUtil.getRGBColor(0x8080, new int[] {255, 128});
+      var result = DicomObjectUtil.getRGBColor(0x8080, new int[] {255, 128});
       assertEquals(new Color(128, 128, 128, 255), result);
+
+      // Empty array should use P-Value
+      var result2 = DicomObjectUtil.getRGBColor(0x4040, new int[] {});
+      assertEquals(new Color(64, 64, 64, 255), result2);
     }
 
     @Test
-    @DisplayName("Should extract shutter color from CIE Lab values")
-    void shouldExtractShutterColorFromCieLabValues() {
-      Color magenta = Color.MAGENTA;
-      Attributes dcm = new Attributes();
+    void should_extract_shutter_color_from_cie_lab_values() {
+      var magenta = Color.MAGENTA;
+      var dcm = new Attributes();
       dcm.setInt(Tag.ShutterPresentationColorCIELabValue, VR.US, CIELab.rgbToDicomLab(magenta));
 
-      Color result = DicomObjectUtil.getShutterColor(dcm);
+      var result = DicomObjectUtil.getShutterColor(dcm);
       assertEquals(magenta, result);
     }
 
     @Test
-    @DisplayName("Should prioritize CIE Lab over P-Value")
-    void shouldPrioritizeCieLabOverPValue() {
-      Color red = Color.RED;
-      Attributes dcm = new Attributes();
+    void should_prioritize_cie_lab_over_p_value() {
+      var red = Color.RED;
+      var dcm = new Attributes();
       dcm.setInt(Tag.ShutterPresentationValue, VR.US, 0xFFFF); // Would be white
       dcm.setInt(Tag.ShutterPresentationColorCIELabValue, VR.US, CIELab.rgbToDicomLab(red));
 
-      Color result = DicomObjectUtil.getShutterColor(dcm);
+      var result = DicomObjectUtil.getShutterColor(dcm);
       assertEquals(red, result);
+    }
+
+    private Stream<Arguments> provideRgbColorTestCases() {
+      return Stream.of(
+          Arguments.of(new int[] {255, 165, 0}, new Color(255, 165, 0, 255)),
+          Arguments.of(new int[] {0, 0, 255}, new Color(0, 0, 255, 255)),
+          Arguments.of(new int[] {255, 255, 255}, Color.WHITE),
+          Arguments.of(new int[] {0, 0, 0}, Color.BLACK),
+          Arguments.of(new int[] {128, 128, 128}, new Color(128, 128, 128, 255)));
     }
   }
 
   @Nested
-  @DisplayName("Integration Tests")
-  class IntegrationTests {
+  @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+  class Integration_Tests {
 
     @Test
-    @DisplayName("Should handle complete DICOM dataset with all features")
-    void shouldHandleCompleteDicomDataset() {
-      // Create a comprehensive DICOM dataset
-      Attributes dcm = new Attributes();
+    void should_handle_complete_dicom_dataset_with_all_features() {
+      var dcm = createComprehensiveDicomDataset();
+
+      // Test all operations
+      var dateTime = DicomObjectUtil.dateTime(dcm, Tag.StudyDate, Tag.StudyTime);
+      assertNotNull(dateTime);
+      assertEquals(LocalDate.of(2023, 6, 15), dateTime.toLocalDate());
+
+      var refSequence = DicomObjectUtil.getSequence(dcm, Tag.ReferencedImageSequence);
+      assertEquals(1, refSequence.size());
+
+      assertTrue(
+          DicomObjectUtil.isImageFrameApplicableToReferencedImageSequence(
+              refSequence, Tag.ReferencedFrameNumber, "1.2.3.4.5.6.7.8.10", 2, true));
+
+      var shutterShape = DicomObjectUtil.getShutterShape(dcm);
+      assertNotNull(shutterShape);
+
+      var shutterColor = DicomObjectUtil.getShutterColor(dcm);
+      assertEquals(new Color(128, 128, 128, 255), shutterColor);
+    }
+
+    @RepeatedTest(5)
+    void should_maintain_consistent_behavior_across_multiple_runs() {
+      var dcm = new Attributes();
+      dcm.setString(Tag.StudyDate, VR.DA, "20230101");
+      dcm.setString(Tag.StudyTime, VR.TM, "120000");
+
+      var result = DicomObjectUtil.dateTime(dcm, Tag.StudyDate, Tag.StudyTime);
+      assertNotNull(result);
+      assertEquals(LocalDateTime.of(2023, 1, 1, 12, 0, 0), result);
+    }
+
+    @Test
+    void should_handle_edge_cases_gracefully() {
+      // Test with minimal valid data
+      var dcm = new Attributes();
+      dcm.setString(Tag.StudyDate, VR.DA, "20230101");
+
+      var dateTime = DicomObjectUtil.dateTime(dcm, Tag.StudyDate, Tag.StudyTime);
+      assertEquals(LocalDateTime.of(2023, 1, 1, 0, 0), dateTime);
+
+      // Test with empty sequences
+      var emptySequence = DicomObjectUtil.getSequence(dcm, Tag.ReferencedImageSequence);
+      assertTrue(emptySequence.isEmpty());
+
+      // Test with minimal shutter data
+      dcm.setString(Tag.ShutterShape, VR.CS, "RECTANGULAR");
+      assertNull(DicomObjectUtil.getShutterShape(dcm)); // Missing required coordinates
+    }
+
+    private Attributes createComprehensiveDicomDataset() {
+      var dcm = new Attributes();
 
       // Add study information
       dcm.setString(Tag.StudyDate, VR.DA, "20230615");
@@ -627,10 +669,10 @@ class DicomObjectUtilTest {
       dcm.setString(Tag.StudyInstanceUID, VR.UI, "1.2.3.4.5.6.7.8.9");
 
       // Add sequence
-      Sequence sequence = dcm.newSequence(Tag.ReferencedImageSequence, 1);
-      Attributes refImage = new Attributes();
+      var sequence = dcm.newSequence(Tag.ReferencedImageSequence, 1);
+      var refImage = new Attributes();
       refImage.setString(Tag.ReferencedSOPInstanceUID, VR.UI, "1.2.3.4.5.6.7.8.10");
-      refImage.setInt(Tag.ReferencedFrameNumber, VR.IS, new int[] {1, 2, 3});
+      refImage.setInt(Tag.ReferencedFrameNumber, VR.IS, 1, 2, 3);
       sequence.add(refImage);
 
       // Add shutter information
@@ -641,35 +683,7 @@ class DicomObjectUtilTest {
       dcm.setInt(Tag.ShutterLowerHorizontalEdge, VR.IS, 90);
       dcm.setInt(Tag.ShutterPresentationValue, VR.US, 0x8080);
 
-      // Test all operations
-      LocalDateTime dateTime = DicomObjectUtil.dateTime(dcm, Tag.StudyDate, Tag.StudyTime);
-      assertNotNull(dateTime);
-      assertEquals(LocalDate.of(2023, 6, 15), dateTime.toLocalDate());
-
-      List<Attributes> refSequence = DicomObjectUtil.getSequence(dcm, Tag.ReferencedImageSequence);
-      assertEquals(1, refSequence.size());
-
-      assertTrue(
-          DicomObjectUtil.isImageFrameApplicableToReferencedImageSequence(
-              refSequence, Tag.ReferencedFrameNumber, "1.2.3.4.5.6.7.8.10", 2, true));
-
-      Area shutterShape = DicomObjectUtil.getShutterShape(dcm);
-      assertNotNull(shutterShape);
-
-      Color shutterColor = DicomObjectUtil.getShutterColor(dcm);
-      assertEquals(new Color(128, 128, 128, 255), shutterColor);
-    }
-
-    @RepeatedTest(5)
-    @DisplayName("Should maintain consistent behavior across multiple runs")
-    void shouldMaintainConsistentBehaviorAcrossMultipleRuns() {
-      Attributes dcm = new Attributes();
-      dcm.setString(Tag.StudyDate, VR.DA, "20230101");
-      dcm.setString(Tag.StudyTime, VR.TM, "120000");
-
-      LocalDateTime result = DicomObjectUtil.dateTime(dcm, Tag.StudyDate, Tag.StudyTime);
-      assertNotNull(result);
-      assertEquals(LocalDateTime.of(2023, 1, 1, 12, 0, 0), result);
+      return dcm;
     }
   }
 }

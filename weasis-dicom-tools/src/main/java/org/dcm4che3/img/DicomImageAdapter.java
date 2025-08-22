@@ -56,14 +56,14 @@ import org.weasis.opencv.op.lut.WlPresentation;
 public class DicomImageAdapter {
   private static final Logger LOGGER = LoggerFactory.getLogger(DicomImageAdapter.class);
 
-  private static final SoftHashMap<LutParameters, LookupTableCV> LUT_Cache = new SoftHashMap<>();
+  private static final SoftHashMap<LutParameters, LookupTableCV> LUT_CACHE = new SoftHashMap<>();
 
   private final ImageDescriptor desc;
   private final MinMaxLocResult minMax;
   private final int frameIndex;
 
   private int bitsStored;
-  private List<PresetWindowLevel> windowingPresetCollection = null;
+  private List<PresetWindowLevel> windowingPresetCollection;
 
   /**
    * Creates a new DICOM image adapter for the specified image and frame.
@@ -81,101 +81,6 @@ public class DicomImageAdapter {
 
     // Pre-compute modality lookup for performance optimization
     getModalityLookup(null, false);
-  }
-
-  /**
-   * Computes and caches min/max pixel values for the specified frame.
-   *
-   * @param image the image to analyze
-   * @param frameIndex the frame index
-   * @return the computed min/max result
-   */
-  private MinMaxLocResult computeMinMaxValues(PlanarImage image, int frameIndex) {
-    MinMaxLocResult result = desc.getMinMaxPixelValue(frameIndex);
-    if (result == null) {
-      result = findMinMaxValues(image, frameIndex);
-      desc.setMinMaxPixelValue(frameIndex, result);
-    }
-    return result;
-  }
-
-  /**
-   * Computes min/max values from image excluding specified padding values.
-   *
-   * @param image the image to analyze
-   * @param desc the image descriptor
-   * @param frameIndex the frame index
-   * @return the computed min/max values
-   */
-  public static MinMaxLocResult getMinMaxValues(
-      PlanarImage image, ImageDescriptor desc, int frameIndex) {
-    MinMaxLocResult val = desc.getMinMaxPixelValue(frameIndex);
-    if (val != null) {
-      return val;
-    }
-    if (desc.getPhotometricInterpretation().isMonochrome()) {
-      val = computeMinMaxWithPadding(image, desc);
-    }
-
-    // Fallback to default computation for non-monochrome or when no padding
-    return val != null
-        ? val
-        : ImageAnalyzer.findRawMinMaxValues(
-            image, !desc.getPhotometricInterpretation().isMonochrome());
-  }
-
-  private static MinMaxLocResult computeMinMaxWithPadding(PlanarImage image, ImageDescriptor desc) {
-    Optional<Integer> paddingValueOpt = desc.getPixelPaddingValue();
-    if (paddingValueOpt.isPresent()) {
-      int paddingValue = paddingValueOpt.get();
-      Optional<Integer> paddingLimitOpt = desc.getPixelPaddingRangeLimit();
-      Integer paddingLimit = paddingLimitOpt.orElse(null);
-
-      int paddingValueMin =
-          (paddingLimit == null) ? paddingValue : Math.min(paddingValue, paddingLimit);
-      int paddingValueMax =
-          (paddingLimit == null) ? paddingValue : Math.max(paddingValue, paddingLimit);
-      return findMinMaxValues(image, paddingValueMin, paddingValueMax);
-    }
-
-    return null;
-  }
-
-  private MinMaxLocResult findMinMaxValues(PlanarImage image, int frameIndex) {
-
-    MinMaxLocResult val = getMinMaxValues(image, desc, frameIndex);
-    validateAndAdjustBitsStored(val);
-    return val;
-  }
-
-  private void validateAndAdjustBitsStored(MinMaxLocResult val) {
-    int bitsAllocated = desc.getBitsAllocated();
-    if (bitsStored < bitsAllocated) {
-      boolean isSigned = desc.isSigned();
-      int minInValue = isSigned ? -(1 << (bitsStored - 1)) : 0;
-      int maxInValue = isSigned ? (1 << (bitsStored - 1)) - 1 : (1 << bitsStored) - 1;
-      if (val.minVal < minInValue || val.maxVal > maxInValue) {
-        // Adjust bits stored to handle values outside the expected range
-        setBitsStored(bitsAllocated);
-      }
-    }
-  }
-
-  private static MinMaxLocResult findMinMaxValues(
-      PlanarImage image, Integer paddingValueMin, Integer paddingValueMax) {
-    if (CvType.depth(image.type()) <= CvType.CV_8S) {
-      MinMaxLocResult val = new MinMaxLocResult();
-      val.minVal = 0.0;
-      val.maxVal = 255.0;
-      return val;
-    }
-
-    MinMaxLocResult val =
-        ImageAnalyzer.findMinMaxValues(image.toMat(), paddingValueMin, paddingValueMax);
-    if (val != null && val.minVal == val.maxVal) {
-      val.maxVal += 1.0; // Handle edge case for uniform images
-    }
-    return val;
   }
 
   // Getters
@@ -242,7 +147,7 @@ public class DicomImageAdapter {
    * @return the transformed minimum value
    */
   public double getMinValue(WlPresentation wl) {
-    return minMaxValue(true, wl);
+    return computeTransformedValue(true, wl);
   }
 
   /**
@@ -252,19 +157,7 @@ public class DicomImageAdapter {
    * @return the transformed maximum value
    */
   public double getMaxValue(WlPresentation wl) {
-    return minMaxValue(false, wl);
-  }
-
-  private double minMaxValue(boolean minVal, WlPresentation wl) {
-    Number min = pixelToRealValue(minMax.minVal, wl);
-    Number max = pixelToRealValue(minMax.maxVal, wl);
-    if (min == null || max == null) {
-      return 0;
-    }
-    // Handle negative slopes in rescale transformation
-    double minValue = min.doubleValue();
-    double maxValue = max.doubleValue();
-    return minVal ? Math.min(minValue, maxValue) : Math.max(minValue, maxValue);
+    return computeTransformedValue(false, wl);
   }
 
   /**
@@ -393,10 +286,6 @@ public class DicomImageAdapter {
     return pixelValue;
   }
 
-  private boolean isValueInLookupRange(int val, LookupTableCV lookup) {
-    return val >= lookup.getOffset() && val < lookup.getOffset() + lookup.getNumEntries();
-  }
-
   /**
    * Creates or retrieves the modality lookup table according to DICOM PS 3.3 C.11.1. Handles both
    * LUT sequence data and rescale slope/intercept transformations.
@@ -418,87 +307,6 @@ public class DicomImageAdapter {
     return createModalityLookup(pixelPadding, modalityLut, inverseLUTAction, pr);
   }
 
-  private PrDicomObject extractPresentationState(WlPresentation wlp) {
-    return wlp != null && wlp.getPresentationState() instanceof PrDicomObject pr ? pr : null;
-  }
-
-  private LookupTableCV getModalityLutFromPresentationState(PrDicomObject pr) {
-    LookupTableCV prModLut = pr != null ? pr.getModalityLutModule().getLut().orElse(null) : null;
-    return prModLut != null
-        ? prModLut
-        : desc.getModalityLutForFrame(frameIndex).getLut().orElse(null);
-  }
-
-  private boolean canApplyModalityLut(
-      LookupTableCV mLUTSeq, boolean pixelPadding, Optional<Integer> paddingValue) {
-    if (!pixelPadding || paddingValue.isEmpty()) {
-      return isMinMaxInLutRange(mLUTSeq);
-    }
-    LOGGER.warn("Cannot apply Modality LUT sequence and Pixel Padding");
-    return false;
-  }
-
-  private boolean isMinMaxInLutRange(LookupTableCV mLUTSeq) {
-    if (minMax.minVal >= mLUTSeq.getOffset()
-        && minMax.maxVal < mLUTSeq.getOffset() + mLUTSeq.getNumEntries()) {
-      return true;
-    }
-    LOGGER.warn("Pixel values don't match Modality LUT sequence table. Modality LUT not applied.");
-    return false;
-  }
-
-  private LookupTableCV createModalityLookup(
-      boolean pixelPadding, LookupTableCV mLUTSeq, boolean inverseLUTAction, PrDicomObject pr) {
-    boolean inverseLut = isPhotometricInterpretationInverse(pr);
-    if (pixelPadding) {
-      inverseLut ^= inverseLUTAction;
-    }
-    LutParameters lutParams = getLutParameters(pixelPadding, mLUTSeq, inverseLut, pr);
-    if (lutParams == null) {
-      return null; // No modality lookup table required
-    }
-    return getOrCreateCachedLookup(lutParams, mLUTSeq);
-  }
-
-  private LookupTableCV getOrCreateCachedLookup(LutParameters lutParams, LookupTableCV mLUTSeq) {
-    LookupTableCV modalityLookup = LUT_Cache.get(lutParams);
-
-    if (modalityLookup != null) {
-      return modalityLookup;
-    }
-
-    modalityLookup = createLookupTable(mLUTSeq, lutParams);
-
-    if (desc.getPhotometricInterpretation().isMonochrome()) {
-      RescaleUtils.applyPixelPaddingToModalityLUT(modalityLookup, lutParams);
-    }
-
-    LUT_Cache.put(lutParams, modalityLookup);
-    return modalityLookup;
-  }
-
-  private LookupTableCV createLookupTable(LookupTableCV mLUTSeq, LutParameters lutParams) {
-    if (mLUTSeq != null) {
-      return createLookupFromSequence(mLUTSeq);
-    }
-    return RescaleUtils.createRescaleRampLut(lutParams);
-  }
-
-  private LookupTableCV createLookupFromSequence(LookupTableCV mLUTSeq) {
-    if (mLUTSeq.getNumBands() != 1) {
-      return mLUTSeq;
-    }
-    if (mLUTSeq.getDataType() == DataBuffer.TYPE_BYTE) {
-      byte[] data = mLUTSeq.getByteData(0);
-      return data != null ? new LookupTableCV(data, mLUTSeq.getOffset(0)) : mLUTSeq;
-    }
-    short[] data = mLUTSeq.getShortData(0);
-    return data != null
-        ? new LookupTableCV(
-            data, mLUTSeq.getOffset(0), mLUTSeq.getData() instanceof DataBufferUShort)
-        : mLUTSeq;
-  }
-
   public boolean isPhotometricInterpretationInverse(PresentationStateLut pr) {
     Optional<String> prLUTShape = pr != null ? pr.getPrLutShapeMode() : Optional.empty();
     PhotometricInterpretation p = desc.getPhotometricInterpretation();
@@ -507,25 +315,14 @@ public class DicomImageAdapter {
         .orElseGet(() -> p == PhotometricInterpretation.MONOCHROME1);
   }
 
-  /**
-   * Creates LUT parameters for modality transformation. Returns null if no transformation is needed
-   * (optimization for identity transforms).
-   *
-   * @param pixelPadding whether pixel padding is enabled
-   * @param mLUTSeq the modality LUT sequence (may be null)
-   * @param inversePaddingMLUT whether to apply inverse padding
-   * @param pr the presentation state object
-   * @return LUT parameters or null if no transformation needed
-   */
+  // LUT parameters method
   public LutParameters getLutParameters(
       boolean pixelPadding, LookupTableCV mLUTSeq, boolean inversePaddingMLUT, PrDicomObject pr) {
     Optional<Integer> paddingValue = desc.getPixelPaddingValue();
-
     boolean isSigned = desc.isSigned();
     double intercept = getRescaleIntercept(pr);
     double slope = getRescaleSlope(pr);
 
-    // Optimization: skip transformation for identity cases
     if (isIdentityTransformation(slope, intercept, paddingValue)) {
       return null;
     }
@@ -547,6 +344,214 @@ public class DicomImageAdapter {
         inversePaddingMLUT);
   }
 
+  // VOI LUT method
+  public LookupTableCV getVOILookup(WlParams wl) {
+    if (wl == null || wl.getLutShape() == null) {
+      return null;
+    }
+
+    var valueRange = calculateVoiValueRange(wl);
+    return LookupTableUtils.createVoiLut(
+        wl.getLutShape(),
+        wl.getWindow(),
+        wl.getLevel(),
+        valueRange.minValue(),
+        valueRange.maxValue(),
+        8,
+        false,
+        isPhotometricInterpretationInverse(wl.getPresentationState()));
+  }
+
+  // Static utility methods
+  public static MinMaxLocResult getMinMaxValues(
+      PlanarImage image, ImageDescriptor desc, int frameIndex) {
+    MinMaxLocResult val = desc.getMinMaxPixelValue(frameIndex);
+    if (val != null) {
+      return val;
+    }
+
+    if (desc.getPhotometricInterpretation().isMonochrome()) {
+      val = computeMinMaxWithPadding(image, desc);
+    }
+
+    return val != null
+        ? val
+        : ImageAnalyzer.findRawMinMaxValues(
+            image, !desc.getPhotometricInterpretation().isMonochrome());
+  }
+
+  // Private helper methods
+
+  /** Computes and caches min/max pixel values */
+  private MinMaxLocResult computeMinMaxValues(PlanarImage image, int frameIndex) {
+    MinMaxLocResult result = desc.getMinMaxPixelValue(frameIndex);
+    if (result == null) {
+      result = findMinMaxValues(image, frameIndex);
+      desc.setMinMaxPixelValue(frameIndex, result);
+    }
+    return result;
+  }
+
+  /** Computes transformed min or max value with rescale operations */
+  private double computeTransformedValue(boolean isMin, WlPresentation wl) {
+    Number min = pixelToRealValue(minMax.minVal, wl);
+    Number max = pixelToRealValue(minMax.maxVal, wl);
+    if (min == null || max == null) {
+      return 0;
+    }
+
+    double minValue = min.doubleValue();
+    double maxValue = max.doubleValue();
+    return isMin ? Math.min(minValue, maxValue) : Math.max(minValue, maxValue);
+  }
+
+  /** Finds min/max values with padding handling */
+  private MinMaxLocResult findMinMaxValues(PlanarImage image, int frameIndex) {
+    MinMaxLocResult val = getMinMaxValues(image, desc, frameIndex);
+    validateAndAdjustBitsStored(val);
+    return val;
+  }
+
+  /** Adjusts bits stored if values exceed expected range */
+  private void validateAndAdjustBitsStored(MinMaxLocResult val) {
+    int bitsAllocated = desc.getBitsAllocated();
+    if (bitsStored < bitsAllocated) {
+      boolean isSigned = desc.isSigned();
+      int minInValue = isSigned ? -(1 << (bitsStored - 1)) : 0;
+      int maxInValue = isSigned ? (1 << (bitsStored - 1)) - 1 : (1 << bitsStored) - 1;
+      if (val.minVal < minInValue || val.maxVal > maxInValue) {
+        setBitsStored(bitsAllocated);
+      }
+    }
+  }
+
+  /** Computes min/max with padding value exclusion */
+  private static MinMaxLocResult computeMinMaxWithPadding(PlanarImage image, ImageDescriptor desc) {
+    return desc.getPixelPaddingValue()
+        .map(
+            paddingValue -> {
+              Integer paddingLimit = desc.getPixelPaddingRangeLimit().orElse(null);
+              int paddingMin =
+                  (paddingLimit == null) ? paddingValue : Math.min(paddingValue, paddingLimit);
+              int paddingMax =
+                  (paddingLimit == null) ? paddingValue : Math.max(paddingValue, paddingLimit);
+              return findMinMaxValues(image, paddingMin, paddingMax);
+            })
+        .orElse(null);
+  }
+
+  /** Finds min/max values excluding specified padding range */
+  private static MinMaxLocResult findMinMaxValues(
+      PlanarImage image, Integer paddingValueMin, Integer paddingValueMax) {
+    if (CvType.depth(image.type()) <= CvType.CV_8S) {
+      var val = new MinMaxLocResult();
+      val.minVal = 0.0;
+      val.maxVal = 255.0;
+      return val;
+    }
+
+    MinMaxLocResult val =
+        ImageAnalyzer.findMinMaxValues(image.toMat(), paddingValueMin, paddingValueMax);
+    if (val != null && val.minVal == val.maxVal) {
+      val.maxVal += 1.0; // Handle edge case for uniform images
+    }
+    return val;
+  }
+
+  /** Checks if pixel value is within lookup table range */
+  private boolean isValueInLookupRange(int val, LookupTableCV lookup) {
+    return val >= lookup.getOffset() && val < lookup.getOffset() + lookup.getNumEntries();
+  }
+
+  /** Extracts presentation state from window/level parameters */
+  private PrDicomObject extractPresentationState(WlPresentation wlp) {
+    return wlp != null && wlp.getPresentationState() instanceof PrDicomObject pr ? pr : null;
+  }
+
+  /** Gets modality LUT from presentation state or image descriptor */
+  private LookupTableCV getModalityLutFromPresentationState(PrDicomObject pr) {
+    LookupTableCV prModLut = pr != null ? pr.getModalityLutModule().getLut().orElse(null) : null;
+    return prModLut != null
+        ? prModLut
+        : desc.getModalityLutForFrame(frameIndex).getLut().orElse(null);
+  }
+
+  /** Determines if modality LUT can be applied */
+  private boolean canApplyModalityLut(
+      LookupTableCV mLUTSeq, boolean pixelPadding, Optional<Integer> paddingValue) {
+    if (!pixelPadding || paddingValue.isEmpty()) {
+      return isMinMaxInLutRange(mLUTSeq);
+    }
+    LOGGER.warn("Cannot apply Modality LUT sequence and Pixel Padding");
+    return false;
+  }
+
+  /** Checks if min/max values are within LUT range */
+  private boolean isMinMaxInLutRange(LookupTableCV mLUTSeq) {
+    if (minMax.minVal >= mLUTSeq.getOffset()
+        && minMax.maxVal < mLUTSeq.getOffset() + mLUTSeq.getNumEntries()) {
+      return true;
+    }
+    LOGGER.warn("Pixel values don't match Modality LUT sequence table. Modality LUT not applied.");
+    return false;
+  }
+
+  /** Creates modality lookup table with caching */
+  private LookupTableCV createModalityLookup(
+      boolean pixelPadding, LookupTableCV mLUTSeq, boolean inverseLUTAction, PrDicomObject pr) {
+    boolean inverseLut = isPhotometricInterpretationInverse(pr);
+    if (pixelPadding) {
+      inverseLut ^= inverseLUTAction;
+    }
+    LutParameters lutParams = getLutParameters(pixelPadding, mLUTSeq, inverseLut, pr);
+    if (lutParams == null) {
+      return null;
+    }
+    return getOrCreateCachedLookup(lutParams, mLUTSeq);
+  }
+
+  /** Gets or creates cached lookup table */
+  private LookupTableCV getOrCreateCachedLookup(LutParameters lutParams, LookupTableCV mLUTSeq) {
+    LookupTableCV modalityLookup = LUT_CACHE.get(lutParams);
+
+    if (modalityLookup != null) {
+      return modalityLookup;
+    }
+
+    modalityLookup = createLookupTable(mLUTSeq, lutParams);
+
+    if (desc.getPhotometricInterpretation().isMonochrome()) {
+      RescaleUtils.applyPixelPaddingToModalityLUT(modalityLookup, lutParams);
+    }
+
+    LUT_CACHE.put(lutParams, modalityLookup);
+    return modalityLookup;
+  }
+
+  /** Creates lookup table from sequence or parameters */
+  private LookupTableCV createLookupTable(LookupTableCV mLUTSeq, LutParameters lutParams) {
+    return mLUTSeq != null
+        ? createLookupFromSequence(mLUTSeq)
+        : RescaleUtils.createRescaleRampLut(lutParams);
+  }
+
+  /** Creates lookup table from sequence data */
+  private LookupTableCV createLookupFromSequence(LookupTableCV mLUTSeq) {
+    if (mLUTSeq.getNumBands() != 1) {
+      return mLUTSeq;
+    }
+    if (mLUTSeq.getDataType() == DataBuffer.TYPE_BYTE) {
+      byte[] data = mLUTSeq.getByteData(0);
+      return data != null ? new LookupTableCV(data, mLUTSeq.getOffset(0)) : mLUTSeq;
+    }
+    short[] data = mLUTSeq.getShortData(0);
+    return data != null
+        ? new LookupTableCV(
+            data, mLUTSeq.getOffset(0), mLUTSeq.getData() instanceof DataBufferUShort)
+        : mLUTSeq;
+  }
+
+  /** Checks if transformation is identity (optimization) */
   private boolean isIdentityTransformation(
       double slope, double intercept, Optional<Integer> paddingValue) {
     return bitsStored <= 16
@@ -555,6 +560,7 @@ public class DicomImageAdapter {
         && paddingValue.isEmpty();
   }
 
+  /** Calculates output bits for LUT */
   private int calculateOutputBits(LookupTableCV mLUTSeq, double slope, double intercept) {
     if (mLUTSeq != null) {
       return mLUTSeq.getDataType() == DataBuffer.TYPE_BYTE ? 8 : 16;
@@ -571,59 +577,31 @@ public class DicomImageAdapter {
     return bitsOutputLut;
   }
 
+  /** Calculates if output should be signed */
   private boolean calculateOutputSigned(
       LookupTableCV mLUTSeq, double slope, double intercept, boolean isSigned) {
     if (mLUTSeq != null) {
-      return false; // LUT sequence output signing is handled elsewhere
+      return false;
     }
     double minValue = minMax.minVal * slope + intercept;
     return minValue < 0 || isSigned;
   }
 
-  /**
-   * Creates an 8-bit unsigned VOI (Value of Interest) lookup table for window/level display.
-   *
-   * @param wl the window/level parameters
-   * @return the VOI lookup table, or null if parameters are invalid
-   */
-  public LookupTableCV getVOILookup(WlParams wl) {
-    if (wl == null || wl.getLutShape() == null) {
-      return null;
-    }
-
-    int[] valueRange = calculateVoiValueRange(wl);
-    int minValue = valueRange[0];
-    int maxValue = valueRange[1];
-
-    return LookupTableUtils.createVoiLut(
-        wl.getLutShape(),
-        wl.getWindow(),
-        wl.getLevel(),
-        minValue,
-        maxValue,
-        8,
-        false,
-        isPhotometricInterpretationInverse(wl.getPresentationState()));
-  }
-
-  private int[] calculateVoiValueRange(WlParams wl) {
-    int minValue, maxValue;
-
-    // Extend range for pixel padding or monochrome images as per DICOM C.7.5.1.1.2
+  /** Calculates VOI value range with modern record pattern */
+  private ValueRange calculateVoiValueRange(WlParams wl) {
     if (shouldExtendVoiRange(wl)) {
-      minValue = getMinAllocatedValue(wl);
-      maxValue = getMaxAllocatedValue(wl);
+      return new ValueRange(getMinAllocatedValue(wl), getMaxAllocatedValue(wl));
     } else {
-      minValue = (int) wl.getLevelMin();
-      maxValue = (int) wl.getLevelMax();
+      return new ValueRange((int) wl.getLevelMin(), (int) wl.getLevelMax());
     }
-
-    return new int[] {minValue, maxValue};
   }
 
+  /** Determines if VOI range should be extended */
   private boolean shouldExtendVoiRange(WlParams wl) {
     return wl.isFillOutsideLutRange()
         || (desc.getPixelPaddingValue().isPresent()
             && desc.getPhotometricInterpretation().isMonochrome());
   }
+
+  private record ValueRange(int minValue, int maxValue) {}
 }

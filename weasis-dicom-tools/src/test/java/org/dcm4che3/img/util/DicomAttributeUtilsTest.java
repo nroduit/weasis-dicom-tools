@@ -10,20 +10,24 @@
 package org.dcm4che3.img.util;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 import java.io.IOException;
-import java.util.Optional;
+import java.util.stream.Stream;
 import org.dcm4che3.data.Attributes;
-import org.dcm4che3.data.Sequence;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.DisplayNameGeneration;
+import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+@DisplayNameGeneration(ReplaceUnderscores.class)
 class DicomAttributeUtilsTest {
 
   private Attributes rootAttributes;
@@ -32,438 +36,384 @@ class DicomAttributeUtilsTest {
 
   @BeforeEach
   void setUp() {
-    // Create a hierarchy: root -> child -> grandchild
-    rootAttributes = new Attributes();
-    childAttributes = new Attributes();
-    grandChildAttributes = new Attributes();
-
-    // Set up parent-child relationships
-    Sequence sequence = rootAttributes.newSequence(Tag.RelatedSeriesSequence, 1);
-    sequence.add(childAttributes);
-    Sequence sequence2 = childAttributes.newSequence(Tag.PurposeOfReferenceCodeSequence, 1);
-    sequence2.add(grandChildAttributes);
+    createAttributeHierarchy();
   }
 
   @Nested
-  @DisplayName("Modality Extraction")
-  class ModalityExtraction {
+  class Modality_Extraction {
 
     @Test
-    @DisplayName("Should return null for null attributes")
-    void shouldReturnNullForNullAttributes() {
+    void should_return_null_for_null_attributes() {
       assertNull(DicomAttributeUtils.getModality(null));
     }
 
     @Test
-    @DisplayName("Should extract modality from current attributes")
-    void shouldExtractModalityFromCurrentAttributes() {
+    void should_extract_modality_from_current_attributes() {
       rootAttributes.setString(Tag.Modality, VR.CS, "CT");
 
-      String modality = DicomAttributeUtils.getModality(rootAttributes);
+      var modality = DicomAttributeUtils.getModality(rootAttributes);
 
       assertEquals("CT", modality);
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"CT", "MR", "US", "XA", "RF", "DX", "CR", "MG", "PT", "NM"})
-    @DisplayName("Should handle various modality types")
-    void shouldHandleVariousModalityTypes(String modalityType) {
+    void should_handle_various_modality_types(String modalityType) {
       rootAttributes.setString(Tag.Modality, VR.CS, modalityType);
 
-      String result = DicomAttributeUtils.getModality(rootAttributes);
+      var result = DicomAttributeUtils.getModality(rootAttributes);
 
       assertEquals(modalityType, result);
     }
 
     @Test
-    @DisplayName("Should find modality in parent when not in child")
-    void shouldFindModalityInParentWhenNotInChild() {
+    void should_find_modality_in_parent_when_not_in_child() {
       rootAttributes.setString(Tag.Modality, VR.CS, "MR");
-      // Child has no modality
 
-      String modality = DicomAttributeUtils.getModality(childAttributes);
+      var modality = DicomAttributeUtils.getModality(childAttributes);
 
       assertEquals("MR", modality);
     }
 
     @Test
-    @DisplayName("Should find modality in grandparent hierarchy")
-    void shouldFindModalityInGrandparentHierarchy() {
+    void should_find_modality_in_grandparent_hierarchy() {
       rootAttributes.setString(Tag.Modality, VR.CS, "US");
-      // Neither child nor grandchild have modality
 
-      String modality = DicomAttributeUtils.getModality(grandChildAttributes);
+      var modality = DicomAttributeUtils.getModality(grandChildAttributes);
 
       assertEquals("US", modality);
     }
 
     @Test
-    @DisplayName("Should prefer child modality over parent")
-    void shouldPreferChildModalityOverParent() {
+    void should_prefer_child_modality_over_parent() {
       rootAttributes.setString(Tag.Modality, VR.CS, "CT");
       childAttributes.setString(Tag.Modality, VR.CS, "MR");
 
-      String modality = DicomAttributeUtils.getModality(childAttributes);
+      var modality = DicomAttributeUtils.getModality(childAttributes);
 
       assertEquals("MR", modality);
     }
 
     @Test
-    @DisplayName("Should return null when no modality in hierarchy")
-    void shouldReturnNullWhenNoModalityInHierarchy() {
-      // No modality set in any level
+    void should_return_null_when_no_modality_in_hierarchy() {
+      var modality = DicomAttributeUtils.getModality(grandChildAttributes);
 
-      String modality = DicomAttributeUtils.getModality(grandChildAttributes);
+      assertNull(modality);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", " ", "  "})
+    void should_handle_empty_or_whitespace_modality_string(String emptyValue) {
+      rootAttributes.setString(Tag.Modality, VR.CS, emptyValue);
+
+      var modality = DicomAttributeUtils.getModality(rootAttributes);
 
       assertNull(modality);
     }
 
     @Test
-    @DisplayName("Should handle empty modality string")
-    void shouldHandleEmptyModalityString() {
-      rootAttributes.setString(Tag.Modality, VR.CS, "");
-
-      String modality = DicomAttributeUtils.getModality(rootAttributes);
-      assertNull(modality);
-    }
-
-    @Test
-    @DisplayName("Should handle modality with multiple values")
-    void shouldHandleModalityWithMultipleValues() {
+    void should_handle_modality_with_multiple_values() {
       rootAttributes.setString(Tag.Modality, VR.CS, "CT", "MR");
 
-      String modality = DicomAttributeUtils.getModality(rootAttributes);
+      var modality = DicomAttributeUtils.getModality(rootAttributes);
 
-      assertEquals("CT", modality); // Should return first value
+      assertEquals("CT", modality);
     }
   }
 
   @Nested
-  @DisplayName("Byte Data Extraction")
-  class ByteDataExtraction {
+  class Byte_Data_Extraction {
 
     @Test
-    @DisplayName("Should return empty Optional for null attributes")
-    void shouldReturnEmptyOptionalForNullAttributes() {
-      Optional<byte[]> result = DicomAttributeUtils.getByteData(null, Tag.PixelData);
+    void should_return_empty_optional_for_null_attributes() {
+      var result = DicomAttributeUtils.getByteData(null, Tag.PixelData);
 
       assertTrue(result.isEmpty());
     }
 
     @Test
-    @DisplayName("Should return empty Optional for non-existent tag")
-    void shouldReturnEmptyOptionalForNonExistentTag() {
-      Optional<byte[]> result = DicomAttributeUtils.getByteData(rootAttributes, Tag.PixelData);
+    void should_return_empty_optional_for_non_existent_tag() {
+      var result = DicomAttributeUtils.getByteData(rootAttributes, Tag.PixelData);
 
       assertTrue(result.isEmpty());
     }
 
     @Test
-    @DisplayName("Should extract byte data from standard tag")
-    void shouldExtractByteDataFromStandardTag() {
-      byte[] expectedData = {0x01, 0x02, 0x03, 0x04, 0x05};
+    void should_extract_byte_data_from_standard_tag() {
+      var expectedData = new byte[] {0x01, 0x02, 0x03, 0x04, 0x05};
       rootAttributes.setBytes(Tag.PixelData, VR.OW, expectedData);
 
-      Optional<byte[]> result = DicomAttributeUtils.getByteData(rootAttributes, Tag.PixelData);
+      var result = DicomAttributeUtils.getByteData(rootAttributes, Tag.PixelData);
 
       assertTrue(result.isPresent());
       assertArrayEquals(expectedData, result.get());
     }
 
     @Test
-    @DisplayName("Should extract byte data with private creator")
-    void shouldExtractByteDataWithPrivateCreator() {
-      byte[] expectedData = {(byte) 0xFF, (byte) 0xFE, 0x00, 0x01};
-      String privateCreator = "TEST_CREATOR";
-      int privateTag = 0x00111001;
+    void should_extract_byte_data_with_private_creator() {
+      var expectedData = new byte[] {(byte) 0xFF, (byte) 0xFE, 0x00, 0x01};
+      var privateCreator = "TEST_CREATOR";
+      var privateTag = 0x00111001;
 
       rootAttributes.setString(0x00110010, VR.LO, privateCreator);
       rootAttributes.setBytes(privateCreator, privateTag, VR.OB, expectedData);
 
-      Optional<byte[]> result =
-          DicomAttributeUtils.getByteData(rootAttributes, privateCreator, privateTag);
+      var result = DicomAttributeUtils.getByteData(rootAttributes, privateCreator, privateTag);
 
       assertTrue(result.isPresent());
       assertArrayEquals(expectedData, result.get());
     }
 
     @Test
-    @DisplayName("Should handle empty byte array")
-    void shouldHandleEmptyByteArray() {
-      byte[] emptyData = new byte[0];
+    void should_return_empty_for_empty_byte_array() {
+      var emptyData = new byte[0];
       rootAttributes.setBytes(Tag.PixelData, VR.OW, emptyData);
 
-      Optional<byte[]> result = DicomAttributeUtils.getByteData(rootAttributes, Tag.PixelData);
+      var result = DicomAttributeUtils.getByteData(rootAttributes, Tag.PixelData);
+
       assertTrue(result.isEmpty());
     }
 
-    @Test
-    @DisplayName("Should handle large byte arrays")
-    void shouldHandleLargeByteArrays() {
-      byte[] largeData = new byte[10000];
-      // Fill with pattern
-      for (int i = 0; i < largeData.length; i++) {
-        largeData[i] = (byte) (i % 256);
-      }
-      rootAttributes.setBytes(Tag.PixelData, VR.OB, largeData);
+    @ParameterizedTest
+    @MethodSource("provideLargeByteArrays")
+    void should_handle_various_sized_byte_arrays(byte[] testData, int expectedLength) {
+      rootAttributes.setBytes(Tag.PixelData, VR.OB, testData);
 
-      Optional<byte[]> result = DicomAttributeUtils.getByteData(rootAttributes, Tag.PixelData);
+      var result = DicomAttributeUtils.getByteData(rootAttributes, Tag.PixelData);
 
       assertTrue(result.isPresent());
-      assertArrayEquals(largeData, result.get());
+      assertEquals(expectedLength, result.get().length);
+      assertArrayEquals(testData, result.get());
     }
 
-    @Test
-    @DisplayName("Should extract different VR types as bytes")
-    void shouldExtractDifferentVrTypesAsBytes() {
-      // Test with OW (Other Word String)
-      byte[] owData = {0x01, 0x02, 0x03, 0x04};
-      rootAttributes.setBytes(Tag.PixelData, VR.OW, owData);
+    @ParameterizedTest
+    @MethodSource("provideDifferentVrTypes")
+    void should_extract_different_vr_types_as_bytes(int tag, VR vr, byte[] data) {
+      rootAttributes.setBytes(tag, vr, data);
 
-      Optional<byte[]> owResult = DicomAttributeUtils.getByteData(rootAttributes, Tag.PixelData);
-      assertTrue(owResult.isPresent());
-      assertArrayEquals(owData, owResult.get());
+      var result = DicomAttributeUtils.getByteData(rootAttributes, tag);
 
-      // Test with OB (Other Byte String)
-      byte[] obData = {(byte) 0xFF, (byte) 0xFE, 0x00, 0x01};
-      rootAttributes.setBytes(Tag.RedPaletteColorLookupTableData, VR.OB, obData);
-
-      Optional<byte[]> obResult =
-          DicomAttributeUtils.getByteData(rootAttributes, Tag.RedPaletteColorLookupTableData);
-      assertTrue(obResult.isPresent());
-      assertArrayEquals(obData, obResult.get());
-    }
-
-    @Test
-    @DisplayName("Should return empty Optional for null private creator with private tag")
-    void shouldReturnEmptyOptionalForNullPrivateCreatorWithPrivateTag() {
-      byte[] data = {0x01, 0x02, 0x03, 0x04};
-      int privateTag = 0x00111001;
-
-      // Set data without proper private creator setup
-      rootAttributes.setBytes(privateTag, VR.OB, data);
-
-      Optional<byte[]> result = DicomAttributeUtils.getByteData(rootAttributes, null, privateTag);
-
-      // Should still work for null private creator (delegates to standard method)
       assertTrue(result.isPresent());
       assertArrayEquals(data, result.get());
     }
 
     @Test
-    @DisplayName("Should handle attributes with no value for tag")
-    void shouldHandleAttributesWithNoValueForTag() {
-      // Set a tag but with null value
+    void should_handle_null_value_tag() {
       rootAttributes.setNull(Tag.PixelData, VR.OW);
 
-      Optional<byte[]> result = DicomAttributeUtils.getByteData(rootAttributes, Tag.PixelData);
+      var result = DicomAttributeUtils.getByteData(rootAttributes, Tag.PixelData);
 
       assertTrue(result.isEmpty());
     }
 
     @Test
-    @DisplayName("Should extract various DICOM binary data types")
-    void shouldExtractVariousDicomBinaryDataTypes() {
-      // Test overlay data
-      byte[] overlayData = createOverlayBitmap();
-      rootAttributes.setBytes(Tag.OverlayData, VR.OB, overlayData);
+    void should_handle_io_exception_gracefully() throws IOException {
+      var attributes = spy(new Attributes());
+      doReturn(true).when(attributes).containsValue(null, Tag.PixelData);
+      doThrow(new IOException("Simulated IO error")).when(attributes).getBytes(Tag.PixelData);
 
-      Optional<byte[]> overlayResult =
-          DicomAttributeUtils.getByteData(rootAttributes, Tag.OverlayData);
-      assertTrue(overlayResult.isPresent());
-      assertArrayEquals(overlayData, overlayResult.get());
+      var result = DicomAttributeUtils.getByteData(attributes, Tag.PixelData);
 
-      // Test palette color data
-      byte[] paletteData = createPaletteColorData();
-      rootAttributes.setBytes(Tag.BluePaletteColorLookupTableData, VR.OW, paletteData);
-
-      Optional<byte[]> paletteResult =
-          DicomAttributeUtils.getByteData(rootAttributes, Tag.BluePaletteColorLookupTableData);
-      assertTrue(paletteResult.isPresent());
-      assertArrayEquals(paletteData, paletteResult.get());
+      assertTrue(result.isEmpty());
     }
 
     @Test
-    @DisplayName("Should handle IOException gracefully")
-    void shouldHandleIOExceptionGracefully() {
-      // Create attributes that would cause IOException when reading bytes
-      Attributes problematicAttributes = new ProblematicAttributes();
+    void should_work_with_null_private_creator() {
+      var data = new byte[] {0x01, 0x02, 0x03, 0x04};
+      var privateTag = 0x00111001;
+      rootAttributes.setBytes(privateTag, VR.OB, data);
 
-      Optional<byte[]> result =
-          DicomAttributeUtils.getByteData(problematicAttributes, Tag.PixelData);
+      var result = DicomAttributeUtils.getByteData(rootAttributes, null, privateTag);
 
-      assertTrue(result.isEmpty());
+      assertTrue(result.isPresent());
+      assertArrayEquals(data, result.get());
+    }
+
+    static Stream<Arguments> provideLargeByteArrays() {
+      return Stream.of(
+          Arguments.of(createPatternedByteArray(1024), 1024),
+          Arguments.of(createPatternedByteArray(10240), 10240),
+          Arguments.of(createRandomByteArray(65536), 65536));
+    }
+
+    static Stream<Arguments> provideDifferentVrTypes() {
+      return Stream.of(
+          Arguments.of(Tag.PixelData, VR.OW, new byte[] {0x01, 0x02, 0x03, 0x04}),
+          Arguments.of(
+              Tag.RedPaletteColorLookupTableData,
+              VR.OB,
+              new byte[] {(byte) 0xFF, (byte) 0xFE, 0x00, 0x01}),
+          Arguments.of(Tag.OverlayData, VR.OB, createOverlayData()),
+          Arguments.of(Tag.BluePaletteColorLookupTableData, VR.OW, createPaletteData()));
     }
   }
 
   @Nested
-  @DisplayName("Integration Tests")
-  class IntegrationTests {
+  class Integration_Tests {
 
     @Test
-    @DisplayName("Should work with complete DICOM dataset")
-    void shouldWorkWithCompleteDicomDataset() {
-      // Create realistic DICOM dataset
-      Attributes dataset = createRealisticDicomDataset();
+    void should_work_with_realistic_ct_dataset() {
+      var dataset = createCtDataset();
 
-      // Test modality extraction
-      String modality = DicomAttributeUtils.getModality(dataset);
+      var modality = DicomAttributeUtils.getModality(dataset);
+      var pixelData = DicomAttributeUtils.getByteData(dataset, Tag.PixelData);
+
       assertEquals("CT", modality);
-
-      // Test byte data extraction
-      Optional<byte[]> pixelData = DicomAttributeUtils.getByteData(dataset, Tag.PixelData);
       assertTrue(pixelData.isPresent());
       assertEquals(1024, pixelData.get().length);
     }
 
     @Test
-    @DisplayName("Should handle multi-frame DICOM data")
-    void shouldHandleMultiFrameDicomData() {
-      Attributes multiFrameDataset = createMultiFrameDicomDataset();
+    void should_handle_multi_frame_mr_dataset() {
+      var dataset = createMultiFrameMrDataset();
 
-      String modality = DicomAttributeUtils.getModality(multiFrameDataset);
+      var modality = DicomAttributeUtils.getModality(dataset);
+      var pixelData = DicomAttributeUtils.getByteData(dataset, Tag.PixelData);
+
       assertEquals("MR", modality);
-
-      Optional<byte[]> pixelData =
-          DicomAttributeUtils.getByteData(multiFrameDataset, Tag.PixelData);
       assertTrue(pixelData.isPresent());
-      assertTrue(pixelData.get().length > 1024); // Multi-frame should be larger
+      assertEquals(10240, pixelData.get().length);
     }
 
     @Test
-    @DisplayName("Should handle DICOM-RT dataset with hierarchy")
-    void shouldHandleDicomRtDatasetWithHierarchy() {
-      Attributes rtDataset = createDicomRtDataset();
+    void should_handle_rt_dose_hierarchy() {
+      var rtDataset = createRtDoseDataset();
 
-      // RT datasets often have modality in referenced sequence
-      String modality = DicomAttributeUtils.getModality(rtDataset);
+      var modality = DicomAttributeUtils.getModality(rtDataset);
+
       assertEquals("RTDOSE", modality);
     }
+
+    @Test
+    void should_handle_comprehensive_dicom_workflow() {
+      var studyDataset = createStudyDataset();
+      var seriesDataset = createSeriesDataset();
+      var imageDataset = createImageDataset();
+
+      // Test hierarchy traversal
+      assertEquals("CT", DicomAttributeUtils.getModality(studyDataset));
+      assertEquals("CT", DicomAttributeUtils.getModality(seriesDataset));
+      assertEquals("CT", DicomAttributeUtils.getModality(imageDataset));
+
+      // Test data extraction
+      var overlayData = DicomAttributeUtils.getByteData(imageDataset, Tag.OverlayData);
+      var pixelData = DicomAttributeUtils.getByteData(imageDataset, Tag.PixelData);
+
+      assertTrue(overlayData.isPresent());
+      assertTrue(pixelData.isPresent());
+    }
   }
 
-  // Helper methods to create realistic test data
+  private void createAttributeHierarchy() {
+    rootAttributes = new Attributes();
+    childAttributes = new Attributes();
+    grandChildAttributes = new Attributes();
 
-  /** Creates a realistic DICOM dataset with common attributes. */
-  private Attributes createRealisticDicomDataset() {
-    Attributes dataset = new Attributes();
+    var sequence = rootAttributes.newSequence(Tag.RelatedSeriesSequence, 1);
+    sequence.add(childAttributes);
+    var sequence2 = childAttributes.newSequence(Tag.PurposeOfReferenceCodeSequence, 1);
+    sequence2.add(grandChildAttributes);
+  }
 
-    // Patient information
-    dataset.setString(Tag.PatientName, VR.PN, "TEST^PATIENT");
-    dataset.setString(Tag.PatientID, VR.LO, "12345");
-    dataset.setString(Tag.PatientBirthDate, VR.DA, "19800101");
-    dataset.setString(Tag.PatientSex, VR.CS, "M");
-
-    // Study information
-    dataset.setString(Tag.StudyInstanceUID, VR.UI, "1.2.3.4.5.6.7");
-    dataset.setString(Tag.StudyDate, VR.DA, "20240101");
-    dataset.setString(Tag.StudyTime, VR.TM, "120000");
-    dataset.setString(Tag.StudyDescription, VR.LO, "Test Study");
-
-    // Series information
+  private Attributes createCtDataset() {
+    var dataset = new Attributes();
+    setBasicPatientInfo(dataset);
+    setBasicStudyInfo(dataset);
     dataset.setString(Tag.Modality, VR.CS, "CT");
-    dataset.setString(Tag.SeriesInstanceUID, VR.UI, "1.2.3.4.5.6.7.8");
-    dataset.setString(Tag.SeriesNumber, VR.IS, "1");
-    dataset.setString(Tag.SeriesDescription, VR.LO, "Test Series");
-
-    // Image information
-    dataset.setString(Tag.SOPInstanceUID, VR.UI, "1.2.3.4.5.6.7.8.9");
-    dataset.setString(Tag.InstanceNumber, VR.IS, "1");
-    dataset.setInt(Tag.Rows, VR.US, 512);
-    dataset.setInt(Tag.Columns, VR.US, 512);
-    dataset.setInt(Tag.BitsAllocated, VR.US, 16);
-    dataset.setInt(Tag.BitsStored, VR.US, 12);
-    dataset.setInt(Tag.HighBit, VR.US, 11);
-    dataset.setInt(Tag.PixelRepresentation, VR.US, 0);
-    dataset.setString(Tag.PhotometricInterpretation, VR.CS, "MONOCHROME2");
-    dataset.setInt(Tag.SamplesPerPixel, VR.US, 1);
-
-    // Add pixel data (simulate 512x512x2 bytes = 524,288 bytes, use 1024 for test)
-    byte[] pixelData = new byte[1024];
-    for (int i = 0; i < pixelData.length; i++) {
-      pixelData[i] = (byte) (i % 256);
-    }
-    dataset.setBytes(Tag.PixelData, VR.OW, pixelData);
-
+    dataset.setBytes(Tag.PixelData, VR.OW, createPatternedByteArray(1024));
     return dataset;
   }
 
-  /** Creates a multi-frame DICOM dataset. */
-  private Attributes createMultiFrameDicomDataset() {
-    Attributes dataset = createRealisticDicomDataset();
-
-    // Change to MR modality
+  private Attributes createMultiFrameMrDataset() {
+    var dataset = createCtDataset();
     dataset.setString(Tag.Modality, VR.CS, "MR");
-
-    // Multi-frame specific attributes
     dataset.setString(Tag.NumberOfFrames, VR.IS, "10");
     dataset.setString(Tag.FrameTime, VR.DS, "100.0");
-
-    // Larger pixel data for multiple frames
-    byte[] multiFramePixelData = new byte[10240]; // 10 times larger
-    for (int i = 0; i < multiFramePixelData.length; i++) {
-      multiFramePixelData[i] = (byte) ((i * 7) % 256);
-    }
-    dataset.setBytes(Tag.PixelData, VR.OW, multiFramePixelData);
-
+    dataset.setBytes(Tag.PixelData, VR.OW, createPatternedByteArray(10240));
     return dataset;
   }
 
-  /** Creates a DICOM-RT dataset with hierarchy. */
-  private Attributes createDicomRtDataset() {
-    Attributes rtDataset = new Attributes();
-
-    // RT-specific attributes
+  private Attributes createRtDoseDataset() {
+    var rtDataset = new Attributes();
     rtDataset.setString(Tag.Modality, VR.CS, "RTDOSE");
-    rtDataset.setString(Tag.SOPClassUID, VR.UI, "1.2.840.10008.5.1.4.1.1.481.2"); // RT Dose Storage
+    rtDataset.setString(Tag.SOPClassUID, VR.UI, "1.2.840.10008.5.1.4.1.1.481.2");
 
-    // Create referenced sequence with parent hierarchy
-    Attributes referencedSeries = new Attributes();
+    var referencedSeries = new Attributes();
     referencedSeries.setString(Tag.SeriesInstanceUID, VR.UI, "1.2.3.4.5.6.7.8.9");
-    Sequence sequence = rtDataset.newSequence(Tag.ReferencedSeriesSequence, 1);
+    var sequence = rtDataset.newSequence(Tag.ReferencedSeriesSequence, 1);
     sequence.add(referencedSeries);
     return rtDataset;
   }
 
-  /** Creates overlay bitmap data. */
-  private byte[] createOverlayBitmap() {
-    // Create a simple 8x8 overlay pattern
-    byte[] overlayData = new byte[8];
-    overlayData[0] = (byte) 0xFF; // Row 1: 11111111
-    overlayData[1] = (byte) 0x81; // Row 2: 10000001
-    overlayData[2] = (byte) 0x81; // Row 3: 10000001
-    overlayData[3] = (byte) 0x81; // Row 4: 10000001
-    overlayData[4] = (byte) 0x81; // Row 5: 10000001
-    overlayData[5] = (byte) 0x81; // Row 6: 10000001
-    overlayData[6] = (byte) 0x81; // Row 7: 10000001
-    overlayData[7] = (byte) 0xFF; // Row 8: 11111111
-    return overlayData;
+  private Attributes createStudyDataset() {
+    var dataset = new Attributes();
+    setBasicPatientInfo(dataset);
+    setBasicStudyInfo(dataset);
+    dataset.setString(Tag.Modality, VR.CS, "CT");
+    return dataset;
   }
 
-  /** Creates palette color lookup table data. */
-  private byte[] createPaletteColorData() {
-    // Create a simple palette with 256 entries (512 bytes for 16-bit)
-    byte[] paletteData = new byte[512];
-    for (int i = 0; i < 256; i++) {
-      // Store as little-endian 16-bit values
-      paletteData[i * 2] = (byte) (i & 0xFF); // Low byte
-      paletteData[i * 2 + 1] = (byte) ((i >> 8) & 0xFF); // High byte
+  private Attributes createSeriesDataset() {
+    var dataset = createStudyDataset();
+    dataset.setString(Tag.SeriesInstanceUID, VR.UI, "1.2.3.4.5.6.7.8");
+    dataset.setString(Tag.SeriesNumber, VR.IS, "1");
+    return dataset;
+  }
+
+  private Attributes createImageDataset() {
+    var dataset = createSeriesDataset();
+    dataset.setString(Tag.SOPInstanceUID, VR.UI, "1.2.3.4.5.6.7.8.9");
+    dataset.setString(Tag.InstanceNumber, VR.IS, "1");
+    dataset.setInt(Tag.Rows, VR.US, 512);
+    dataset.setInt(Tag.Columns, VR.US, 512);
+    dataset.setBytes(Tag.PixelData, VR.OW, createPatternedByteArray(2048));
+    dataset.setBytes(Tag.OverlayData, VR.OB, createOverlayData());
+    return dataset;
+  }
+
+  private void setBasicPatientInfo(Attributes dataset) {
+    dataset.setString(Tag.PatientName, VR.PN, "TEST^PATIENT");
+    dataset.setString(Tag.PatientID, VR.LO, "12345");
+    dataset.setString(Tag.PatientBirthDate, VR.DA, "19800101");
+    dataset.setString(Tag.PatientSex, VR.CS, "M");
+  }
+
+  private void setBasicStudyInfo(Attributes dataset) {
+    dataset.setString(Tag.StudyInstanceUID, VR.UI, "1.2.3.4.5.6.7");
+    dataset.setString(Tag.StudyDate, VR.DA, "20240101");
+    dataset.setString(Tag.StudyTime, VR.TM, "120000");
+    dataset.setString(Tag.StudyDescription, VR.LO, "Test Study");
+  }
+
+  private static byte[] createPatternedByteArray(int size) {
+    var data = new byte[size];
+    for (var i = 0; i < size; i++) {
+      data[i] = (byte) (i % 256);
+    }
+    return data;
+  }
+
+  private static byte[] createRandomByteArray(int size) {
+    var data = new byte[size];
+    for (var i = 0; i < size; i++) {
+      data[i] = (byte) ((i * 7 + 13) % 256);
+    }
+    return data;
+  }
+
+  private static byte[] createOverlayData() {
+    return new byte[] {
+      (byte) 0xFF, (byte) 0x81, (byte) 0x81, (byte) 0x81,
+      (byte) 0x81, (byte) 0x81, (byte) 0x81, (byte) 0xFF
+    };
+  }
+
+  private static byte[] createPaletteData() {
+    var paletteData = new byte[512];
+    for (var i = 0; i < 256; i++) {
+      paletteData[i * 2] = (byte) (i & 0xFF);
+      paletteData[i * 2 + 1] = (byte) ((i >> 8) & 0xFF);
     }
     return paletteData;
-  }
-
-  /** Custom Attributes class that throws IOException when reading bytes. */
-  private static class ProblematicAttributes extends Attributes {
-    @Override
-    public byte[] getBytes(int tag) throws IOException {
-      if (tag == Tag.PixelData) {
-        throw new IOException("Simulated IO error");
-      }
-      return super.getBytes(tag);
-    }
-
-    @Override
-    public boolean containsValue(String privateCreator, int tag) {
-      return tag == Tag.PixelData; // Pretend we have the tag
-    }
   }
 }

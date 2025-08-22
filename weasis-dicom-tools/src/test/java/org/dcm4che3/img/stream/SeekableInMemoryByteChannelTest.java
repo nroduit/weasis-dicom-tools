@@ -14,534 +14,561 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
-import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.DisplayNameGeneration;
+import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+@DisplayNameGeneration(ReplaceUnderscores.class)
 class SeekableInMemoryByteChannelTest {
 
+  private static final byte[] EMPTY_ARRAY = new byte[0];
+  private static final String HELLO_WORLD = "Hello, World!";
+  private static final List<String> TEST_CHUNKS = List.of("First", "Second", "Third", "Fourth");
+
   @Nested
-  @DisplayName("Constructor Tests")
-  class ConstructorTests {
+  class Constructor_Tests {
 
     @Test
-    @DisplayName("Default constructor creates empty channel")
-    void defaultConstructorCreatesEmptyChannel() {
-      SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel();
+    void default_constructor_creates_empty_channel() {
+      try (var channel = new SeekableInMemoryByteChannel()) {
 
-      assertEquals(0, channel.size());
-      assertEquals(0, channel.position());
-      assertTrue(channel.isOpen());
-      assertTrue(channel.array().length >= 32); // Should have default capacity
+        assertEquals(0, channel.size());
+        assertEquals(0, channel.position());
+        assertTrue(channel.isOpen());
+        assertTrue(channel.array().length >= 32);
+      }
     }
 
     @Test
-    @DisplayName("Constructor with capacity creates empty channel with specified capacity")
-    void constructorWithCapacityCreatesEmptyChannel() {
+    void constructor_with_capacity_creates_empty_channel_with_specified_capacity() {
       int capacity = 100;
-      SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel(capacity);
+      try (var channel = new SeekableInMemoryByteChannel(capacity)) {
 
-      assertEquals(0, channel.size());
-      assertEquals(0, channel.position());
-      assertTrue(channel.isOpen());
-      assertEquals(capacity, channel.array().length);
+        assertEquals(0, channel.size());
+        assertEquals(0, channel.position());
+        assertTrue(channel.isOpen());
+        assertEquals(capacity, channel.array().length);
+      }
     }
 
     @Test
-    @DisplayName("Constructor with byte array creates channel with data")
-    void constructorWithByteArrayCreatesChannelWithData() {
-      byte[] testData = createTestData(50);
-      SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel(testData);
+    void constructor_with_byte_array_creates_channel_with_data() {
+      byte[] testData = createSequentialData(50);
+      try (var channel = new SeekableInMemoryByteChannel(testData)) {
 
-      assertEquals(50, channel.size());
-      assertEquals(0, channel.position());
-      assertTrue(channel.isOpen());
-      assertArrayEquals(testData, Arrays.copyOf(channel.array(), 50));
+        assertEquals(50, channel.size());
+        assertEquals(0, channel.position());
+        assertTrue(channel.isOpen());
+        assertArrayEquals(testData, Arrays.copyOf(channel.array(), 50));
+      }
     }
 
     @Test
-    @DisplayName("Constructor throws exception for null array")
-    void constructorThrowsExceptionForNullArray() {
-      assertThrows(
-          IllegalArgumentException.class, () -> new SeekableInMemoryByteChannel((byte[]) null));
+    void constructor_throws_exception_for_null_array() {
+      assertThrows(NullPointerException.class, () -> new SeekableInMemoryByteChannel(null));
     }
 
     @Test
-    @DisplayName("Constructor throws exception for negative capacity")
-    void constructorThrowsExceptionForNegativeCapacity() {
+    void constructor_throws_exception_for_negative_capacity() {
       assertThrows(IllegalArgumentException.class, () -> new SeekableInMemoryByteChannel(-1));
     }
-  }
-
-  @Nested
-  @DisplayName("Basic Operations")
-  class BasicOperationsTests {
 
     @Test
-    @DisplayName("Write and read simple data")
-    void writeAndReadSimpleData() throws IOException {
-      SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel();
-      String testString = "Hello, World!";
-      byte[] testData = testString.getBytes();
+    void constructor_with_zero_capacity_works() {
+      try (var channel = new SeekableInMemoryByteChannel(0)) {
 
-      // Write data
-      int written = channel.write(ByteBuffer.wrap(testData));
-      assertEquals(testData.length, written);
-      assertEquals(testData.length, channel.size());
-      assertEquals(testData.length, channel.position());
-
-      // Read data back
-      channel.position(0);
-      ByteBuffer readBuffer = ByteBuffer.allocate(testData.length);
-      int read = channel.read(readBuffer);
-
-      assertEquals(testData.length, read);
-      assertEquals(testString, new String(readBuffer.array()));
+        assertEquals(0, channel.size());
+        assertEquals(0, channel.array().length);
+      }
     }
 
     @Test
-    @DisplayName("Multiple writes expand buffer correctly")
-    void multipleWritesExpandBuffer() throws IOException {
-      SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel(10);
+    void constructor_with_empty_array_works() {
+      try (var channel = new SeekableInMemoryByteChannel(EMPTY_ARRAY)) {
 
-      // Write multiple chunks that exceed initial capacity
-      String[] chunks = {"First", "Second", "Third", "Fourth"};
-      StringBuilder expected = new StringBuilder();
+        assertEquals(0, channel.size());
+        assertEquals(0, channel.array().length);
+      }
+    }
+  }
 
-      for (String chunk : chunks) {
-        channel.write(ByteBuffer.wrap(chunk.getBytes()));
-        expected.append(chunk);
+  @Nested
+  class Basic_Operations {
+
+    @Test
+    void write_and_read_simple_data() throws IOException {
+      byte[] testData;
+      ByteBuffer readBuffer;
+      int read;
+      try (var channel = new SeekableInMemoryByteChannel()) {
+        testData = HELLO_WORLD.getBytes(StandardCharsets.UTF_8);
+
+        int written = channel.write(ByteBuffer.wrap(testData));
+
+        assertEquals(testData.length, written);
+        assertEquals(testData.length, channel.size());
+        assertEquals(testData.length, channel.position());
+
+        channel.position(0);
+        readBuffer = ByteBuffer.allocate(testData.length);
+        read = channel.read(readBuffer);
       }
 
-      assertEquals(expected.length(), channel.size());
-
-      // Verify all data is readable
-      channel.position(0);
-      ByteBuffer readBuffer = ByteBuffer.allocate((int) channel.size());
-      channel.read(readBuffer);
-      assertEquals(expected.toString(), new String(readBuffer.array()));
+      assertEquals(testData.length, read);
+      assertEquals(HELLO_WORLD, new String(readBuffer.array(), StandardCharsets.UTF_8));
     }
 
     @Test
-    @DisplayName("Read returns -1 at EOF")
-    void readReturnsMinusOneAtEOF() throws IOException {
-      byte[] testData = createTestData(20);
-      SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel(testData);
+    void multiple_writes_expand_buffer_correctly() throws IOException {
+      StringBuilder expected;
+      ByteBuffer readBuffer;
+      try (var channel = new SeekableInMemoryByteChannel(10)) {
+        expected = new StringBuilder();
 
-      // Read all data
-      ByteBuffer buffer = ByteBuffer.allocate(20);
-      assertEquals(20, channel.read(buffer));
+        for (String chunk : TEST_CHUNKS) {
+          channel.write(ByteBuffer.wrap(chunk.getBytes(StandardCharsets.UTF_8)));
+          expected.append(chunk);
+        }
 
-      // Try to read beyond EOF
-      buffer.clear();
-      assertEquals(-1, channel.read(buffer));
+        assertEquals(expected.length(), channel.size());
+
+        channel.position(0);
+        readBuffer = ByteBuffer.allocate((int) channel.size());
+        channel.read(readBuffer);
+      }
+      assertEquals(expected.toString(), new String(readBuffer.array(), StandardCharsets.UTF_8));
     }
 
     @Test
-    @DisplayName("Partial read when buffer is larger than available data")
-    void partialReadWhenBufferLargerThanData() throws IOException {
-      byte[] testData = createTestData(10);
-      SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel(testData);
+    void read_returns_minus_one_at_eof() throws IOException {
+      byte[] testData = createSequentialData(20);
+      try (var channel = new SeekableInMemoryByteChannel(testData)) {
 
-      ByteBuffer largeBuffer = ByteBuffer.allocate(20);
-      int read = channel.read(largeBuffer);
+        var buffer = ByteBuffer.allocate(20);
+        assertEquals(20, channel.read(buffer));
 
-      assertEquals(10, read);
-      assertEquals(10, channel.position());
-    }
-  }
-
-  @Nested
-  @DisplayName("Position Management")
-  class PositionManagementTests {
-
-    @Test
-    @DisplayName("Position can be set within bounds")
-    void positionCanBeSetWithinBounds() throws IOException {
-      byte[] testData = createTestData(100);
-      SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel(testData);
-
-      channel.position(50);
-      assertEquals(50, channel.position());
-
-      channel.position(0);
-      assertEquals(0, channel.position());
-
-      channel.position(100);
-      assertEquals(100, channel.position());
+        buffer.clear();
+        assertEquals(-1, channel.read(buffer));
+      }
     }
 
     @Test
-    @DisplayName("Position throws exception for invalid values")
-    void positionThrowsExceptionForInvalidValues() {
-      SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel();
+    void partial_read_when_buffer_larger_than_available_data() throws IOException {
+      byte[] testData = createSequentialData(10);
+      try (var channel = new SeekableInMemoryByteChannel(testData)) {
 
-      assertThrows(IllegalArgumentException.class, () -> channel.position(-1));
-      assertThrows(IllegalArgumentException.class, () -> channel.position(Integer.MAX_VALUE + 1L));
+        var largeBuffer = ByteBuffer.allocate(20);
+        int read = channel.read(largeBuffer);
+
+        assertEquals(10, read);
+        assertEquals(10, channel.position());
+      }
     }
 
     @Test
-    @DisplayName("Position can be set beyond current size")
-    void positionCanBeSetBeyondCurrentSize() throws IOException {
-      SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel();
-      channel.write(ByteBuffer.wrap(createTestData(10)));
+    void read_with_no_remaining_buffer_capacity_returns_eof() throws IOException {
+      try (var channel = new SeekableInMemoryByteChannel()) {
+        channel.write(ByteBuffer.wrap(createSequentialData(10)));
+        channel.position(0);
 
-      // Set position beyond current size
-      channel.position(50);
-      assertEquals(50, channel.position());
-      assertEquals(10, channel.size()); // Size unchanged
-
-      // Write at this position
-      channel.write(ByteBuffer.wrap("test".getBytes()));
-      assertEquals(54, channel.size()); // Size now reflects the write
-    }
-
-    @Test
-    @DisplayName("Read and write update position correctly")
-    void readAndWriteUpdatePositionCorrectly() throws IOException {
-      SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel();
-      byte[] testData = createTestData(20);
-
-      // Write updates position
-      channel.write(ByteBuffer.wrap(testData));
-      assertEquals(20, channel.position());
-
-      // Read updates position
-      channel.position(5);
-      ByteBuffer buffer = ByteBuffer.allocate(10);
-      channel.read(buffer);
-      assertEquals(15, channel.position());
+        var fullBuffer = ByteBuffer.allocate(0);
+        assertEquals(-1, channel.read(fullBuffer));
+        assertEquals(0, channel.position());
+      }
     }
   }
 
   @Nested
-  @DisplayName("Truncate Operations")
-  class TruncateOperationsTests {
+  class Position_Management {
 
     @Test
-    @DisplayName("Truncate reduces size when new size is smaller")
-    void truncateReducesSizeWhenNewSizeIsSmaller() throws IOException {
-      SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel();
-      channel.write(ByteBuffer.wrap(createTestData(50)));
+    void position_can_be_set_within_bounds() throws IOException {
+      byte[] testData = createSequentialData(100);
+      try (var channel = new SeekableInMemoryByteChannel(testData)) {
 
-      channel.truncate(30);
-      assertEquals(30, channel.size());
+        channel.position(50);
+        assertEquals(50, channel.position());
 
-      // Verify data integrity up to truncation point
-      channel.position(0);
-      ByteBuffer buffer = ByteBuffer.allocate(30);
-      channel.read(buffer);
-      byte[] expected = Arrays.copyOf(createTestData(50), 30);
+        channel.position(0);
+        assertEquals(0, channel.position());
+
+        channel.position(100);
+        assertEquals(100, channel.position());
+      }
+    }
+
+    @Test
+    void position_throws_exception_for_invalid_values() {
+      try (var channel = new SeekableInMemoryByteChannel()) {
+
+        assertThrows(IllegalArgumentException.class, () -> channel.position(-1));
+        assertThrows(
+            IllegalArgumentException.class, () -> channel.position(Integer.MAX_VALUE + 1L));
+      }
+    }
+
+    @Test
+    void position_can_be_set_beyond_current_size() throws IOException {
+      try (var channel = new SeekableInMemoryByteChannel()) {
+        channel.write(ByteBuffer.wrap(createSequentialData(10)));
+
+        channel.position(50);
+        assertEquals(50, channel.position());
+        assertEquals(10, channel.size());
+
+        channel.write(ByteBuffer.wrap("test".getBytes(StandardCharsets.UTF_8)));
+        assertEquals(54, channel.size());
+      }
+    }
+
+    @Test
+    void read_and_write_update_position_correctly() throws IOException {
+      try (var channel = new SeekableInMemoryByteChannel()) {
+        byte[] testData = createSequentialData(20);
+
+        channel.write(ByteBuffer.wrap(testData));
+        assertEquals(20, channel.position());
+
+        channel.position(5);
+        var buffer = ByteBuffer.allocate(10);
+        channel.read(buffer);
+        assertEquals(15, channel.position());
+      }
+    }
+
+    @Test
+    void position_at_integer_max_value_works() throws IOException {
+      try (var channel = new SeekableInMemoryByteChannel()) {
+        channel.position(Integer.MAX_VALUE);
+        assertEquals(Integer.MAX_VALUE, channel.position());
+      }
+    }
+  }
+
+  @Nested
+  class Truncate_Operations {
+
+    @Test
+    void truncate_reduces_size_when_new_size_is_smaller() throws IOException {
+      byte[] originalData;
+      ByteBuffer buffer;
+      try (var channel = new SeekableInMemoryByteChannel()) {
+        originalData = createSequentialData(50);
+        channel.write(ByteBuffer.wrap(originalData));
+
+        channel.truncate(30);
+        assertEquals(30, channel.size());
+
+        channel.position(0);
+        buffer = ByteBuffer.allocate(30);
+        channel.read(buffer);
+      }
+      byte[] expected = Arrays.copyOf(originalData, 30);
       assertArrayEquals(expected, buffer.array());
     }
 
     @Test
-    @DisplayName("Truncate does not increase size")
-    void truncateDoesNotIncreaseSize() throws IOException {
-      SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel();
-      channel.write(ByteBuffer.wrap(createTestData(20)));
+    void truncate_does_not_increase_size() throws IOException {
+      try (var channel = new SeekableInMemoryByteChannel()) {
+        channel.write(ByteBuffer.wrap(createSequentialData(20)));
 
-      channel.truncate(50);
-      assertEquals(20, channel.size()); // Size should remain unchanged
+        channel.truncate(50);
+        assertEquals(20, channel.size());
+      }
     }
 
     @Test
-    @DisplayName("Truncate adjusts position when position exceeds new size")
-    void truncateAdjustsPositionWhenPositionExceedsNewSize() throws IOException {
-      SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel();
-      channel.write(ByteBuffer.wrap(createTestData(50)));
-      channel.position(40);
+    void truncate_adjusts_position_when_position_exceeds_new_size() throws IOException {
+      try (var channel = new SeekableInMemoryByteChannel()) {
+        channel.write(ByteBuffer.wrap(createSequentialData(50)));
+        channel.position(40);
 
-      channel.truncate(25);
-      assertEquals(25, channel.size());
-      assertEquals(25, channel.position());
+        channel.truncate(25);
+        assertEquals(25, channel.size());
+        assertEquals(25, channel.position());
+      }
     }
 
     @Test
-    @DisplayName("Truncate throws exception for invalid values")
-    void truncateThrowsExceptionForInvalidValues() {
-      SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel();
+    void truncate_throws_exception_for_invalid_values() {
+      try (var channel = new SeekableInMemoryByteChannel()) {
 
-      assertThrows(IllegalArgumentException.class, () -> channel.truncate(-1));
-      assertThrows(IllegalArgumentException.class, () -> channel.truncate(Long.MAX_VALUE));
+        assertThrows(IllegalArgumentException.class, () -> channel.truncate(-1));
+        assertThrows(IllegalArgumentException.class, () -> channel.truncate(Long.MAX_VALUE));
+      }
     }
 
     @Test
-    @DisplayName("Truncate to zero creates empty channel")
-    void truncateToZeroCreatesEmptyChannel() throws IOException {
-      SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel();
-      channel.write(ByteBuffer.wrap(createTestData(30)));
+    void truncate_to_zero_creates_empty_channel() throws IOException {
+      try (var channel = new SeekableInMemoryByteChannel()) {
+        channel.write(ByteBuffer.wrap(createSequentialData(30)));
 
-      channel.truncate(0);
-      assertEquals(0, channel.size());
-      assertEquals(0, channel.position());
+        channel.truncate(0);
+        assertEquals(0, channel.size());
+        assertEquals(0, channel.position());
 
-      // Should return EOF immediately
-      ByteBuffer buffer = ByteBuffer.allocate(10);
-      assertEquals(-1, channel.read(buffer));
+        var buffer = ByteBuffer.allocate(10);
+        assertEquals(-1, channel.read(buffer));
+      }
+    }
+
+    @Test
+    void truncate_to_current_size_has_no_effect() throws IOException {
+      try (var channel = new SeekableInMemoryByteChannel()) {
+        byte[] testData = createSequentialData(25);
+        channel.write(ByteBuffer.wrap(testData));
+        channel.position(15);
+
+        channel.truncate(25);
+        assertEquals(25, channel.size());
+        assertEquals(15, channel.position());
+      }
     }
   }
 
   @Nested
-  @DisplayName("Channel State Management")
-  class ChannelStateManagementTests {
+  class Channel_State_Management {
 
     @Test
-    @DisplayName("New channel is open")
-    void newChannelIsOpen() {
-      SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel();
-      assertTrue(channel.isOpen());
+    void new_channel_is_open() {
+      try (var channel = new SeekableInMemoryByteChannel()) {
+        assertTrue(channel.isOpen());
+      }
     }
 
     @Test
-    @DisplayName("Closed channel reports correct state")
-    void closedChannelReportsCorrectState() {
-      SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel();
+    void closed_channel_reports_correct_state() {
+      var channel = new SeekableInMemoryByteChannel();
       channel.close();
       assertFalse(channel.isOpen());
     }
 
     @Test
-    @DisplayName("Operations throw exception on closed channel")
-    void operationsThrowExceptionOnClosedChannel() {
-      SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel();
+    void operations_throw_exception_on_closed_channel() {
+      var channel = new SeekableInMemoryByteChannel();
       channel.close();
 
-      ByteBuffer buffer = ByteBuffer.allocate(10);
+      var buffer = ByteBuffer.allocate(10);
       assertThrows(ClosedChannelException.class, () -> channel.read(buffer));
       assertThrows(ClosedChannelException.class, () -> channel.write(buffer));
       assertThrows(ClosedChannelException.class, () -> channel.position(0));
     }
 
     @Test
-    @DisplayName("Position and size accessible on closed channel")
-    void positionAndSizeAccessibleOnClosedChannel() throws IOException {
-      SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel();
-      channel.write(ByteBuffer.wrap(createTestData(20)));
+    void position_and_size_accessible_on_closed_channel() throws IOException {
+      var channel = new SeekableInMemoryByteChannel();
+      channel.write(ByteBuffer.wrap(createSequentialData(20)));
       channel.position(10);
 
       long expectedSize = channel.size();
       long expectedPosition = channel.position();
-
       channel.close();
 
-      // These should not throw exceptions (contract violation)
       assertEquals(expectedSize, channel.size());
       assertEquals(expectedPosition, channel.position());
     }
 
     @Test
-    @DisplayName("Truncate works on closed channel")
-    void truncateWorksOnClosedChannel() throws IOException {
-      SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel();
-      channel.write(ByteBuffer.wrap(createTestData(30)));
+    void truncate_works_on_closed_channel() throws IOException {
+      var channel = new SeekableInMemoryByteChannel();
+      channel.write(ByteBuffer.wrap(createSequentialData(30)));
       channel.close();
 
-      // Truncate should work even on closed channel (contract violation)
-      assertDoesNotThrow(() -> channel.truncate(15));
+      channel.truncate(15);
       assertEquals(15, channel.size());
+    }
+
+    @Test
+    void multiple_closes_are_safe() {
+      try (var channel = new SeekableInMemoryByteChannel()) {
+
+        assertDoesNotThrow(
+            () -> {
+              channel.close();
+              channel.close();
+              channel.close();
+            });
+
+        assertFalse(channel.isOpen());
+      }
     }
   }
 
   @Nested
-  @DisplayName("Large Data Operations")
-  class LargeDataOperationsTests {
+  class Large_Data_Operations {
 
     @ParameterizedTest
     @ValueSource(ints = {1024, 8192, 65536, 1048576})
-    @DisplayName("Handle various data sizes efficiently")
-    void handleVariousDataSizesEfficiently(int size) throws IOException {
-      SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel();
-      byte[] testData = createRandomData(size, 42L);
+    void handle_various_data_sizes_efficiently(int size) throws IOException {
+      try (var channel = new SeekableInMemoryByteChannel()) {
+        var testData = createRandomData(size, 42L);
 
-      // Write large data
-      channel.write(ByteBuffer.wrap(testData));
-      assertEquals(size, channel.size());
+        channel.write(ByteBuffer.wrap(testData));
+        assertEquals(size, channel.size());
 
-      // Read it back in chunks
-      channel.position(0);
-      byte[] readData = new byte[size];
-      int totalRead = 0;
-      ByteBuffer buffer = ByteBuffer.allocate(Math.min(4096, size));
+        channel.position(0);
+        var readData = new byte[size];
+        int totalRead = 0;
+        var buffer = ByteBuffer.allocate(Math.min(4096, size));
 
-      while (totalRead < size) {
-        buffer.clear();
-        int read = channel.read(buffer);
-        assertTrue(read > 0);
-        buffer.flip();
-        buffer.get(readData, totalRead, read);
-        totalRead += read;
+        while (totalRead < size) {
+          buffer.clear();
+          int read = channel.read(buffer);
+          assertTrue(read > 0);
+          buffer.flip();
+          buffer.get(readData, totalRead, read);
+          totalRead += read;
+        }
+
+        assertArrayEquals(testData, readData);
       }
-
-      assertArrayEquals(testData, readData);
     }
 
     @Test
-    @DisplayName("Buffer growth handles multiple resize operations")
-    void bufferGrowthHandlesMultipleResizeOperations() throws IOException {
-      SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel(8);
+    void buffer_growth_handles_multiple_resize_operations() throws IOException {
+      try (var channel = new SeekableInMemoryByteChannel(8)) {
+        int[] chunkSizes = {10, 50, 200, 800, 3200};
+        int totalSize = 0;
 
-      // Write progressively larger chunks to force multiple resizes
-      int[] chunkSizes = {10, 50, 200, 800, 3200};
-      int totalSize = 0;
-
-      for (int chunkSize : chunkSizes) {
-        byte[] chunk = createTestData(chunkSize);
-        channel.write(ByteBuffer.wrap(chunk));
-        totalSize += chunkSize;
-        assertEquals(totalSize, channel.size());
-      }
-
-      // Verify all data is intact
-      channel.position(0);
-      byte[] allData = new byte[totalSize];
-      int read = channel.read(ByteBuffer.wrap(allData));
-      assertEquals(totalSize, read);
-
-      // Verify data pattern integrity by checking each chunk separately
-      int offset = 0;
-      for (int chunkSize : chunkSizes) {
-        for (int i = 0; i < chunkSize; i++) {
-          byte expected = (byte) (i % 256);
-          byte actual = allData[offset + i];
-          assertEquals(
-              expected,
-              actual,
-              String.format(
-                  "Mismatch at global index %d (chunk offset %d): expected %d, got %d",
-                  offset + i, i, expected & 0xFF, actual & 0xFF));
+        for (int chunkSize : chunkSizes) {
+          byte[] chunk = createSequentialData(chunkSize);
+          channel.write(ByteBuffer.wrap(chunk));
+          totalSize += chunkSize;
+          assertEquals(totalSize, channel.size());
         }
-        offset += chunkSize;
+
+        channel.position(0);
+        byte[] allData = new byte[totalSize];
+        int read = channel.read(ByteBuffer.wrap(allData));
+        assertEquals(totalSize, read);
+        verifySequentialDataIntegrity(allData, chunkSizes);
       }
     }
   }
 
   @Nested
-  @DisplayName("Edge Cases and Error Conditions")
-  class EdgeCasesTests {
+  class Edge_Cases_And_Error_Conditions {
 
     @Test
-    @DisplayName("Handle empty write operations")
-    void handleEmptyWriteOperations() throws IOException {
-      SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel();
+    void handle_empty_write_operations() throws IOException {
+      try (var channel = new SeekableInMemoryByteChannel()) {
+        var emptyBuffer = ByteBuffer.allocate(0);
+        int written = channel.write(emptyBuffer);
 
-      ByteBuffer emptyBuffer = ByteBuffer.allocate(0);
-      int written = channel.write(emptyBuffer);
-
-      assertEquals(0, written);
-      assertEquals(0, channel.size());
-      assertEquals(0, channel.position());
+        assertEquals(0, written);
+        assertEquals(0, channel.size());
+        assertEquals(0, channel.position());
+      }
     }
 
     @Test
-    @DisplayName("Handle empty read operations")
-    void handleEmptyReadOperations() throws IOException {
-      SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel();
-      channel.write(ByteBuffer.wrap(createTestData(10)));
+    void handle_write_at_various_positions() throws IOException {
+      var channel = new SeekableInMemoryByteChannel();
+
       channel.position(0);
+      channel.write(ByteBuffer.wrap("start".getBytes(StandardCharsets.UTF_8)));
 
-      ByteBuffer emptyBuffer = ByteBuffer.allocate(0);
-      int read = channel.read(emptyBuffer);
-
-      assertEquals(-1, read); // EOF
-      assertEquals(0, channel.position()); // Position should not change
-    }
-
-    @Test
-    @DisplayName("Handle write at various positions")
-    void handleWriteAtVariousPositions() throws IOException {
-      SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel();
-
-      // Write at position 0
-      channel.position(0);
-      channel.write(ByteBuffer.wrap("start".getBytes()));
-
-      // Write at middle position
       channel.position(10);
-      channel.write(ByteBuffer.wrap("middle".getBytes()));
+      channel.write(ByteBuffer.wrap("middle".getBytes(StandardCharsets.UTF_8)));
 
-      // Write at end
       channel.position(20);
-      channel.write(ByteBuffer.wrap("end".getBytes()));
+      channel.write(ByteBuffer.wrap("end".getBytes(StandardCharsets.UTF_8)));
 
       assertEquals(23, channel.size());
 
-      // Verify data at different positions
-      channel.position(0);
-      ByteBuffer buffer = ByteBuffer.allocate(5);
-      channel.read(buffer);
-      assertEquals("start", new String(buffer.array()));
-
-      channel.position(10);
-      buffer = ByteBuffer.allocate(6);
-      channel.read(buffer);
-      assertEquals("middle", new String(buffer.array()));
-
-      channel.position(20);
-      buffer = ByteBuffer.allocate(3);
-      channel.read(buffer);
-      assertEquals("end", new String(buffer.array()));
+      verifyDataAtPositions(channel);
     }
 
     @Test
-    @DisplayName("Array method returns internal array reference")
-    void arrayMethodReturnsInternalArrayReference() throws IOException {
-      SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel();
-      byte[] testData = createTestData(20);
-      channel.write(ByteBuffer.wrap(testData));
+    void array_method_returns_internal_array_reference() throws IOException {
+      byte[] testData;
+      byte[] internalArray;
+      try (var channel = new SeekableInMemoryByteChannel()) {
+        testData = createSequentialData(20);
+        channel.write(ByteBuffer.wrap(testData));
 
-      byte[] internalArray = channel.array();
+        internalArray = channel.array();
+      }
       assertNotNull(internalArray);
       assertTrue(internalArray.length >= 20);
 
-      // Verify the data is in the array
       for (int i = 0; i < 20; i++) {
         assertEquals(testData[i], internalArray[i]);
       }
     }
+
+    @Test
+    void write_at_position_creates_sparse_data() throws IOException {
+      ByteBuffer buffer;
+      try (var channel = new SeekableInMemoryByteChannel()) {
+
+        channel.position(100);
+        byte[] data = "test".getBytes(StandardCharsets.UTF_8);
+        channel.write(ByteBuffer.wrap(data));
+
+        assertEquals(104, channel.size());
+
+        // Check that positions 0-99 contain zeros
+        channel.position(0);
+        buffer = ByteBuffer.allocate(100);
+        channel.read(buffer);
+      }
+
+      for (byte b : buffer.array()) {
+        assertEquals(0, b);
+      }
+    }
   }
 
   @Nested
-  @DisplayName("Performance and Memory Tests")
-  class PerformanceTests {
+  class Performance_And_Memory_Tests {
 
     @Test
-    @DisplayName("Verify exponential growth strategy")
-    void verifyExponentialGrowthStrategy() throws IOException {
-      SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel(1);
+    void verify_exponential_growth_strategy() throws IOException {
+      try (var channel = new SeekableInMemoryByteChannel(1)) {
 
-      // Write data that will cause multiple growth operations
-      byte[] chunk = createTestData(100);
-      for (int i = 0; i < 10; i++) {
-        channel.write(ByteBuffer.wrap(chunk));
+        byte[] chunk = createSequentialData(100);
+        for (int i = 0; i < 10; i++) {
+          channel.write(ByteBuffer.wrap(chunk));
+        }
+
+        assertEquals(1000, channel.size());
+        assertTrue(channel.array().length >= 1000);
+        assertTrue(channel.array().length < 4000);
       }
-
-      assertEquals(1000, channel.size());
-
-      // Internal array should be larger than size due to exponential growth
-      assertTrue(channel.array().length >= 1000);
-
-      // But not excessively large (should be reasonable for exponential growth)
-      assertTrue(channel.array().length < 4000);
     }
 
     @Test
-    @DisplayName("Verify memory efficiency for exact size allocations")
-    void verifyMemoryEfficiencyForExactSizeAllocations() {
-      byte[] testData = createTestData(1000);
-      SeekableInMemoryByteChannel channel = new SeekableInMemoryByteChannel(testData);
+    void verify_memory_efficiency_for_exact_size_allocations() {
+      byte[] testData = createSequentialData(1000);
+      try (var channel = new SeekableInMemoryByteChannel(testData)) {
 
-      assertEquals(1000, channel.size());
-      assertEquals(1000, channel.array().length);
+        assertEquals(1000, channel.size());
+        assertEquals(1000, channel.array().length);
+      }
+    }
+
+    @Test
+    void large_capacity_allocation_works() {
+      int largeCapacity = 10_000_000;
+      try (var channel = new SeekableInMemoryByteChannel(largeCapacity)) {
+
+        assertEquals(0, channel.size());
+        assertEquals(largeCapacity, channel.array().length);
+      }
     }
   }
 
-  // Test data generators
-  private static byte[] createTestData(int size) {
+  // Utility methods
+
+  private static byte[] createSequentialData(int size) {
     byte[] data = new byte[size];
     for (int i = 0; i < size; i++) {
       data[i] = (byte) (i % 256);
@@ -553,5 +580,38 @@ class SeekableInMemoryByteChannelTest {
     byte[] data = new byte[size];
     new Random(seed).nextBytes(data);
     return data;
+  }
+
+  private void verifySequentialDataIntegrity(byte[] allData, int[] chunkSizes) {
+    int offset = 0;
+    for (int chunkSize : chunkSizes) {
+      for (int i = 0; i < chunkSize; i++) {
+        byte expected = (byte) (i % 256);
+        byte actual = allData[offset + i];
+        assertEquals(
+            expected,
+            actual,
+            "Mismatch at global index %d (chunk offset %d): expected %d, got %d"
+                .formatted(offset + i, i, expected & 0xFF, actual & 0xFF));
+      }
+      offset += chunkSize;
+    }
+  }
+
+  private void verifyDataAtPositions(SeekableInMemoryByteChannel channel) throws IOException {
+    channel.position(0);
+    var buffer = ByteBuffer.allocate(5);
+    channel.read(buffer);
+    assertEquals("start", new String(buffer.array(), StandardCharsets.UTF_8));
+
+    channel.position(10);
+    buffer = ByteBuffer.allocate(6);
+    channel.read(buffer);
+    assertEquals("middle", new String(buffer.array(), StandardCharsets.UTF_8));
+
+    channel.position(20);
+    buffer = ByteBuffer.allocate(3);
+    channel.read(buffer);
+    assertEquals("end", new String(buffer.array(), StandardCharsets.UTF_8));
   }
 }

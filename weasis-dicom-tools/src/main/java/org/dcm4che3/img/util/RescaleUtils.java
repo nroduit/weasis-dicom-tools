@@ -27,6 +27,16 @@ import org.weasis.opencv.op.lut.LutParameters;
  */
 public final class RescaleUtils {
 
+  // Constants for bit manipulation and validation
+  private static final int MIN_BITS = 1;
+  private static final int MAX_BITS = 16;
+  private static final int BYTE_THRESHOLD = 8;
+  private static final int BYTE_BITS = 8;
+  private static final int SHORT_BITS = 16;
+
+  private static final double DEFAULT_SLOPE = 1.0;
+  private static final double DEFAULT_INTERCEPT = 0.0;
+
   private RescaleUtils() {
     // Prevent instantiation
   }
@@ -103,8 +113,8 @@ public final class RescaleUtils {
       boolean outputSigned,
       int bitsOutput) {
 
-    var bitConfig = calculateBitConfiguration(bitsStored, bitsOutput, isSigned, outputSigned);
-    var inputRange = calculateInputRange(minValue, maxValue, bitConfig);
+    var bitConfig = BitConfiguration.create(bitsStored, bitsOutput, isSigned, outputSigned);
+    var inputRange = InputRange.create(minValue, maxValue, bitConfig);
 
     Object lutData = createLutArray(inputRange, bitConfig, intercept, slope, inverse);
 
@@ -129,14 +139,13 @@ public final class RescaleUtils {
       return;
     }
 
-    var paddingRange = calculatePaddingRange(params);
-    var paddingInfo = calculatePaddingInfo(paddingRange, modalityLookup);
+    var paddingRange = PaddingRange.from(params);
+    var paddingInfo = PaddingInfo.calculate(paddingRange, modalityLookup);
 
-    if (!paddingInfo.isValid()) {
-      return;
+    if (paddingInfo.isValid()) {
+
+      applyPaddingToLookupData(modalityLookup, paddingInfo, params.inversePaddingMLUT());
     }
-
-    applyPaddingToLookupData(modalityLookup, paddingInfo, params.inversePaddingMLUT());
   }
 
   /**
@@ -148,10 +157,9 @@ public final class RescaleUtils {
    *     range
    */
   public static double pixel2rescale(LookupTableCV lookup, double pixelValue) {
-    if (lookup != null && isValueInRange(lookup, pixelValue)) {
-      return lookup.lookup(0, (int) pixelValue);
-    }
-    return pixelValue;
+    return (lookup != null && isValueInRange(lookup, pixelValue))
+        ? lookup.lookup(0, (int) pixelValue)
+        : pixelValue;
   }
 
   /**
@@ -168,7 +176,7 @@ public final class RescaleUtils {
       return pixelValue;
     }
 
-    var rescaleParams = extractRescaleParameters(dcm);
+    var rescaleParams = RescaleParameters.from(dcm);
     return rescaleParams.hasRescaleParameters()
         ? pixelValue * rescaleParams.slope() + rescaleParams.intercept()
         : pixelValue;
@@ -176,43 +184,17 @@ public final class RescaleUtils {
 
   // ======= Private helper methods =======
 
-  private static BitConfiguration calculateBitConfiguration(
-      int bitsStored, int bitsOutput, boolean isSigned, boolean outputSigned) {
-    int stored = MathUtil.clamp(bitsStored, 1, 16);
-    int bitsOutLut = bitsOutput <= 8 ? 8 : 16;
-    int outRangeSize = (1 << bitsOutLut) - 1;
-    int maxOutValue = outputSigned ? (1 << (bitsOutLut - 1)) - 1 : outRangeSize;
-    int minOutValue = outputSigned ? -(maxOutValue + 1) : 0;
-
-    return new BitConfiguration(stored, bitsOutLut, minOutValue, maxOutValue, isSigned);
-  }
-
-  private static InputRange calculateInputRange(
-      int minValue, int maxValue, BitConfiguration config) {
-    int minInValue = config.isSigned() ? -(1 << (config.stored() - 1)) : 0;
-    int maxInValue =
-        config.isSigned() ? (1 << (config.stored() - 1)) - 1 : (1 << config.stored()) - 1;
-
-    minInValue = Math.max(minInValue, Math.min(maxValue, minValue));
-    maxInValue = Math.min(maxInValue, Math.max(maxValue, minValue));
-
-    return new InputRange(minInValue, maxInValue);
-  }
-
   private static Object createLutArray(
       InputRange inputRange,
       BitConfiguration bitConfig,
       double intercept,
       double slope,
       boolean inverse) {
-    int numEntries = inputRange.max() - inputRange.min() + 1;
-    boolean isByteOutput = bitConfig.bitsOutLut() == 8;
+    int numEntries = inputRange.size();
 
-    if (isByteOutput) {
-      return createByteLut(numEntries, inputRange.min(), intercept, slope, bitConfig, inverse);
-    } else {
-      return createShortLut(numEntries, inputRange.min(), intercept, slope, bitConfig, inverse);
-    }
+    return bitConfig.isByteOutput()
+        ? createByteLut(numEntries, inputRange.min(), intercept, slope, bitConfig, inverse)
+        : createShortLut(numEntries, inputRange.min(), intercept, slope, bitConfig, inverse);
   }
 
   private static byte[] createByteLut(
@@ -222,7 +204,7 @@ public final class RescaleUtils {
       double slope,
       BitConfiguration config,
       boolean inverse) {
-    byte[] lut = new byte[numEntries];
+    var lut = new byte[numEntries];
     for (int i = 0; i < numEntries; i++) {
       int value = calculateRescaledValue(i + minInValue, intercept, slope, config, inverse);
       lut[i] = (byte) value;
@@ -237,7 +219,7 @@ public final class RescaleUtils {
       double slope,
       BitConfiguration config,
       boolean inverse) {
-    short[] lut = new short[numEntries];
+    var lut = new short[numEntries];
     for (int i = 0; i < numEntries; i++) {
       int value = calculateRescaledValue(i + minInValue, intercept, slope, config, inverse);
       lut[i] = (short) value;
@@ -245,6 +227,7 @@ public final class RescaleUtils {
     return lut;
   }
 
+  // Calculates rescaled value with clamping and optional inversion
   private static int calculateRescaledValue(
       int inputValue, double intercept, double slope, BitConfiguration config, boolean inverse) {
     int value = (int) Math.round(inputValue * slope + intercept);
@@ -267,48 +250,23 @@ public final class RescaleUtils {
         && modalityLookup.getDataType() <= DataBuffer.TYPE_SHORT;
   }
 
-  private static PaddingRange calculatePaddingRange(LutParameters params) {
-    int paddingValue = params.paddingMinValue();
-    Integer paddingLimit = params.paddingMaxValue();
-    int paddingValueMin =
-        paddingLimit == null ? paddingValue : Math.min(paddingValue, paddingLimit);
-    int paddingValueMax =
-        paddingLimit == null ? paddingValue : Math.max(paddingValue, paddingLimit);
-
-    return new PaddingRange(paddingValueMin, paddingValueMax);
-  }
-
-  private static PaddingInfo calculatePaddingInfo(PaddingRange range, LookupTableCV lookup) {
-    int numPaddingValues = range.max() - range.min() + 1;
-    int startIndex = range.min() - lookup.getOffset();
-
-    if (startIndex >= lookup.getNumEntries()) {
-      return PaddingInfo.invalid();
-    }
-
-    if (startIndex < 0) {
-      numPaddingValues += startIndex;
-      if (numPaddingValues < 1) {
-        return PaddingInfo.invalid();
-      }
-      startIndex = 0;
-    }
-
-    return new PaddingInfo(startIndex, numPaddingValues, true);
-  }
-
   private static void applyPaddingToLookupData(
       LookupTableCV lookup, PaddingInfo info, boolean inverse) {
-    boolean isByteData = lookup.getDataType() == DataBuffer.TYPE_BYTE;
 
-    if (isByteData) {
-      byte[] data = lookup.getByteData(0);
-      byte fillVal = inverse ? (byte) 255 : (byte) 0;
-      Arrays.fill(data, info.startIndex(), info.startIndex() + info.numValues(), fillVal);
-    } else {
-      short[] data = lookup.getShortData(0);
-      short fillVal = inverse ? data[data.length - 1] : data[0];
-      Arrays.fill(data, info.startIndex(), info.startIndex() + info.numValues(), fillVal);
+    switch (lookup.getDataType()) {
+      case DataBuffer.TYPE_BYTE -> {
+        byte[] data = lookup.getByteData(0);
+        byte fillVal = inverse ? (byte) 255 : (byte) 0;
+        Arrays.fill(data, info.startIndex(), info.endIndex(), fillVal);
+      }
+      case DataBuffer.TYPE_SHORT, DataBuffer.TYPE_USHORT -> {
+        short[] data = lookup.getShortData(0);
+        short fillVal = inverse ? data[data.length - 1] : data[0];
+        Arrays.fill(data, info.startIndex(), info.endIndex(), fillVal);
+      }
+      default ->
+          throw new IllegalArgumentException(
+              "Unsupported data type for padding: " + lookup.getDataType());
     }
   }
 
@@ -317,34 +275,106 @@ public final class RescaleUtils {
         && pixelValue <= lookup.getOffset() + lookup.getNumEntries() - 1;
   }
 
-  private static RescaleParameters extractRescaleParameters(Attributes dcm) {
-    Double slope = DicomUtils.getDoubleFromDicomElement(dcm, Tag.RescaleSlope, null);
-    Double intercept = DicomUtils.getDoubleFromDicomElement(dcm, Tag.RescaleIntercept, null);
-
-    return new RescaleParameters(
-        slope != null ? slope : 1.0,
-        intercept != null ? intercept : 0.0,
-        slope != null || intercept != null);
-  }
-
-  // Helper records for better organization
+  // ======= Helper records =======
 
   private record BitConfiguration(
-      int stored, int bitsOutLut, int minOutValue, int maxOutValue, boolean isSigned) {}
+      int stored, int bitsOutLut, int minOutValue, int maxOutValue, boolean isSigned) {
 
-  private record InputRange(int min, int max) {}
+    static BitConfiguration create(
+        int bitsStored, int bitsOutput, boolean isSigned, boolean outputSigned) {
+      int stored = MathUtil.clamp(bitsStored, MIN_BITS, MAX_BITS);
+      int bitsOutLut = bitsOutput <= BYTE_THRESHOLD ? BYTE_BITS : SHORT_BITS;
+      int outRangeSize = (1 << bitsOutLut) - 1;
+      int maxOutValue = outputSigned ? (1 << (bitsOutLut - 1)) - 1 : outRangeSize;
+      int minOutValue = outputSigned ? -(maxOutValue + 1) : 0;
 
-  private record PaddingRange(int min, int max) {}
+      return new BitConfiguration(stored, bitsOutLut, minOutValue, maxOutValue, isSigned);
+    }
+
+    boolean isByteOutput() {
+      return bitsOutLut == BYTE_BITS;
+    }
+  }
+
+  private record InputRange(int min, int max) {
+
+    static InputRange create(int minValue, int maxValue, BitConfiguration config) {
+      int minInValue = config.isSigned() ? -(1 << (config.stored() - 1)) : 0;
+      int maxInValue =
+          config.isSigned() ? (1 << (config.stored() - 1)) - 1 : (1 << config.stored()) - 1;
+
+      minInValue = Math.max(minInValue, Math.min(maxValue, minValue));
+      maxInValue = Math.min(maxInValue, Math.max(maxValue, minValue));
+
+      return new InputRange(minInValue, maxInValue);
+    }
+
+    int size() {
+      return max - min + 1;
+    }
+  }
+
+  private record PaddingRange(int min, int max) {
+
+    static PaddingRange from(LutParameters params) {
+      int paddingValue = params.paddingMinValue();
+      Integer paddingLimit = params.paddingMaxValue();
+      int paddingValueMin =
+          paddingLimit == null ? paddingValue : Math.min(paddingValue, paddingLimit);
+      int paddingValueMax =
+          paddingLimit == null ? paddingValue : Math.max(paddingValue, paddingLimit);
+
+      return new PaddingRange(paddingValueMin, paddingValueMax);
+    }
+
+    int size() {
+      return max - min + 1;
+    }
+  }
 
   private record PaddingInfo(int startIndex, int numValues, boolean valid) {
     static PaddingInfo invalid() {
       return new PaddingInfo(0, 0, false);
     }
 
+    static PaddingInfo calculate(PaddingRange range, LookupTableCV lookup) {
+      int numPaddingValues = range.size();
+      int startIndex = range.min() - lookup.getOffset();
+
+      if (startIndex >= lookup.getNumEntries()) {
+        return invalid();
+      }
+
+      if (startIndex < 0) {
+        numPaddingValues += startIndex;
+        if (numPaddingValues < 1) {
+          return invalid();
+        }
+        startIndex = 0;
+      }
+
+      return new PaddingInfo(startIndex, numPaddingValues, true);
+    }
+
     boolean isValid() {
       return valid;
     }
+
+    int endIndex() {
+      return startIndex + numValues;
+    }
   }
 
-  private record RescaleParameters(double slope, double intercept, boolean hasRescaleParameters) {}
+  private record RescaleParameters(double slope, double intercept, boolean hasRescaleParameters) {
+
+    static RescaleParameters from(Attributes dcm) {
+      Double slope = DicomUtils.getDoubleFromDicomElement(dcm, Tag.RescaleSlope, null);
+      Double intercept = DicomUtils.getDoubleFromDicomElement(dcm, Tag.RescaleIntercept, null);
+
+      return new RescaleParameters(
+          slope != null ? slope : DEFAULT_SLOPE,
+          intercept != null ? intercept : DEFAULT_INTERCEPT,
+          slope != null || intercept != null);
+    }
+  }
 }

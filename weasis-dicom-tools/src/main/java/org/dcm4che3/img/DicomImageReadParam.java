@@ -91,6 +91,11 @@ public class DicomImageReadParam extends ImageReadParam {
    */
   public DicomImageReadParam(ImageReadParam param) {
     this();
+    copySourceParameters(param);
+  }
+
+  /** Copies source region and render size from another ImageReadParam. */
+  private void copySourceParameters(ImageReadParam param) {
     this.sourceRegion = param.getSourceRegion();
     this.sourceRenderSize = param.getSourceRenderSize();
   }
@@ -142,11 +147,6 @@ public class DicomImageReadParam extends ImageReadParam {
 
   // ======== Window/Level parameters ========
 
-  /**
-   * Gets the window center value for DICOM windowing.
-   *
-   * @return an OptionalDouble containing the window center, or empty if not set
-   */
   public OptionalDouble getWindowCenter() {
     return LangUtil.toOptional(windowCenter);
   }
@@ -161,11 +161,6 @@ public class DicomImageReadParam extends ImageReadParam {
     this.windowCenter = windowCenter;
   }
 
-  /**
-   * Gets the window width value for DICOM windowing.
-   *
-   * @return an OptionalDouble containing the window width, or empty if not set
-   */
   public OptionalDouble getWindowWidth() {
     return LangUtil.toOptional(windowWidth);
   }
@@ -180,11 +175,6 @@ public class DicomImageReadParam extends ImageReadParam {
     this.windowWidth = windowWidth;
   }
 
-  /**
-   * Gets the minimum level value for the image.
-   *
-   * @return an OptionalDouble containing the minimum level, or empty if not set
-   */
   public OptionalDouble getLevelMin() {
     return LangUtil.toOptional(levelMin);
   }
@@ -198,11 +188,6 @@ public class DicomImageReadParam extends ImageReadParam {
     this.levelMin = levelMin;
   }
 
-  /**
-   * Gets the maximum level value for the image.
-   *
-   * @return an OptionalDouble containing the maximum level, or empty if not set
-   */
   public OptionalDouble getLevelMax() {
     return LangUtil.toOptional(levelMax);
   }
@@ -218,11 +203,6 @@ public class DicomImageReadParam extends ImageReadParam {
 
   //  ======== VOI LUT parameters ========
 
-  /**
-   * Gets the VOI LUT shape configuration.
-   *
-   * @return an Optional containing the LUT shape, or empty if not set
-   */
   public Optional<LutShape> getVoiLutShape() {
     return Optional.ofNullable(voiLutShape);
   }
@@ -333,11 +313,6 @@ public class DicomImageReadParam extends ImageReadParam {
 
   // ======== Presentation state ========
 
-  /**
-   * Gets the DICOM presentation state object.
-   *
-   * @return an Optional containing the presentation state, or empty if not set
-   */
   public Optional<PrDicomObject> getPresentationState() {
     return Optional.ofNullable(presentationState);
   }

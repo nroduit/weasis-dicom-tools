@@ -17,6 +17,7 @@ import java.awt.geom.Rectangle2D;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.dcm4che3.data.Attributes;
@@ -43,8 +44,11 @@ import org.weasis.core.util.StringUtil;
  *
  * @author Nicolas Roduit
  */
-public class DicomObjectUtil {
+public final class DicomObjectUtil {
   private static final Logger LOGGER = LoggerFactory.getLogger(DicomObjectUtil.class);
+  private static final int RGB_MIN = 0;
+  private static final int RGB_MAX = 255;
+  private static final int POLYGON_MIN_POINTS = 6;
 
   private DicomObjectUtil() {}
 
@@ -56,13 +60,11 @@ public class DicomObjectUtil {
    * @return the sequence as a list of attributes, or an empty list if not found or null input
    */
   public static List<Attributes> getSequence(Attributes dicom, int tagSeq) {
-    if (dicom != null) {
-      Sequence item = dicom.getSequence(tagSeq);
-      if (item != null) {
-        return item;
-      }
+    if (dicom == null) {
+      return Collections.emptyList();
     }
-    return Collections.emptyList();
+    Sequence item = dicom.getSequence(tagSeq);
+    return item != null ? item : Collections.emptyList();
   }
 
   /**
@@ -101,47 +103,7 @@ public class DicomObjectUtil {
 
   private static boolean isFrameInReferencedFrames(Attributes sopUID, int childTag, int frame) {
     int[] frames = sopUID.getInts(childTag);
-    if (frames == null || frames.length == 0) {
-      return true; // No specific frames means all frames are applicable
-    }
-    for (int f : frames) {
-      if (f == frame) {
-        return true;
-      }
-    }
-    return false; // Frame explicitly excluded
-  }
-
-  /**
-   * Creates a memoized version of the given supplier that caches the result after first invocation.
-   *
-   * <p>This is thread-safe and ensures the original supplier is called only once, even under
-   * concurrent access. Subsequent calls return the cached value without re-evaluation.
-   *
-   * @param <T> the type of results supplied by this supplier
-   * @param <E> the type of exception that may be thrown
-   * @param original the supplier to memoize
-   * @return a memoized supplier that caches the result of the first call
-   */
-  public static <T, E extends Exception> SupplierEx<T, E> memoize(SupplierEx<T, E> original) {
-    return new SupplierEx<>() {
-      SupplierEx<T, E> delegate = this::firstTime;
-      boolean initialized;
-
-      @Override
-      public T get() throws E {
-        return delegate.get();
-      }
-
-      private synchronized T firstTime() throws E {
-        if (!initialized) {
-          T value = original.get();
-          delegate = () -> value;
-          initialized = true;
-        }
-        return delegate.get();
-      }
-    };
+    return frames == null || frames.length == 0 || Arrays.stream(frames).anyMatch(f -> f == frame);
   }
 
   /**
@@ -151,14 +113,15 @@ public class DicomObjectUtil {
    * @return the parsed LocalDate, or {@code null} if parsing fails or input is invalid
    */
   public static LocalDate getDicomDate(String date) {
-    if (StringUtil.hasText(date)) {
-      try {
-        return DateTimeUtils.parseDA(date);
-      } catch (Exception e) {
-        LOGGER.error("Parse DICOM date", e);
-      }
+    if (!StringUtil.hasText(date)) {
+      return null;
     }
-    return null;
+    try {
+      return DateTimeUtils.parseDA(date);
+    } catch (Exception e) {
+      LOGGER.error("Failed to parse DICOM date: {}", date, e);
+      return null;
+    }
   }
 
   /**
@@ -168,14 +131,15 @@ public class DicomObjectUtil {
    * @return the parsed LocalTime, or {@code null} if parsing fails or input is invalid
    */
   public static LocalTime getDicomTime(String time) {
-    if (StringUtil.hasText(time)) {
-      try {
-        return DateTimeUtils.parseTM(time);
-      } catch (Exception e1) {
-        LOGGER.error("Parse DICOM time", e1);
-      }
+    if (!StringUtil.hasText(time)) {
+      return null;
     }
-    return null;
+    try {
+      return DateTimeUtils.parseTM(time);
+    } catch (Exception e) {
+      LOGGER.error("Failed to parse DICOM time: {}", time, e);
+      return null;
+    }
   }
 
   /**
@@ -198,7 +162,7 @@ public class DicomObjectUtil {
       return null;
     }
     LocalTime time = getDicomTime(dcm.getString(timeID));
-    return time == null ? date.atStartOfDay() : LocalDateTime.of(date, time);
+    return time == null ? date.atStartOfDay() : date.atTime(time);
   }
 
   /**
@@ -218,61 +182,75 @@ public class DicomObjectUtil {
     if (shutterShape == null) {
       return null;
     }
-    Area shape = null;
-    if (shutterShape.contains("RECTANGULAR") || shutterShape.contains("RECTANGLE")) {
-      shape = createRectangularShutter(dcm);
+    Area combinedShape = null;
+
+    if (containsShutterType(shutterShape, "RECTANGULAR", "RECTANGLE")) {
+      combinedShape = createRectangularShutter(dcm);
     }
 
     if (shutterShape.contains("CIRCULAR")) {
       Area circularShutter = createCircularShutter(dcm);
-      shape = combineShutterAreas(shape, circularShutter);
+      combinedShape = combineShutterAreas(combinedShape, circularShutter);
     }
 
     if (shutterShape.contains("POLYGONAL")) {
       Area polygonalShutter = createPolygonalShutter(dcm);
-      shape = combineShutterAreas(shape, polygonalShutter);
+      combinedShape = combineShutterAreas(combinedShape, polygonalShutter);
     }
 
-    return shape;
+    return combinedShape;
+  }
+
+  private static boolean containsShutterType(String shutterShape, String... types) {
+    return Arrays.stream(types).anyMatch(shutterShape::contains);
   }
 
   private static Area createRectangularShutter(Attributes dcm) {
+    int left = dcm.getInt(Tag.ShutterLeftVerticalEdge, 0);
+    int top = dcm.getInt(Tag.ShutterUpperHorizontalEdge, 0);
+    int right = dcm.getInt(Tag.ShutterRightVerticalEdge, 0);
+    int bottom = dcm.getInt(Tag.ShutterLowerHorizontalEdge, 0);
     Rectangle2D rect = new Rectangle2D.Double();
-    rect.setFrameFromDiagonal(
-        dcm.getInt(Tag.ShutterLeftVerticalEdge, 0),
-        dcm.getInt(Tag.ShutterUpperHorizontalEdge, 0),
-        dcm.getInt(Tag.ShutterRightVerticalEdge, 0),
-        dcm.getInt(Tag.ShutterLowerHorizontalEdge, 0));
+    rect.setFrameFromDiagonal(left, top, right, bottom);
     if (rect.isEmpty()) {
-      LOGGER.error("Shutter rectangle has an empty area!");
+      LOGGER.warn(
+          "Shutter rectangle has an empty area: left={}, top={}, right={}, bottom={}",
+          left,
+          top,
+          right,
+          bottom);
       return null;
     }
     return new Area(rect);
   }
 
   private static Area createCircularShutter(Attributes dcm) {
-    int[] centerOfCircularShutter = dcm.getInts(Tag.CenterOfCircularShutter);
-    if (centerOfCircularShutter == null || centerOfCircularShutter.length < 2) {
+    int[] center = dcm.getInts(Tag.CenterOfCircularShutter);
+    if (center == null || center.length < 2) {
+      LOGGER.warn("Invalid or missing center coordinates for circular shutter");
       return null;
     }
-    Ellipse2D ellipse = new Ellipse2D.Double();
     double radius = dcm.getInt(Tag.RadiusOfCircularShutter, 0);
-    // DICOM uses row,column ordering instead of x,y
-    ellipse.setFrameFromCenter(
-        centerOfCircularShutter[1],
-        centerOfCircularShutter[0],
-        centerOfCircularShutter[1] + radius,
-        centerOfCircularShutter[0] + radius);
-    if (ellipse.isEmpty()) {
-      LOGGER.error("Shutter ellipse has an empty area!");
+    if (radius <= 0) {
+      LOGGER.warn("Invalid radius for circular shutter: {}", radius);
       return null;
     }
+    // DICOM uses row,column ordering instead of x,y
+    double centerX = center[1];
+    double centerY = center[0];
+
+    Ellipse2D ellipse =
+        new Ellipse2D.Double(centerX - radius, centerY - radius, 2 * radius, 2 * radius);
     return new Area(ellipse);
   }
 
   private static Area createPolygonalShutter(Attributes dcm) {
     int[] points = dcm.getInts(Tag.VerticesOfThePolygonalShutter);
-    if (points == null || points.length < 6) {
+    if (points == null || points.length < POLYGON_MIN_POINTS) {
+      LOGGER.warn(
+          "Insufficient points for polygonal shutter: {} points needed, {} provided",
+          POLYGON_MIN_POINTS / 2,
+          points != null ? points.length / 2 : 0);
       return null;
     }
     Polygon polygon = new Polygon();
@@ -281,7 +259,7 @@ public class DicomObjectUtil {
       polygon.addPoint(points[i * 2 + 1], points[i * 2]);
     }
     if (!isPolygonValid(polygon)) {
-      LOGGER.error("Shutter polygon has an empty area!");
+      LOGGER.warn("Shutter polygon has zero area or is invalid");
       return null;
     }
     return new Area(polygon);
@@ -302,14 +280,15 @@ public class DicomObjectUtil {
     if (polygon.npoints <= 2) {
       return false;
     }
-    int[] xPoints = polygon.xpoints;
-    int[] yPoints = polygon.ypoints;
+    // Calculate polygon area using shoelace formula
     double area = 0;
     for (int i = 0; i < polygon.npoints; i++) {
       int nextIndex = (i + 1) % polygon.npoints;
-      area += (xPoints[i] * yPoints[nextIndex]) - (xPoints[nextIndex] * yPoints[i]);
+      area +=
+          (polygon.xpoints[i] * (double) polygon.ypoints[nextIndex])
+              - (polygon.xpoints[nextIndex] * (double) polygon.ypoints[i]);
     }
-    return area != 0; // Non-zero area indicates a valid polygon, not a line
+    return MathUtil.isDifferentFromZero(area);
   }
 
   /**
@@ -323,7 +302,8 @@ public class DicomObjectUtil {
    */
   public static Color getShutterColor(Attributes dcm) {
     int[] rgb = CIELab.dicomLab2rgb(dcm.getInts(Tag.ShutterPresentationColorCIELabValue));
-    return getRGBColor(dcm.getInt(Tag.ShutterPresentationValue, 0x0000), rgb);
+    int pGray = dcm.getInt(Tag.ShutterPresentationValue, 0x0000);
+    return createColorFromValues(pGray, rgb);
   }
 
   /**
@@ -337,18 +317,20 @@ public class DicomObjectUtil {
    * @return the converted Color object with proper RGBA components
    */
   public static Color getRGBColor(int pGray, int[] rgbaColour) {
-    int r, g, b, a = 255;
+    return createColorFromValues(pGray, rgbaColour);
+  }
+
+  private static Color createColorFromValues(int pGray, int[] rgbaColour) {
     if (rgbaColour != null && rgbaColour.length >= 3) {
-      r = MathUtil.clamp(rgbaColour[0], 0, 255);
-      g = MathUtil.clamp(rgbaColour[1], 0, 255);
-      b = MathUtil.clamp(rgbaColour[2], 0, 255);
-      if (rgbaColour.length > 3) {
-        a = MathUtil.clamp(rgbaColour[3], 0, 255);
-      }
+      int r = MathUtil.clamp(rgbaColour[0], RGB_MIN, RGB_MAX);
+      int g = MathUtil.clamp(rgbaColour[1], RGB_MIN, RGB_MAX);
+      int b = MathUtil.clamp(rgbaColour[2], RGB_MIN, RGB_MAX);
+      int a = rgbaColour.length > 3 ? MathUtil.clamp(rgbaColour[3], RGB_MIN, RGB_MAX) : RGB_MAX;
+      return new Color(r, g, b, a);
     } else {
       // Convert 16-bit P-Value to 8-bit grayscale
-      r = g = b = MathUtil.clamp(pGray >> 8, 0, 255);
+      int gray = MathUtil.clamp(pGray >>> 8, RGB_MIN, RGB_MAX);
+      return new Color(gray, gray, gray);
     }
-    return new Color(r, g, b, a);
   }
 }

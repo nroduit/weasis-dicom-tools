@@ -16,6 +16,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.IntStream;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.img.DicomImageReadParam;
@@ -75,54 +76,37 @@ public record OverlayData(
     return getOverlayData(dcm, activationMask, true);
   }
 
-  /** Internal method to extract overlay data with presentation state flag. */
   private static List<OverlayData> getOverlayData(Attributes dcm, int activationMask, boolean pr) {
     if (dcm == null) {
       return Collections.emptyList();
     }
-    List<OverlayData> overlays = new ArrayList<>();
 
-    for (int groupIndex = 0; groupIndex < MAX_OVERLAY_GROUPS; groupIndex++) {
-      processOverlayGroup(dcm, groupIndex, activationMask, pr, overlays);
-    }
-    return overlays.isEmpty() ? Collections.emptyList() : overlays;
+    return IntStream.range(0, MAX_OVERLAY_GROUPS)
+        .filter(groupIndex -> isGroupActivated(groupIndex, activationMask))
+        .mapToObj(groupIndex -> groupIndex << GROUP_OFFSET_SHIFT)
+        .filter(groupOffset -> isLayerActivated(dcm, groupOffset, pr))
+        .map(groupOffset -> createOverlayData(dcm, groupOffset))
+        .filter(Optional::isPresent)
+        .map(Optional::get)
+        .toList();
   }
 
-  /** Processes a single overlay group and adds it to the list if valid. */
-  private static void processOverlayGroup(
-      Attributes dcm, int groupIndex, int activationMask, boolean pr, List<OverlayData> overlays) {
-
-    int groupOffset = groupIndex << GROUP_OFFSET_SHIFT;
-
-    if (isGroupActivated(groupIndex, activationMask) && isLayerActivate(dcm, groupOffset, pr)) {
-      createOverlayData(dcm, groupOffset).ifPresent(overlays::add);
-    }
-  }
-
-  /** Checks if the overlay group is activated by the activation mask. */
   private static boolean isGroupActivated(int groupIndex, int activationMask) {
     return (activationMask & (1 << groupIndex)) != 0;
   }
 
-  /** Determines if the overlay layer is activated. */
-  private static boolean isLayerActivate(Attributes dcm, int groupOffset, boolean pr) {
-    if (pr) {
-      String layerName = dcm.getString(Tag.OverlayActivationLayer | groupOffset);
-      return layerName != null;
-    }
-    return true;
+  private static boolean isLayerActivated(Attributes dcm, int groupOffset, boolean pr) {
+    return !pr || dcm.getString(Tag.OverlayActivationLayer | groupOffset) != null;
   }
 
-  /** Creates an OverlayData instance from DICOM attributes for the specified group. */
   private static Optional<OverlayData> createOverlayData(Attributes dcm, int groupOffset) {
-    Optional<byte[]> overlayDataBytes =
-        DicomAttributeUtils.getByteData(dcm, Tag.OverlayData | groupOffset);
+    var overlayDataBytes = DicomAttributeUtils.getByteData(dcm, Tag.OverlayData | groupOffset);
 
     if (overlayDataBytes.isEmpty()) {
       return Optional.empty();
     }
 
-    OverlayAttributes attributes = extractOverlayAttributes(dcm, groupOffset);
+    var attributes = extractOverlayAttributes(dcm, groupOffset);
 
     return Optional.of(
         new OverlayData(
@@ -135,7 +119,6 @@ public record OverlayData(
             overlayDataBytes.get()));
   }
 
-  /** Extracts overlay attributes from DICOM data. */
   private static OverlayAttributes extractOverlayAttributes(Attributes dcm, int groupOffset) {
     int rows = dcm.getInt(Tag.OverlayRows | groupOffset, 0);
     int columns = dcm.getInt(Tag.OverlayColumns | groupOffset, 0);
@@ -165,25 +148,23 @@ public record OverlayData(
       DicomImageReadParam params,
       int frameIndex) {
     if (imageSource == null || currentImage == null || desc == null || params == null) {
-      return currentImage; // No overlays to apply
+      return currentImage;
     }
-    OverlayContext context = buildOverlayContext(desc, params);
+    var context = buildOverlayContext(desc, params);
 
-    if (context.hasOverlays() && hasSameDimensions(imageSource, currentImage)) {
-      return applyOverlaysToImage(imageSource, currentImage, context, frameIndex);
+    if (!context.hasOverlays() || !hasSameDimensions(imageSource, currentImage)) {
+      return currentImage;
     }
 
-    return currentImage;
+    return applyOverlaysToImage(imageSource, currentImage, context, frameIndex);
   }
 
-  /** Creates an overlay context containing all overlay data sources. */
   private static OverlayContext buildOverlayContext(
       ImageDescriptor desc, DicomImageReadParam params) {
-    List<OverlayData> allOverlays = new ArrayList<>();
 
-    // Add presentation state overlays
-    Optional<PrDicomObject> prDcm = params.getPresentationState();
-    prDcm.ifPresent(prDicomObject -> allOverlays.addAll(prDicomObject.getOverlays()));
+    var allOverlays =
+        new ArrayList<>(
+            params.getPresentationState().map(PrDicomObject::getOverlays).orElse(List.of()));
 
     // Add regular overlays
     allOverlays.addAll(desc.getOverlayData());
@@ -191,49 +172,40 @@ public record OverlayData(
     return new OverlayContext(desc.getEmbeddedOverlay(), allOverlays, params);
   }
 
-  /** Checks if two images have the same dimensions. */
   private static boolean hasSameDimensions(PlanarImage image1, PlanarImage image2) {
     return image1.width() == image2.width() && image1.height() == image2.height();
   }
 
-  /** Applies overlays to the image. */
   private static ImageCV applyOverlaysToImage(
       PlanarImage imageSource, PlanarImage currentImage, OverlayContext context, int frameIndex) {
 
-    ImageDimensions dimensions = new ImageDimensions(currentImage.width(), currentImage.height());
+    var dimensions = new ImageDimensions(currentImage.width(), currentImage.height());
     byte[] overlayPixelData = createOverlayPixelData(imageSource, context, frameIndex, dimensions);
 
-    ImageCV overlayImage = createOverlayImage(overlayPixelData, dimensions);
-    Color overlayColor = context.params().getOverlayColor().orElse(Color.WHITE);
+    var overlayImage = createOverlayImage(overlayPixelData, dimensions);
+    var overlayColor = context.params().getOverlayColor().orElse(Color.WHITE);
 
     return ImageTransformer.overlay(currentImage.toMat(), overlayImage, overlayColor);
   }
 
-  /** Creates pixel data for overlays. */
   private static byte[] createOverlayPixelData(
       PlanarImage imageSource, OverlayContext context, int frameIndex, ImageDimensions dimensions) {
 
     byte[] pixelData = new byte[dimensions.totalPixels()];
-    applyEmbeddedOverlays(imageSource, context.embeddedOverlays(), pixelData, dimensions);
+
+    context
+        .embeddedOverlays()
+        .forEach(
+            overlay -> {
+              int mask = 1 << overlay.bitPosition();
+              applyEmbeddedOverlayMask(imageSource, mask, pixelData, dimensions);
+            });
+
     applyRegularOverlays(context.overlays(), pixelData, frameIndex, dimensions.width());
 
     return pixelData;
   }
 
-  /** Applies embedded overlays to pixel data. */
-  private static void applyEmbeddedOverlays(
-      PlanarImage imageSource,
-      List<EmbeddedOverlay> embeddedOverlays,
-      byte[] pixelData,
-      ImageDimensions dimensions) {
-
-    for (EmbeddedOverlay overlay : embeddedOverlays) {
-      int mask = 1 << overlay.bitPosition();
-      applyEmbeddedOverlayMask(imageSource, mask, pixelData, dimensions);
-    }
-  }
-
-  /** Applies a single embedded overlay mask to pixel data. */
   private static void applyEmbeddedOverlayMask(
       PlanarImage imageSource, int mask, byte[] pixelData, ImageDimensions dimensions) {
 
@@ -247,32 +219,26 @@ public record OverlayData(
     }
   }
 
-  /** Applies regular overlays to pixel data. */
   private static void applyRegularOverlays(
       List<OverlayData> overlays, byte[] pixelData, int frameIndex, int imageWidth) {
 
-    for (OverlayData overlay : LangUtil.emptyIfNull(overlays)) {
-      if (isOverlayApplicableToFrame(overlay, frameIndex)) {
-        applyOverlayToPixelData(overlay, pixelData, frameIndex, imageWidth);
-      }
-    }
+    LangUtil.emptyIfNull(overlays).stream()
+        .filter(overlay -> isOverlayApplicableToFrame(overlay, frameIndex))
+        .forEach(overlay -> applyOverlayToPixelData(overlay, pixelData, frameIndex, imageWidth));
   }
 
-  /** Checks if overlay is applicable to the current frame. */
   private static boolean isOverlayApplicableToFrame(OverlayData overlay, int frameIndex) {
     int overlayFrameIndex = frameIndex - overlay.imageFrameOrigin() + 1;
     return overlayFrameIndex >= 0 && overlayFrameIndex < overlay.framesInOverlay();
   }
 
-  /** Applies a single overlay to pixel data. */
   private static void applyOverlayToPixelData(
       OverlayData overlay, byte[] pixelData, int frameIndex, int imageWidth) {
 
-    OverlayFrameInfo frameInfo = calculateOverlayFrameInfo(overlay, frameIndex);
+    var frameInfo = calculateOverlayFrameInfo(overlay, frameIndex);
     applyOverlayBits(overlay, frameInfo, pixelData, imageWidth);
   }
 
-  /** Calculates overlay frame information. */
   private static OverlayFrameInfo calculateOverlayFrameInfo(OverlayData overlay, int frameIndex) {
     int overlayFrameIndex = frameIndex - overlay.imageFrameOrigin() + 1;
     int overlayOffset = overlay.rows() * overlay.columns() * overlayFrameIndex;
@@ -282,14 +248,15 @@ public record OverlayData(
     return new OverlayFrameInfo(overlayOffset, originX, originY, overlay.rows(), overlay.columns());
   }
 
-  /** Applies overlay bits to pixel data. */
   private static void applyOverlayBits(
       OverlayData overlay, OverlayFrameInfo frameInfo, byte[] pixelData, int imageWidth) {
 
     byte[] overlayData = overlay.data();
+    int endRow = Math.min(frameInfo.originY() + frameInfo.height(), pixelData.length / imageWidth);
+    int endCol = Math.min(frameInfo.originX() + frameInfo.width(), imageWidth);
 
-    for (int row = frameInfo.originY(); row < frameInfo.height(); row++) {
-      for (int col = frameInfo.originX(); col < frameInfo.width(); col++) {
+    for (int row = Math.max(0, frameInfo.originY()); row < endRow; row++) {
+      for (int col = Math.max(0, frameInfo.originX()); col < endCol; col++) {
         if (isOverlayPixelSet(overlayData, frameInfo, row, col)) {
           pixelData[row * imageWidth + col] = OVERLAY_PIXEL_VALUE;
         }
@@ -297,7 +264,6 @@ public record OverlayData(
     }
   }
 
-  /** Checks if a specific overlay pixel is set. */
   private static boolean isOverlayPixelSet(
       byte[] overlayData, OverlayFrameInfo frameInfo, int row, int col) {
 
@@ -308,16 +274,11 @@ public record OverlayData(
     int byteIndex = pixelIndex / 8;
     int bitIndex = pixelIndex % 8;
 
-    if (byteIndex >= overlayData.length) {
-      return false;
-    }
-    int byteValue = overlayData[byteIndex] & 0xff;
-    return (byteValue & (1 << bitIndex)) != 0;
+    return byteIndex < overlayData.length && (overlayData[byteIndex] & (1 << bitIndex)) != 0;
   }
 
-  /** Creates an overlay image from pixel data. */
   private static ImageCV createOverlayImage(byte[] pixelData, ImageDimensions dimensions) {
-    ImageCV overlay = new ImageCV(dimensions.height(), dimensions.width(), CvType.CV_8UC1);
+    var overlay = new ImageCV(dimensions.height(), dimensions.width(), CvType.CV_8UC1);
     overlay.put(0, 0, pixelData);
     return overlay;
   }
@@ -333,9 +294,9 @@ public record OverlayData(
   public static PlanarImage getOverlayImage(
       PlanarImage imageSource, List<OverlayData> overlays, int frameIndex) {
     if (imageSource == null || overlays == null || overlays.isEmpty()) {
-      return imageSource; // No overlays to apply
+      return imageSource;
     }
-    ImageDimensions dimensions = new ImageDimensions(imageSource.width(), imageSource.height());
+    var dimensions = new ImageDimensions(imageSource.width(), imageSource.height());
     byte[] pixelData = new byte[dimensions.totalPixels()];
 
     applyRegularOverlays(overlays, pixelData, frameIndex, dimensions.width());
@@ -345,16 +306,15 @@ public record OverlayData(
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-    OverlayData that = (OverlayData) o;
-    return groupOffset == that.groupOffset
-        && rows == that.rows
-        && columns == that.columns
-        && imageFrameOrigin == that.imageFrameOrigin
-        && framesInOverlay == that.framesInOverlay
-        && Arrays.equals(origin, that.origin)
-        && Arrays.equals(data, that.data);
+    return this == o
+        || (o instanceof OverlayData that
+            && groupOffset == that.groupOffset
+            && rows == that.rows
+            && columns == that.columns
+            && imageFrameOrigin == that.imageFrameOrigin
+            && framesInOverlay == that.framesInOverlay
+            && Arrays.equals(origin, that.origin)
+            && Arrays.equals(data, that.data));
   }
 
   @Override
@@ -367,23 +327,14 @@ public record OverlayData(
 
   @Override
   public String toString() {
-    return "OverlayData{"
-        + "groupOffset="
-        + groupOffset
-        + ", rows="
-        + rows
-        + ", columns="
-        + columns
-        + '}';
+    return "OverlayData{groupOffset=%d, rows=%d, columns=%d}".formatted(groupOffset, rows, columns);
   }
 
-  // Helper records for better organization
+  // Helper records
 
-  /** Internal record to hold overlay attributes extracted from DICOM data. */
   private record OverlayAttributes(
       int rows, int columns, int imageFrameOrigin, int framesInOverlay, int[] origin) {}
 
-  /** Internal record to hold overlay context information. */
   private record OverlayContext(
       List<EmbeddedOverlay> embeddedOverlays,
       List<OverlayData> overlays,
@@ -394,14 +345,12 @@ public record OverlayData(
     }
   }
 
-  /** Internal record to hold image dimensions. */
   private record ImageDimensions(int width, int height) {
     int totalPixels() {
       return width * height;
     }
   }
 
-  /** Internal record to hold overlay frame information. */
   private record OverlayFrameInfo(
       int overlayOffset, int originX, int originY, int height, int width) {}
 }

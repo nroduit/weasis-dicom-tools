@@ -53,7 +53,7 @@ import org.weasis.core.util.StringUtil;
  * @author Nicolas Roduit
  * @since Apr 2019
  */
-public class DateTimeUtils {
+public final class DateTimeUtils {
 
   // DICOM DA (Date) formatters
   private static final DateTimeFormatter DA_PARSER =
@@ -218,10 +218,10 @@ public class DateTimeUtils {
    * @throws java.time.format.DateTimeParseException if the value cannot be parsed
    */
   public static Temporal parseDT(String value) {
-    TemporalAccessor temporal = DT_PARSER.parse(value.trim());
-    LocalDate date = extractDate(temporal);
-    LocalTime time = extractTime(temporal);
-    LocalDateTime dateTime = LocalDateTime.of(date, time);
+    var temporal = DT_PARSER.parse(value.trim());
+    var date = extractDate(temporal);
+    var time = extractTime(temporal);
+    var dateTime = LocalDateTime.of(date, time);
     return temporal.isSupported(OFFSET_SECONDS)
         ? ZonedDateTime.of(dateTime, ZoneOffset.ofTotalSeconds(temporal.get(OFFSET_SECONDS)))
         : dateTime;
@@ -291,8 +291,7 @@ public class DateTimeUtils {
   }
 
   /**
-   * Creates a Date object by combining separate date and time Date objects. Handles timezone
-   * conversion and null value scenarios.
+   * Creates a Date object by combining separate date and time Date objects.
    *
    * @param tz the timezone to use (null for system default)
    * @param date the date component (null uses epoch date)
@@ -304,11 +303,11 @@ public class DateTimeUtils {
     if (!acceptNullDateOrTime && (date == null || time == null)) {
       return null;
     }
-    Calendar result = createCalendar(tz, date);
-    setDateFields(result, date);
-    setTimeFields(result, time);
 
-    return result.getTime();
+    var calendar = createCalendar(tz, date);
+    setDateFields(calendar, date);
+    setTimeFields(calendar, time);
+    return calendar.getTime();
   }
 
   /**
@@ -427,7 +426,7 @@ public class DateTimeUtils {
     if (!StringUtil.hasText(s)) {
       throw new IllegalArgumentException("Input CharSequence cannot be null or empty");
     }
-    String val = s.toString().trim();
+    var val = s.toString().trim();
     return DatatypeFactory.newInstance().newXMLGregorianCalendar(val).toGregorianCalendar();
   }
 
@@ -452,7 +451,7 @@ public class DateTimeUtils {
   }
 
   private static void setDateFields(Calendar calendar, Date date) {
-    Calendar datePart = Calendar.getInstance();
+    var datePart = Calendar.getInstance();
     datePart.setTime(date == null ? new Date(0) : date);
     calendar.set(Calendar.YEAR, datePart.get(Calendar.YEAR));
     calendar.set(Calendar.MONTH, datePart.get(Calendar.MONTH));
@@ -460,7 +459,7 @@ public class DateTimeUtils {
   }
 
   private static void setTimeFields(Calendar calendar, Date time) {
-    Calendar timePart = Calendar.getInstance();
+    var timePart = Calendar.getInstance();
     timePart.setTime(time == null ? new Date(0) : time);
     calendar.set(Calendar.HOUR_OF_DAY, timePart.get(Calendar.HOUR_OF_DAY));
     calendar.set(Calendar.MINUTE, timePart.get(Calendar.MINUTE));

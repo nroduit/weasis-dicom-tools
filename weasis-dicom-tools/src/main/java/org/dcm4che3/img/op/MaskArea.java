@@ -15,7 +15,6 @@ import java.awt.Shape;
 import java.util.List;
 import java.util.Objects;
 import org.opencv.core.Mat;
-import org.opencv.core.MatOfPoint;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
@@ -93,32 +92,24 @@ public class MaskArea {
    * @return the masked image
    */
   public static ImageCV drawShape(Mat srcImg, MaskArea maskArea) {
-    if (maskArea == null || maskArea.getShapeList().isEmpty()) {
+    if (maskArea == null || maskArea.shapeList.isEmpty()) {
       return ImageCV.fromMat(srcImg);
     }
 
-    ImageCV dstImg = createDestinationImage(srcImg);
-    applyMaskShapes(srcImg, dstImg, maskArea);
-    return dstImg;
-  }
-
-  private static ImageCV createDestinationImage(Mat srcImg) {
-    ImageCV dstImg = new ImageCV();
+    var dstImg = new ImageCV();
     srcImg.copyTo(dstImg);
-    return dstImg;
-  }
 
-  private static void applyMaskShapes(Mat srcImg, ImageCV dstImg, MaskArea maskArea) {
-    Color maskColor = maskArea.getColor();
-    Scalar scalarColor = convertToScalar(maskColor);
-    for (Shape shape : maskArea.getShapeList()) {
-      if (shouldApplyBlur(maskColor, shape)) {
-        applyBlurToRectangle(srcImg, dstImg, (Rectangle) shape);
+    var scalarColor = convertToScalar(maskArea.color);
+
+    for (var shape : maskArea.shapeList) {
+      if (maskArea.color == null && shape instanceof Rectangle rect) {
+        applyBlurToRectangle(srcImg, dstImg, rect);
       } else {
-        List<MatOfPoint> contours = ImageAnalyzer.transformShapeToContour(shape, true);
+        var contours = ImageAnalyzer.transformShapeToContour(shape, true);
         Imgproc.fillPoly(dstImg, contours, scalarColor);
       }
     }
+    return dstImg;
   }
 
   private static Scalar convertToScalar(Color color) {
@@ -127,22 +118,15 @@ public class MaskArea {
         : new Scalar(color.getBlue(), color.getGreen(), color.getRed());
   }
 
-  private static boolean shouldApplyBlur(Color color, Shape shape) {
-    return color == null && shape instanceof Rectangle;
-  }
-
   private static void applyBlurToRectangle(Mat srcImg, ImageCV dstImg, Rectangle rect) {
-    Rectangle clippedRect = rect.intersection(new Rectangle(0, 0, srcImg.width(), srcImg.height()));
+    var imageBounds = new Rectangle(0, 0, srcImg.width(), srcImg.height());
+    var clippedRect = rect.intersection(imageBounds);
 
-    if (isRectangleTooSmall(clippedRect)) {
+    if (clippedRect.width < MIN_BLUR_DIMENSION || clippedRect.height < MIN_BLUR_DIMENSION) {
       LOGGER.warn("The masking shape is not applicable: {}", clippedRect);
       return;
     }
-    Rect cvRect = new Rect(clippedRect.x, clippedRect.y, clippedRect.width, clippedRect.height);
+    var cvRect = new Rect(clippedRect.x, clippedRect.y, clippedRect.width, clippedRect.height);
     Imgproc.blur(srcImg.submat(cvRect), dstImg.submat(cvRect), DEFAULT_BLUR_SIZE);
-  }
-
-  private static boolean isRectangleTooSmall(Rectangle rect) {
-    return rect.width < MIN_BLUR_DIMENSION || rect.height < MIN_BLUR_DIMENSION;
   }
 }

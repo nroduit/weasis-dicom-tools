@@ -14,7 +14,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SeekableByteChannel;
 import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Objects;
 
 /**
  * A {@link SeekableByteChannel} implementation backed by an in-memory byte array.
@@ -34,16 +34,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *   <li>{@link #truncate(long)} does not throw exceptions on closed channels
  * </ul>
  */
-public class SeekableInMemoryByteChannel implements SeekableByteChannel {
+public final class SeekableInMemoryByteChannel implements SeekableByteChannel {
 
-  /** Threshold for switching from exponential to linear growth strategy */
-  private static final int EXPONENTIAL_GROWTH_LIMIT = Integer.MAX_VALUE >> 1;
-
-  /** Initial buffer size for empty constructor */
+  private static final int EXPONENTIAL_GROWTH_LIMIT = Integer.MAX_VALUE >>> 1;
   private static final int INITIAL_CAPACITY = 32;
 
   private byte[] data;
-  private final AtomicBoolean closed = new AtomicBoolean(false);
+  private volatile boolean closed;
   private int position;
   private int size;
 
@@ -57,10 +54,7 @@ public class SeekableInMemoryByteChannel implements SeekableByteChannel {
    * @throws IllegalArgumentException if data is null
    */
   public SeekableInMemoryByteChannel(byte[] data) {
-    if (data == null) {
-      throw new IllegalArgumentException("Data array cannot be null");
-    }
-    this.data = data;
+    this.data = Objects.requireNonNull(data, "Data array cannot be null");
     this.size = data.length;
     this.position = 0;
   }
@@ -120,12 +114,8 @@ public class SeekableInMemoryByteChannel implements SeekableByteChannel {
     validateSize(newSize);
 
     int truncatedSize = (int) newSize;
-    if (size > truncatedSize) {
-      size = truncatedSize;
-    }
-    if (position > truncatedSize) {
-      position = truncatedSize;
-    }
+    this.size = Math.min(size, truncatedSize);
+    this.position = Math.min(position, truncatedSize);
     return this;
   }
 
@@ -165,58 +155,50 @@ public class SeekableInMemoryByteChannel implements SeekableByteChannel {
 
   @Override
   public boolean isOpen() {
-    return !closed.get();
+    return !closed;
   }
 
   @Override
   public void close() {
-    closed.set(true);
+    closed = true;
   }
 
-  /** Validates that the position is within acceptable bounds */
   private void validatePosition(long position) {
     if (position < 0L || position > Integer.MAX_VALUE) {
       throw new IllegalArgumentException(
-          String.format("Position must be in range [0, %d], got: %d", Integer.MAX_VALUE, position));
+          "Position must be in range [0, %d], got: %d".formatted(Integer.MAX_VALUE, position));
     }
   }
 
-  /** Validates that the size is within acceptable bounds */
   private void validateSize(long size) {
     if (size < 0L || size > Integer.MAX_VALUE) {
       throw new IllegalArgumentException(
-          String.format("Size must be in range [0, %d], got: %d", Integer.MAX_VALUE, size));
+          "Size must be in range [0, %d], got: %d".formatted(Integer.MAX_VALUE, size));
     }
   }
 
-  /** Ensures the channel is open, throwing ClosedChannelException if not */
   private void ensureOpen() throws ClosedChannelException {
     if (!isOpen()) {
       throw new ClosedChannelException();
     }
   }
 
-  /** Ensures the internal buffer has at least the specified capacity */
   private void ensureCapacity(int requiredCapacity) {
     if (requiredCapacity <= data.length) {
       return;
     }
 
-    int newCapacity = calculateNewCapacity(data.length, requiredCapacity);
-    data = Arrays.copyOf(data, newCapacity);
+    data = Arrays.copyOf(data, calculateNewCapacity(data.length, requiredCapacity));
   }
 
-  /** Calculates optimal new capacity using exponential growth up to a limit, then linear */
   private int calculateNewCapacity(int currentCapacity, int requiredCapacity) {
     int newCapacity = Math.max(currentCapacity, 1);
 
     if (requiredCapacity < EXPONENTIAL_GROWTH_LIMIT) {
-      // Use exponential growth for smaller sizes
       while (newCapacity < requiredCapacity) {
         newCapacity <<= 1;
       }
     } else {
-      // Use exact size for large allocations to avoid waste
       newCapacity = requiredCapacity;
     }
 

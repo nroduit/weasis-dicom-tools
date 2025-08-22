@@ -72,18 +72,13 @@ public class DicomOutputData {
   public DicomOutputData(
       List<SupplierEx<PlanarImage, IOException>> images, ImageDescriptor desc, String tsuid)
       throws IOException {
-    if (Objects.requireNonNull(images).isEmpty()) {
-      throw new IllegalStateException("No image found!");
-    }
+    validateInputs(images, desc, tsuid);
     this.images = new ArrayList<>(images);
-    this.desc = Objects.requireNonNull(desc);
+    this.desc = desc;
     int type = CvType.depth(getFirstImage().get().type());
-    this.tsuid =
-        DicomOutputData.adaptSuitableSyntax(
-            desc.getBitsStored(), type, Objects.requireNonNull(tsuid));
-    if (!isSupportedSyntax(this.tsuid)) {
-      throw new IllegalStateException(this.tsuid + " is not supported as encoding syntax!");
-    }
+    this.tsuid = adaptSuitableSyntax(desc.getBitsStored(), type, tsuid);
+
+    validateTransferSyntax();
   }
 
   /**
@@ -112,6 +107,21 @@ public class DicomOutputData {
     this(Collections.singletonList(() -> image), desc, tsuid);
   }
 
+  private void validateInputs(
+      List<SupplierEx<PlanarImage, IOException>> images, ImageDescriptor desc, String tsuid) {
+    if (Objects.requireNonNull(images, "Images list cannot be null").isEmpty()) {
+      throw new IllegalStateException("No image found!");
+    }
+    Objects.requireNonNull(desc, "Image descriptor cannot be null");
+    Objects.requireNonNull(tsuid, "Transfer syntax UID cannot be null");
+  }
+
+  private void validateTransferSyntax() {
+    if (!isSupportedSyntax(this.tsuid)) {
+      throw new IllegalStateException(this.tsuid + " is not supported as encoding syntax!");
+    }
+  }
+
   public SupplierEx<PlanarImage, IOException> getFirstImage() {
     return images.get(0);
   }
@@ -124,15 +134,7 @@ public class DicomOutputData {
     return tsuid;
   }
 
-  /**
-   * Writes compressed image data to a DICOM output stream using native encoding. Handles JPEG,
-   * JPEG-LS, and JPEG 2000 compression formats with proper encapsulation.
-   *
-   * @param dos the DICOM output stream
-   * @param dataSet the DICOM attributes dataset
-   * @param params the compression parameters array
-   * @throws IOException if encoding or writing fails
-   */
+  /** Writes compressed image data to a DICOM output stream using native encoding. */
   public void writeCompressedImageData(DicomOutputStream dos, Attributes dataSet, int[] params)
       throws IOException {
     Mat buf = null;
@@ -141,14 +143,11 @@ public class DicomOutputData {
       dicomParams = new MatOfInt(params);
       for (int i = 0; i < images.size(); i++) {
         buf = encodeImageFrame(i, dicomParams);
-
         if (i == 0) {
           writeDatasetHeader(dos, dataSet, params, buf);
         }
-
         writeCompressedFrame(dos, buf);
       }
-
       dos.writeHeader(Tag.SequenceDelimitationItem, null, 0);
     } catch (Throwable t) {
       throw new IOException("Native encoding error", t);
@@ -177,50 +176,55 @@ public class DicomOutputData {
     return buf;
   }
 
-  private void writeDatasetHeader(DicomOutputStream dos, Attributes dataSet, int[] params, Mat buf)
-      throws IOException {
-    PlanarImage firstImage = getFirstImage().get();
-    int compressedLength = buf.width() * buf.height() * (int) buf.elemSize();
-    double uncompressed = firstImage.width() * firstImage.height() * (double) firstImage.elemSize();
-    adaptCompressionRatio(dataSet, params, uncompressed / compressedLength);
+  private void writeDatasetHeader(
+      DicomOutputStream dos, Attributes dataSet, int[] params, Mat buffer) throws IOException {
+    var compressionRatio = calculateCompressionRatio(buffer);
+    adaptCompressionRatio(dataSet, params, compressionRatio);
     dos.writeDataset(null, dataSet);
     dos.writeHeader(Tag.PixelData, VR.OB, -1);
     dos.writeHeader(Tag.Item, null, 0);
   }
 
-  private void writeCompressedFrame(DicomOutputStream dos, Mat buf) throws IOException {
-    int compressedLength = buf.width() * buf.height() * (int) buf.elemSize();
-    byte[] frameData = new byte[compressedLength];
-    buf.get(0, 0, frameData);
+  private double calculateCompressionRatio(Mat buffer) throws IOException {
+    var firstImage = getFirstImage().get();
+    int compressedLength = buffer.width() * buffer.height() * (int) buffer.elemSize();
+    double uncompressed = firstImage.width() * firstImage.height() * (double) firstImage.elemSize();
+    return uncompressed / compressedLength;
+  }
+
+  private void writeCompressedFrame(DicomOutputStream dos, Mat buffer) throws IOException {
+    int frameSize = buffer.width() * buffer.height() * (int) buffer.elemSize();
+    byte[] frameData = new byte[frameSize];
+    buffer.get(0, 0, frameData);
     dos.writeHeader(Tag.Item, null, frameData.length);
     dos.write(frameData);
   }
 
   private void adaptCompressionRatio(Attributes dataSet, int[] params, double ratio) {
-    int compressType = params[Imgcodecs.DICOM_PARAM_COMPRESSION];
-    int jpeglsNLE = params[Imgcodecs.DICOM_PARAM_JPEGLS_LOSSY_ERROR];
-    int jpeg2000CompRatio = params[Imgcodecs.DICOM_PARAM_J2K_COMPRESSION_FACTOR];
-    int jpegQuality = params[Imgcodecs.DICOM_PARAM_JPEG_QUALITY];
-    if (isLossyCompression(compressType, jpegQuality, jpeg2000CompRatio, jpeglsNLE)) {
-      setLossyCompressionTags(dataSet, compressType, ratio);
+    var compressionInfo = extractCompressionInfo(params);
+
+    if (compressionInfo.isLossy()) {
+      setLossyCompressionTags(dataSet, compressionInfo.type(), ratio);
     }
   }
 
-  private boolean isLossyCompression(
-      int compressType, int jpegQuality, int jpeg2000CompRatio, int jpeglsNLE) {
-    return (compressType == Imgcodecs.DICOM_CP_JPG && jpegQuality > 0)
-        || (compressType == Imgcodecs.DICOM_CP_J2K && jpeg2000CompRatio > 0)
-        || (compressType == Imgcodecs.DICOM_CP_JPLS && jpeglsNLE > 0);
+  private CompressionInfo extractCompressionInfo(int[] params) {
+    return new CompressionInfo(
+        params[Imgcodecs.DICOM_PARAM_COMPRESSION],
+        params[Imgcodecs.DICOM_PARAM_JPEG_QUALITY],
+        params[Imgcodecs.DICOM_PARAM_J2K_COMPRESSION_FACTOR],
+        params[Imgcodecs.DICOM_PARAM_JPEGLS_LOSSY_ERROR]);
   }
 
   private void setLossyCompressionTags(Attributes dataSet, int compressType, double ratio) {
     dataSet.setString(Tag.LossyImageCompression, VR.CS, "01");
-    String method = getCompressionMethod(compressType);
-    double[] ratios = updateCompressionRatios(dataSet, ratio);
-    String[] methods = updateCompressionMethods(dataSet, method);
 
-    dataSet.setDouble(Tag.LossyImageCompressionRatio, VR.DS, ratios);
-    dataSet.setString(Tag.LossyImageCompressionMethod, VR.CS, methods);
+    var method = getCompressionMethod(compressType);
+    var updatedRatios = updateCompressionRatios(dataSet, ratio);
+    var updatedMethods = updateCompressionMethods(dataSet, method);
+
+    dataSet.setDouble(Tag.LossyImageCompressionRatio, VR.DS, updatedRatios);
+    dataSet.setString(Tag.LossyImageCompressionMethod, VR.CS, updatedMethods);
   }
 
   private String getCompressionMethod(int compressType) {
@@ -232,152 +236,101 @@ public class DicomOutputData {
   }
 
   private double[] updateCompressionRatios(Attributes dataSet, double ratio) {
-    double[] old = dataSet.getDoubles(Tag.LossyImageCompressionRatio);
-    if (old == null) {
-      return new double[] {ratio};
-    }
+    var existing = dataSet.getDoubles(Tag.LossyImageCompressionRatio);
+    return existing == null ? new double[] {ratio} : appendToArray(existing, ratio);
+  }
 
-    double[] updated = Arrays.copyOf(old, old.length + 1);
-    updated[updated.length - 1] = ratio;
-    return updated;
+  private double[] appendToArray(double[] array, double value) {
+    var result = Arrays.copyOf(array, array.length + 1);
+    result[result.length - 1] = value;
+    return result;
   }
 
   private String[] updateCompressionMethods(Attributes dataSet, String method) {
-    String[] oldMethods =
+    var existing =
         DicomUtils.getStringArrayFromDicomElement(
             dataSet, Tag.LossyImageCompressionMethod, new String[0]);
-    String[] updated = Arrays.copyOf(oldMethods, oldMethods.length + 1);
+    var updated = Arrays.copyOf(existing, existing.length + 1);
     updated[updated.length - 1] = method;
 
-    // Ensure all methods have valid values
-    for (int i = 0; i < updated.length; i++) {
-      if (!StringUtil.hasText(updated[i])) {
-        updated[i] = "unknown";
-      }
-    }
-    return updated;
+    return sanitizeCompressionMethods(updated);
   }
 
-  /**
-   * Writes raw (uncompressed) image data to a DICOM output stream. Handles various pixel data types
-   * with proper byte ordering and RGB conversion.
-   *
-   * @param dos the DICOM output stream
-   * @param data the DICOM attributes dataset
-   */
-  public void writRawImageData(DicomOutputStream dos, Attributes data) {
+  private String[] sanitizeCompressionMethods(String[] methods) {
+    for (int i = 0; i < methods.length; i++) {
+      if (!StringUtil.hasText(methods[i])) {
+        methods[i] = "unknown";
+      }
+    }
+    return methods;
+  }
+
+  /** Writes raw (uncompressed) image data to a DICOM output stream. */
+  public void writeRawImageData(DicomOutputStream dos, Attributes data) {
     try {
-      PlanarImage firstImage = getFirstImage().get();
+      var firstImage = getFirstImage().get();
       adaptTagsToRawImage(data, firstImage, desc);
       dos.writeDataset(null, data);
 
-      int type = CvType.depth(firstImage.type());
-      int length = calculateTotalPixelDataLength(firstImage);
-      dos.writeHeader(Tag.PixelData, VR.OB, length);
+      var pixelDataInfo = calculatePixelDataInfo(firstImage);
+      dos.writeHeader(Tag.PixelData, VR.OB, pixelDataInfo.totalLength());
 
-      writePixelDataByType(dos, type, firstImage);
+      writePixelDataByType(dos, pixelDataInfo);
     } catch (Exception e) {
-      LOGGER.error("Writing raw pixel data", e);
+      LOGGER.error("Error writing raw pixel data", e);
     }
   }
 
-  private int calculateTotalPixelDataLength(PlanarImage firstImage) {
-    int imgSize = firstImage.width() * firstImage.height();
-    return images.size() * imgSize * (int) firstImage.elemSize();
-  }
-
-  private void writePixelDataByType(DicomOutputStream dos, int type, PlanarImage firstImage)
-      throws IOException {
-    int imgSize = firstImage.width() * firstImage.height();
+  private PixelDataInfo calculatePixelDataInfo(PlanarImage firstImage) {
+    int type = CvType.depth(firstImage.type());
     int channels = CvType.channels(firstImage.type());
 
-    switch (type) {
-      case CvType.CV_8U, CvType.CV_8S -> writeByteData(dos, imgSize, channels);
-      case CvType.CV_16U, CvType.CV_16S -> writeShortData(dos, imgSize, channels);
-      case CvType.CV_32S -> writeIntData(dos, imgSize, channels);
-      case CvType.CV_32F -> writeFloatData(dos, imgSize, channels);
-      case CvType.CV_64F -> writeDoubleData(dos, imgSize, channels);
-      default -> throw new IllegalStateException("Cannot write this unknown image type");
+    int imageSize = firstImage.width() * firstImage.height();
+    int totalLength = images.size() * imageSize * (int) firstImage.elemSize();
+
+    return new PixelDataInfo(type, channels, imageSize, totalLength);
+  }
+
+  private void writePixelDataByType(DicomOutputStream dos, PixelDataInfo info) throws IOException {
+    switch (info.type()) {
+      case CvType.CV_8U, CvType.CV_8S -> new ByteDataWriter().write(dos, info);
+      case CvType.CV_16U, CvType.CV_16S -> new ShortDataWriter().write(dos, info);
+      case CvType.CV_32S -> new IntDataWriter().write(dos, info);
+      case CvType.CV_32F -> new FloatDataWriter().write(dos, info);
+      case CvType.CV_64F -> new DoubleDataWriter().write(dos, info);
+      default -> throw new IllegalStateException("Cannot write unknown image type: " + info.type());
     }
   }
 
-  private void writeByteData(DicomOutputStream dos, int imgSize, int channels) throws IOException {
-    byte[] srcData = new byte[imgSize * channels];
-    for (SupplierEx<PlanarImage, IOException> image : images) {
-      PlanarImage img = PixelDataUtils.bgr2rgb(image.get());
-      img.get(0, 0, srcData);
-      dos.write(srcData);
-    }
-  }
-
-  private void writeShortData(DicomOutputStream dos, int imgSize, int channels) throws IOException {
-    short[] srcData = new short[imgSize * channels];
-    ByteBuffer bb = ByteBuffer.allocate(srcData.length * Short.BYTES);
-    bb.order(ByteOrder.LITTLE_ENDIAN);
-    for (SupplierEx<PlanarImage, IOException> image : images) {
-      PlanarImage img = PixelDataUtils.bgr2rgb(image.get());
-      img.get(0, 0, srcData);
-      bb.clear();
-      bb.asShortBuffer().put(srcData);
-      dos.write(bb.array());
-    }
-  }
-
-  private void writeIntData(DicomOutputStream dos, int imgSize, int channels) throws IOException {
-    int[] srcData = new int[imgSize * channels];
-    ByteBuffer bb = ByteBuffer.allocate(srcData.length * Integer.BYTES);
-    bb.order(ByteOrder.LITTLE_ENDIAN);
-    for (SupplierEx<PlanarImage, IOException> image : images) {
-      PlanarImage img = PixelDataUtils.bgr2rgb(image.get());
-      img.get(0, 0, srcData);
-      bb.clear();
-      bb.asIntBuffer().put(srcData);
-      dos.write(bb.array());
-    }
-  }
-
-  private void writeFloatData(DicomOutputStream dos, int imgSize, int channels) throws IOException {
-    float[] srcData = new float[imgSize * channels];
-    ByteBuffer bb = ByteBuffer.allocate(srcData.length * Float.BYTES);
-    bb.order(ByteOrder.LITTLE_ENDIAN);
-    for (SupplierEx<PlanarImage, IOException> image : images) {
-      PlanarImage img = PixelDataUtils.bgr2rgb(image.get());
-      img.get(0, 0, srcData);
-      bb.clear();
-      bb.asFloatBuffer().put(srcData);
-      dos.write(bb.array());
-    }
-  }
-
-  private void writeDoubleData(DicomOutputStream dos, int imgSize, int channels)
-      throws IOException {
-    double[] srcData = new double[imgSize * channels];
-    ByteBuffer bb = ByteBuffer.allocate(srcData.length * Double.BYTES);
-    bb.order(ByteOrder.LITTLE_ENDIAN);
-    for (SupplierEx<PlanarImage, IOException> image : images) {
-      PlanarImage img = PixelDataUtils.bgr2rgb(image.get());
-      img.get(0, 0, srcData);
-      bb.clear();
-      bb.asDoubleBuffer().put(srcData);
-      dos.write(bb.array());
-    }
-  }
-
-  /**
-   * Adapts DICOM attributes for raw (uncompressed) image data format. Sets pixel characteristics
-   * including dimensions, bit depth, and photometric interpretation.
-   */
+  /** Adapts DICOM attributes for raw image data format. */
   public static void adaptTagsToRawImage(Attributes data, PlanarImage img, ImageDescriptor desc) {
+    var imageAttrs = extractImageAttributes(img, desc);
+    updateRawImageAttributes(data, img, imageAttrs, desc);
+  }
+
+  private static ImageAttributes extractImageAttributes(PlanarImage img, ImageDescriptor desc) {
     int cvType = img.type();
     int channels = CvType.channels(cvType);
-    int signed = CvType.depth(cvType) == CvType.CV_16S || desc.isSigned() ? 1 : 0;
+    boolean signed = CvType.depth(cvType) == CvType.CV_16S || desc.isSigned();
+
+    return new ImageAttributes(channels, signed);
+  }
+
+  private static void updateRawImageAttributes(
+      Attributes data, PlanarImage img, ImageAttributes attrs, ImageDescriptor desc) {
     data.setInt(Tag.Columns, VR.US, img.width());
     data.setInt(Tag.Rows, VR.US, img.height());
-    data.setInt(Tag.SamplesPerPixel, VR.US, channels);
+    data.setInt(Tag.SamplesPerPixel, VR.US, attrs.channels());
     data.setInt(Tag.BitsAllocated, VR.US, desc.getBitsAllocated());
     data.setInt(Tag.BitsStored, VR.US, desc.getBitsStored());
     data.setInt(Tag.HighBit, VR.US, desc.getBitsStored() - 1);
-    data.setInt(Tag.PixelRepresentation, VR.US, signed);
+    data.setInt(Tag.PixelRepresentation, VR.US, attrs.signed() ? 1 : 0);
+
+    setPhotometricInterpretation(data, img, desc);
+  }
+
+  private static void setPhotometricInterpretation(
+      Attributes data, PlanarImage img, ImageDescriptor desc) {
     String pmi = desc.getPhotometricInterpretation().toString();
     if (img.channels() > 1) {
       pmi = PhotometricInterpretation.RGB.toString();
@@ -386,25 +339,16 @@ public class DicomOutputData {
     data.setString(Tag.PhotometricInterpretation, VR.CS, pmi);
   }
 
-  /**
-   * Adapts DICOM attributes for compressed image data and prepares encoding parameters. Calculates
-   * optimal bit depth and compression settings based on image characteristics.
-   *
-   * @param data the DICOM attributes to update
-   * @param img the source image
-   * @param desc the image descriptor
-   * @param param the JPEG write parameters
-   * @return array of encoding parameters for native compression
-   */
+  /** Adapts DICOM attributes for compressed image data and prepares encoding parameters. */
   public int[] adaptTagsToCompressedImage(
       Attributes data, PlanarImage img, ImageDescriptor desc, DicomJpegWriteParam param) {
-    ImageCharacteristics characteristics = analyzeImageCharacteristics(img, desc);
-    CompressionSettings settings = determineCompressionSettings(param, characteristics);
-    int[] params = buildEncodingParameters(img, settings, characteristics, param);
+    var characteristics = analyzeImageCharacteristics(img, desc);
+    var settings = determineCompressionSettings(param, characteristics);
+    var encodingParams = buildEncodingParameters(img, settings, characteristics, param);
 
     updateDicomAttributes(data, img, characteristics);
 
-    return params;
+    return encodingParams;
   }
 
   private ImageCharacteristics analyzeImageCharacteristics(PlanarImage img, ImageDescriptor desc) {
@@ -414,50 +358,58 @@ public class DicomOutputData {
     int depth = CvType.depth(cvType);
     boolean signed = depth != CvType.CV_8U && (depth != CvType.CV_16U || desc.isSigned());
     int bitAllocated = elemSize * 8;
-    int bitCompressed = desc.getBitsCompressed();
-    if (bitCompressed > bitAllocated) {
-      bitCompressed = bitAllocated;
-    }
+    int bitCompressed = Math.min(desc.getBitsCompressed(), bitAllocated);
     return new ImageCharacteristics(channels, signed, bitAllocated, bitCompressed, depth);
   }
 
   private CompressionSettings determineCompressionSettings(
       DicomJpegWriteParam param, ImageCharacteristics characteristics) {
-    TransferSyntaxType ts = param.getType();
-    int jpeglsNLE = param.getNearLosslessError();
-    int bitCompressedForEncoder = characteristics.bitCompressed;
-    int compressType = Imgcodecs.DICOM_CP_JPG;
-    if (ts == TransferSyntaxType.JPEG_2000) {
-      compressType = Imgcodecs.DICOM_CP_J2K;
-    } else if (ts == TransferSyntaxType.JPEG_LS) {
-      compressType = Imgcodecs.DICOM_CP_JPLS;
-      if (characteristics.signed) {
-        LOGGER.warn(
-            "Force compression to JPEG-LS lossless as lossy is not adapted to signed data.");
-        jpeglsNLE = 0;
-        bitCompressedForEncoder = 16;
-      }
-    } else {
-      // JPEG encoder adjustments
-      bitCompressedForEncoder = adjustJpegBitDepth(characteristics, param);
+    var transferSyntax = param.getType();
+    int jpeglsNearLosslessError = param.getNearLosslessError();
+    int bitDepthForEncoder = characteristics.bitCompressed();
+
+    int compressionType = determineCompressionType(transferSyntax);
+
+    if (transferSyntax == TransferSyntaxType.JPEG_LS && characteristics.signed()) {
+      LOGGER.warn("Force compression to JPEG-LS lossless as lossy is not adapted to signed data.");
+      jpeglsNearLosslessError = 0;
+      bitDepthForEncoder = 16;
+    } else if (transferSyntax != TransferSyntaxType.JPEG_2000) {
+      bitDepthForEncoder = adjustBitDepthForEncoder(characteristics, param, transferSyntax);
     }
 
-    // Handle specific encoder limitations
-    if (ts != TransferSyntaxType.JPEG_2000
-        && characteristics.bitCompressed == 8
-        && characteristics.bitAllocated == 16) {
-      bitCompressedForEncoder = 12;
+    return new CompressionSettings(compressionType, bitDepthForEncoder, jpeglsNearLosslessError);
+  }
+
+  private int determineCompressionType(TransferSyntaxType transferSyntax) {
+    return switch (transferSyntax) {
+      case JPEG_2000 -> Imgcodecs.DICOM_CP_J2K;
+      case JPEG_LS -> Imgcodecs.DICOM_CP_JPLS;
+      default -> Imgcodecs.DICOM_CP_JPG;
+    };
+  }
+
+  private int adjustBitDepthForEncoder(
+      ImageCharacteristics characteristics,
+      DicomJpegWriteParam param,
+      TransferSyntaxType transferSyntax) {
+    int bitDepth = characteristics.bitCompressed();
+
+    if (transferSyntax != TransferSyntaxType.JPEG_2000
+        && bitDepth == 8
+        && characteristics.bitAllocated() == 16) {
+      return 12;
     }
 
-    return new CompressionSettings(compressType, bitCompressedForEncoder, jpeglsNLE);
+    return adjustJpegBitDepth(characteristics, param);
   }
 
   private int adjustJpegBitDepth(ImageCharacteristics characteristics, DicomJpegWriteParam param) {
-    int bitCompressed = characteristics.bitCompressed;
+    int bitCompressed = characteristics.bitCompressed();
     if (bitCompressed <= 8) {
       return 8;
     } else if (bitCompressed <= 12) {
-      if (characteristics.signed && param.getPrediction() > 1) {
+      if (characteristics.signed() && param.getPrediction() > 1) {
         LOGGER.warn("Force JPEGLosslessNonHierarchical14 compression to 16-bit with signed data.");
         return 16;
       }
@@ -503,40 +455,26 @@ public class DicomOutputData {
 
   private void updateDicomAttributes(
       Attributes data, PlanarImage img, ImageCharacteristics characteristics) {
-
     data.setInt(Tag.Columns, VR.US, img.width());
     data.setInt(Tag.Rows, VR.US, img.height());
-    data.setInt(Tag.SamplesPerPixel, VR.US, characteristics.channels);
-    data.setInt(Tag.BitsAllocated, VR.US, characteristics.bitAllocated);
-    data.setInt(Tag.BitsStored, VR.US, characteristics.bitCompressed);
-    data.setInt(Tag.HighBit, VR.US, characteristics.bitCompressed - 1);
-    data.setInt(Tag.PixelRepresentation, VR.US, characteristics.signed ? 1 : 0);
+    data.setInt(Tag.SamplesPerPixel, VR.US, characteristics.channels());
+    data.setInt(Tag.BitsAllocated, VR.US, characteristics.bitAllocated());
+    data.setInt(Tag.BitsStored, VR.US, characteristics.bitCompressed());
+    data.setInt(Tag.HighBit, VR.US, characteristics.bitCompressed() - 1);
+    data.setInt(Tag.PixelRepresentation, VR.US, characteristics.signed() ? 1 : 0);
 
-    PhotometricInterpretation pmi = desc.getPhotometricInterpretation();
-    if (img.channels() > 1) {
-      data.setInt(Tag.PlanarConfiguration, VR.US, 0);
-      pmi = PhotometricInterpretation.RGB.compress(tsuid);
-    }
-    data.setString(Tag.PhotometricInterpretation, VR.CS, pmi.toString());
+    setPhotometricInterpretation(data, img, desc);
   }
 
-  /**
-   * Adapts transfer syntax to be suitable for the given image characteristics. Ensures
-   * compatibility between image bit depth, data type, and compression format.
-   */
+  /** Adapts transfer syntax to be suitable for image characteristics. */
   public static String adaptSuitableSyntax(int bitStored, int type, String dstTsuid) {
     return switch (dstTsuid) {
       case UID.ImplicitVRLittleEndian, UID.ExplicitVRLittleEndian -> UID.ExplicitVRLittleEndian;
-      case UID.JPEGBaseline8Bit ->
-          type <= CvType.CV_8S
-              ? dstTsuid
-              : type <= CvType.CV_16S ? UID.JPEGLosslessSV1 : UID.ExplicitVRLittleEndian;
+      case UID.JPEGBaseline8Bit -> adaptJpegBaseline(type, bitStored);
       case UID.JPEGExtended12Bit,
               UID.JPEGSpectralSelectionNonHierarchical68,
               UID.JPEGFullProgressionNonHierarchical1012 ->
-          type <= CvType.CV_16U && bitStored <= 12
-              ? dstTsuid
-              : type <= CvType.CV_16S ? UID.JPEGLosslessSV1 : UID.ExplicitVRLittleEndian;
+          adaptJpegExtended(type, bitStored, dstTsuid);
       case UID.JPEGLossless,
               UID.JPEGLosslessSV1,
               UID.JPEGLSLossless,
@@ -546,6 +484,26 @@ public class DicomOutputData {
           type <= CvType.CV_16S ? dstTsuid : UID.ExplicitVRLittleEndian;
       default -> dstTsuid;
     };
+  }
+
+  private static String adaptJpegBaseline(int type, int bitStored) {
+    if (type <= CvType.CV_8S) {
+      return UID.JPEGBaseline8Bit;
+    } else if (type <= CvType.CV_16S) {
+      return UID.JPEGLosslessSV1;
+    } else {
+      return UID.ExplicitVRLittleEndian;
+    }
+  }
+
+  private static String adaptJpegExtended(int type, int bitStored, String dstTsuid) {
+    if (type <= CvType.CV_16U && bitStored <= 12) {
+      return dstTsuid;
+    } else if (type <= CvType.CV_16S) {
+      return UID.JPEGLosslessSV1;
+    } else {
+      return UID.ExplicitVRLittleEndian;
+    }
   }
 
   public static boolean isAdaptableSyntax(String uid) {
@@ -585,10 +543,104 @@ public class DicomOutputData {
     };
   }
 
-  // Helper record classes for better code organization
+  // Helper records for better organization
   private record ImageCharacteristics(
       int channels, boolean signed, int bitAllocated, int bitCompressed, int depth) {}
 
   private record CompressionSettings(
       int compressType, int bitCompressedForEncoder, int jpeglsNLE) {}
+
+  private record CompressionInfo(int type, int jpegQuality, int jpeg2000CompRatio, int jpeglsNLE) {
+    boolean isLossy() {
+      return (type == Imgcodecs.DICOM_CP_JPG && jpegQuality > 0)
+          || (type == Imgcodecs.DICOM_CP_J2K && jpeg2000CompRatio > 0)
+          || (type == Imgcodecs.DICOM_CP_JPLS && jpeglsNLE > 0);
+    }
+  }
+
+  private record ImageAttributes(int channels, boolean signed) {}
+
+  private record PixelDataInfo(int type, int channels, int imageSize, int totalLength) {}
+
+  // Data writers using strategy pattern
+  private abstract static class PixelDataWriter {
+    abstract void write(DicomOutputStream dos, PixelDataInfo info) throws IOException;
+
+    protected PlanarImage convertImage(SupplierEx<PlanarImage, IOException> imageSupplier)
+        throws IOException {
+      return PixelDataUtils.bgr2rgb(imageSupplier.get());
+    }
+  }
+
+  private class ByteDataWriter extends PixelDataWriter {
+    @Override
+    void write(DicomOutputStream dos, PixelDataInfo info) throws IOException {
+      byte[] data = new byte[info.imageSize() * info.channels()];
+      for (var imageSupplier : images) {
+        var img = convertImage(imageSupplier); // Do not release the image here
+        img.get(0, 0, data);
+        dos.write(data);
+      }
+    }
+  }
+
+  private class ShortDataWriter extends PixelDataWriter {
+    @Override
+    void write(DicomOutputStream dos, PixelDataInfo info) throws IOException {
+      short[] data = new short[info.imageSize() * info.channels()];
+      var buffer = ByteBuffer.allocate(data.length * Short.BYTES).order(ByteOrder.LITTLE_ENDIAN);
+
+      for (var imageSupplier : images) {
+        var img = convertImage(imageSupplier); // Do not release the image here
+        img.get(0, 0, data);
+        buffer.clear().asShortBuffer().put(data);
+        dos.write(buffer.array());
+      }
+    }
+  }
+
+  private class IntDataWriter extends PixelDataWriter {
+    @Override
+    void write(DicomOutputStream dos, PixelDataInfo info) throws IOException {
+      int[] data = new int[info.imageSize() * info.channels()];
+      var buffer = ByteBuffer.allocate(data.length * Integer.BYTES).order(ByteOrder.LITTLE_ENDIAN);
+
+      for (var imageSupplier : images) {
+        var img = convertImage(imageSupplier); // Do not release the image here
+        img.get(0, 0, data);
+        buffer.clear().asIntBuffer().put(data);
+        dos.write(buffer.array());
+      }
+    }
+  }
+
+  private class FloatDataWriter extends PixelDataWriter {
+    @Override
+    void write(DicomOutputStream dos, PixelDataInfo info) throws IOException {
+      float[] data = new float[info.imageSize() * info.channels()];
+      var buffer = ByteBuffer.allocate(data.length * Float.BYTES).order(ByteOrder.LITTLE_ENDIAN);
+
+      for (var imageSupplier : images) {
+        var img = convertImage(imageSupplier); // Do not release the image here
+        img.get(0, 0, data);
+        buffer.clear().asFloatBuffer().put(data);
+        dos.write(buffer.array());
+      }
+    }
+  }
+
+  private class DoubleDataWriter extends PixelDataWriter {
+    @Override
+    void write(DicomOutputStream dos, PixelDataInfo info) throws IOException {
+      double[] data = new double[info.imageSize() * info.channels()];
+      var buffer = ByteBuffer.allocate(data.length * Double.BYTES).order(ByteOrder.LITTLE_ENDIAN);
+
+      for (var imageSupplier : images) {
+        var img = convertImage(imageSupplier); // Do not release the image here
+        img.get(0, 0, data);
+        buffer.clear().asDoubleBuffer().put(data);
+        dos.write(buffer.array());
+      }
+    }
+  }
 }

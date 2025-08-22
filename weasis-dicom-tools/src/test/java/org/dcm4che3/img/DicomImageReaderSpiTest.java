@@ -9,22 +9,28 @@
  */
 package org.dcm4che3.img;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import java.io.ByteArrayInputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Locale;
-import javax.imageio.ImageReader;
+import java.util.stream.Stream;
 import javax.imageio.stream.ImageInputStream;
 import javax.imageio.stream.MemoryCacheImageInputStream;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.DisplayNameGeneration;
+import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+@DisplayNameGeneration(ReplaceUnderscores.class)
 class DicomImageReaderSpiTest {
 
   private DicomImageReaderSpi readerSpi;
@@ -35,407 +41,359 @@ class DicomImageReaderSpiTest {
   }
 
   @Nested
-  @DisplayName("Basic SPI Properties")
-  class BasicSpiProperties {
+  class Basic_SPI_Properties {
 
-    @Test
-    @DisplayName("Should return correct description")
-    void shouldReturnCorrectDescription() {
-      Assertions.assertEquals("DICOM Image Reader (dcm4che)", readerSpi.getDescription(null));
-      Assertions.assertEquals("DICOM Image Reader (dcm4che)", readerSpi.getDescription(Locale.US));
-      Assertions.assertEquals(
-          "DICOM Image Reader (dcm4che)", readerSpi.getDescription(Locale.FRANCE));
+    @ParameterizedTest
+    @MethodSource("org.dcm4che3.img.DicomImageReaderSpiTest#localeProvider")
+    void should_return_correct_description_for_all_locales(Locale locale) {
+      assertEquals("DICOM Image Reader (dcm4che)", readerSpi.getDescription(locale));
     }
 
     @Test
-    @DisplayName("Should create DicomImageReader instance")
-    void shouldCreateDicomImageReaderInstance() {
-      ImageReader reader = readerSpi.createReaderInstance(null);
-      Assertions.assertInstanceOf(DicomImageReader.class, reader);
-      Assertions.assertSame(readerSpi, reader.getOriginatingProvider());
+    void should_create_DicomImageReader_instance() {
+      var reader = readerSpi.createReaderInstance(null);
+      assertInstanceOf(DicomImageReader.class, reader);
+      assertSame(readerSpi, reader.getOriginatingProvider());
     }
 
     @Test
-    @DisplayName("Should create DicomImageReader instance with extension parameter")
-    void shouldCreateDicomImageReaderInstanceWithExtension() {
-      Object extension = new Object();
-      ImageReader reader = readerSpi.createReaderInstance(extension);
-      Assertions.assertInstanceOf(DicomImageReader.class, reader);
-      Assertions.assertSame(readerSpi, reader.getOriginatingProvider());
+    void should_create_DicomImageReader_instance_with_extension_parameter() {
+      var extension = new Object();
+      var reader = readerSpi.createReaderInstance(extension);
+      assertInstanceOf(DicomImageReader.class, reader);
+      assertSame(readerSpi, reader.getOriginatingProvider());
     }
 
     @Test
-    @DisplayName("Should have correct format names")
-    void shouldHaveCorrectFormatNames() {
-      String[] formatNames = readerSpi.getFormatNames();
-      Assertions.assertArrayEquals(new String[] {"dicom", "DICOM"}, formatNames);
+    void should_have_correct_format_names() {
+      var formatNames = readerSpi.getFormatNames();
+      assertArrayEquals(new String[] {"dicom", "DICOM"}, formatNames);
     }
 
     @Test
-    @DisplayName("Should have correct file suffixes")
-    void shouldHaveCorrectFileSuffixes() {
-      String[] suffixes = readerSpi.getFileSuffixes();
-      Assertions.assertArrayEquals(new String[] {"dcm", "dic", "dicm", "dicom"}, suffixes);
+    void should_have_correct_file_suffixes() {
+      var suffixes = readerSpi.getFileSuffixes();
+      assertArrayEquals(new String[] {"dcm", "dic", "dicm", "dicom"}, suffixes);
     }
 
     @Test
-    @DisplayName("Should have correct MIME types")
-    void shouldHaveCorrectMimeTypes() {
-      String[] mimeTypes = readerSpi.getMIMETypes();
-      Assertions.assertArrayEquals(new String[] {"application/dicom"}, mimeTypes);
+    void should_have_correct_MIME_types() {
+      var mimeTypes = readerSpi.getMIMETypes();
+      assertArrayEquals(new String[] {"application/dicom"}, mimeTypes);
     }
   }
 
   @Nested
-  @DisplayName("DICOM Format Detection")
-  class DicomFormatDetection {
+  class DICOM_Format_Detection {
 
     @Test
-    @DisplayName("Should detect DICOM by standard preamble and DICM prefix")
-    void shouldDetectDicomByStandardPreamble() throws IOException {
-      byte[] dicomData = createDicomWithPreamble();
-      ImageInputStream iis = new MemoryCacheImageInputStream(new ByteArrayInputStream(dicomData));
+    void should_detect_DICOM_by_standard_preamble_and_DICM_prefix() throws IOException {
+      var dicomData = DicomTestDataFactory.createDicomWithPreamble();
+      var iis = createImageInputStream(dicomData);
 
-      Assertions.assertTrue(readerSpi.canDecodeInput(iis));
-      // Verify stream position is restored
-      Assertions.assertEquals(0, iis.getStreamPosition());
+      assertTrue(readerSpi.canDecodeInput(iis));
+      assertEquals(0, iis.getStreamPosition(), "Stream position should be restored");
     }
 
     @Test
-    @DisplayName("Should detect DICOM by valid tag at beginning")
-    void shouldDetectDicomByValidTag() throws IOException {
-      byte[] dicomData = createDicomWithValidTag(0x00080010); // Patient Name tag
-      ImageInputStream iis = new MemoryCacheImageInputStream(new ByteArrayInputStream(dicomData));
+    void should_detect_DICOM_by_valid_tag_at_beginning() throws IOException {
+      var dicomData = DicomTestDataFactory.createDicomWithValidTag(0x0008_0010);
+      var iis = createImageInputStream(dicomData);
 
-      Assertions.assertTrue(readerSpi.canDecodeInput(iis));
-      Assertions.assertEquals(0, iis.getStreamPosition());
+      assertTrue(readerSpi.canDecodeInput(iis));
+      assertEquals(0, iis.getStreamPosition(), "Stream position should be restored");
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {0x00080000, 0x00080001, 0x00080005, 0x00080010, 0x00080016})
-    @DisplayName("Should detect DICOM by various valid tags")
-    void shouldDetectDicomByVariousValidTags(int tag) throws IOException {
-      byte[] dicomData = createDicomWithValidTag(tag);
-      ImageInputStream iis = new MemoryCacheImageInputStream(new ByteArrayInputStream(dicomData));
+    @ValueSource(ints = {0x0008_0000, 0x0008_0001, 0x0008_0005, 0x0008_0010, 0x0008_0016})
+    void should_detect_DICOM_by_various_valid_tags(int tag) throws IOException {
+      var dicomData = DicomTestDataFactory.createDicomWithValidTag(tag);
+      var iis = createImageInputStream(dicomData);
 
-      Assertions.assertTrue(readerSpi.canDecodeInput(iis));
+      assertTrue(readerSpi.canDecodeInput(iis));
     }
 
     @Test
-    @DisplayName("Should not detect DICOM with invalid preamble")
-    void shouldNotDetectDicomWithInvalidPreamble() throws IOException {
-      byte[] invalidData = createDicomWithPreamble();
+    void should_not_detect_DICOM_with_invalid_preamble() throws IOException {
+      var invalidData = DicomTestDataFactory.createDicomWithPreamble();
       invalidData[128] = 'A'; // Corrupt the DICM prefix
-      ImageInputStream iis = new MemoryCacheImageInputStream(new ByteArrayInputStream(invalidData));
+      var iis = createImageInputStream(invalidData);
 
-      Assertions.assertFalse(readerSpi.canDecodeInput(iis));
+      assertFalse(readerSpi.canDecodeInput(iis));
     }
 
-    @Test
-    @DisplayName("Should not detect DICOM with invalid tag")
-    void shouldNotDetectDicomWithInvalidTag() throws IOException {
-      byte[] invalidData = createDicomWithValidTag(0x00070000); // Invalid tag range
-      ImageInputStream iis = new MemoryCacheImageInputStream(new ByteArrayInputStream(invalidData));
-
-      Assertions.assertFalse(readerSpi.canDecodeInput(iis));
+    @ParameterizedTest
+    @ValueSource(ints = {0x0007_0000, 0x0008_0017, 0x0009_0000}) // Invalid tag ranges
+    void should_not_detect_DICOM_with_invalid_tags(int invalidTag) throws IOException {
+      var invalidData = DicomTestDataFactory.createDicomWithValidTag(invalidTag);
+      try (var iis = createImageInputStream(invalidData)) {
+        assertThrows(EOFException.class, () -> readerSpi.canDecodeInput(iis));
+      }
     }
 
-    @Test
-    @DisplayName("Should not detect DICOM with tag too high")
-    void shouldNotDetectDicomWithTagTooHigh() throws IOException {
-      byte[] invalidData = createDicomWithValidTag(0x00080017); // Just above valid range
-      ImageInputStream iis = new MemoryCacheImageInputStream(new ByteArrayInputStream(invalidData));
-
-      Assertions.assertFalse(readerSpi.canDecodeInput(iis));
-    }
-
-    @Test
-    @DisplayName("Should handle incomplete preamble gracefully")
-    void shouldHandleIncompletePreambleGracefully() throws IOException {
-      byte[] shortData = new byte[100]; // Too short for preamble
-      ImageInputStream iis = new MemoryCacheImageInputStream(new ByteArrayInputStream(shortData));
-
-      Assertions.assertFalse(readerSpi.canDecodeInput(iis));
-    }
-
-    @Test
-    @DisplayName("Should handle incomplete tag data gracefully")
-    void shouldHandleIncompleteTagDataGracefully() throws IOException {
-      byte[] shortData = new byte[2]; // Too short for complete tag
-      ImageInputStream iis = new MemoryCacheImageInputStream(new ByteArrayInputStream(shortData));
-
-      Assertions.assertFalse(readerSpi.canDecodeInput(iis));
-    }
-
-    @Test
-    @DisplayName("Should handle empty input gracefully")
-    void shouldHandleEmptyInputGracefully() throws IOException {
-      byte[] emptyData = new byte[0];
-      ImageInputStream iis = new MemoryCacheImageInputStream(new ByteArrayInputStream(emptyData));
-
-      Assertions.assertFalse(readerSpi.canDecodeInput(iis));
+    @ParameterizedTest
+    @ValueSource(ints = {0, 2, 50, 100, 127}) // Various incomplete lengths
+    void should_handle_incomplete_data_gracefully(int dataLength) throws IOException {
+      var shortData = new byte[dataLength];
+      try (var iis = createImageInputStream(shortData)) {
+        assertThrows(EOFException.class, () -> readerSpi.canDecodeInput(iis));
+      }
     }
   }
 
   @Nested
-  @DisplayName("Edge Cases and Error Handling")
-  class EdgeCasesAndErrorHandling {
+  class Edge_Cases_And_Error_Handling {
 
-    @Test
-    @DisplayName("Should return false for non-ImageInputStream input")
-    void shouldReturnFalseForNonImageInputStreamInput() throws IOException {
-      Assertions.assertFalse(readerSpi.canDecodeInput("not an input stream"));
-      Assertions.assertFalse(readerSpi.canDecodeInput(new ByteArrayInputStream(new byte[10])));
-      Assertions.assertFalse(readerSpi.canDecodeInput(null));
+    @ParameterizedTest
+    @MethodSource("org.dcm4che3.img.DicomImageReaderSpiTest#invalidInputProvider")
+    void should_return_false_for_invalid_input(Object invalidInput) throws IOException {
+      assertFalse(readerSpi.canDecodeInput(invalidInput));
     }
 
     @Test
-    @DisplayName("Should handle DICOM with minimal valid preamble")
-    void shouldHandleDicomWithMinimalValidPreamble() throws IOException {
-      byte[] minimalDicom = new byte[132];
-      // Set DICM at position 128
-      minimalDicom[128] = 'D';
-      minimalDicom[129] = 'I';
-      minimalDicom[130] = 'C';
-      minimalDicom[131] = 'M';
+    void should_handle_DICOM_with_minimal_valid_preamble() throws IOException {
+      var minimalDicom = DicomTestDataFactory.createMinimalValidDicom();
+      var iis = createImageInputStream(minimalDicom);
 
-      ImageInputStream iis =
-          new MemoryCacheImageInputStream(new ByteArrayInputStream(minimalDicom));
-      Assertions.assertTrue(readerSpi.canDecodeInput(iis));
+      assertTrue(readerSpi.canDecodeInput(iis));
     }
 
     @Test
-    @DisplayName("Should preserve stream position after failed detection")
-    void shouldPreserveStreamPositionAfterFailedDetection() throws IOException {
-      byte[] invalidData = new byte[200];
-      ImageInputStream iis = new MemoryCacheImageInputStream(new ByteArrayInputStream(invalidData));
+    void should_preserve_stream_position_after_failed_detection() throws IOException {
+      var invalidData = new byte[200];
+      var iis = createImageInputStream(invalidData);
 
-      // Move stream position
       iis.skipBytes(10);
-      long initialPosition = iis.getStreamPosition();
+      var initialPosition = iis.getStreamPosition();
 
-      Assertions.assertFalse(readerSpi.canDecodeInput(iis));
-      Assertions.assertEquals(initialPosition, iis.getStreamPosition());
+      assertFalse(readerSpi.canDecodeInput(iis));
+      assertEquals(initialPosition, iis.getStreamPosition());
     }
 
     @Test
-    @DisplayName("Should preserve stream position after successful detection")
-    void shouldPreserveStreamPositionAfterSuccessfulDetection() throws IOException {
-      byte[] dicomData = createDicomWithPreamble();
-      ImageInputStream iis = new MemoryCacheImageInputStream(new ByteArrayInputStream(dicomData));
+    void should_preserve_stream_position_after_successful_detection() throws IOException {
+      var dicomData = DicomTestDataFactory.createDicomWithPreamble();
+      var iis = createImageInputStream(dicomData);
 
-      long initialPosition = iis.getStreamPosition();
+      var initialPosition = iis.getStreamPosition();
 
-      Assertions.assertTrue(readerSpi.canDecodeInput(iis));
-      Assertions.assertEquals(initialPosition, iis.getStreamPosition());
+      assertTrue(readerSpi.canDecodeInput(iis));
+      assertEquals(initialPosition, iis.getStreamPosition());
     }
   }
 
   @Nested
-  @DisplayName("Little Endian Tag Detection")
-  class LittleEndianTagDetection {
+  class Little_Endian_Tag_Detection {
 
     @Test
-    @DisplayName("Should correctly read little endian tags")
-    void shouldCorrectlyReadLittleEndianTags() throws IOException {
-      // Create data with tag 0x00080010 (Patient Name) in little endian format
-      ByteBuffer buffer = ByteBuffer.allocate(20);
-      buffer.order(ByteOrder.LITTLE_ENDIAN);
-      buffer.putInt(0x00080010); // Valid DICOM tag
-      buffer.put(new byte[16]); // Some additional data
+    void should_correctly_read_little_endian_tags() throws IOException {
+      var buffer = ByteBuffer.allocate(20).order(ByteOrder.LITTLE_ENDIAN);
+      buffer.putInt(0x0008_0010); // Valid DICOM tag
+      buffer.put(new byte[16]); // Additional data
 
-      ImageInputStream iis =
-          new MemoryCacheImageInputStream(new ByteArrayInputStream(buffer.array()));
-
-      Assertions.assertTrue(readerSpi.canDecodeInput(iis));
+      var iis = createImageInputStream(buffer.array());
+      assertTrue(readerSpi.canDecodeInput(iis));
     }
 
     @Test
-    @DisplayName("Should handle mixed endian scenarios")
-    void shouldHandleMixedEndianScenarios() throws IOException {
-      // Create data that would be invalid if read as big endian
-      ByteBuffer buffer = ByteBuffer.allocate(132);
-      buffer.order(ByteOrder.LITTLE_ENDIAN);
+    void should_handle_mixed_endian_scenarios() throws IOException {
+      var buffer = ByteBuffer.allocate(132).order(ByteOrder.LITTLE_ENDIAN);
 
-      // First 4 bytes: invalid tag when read as little endian
-      buffer.putInt(0x10000800); // This becomes 0x00080010 when read as little endian
+      // Invalid tag when read as little endian, but valid preamble later
+      buffer.putInt(0x1000_0800);
 
-      // Skip to preamble position
+      // Add valid DICM preamble
       buffer.position(128);
-      buffer.put((byte) 'D');
-      buffer.put((byte) 'I');
-      buffer.put((byte) 'C');
-      buffer.put((byte) 'M');
+      buffer.put("DICM".getBytes());
 
-      ImageInputStream iis =
-          new MemoryCacheImageInputStream(new ByteArrayInputStream(buffer.array()));
-
-      // Should be detected by preamble, not by tag
-      Assertions.assertTrue(readerSpi.canDecodeInput(iis));
+      var iis = createImageInputStream(buffer.array());
+      assertTrue(readerSpi.canDecodeInput(iis), "Should be detected by preamble");
     }
   }
 
   @Nested
-  @DisplayName("Real DICOM-like Data")
-  class RealDicomLikeData {
+  class Real_DICOM_Like_Data {
 
     @Test
-    @DisplayName("Should detect DICOM with typical file structure")
-    void shouldDetectDicomWithTypicalFileStructure() throws IOException {
-      byte[] dicomData = createRealisticDicomHeader();
-      ImageInputStream iis = new MemoryCacheImageInputStream(new ByteArrayInputStream(dicomData));
+    void should_detect_DICOM_with_typical_file_structure() throws IOException {
+      var dicomData = DicomTestDataFactory.createRealisticDicomHeader();
+      var iis = createImageInputStream(dicomData);
 
-      Assertions.assertTrue(readerSpi.canDecodeInput(iis));
+      assertTrue(readerSpi.canDecodeInput(iis));
     }
 
     @Test
-    @DisplayName("Should detect DICOM without preamble (implicit VR)")
-    void shouldDetectDicomWithoutPreamble() throws IOException {
-      byte[] dicomData = createDicomWithoutPreamble();
-      ImageInputStream iis = new MemoryCacheImageInputStream(new ByteArrayInputStream(dicomData));
+    void should_detect_DICOM_without_preamble() throws IOException {
+      var dicomData = DicomTestDataFactory.createDicomWithoutPreamble();
+      var iis = createImageInputStream(dicomData);
 
-      Assertions.assertTrue(readerSpi.canDecodeInput(iis));
+      assertTrue(readerSpi.canDecodeInput(iis));
     }
 
     @Test
-    @DisplayName("Should not detect random binary data")
-    void shouldNotDetectRandomBinaryData() throws IOException {
-      byte[] randomData = createRandomBinaryData();
-      ImageInputStream iis = new MemoryCacheImageInputStream(new ByteArrayInputStream(randomData));
+    void should_not_detect_random_binary_data() throws IOException {
+      var randomData = DicomTestDataFactory.createRandomBinaryData(200);
+      var iis = createImageInputStream(randomData);
 
-      Assertions.assertFalse(readerSpi.canDecodeInput(iis));
+      assertFalse(readerSpi.canDecodeInput(iis));
     }
 
-    @Test
-    @DisplayName("Should not detect other image formats")
-    void shouldNotDetectOtherImageFormats() throws IOException {
-      // JPEG header
-      byte[] jpegData = createJpegLikeHeader();
-      ImageInputStream iis = new MemoryCacheImageInputStream(new ByteArrayInputStream(jpegData));
-      Assertions.assertFalse(readerSpi.canDecodeInput(iis));
-
-      // PNG header
-      byte[] pngData = createPngLikeHeader();
-      iis = new MemoryCacheImageInputStream(new ByteArrayInputStream(pngData));
-      Assertions.assertFalse(readerSpi.canDecodeInput(iis));
+    @ParameterizedTest
+    @MethodSource("org.dcm4che3.img.DicomImageReaderSpiTest#otherImageFormatProvider")
+    void should_not_detect_other_image_formats(byte[] imageData, String formatName)
+        throws IOException {
+      var iis = createImageInputStream(imageData);
+      assertFalse(
+          readerSpi.canDecodeInput(iis), () -> "Should not detect " + formatName + " as DICOM");
     }
   }
 
-  // Helper methods to create test data
+  // Test data providers
 
-  /** Creates a DICOM-like byte array with proper preamble and DICM prefix. */
-  private byte[] createDicomWithPreamble() {
-    byte[] data = new byte[200]; // Enough space for preamble + some data
-
-    // Fill preamble with zeros (first 128 bytes)
-    // Add DICM prefix at position 128
-    data[128] = 'D';
-    data[129] = 'I';
-    data[130] = 'C';
-    data[131] = 'M';
-
-    // Add some dummy DICOM data after the prefix
-    ByteBuffer buffer = ByteBuffer.wrap(data, 132, data.length - 132);
-    buffer.order(ByteOrder.LITTLE_ENDIAN);
-    buffer.putInt(0x00080010); // Patient Name tag
-    buffer.put((byte) 'P'); // VR = PN
-    buffer.put((byte) 'N');
-    buffer.putShort((short) 16); // Length
-
-    return data;
+  static Stream<Locale> localeProvider() {
+    return Stream.of(null, Locale.US, Locale.FRANCE, Locale.GERMANY);
   }
 
-  /** Creates a DICOM-like byte array starting with a valid tag. */
-  private byte[] createDicomWithValidTag(int tag) {
-    ByteBuffer buffer = ByteBuffer.allocate(100);
-    buffer.order(ByteOrder.LITTLE_ENDIAN);
-    buffer.putInt(tag);
-    buffer.put(new byte[96]); // Fill with zeros
-
-    return buffer.array();
+  static Stream<Object> invalidInputProvider() {
+    return Stream.of(
+        "not an input stream", new ByteArrayInputStream(new byte[10]), null, new Object(), 123);
   }
 
-  /** Creates a realistic DICOM header structure. */
-  private byte[] createRealisticDicomHeader() {
-    ByteBuffer buffer = ByteBuffer.allocate(300);
-
-    // 128-byte preamble (zeros)
-    buffer.position(128);
-
-    // DICM prefix
-    buffer.put((byte) 'D');
-    buffer.put((byte) 'I');
-    buffer.put((byte) 'C');
-    buffer.put((byte) 'M');
-
-    // File Meta Information Group Length
-    buffer.order(ByteOrder.LITTLE_ENDIAN);
-    buffer.putInt(0x00020000);
-    buffer.put((byte) 'U'); // VR = UL
-    buffer.put((byte) 'L');
-    buffer.putShort((short) 4); // Length
-    buffer.putInt(100); // Dummy value
-
-    // Transfer Syntax UID
-    buffer.putInt(0x00020010);
-    buffer.put((byte) 'U'); // VR = UI
-    buffer.put((byte) 'I');
-    buffer.putShort((short) 26); // Length
-    buffer.put("1.2.840.10008.1.2.1\0\0\0\0\0\0".getBytes()); // Explicit VR Little Endian
-
-    return buffer.array();
+  static Stream<Arguments> otherImageFormatProvider() {
+    return Stream.of(
+        Arguments.of(DicomTestDataFactory.createJpegLikeHeader(), "JPEG"),
+        Arguments.of(DicomTestDataFactory.createPngLikeHeader(), "PNG"),
+        Arguments.of(DicomTestDataFactory.createBmpLikeHeader(), "BMP"),
+        Arguments.of(DicomTestDataFactory.createTiffLikeHeader(), "TIFF"));
   }
 
-  /** Creates DICOM data without preamble (starts directly with tags). */
-  private byte[] createDicomWithoutPreamble() {
-    ByteBuffer buffer = ByteBuffer.allocate(100);
-    buffer.order(ByteOrder.LITTLE_ENDIAN);
+  // Utility methods
 
-    // Start with Patient Name tag
-    buffer.putInt(0x00080010);
-    buffer.putInt(0x00000010); // VR and length (implicit VR format)
-    buffer.put("TEST PATIENT    ".getBytes());
-
-    // Add another tag
-    buffer.putInt(0x00080020); // Study Date
-    buffer.putInt(0x00000008); // Length
-    buffer.put("20240101".getBytes());
-
-    return buffer.array();
+  private ImageInputStream createImageInputStream(byte[] data) {
+    return new MemoryCacheImageInputStream(new ByteArrayInputStream(data));
   }
 
-  /** Creates random binary data that should not be detected as DICOM. */
-  private byte[] createRandomBinaryData() {
-    byte[] data = new byte[200];
-    // Fill with pseudo-random data
-    for (int i = 0; i < data.length; i++) {
-      data[i] = (byte) (i * 7 + 13); // Simple pseudo-random pattern
+  // Factory class for creating test data - keeps test data creation separate and reusable
+  static class DicomTestDataFactory {
+
+    static byte[] createDicomWithPreamble() {
+      var data = new byte[200];
+
+      // DICM prefix at position 128
+      System.arraycopy("DICM".getBytes(), 0, data, 128, 4);
+
+      // Add realistic DICOM data after prefix
+      var buffer = ByteBuffer.wrap(data, 132, data.length - 132);
+      buffer.order(ByteOrder.LITTLE_ENDIAN);
+      buffer.putInt(0x0008_0010); // Patient Name tag
+      buffer.put((byte) 'P').put((byte) 'N'); // VR = PN
+      buffer.putShort((short) 16); // Length
+
+      return data;
     }
-    return data;
-  }
 
-  /** Creates JPEG-like header that should not be detected as DICOM. */
-  private byte[] createJpegLikeHeader() {
-    byte[] data = new byte[200];
-    data[0] = (byte) 0xFF;
-    data[1] = (byte) 0xD8; // JPEG SOI marker
-    data[2] = (byte) 0xFF;
-    data[3] = (byte) 0xE0; // JFIF marker
-    return data;
-  }
+    static byte[] createDicomWithValidTag(int tag) {
+      var buffer = ByteBuffer.allocate(100).order(ByteOrder.LITTLE_ENDIAN);
+      buffer.putInt(tag);
+      buffer.put(new byte[96]); // Fill remaining with zeros
+      return buffer.array();
+    }
 
-  /** Creates PNG-like header that should not be detected as DICOM. */
-  private byte[] createPngLikeHeader() {
-    byte[] data = new byte[200];
-    // PNG signature
-    data[0] = (byte) 0x89;
-    data[1] = 0x50; // 'P'
-    data[2] = 0x4E; // 'N'
-    data[3] = 0x47; // 'G'
-    data[4] = 0x0D;
-    data[5] = 0x0A;
-    data[6] = 0x1A;
-    data[7] = 0x0A;
-    return data;
+    static byte[] createMinimalValidDicom() {
+      var data = new byte[132];
+      System.arraycopy("DICM".getBytes(), 0, data, 128, 4);
+      return data;
+    }
+
+    static byte[] createRealisticDicomHeader() {
+      var buffer = ByteBuffer.allocate(300);
+
+      // 128-byte preamble (zeros) - position to 128
+      buffer.position(128);
+      buffer.put("DICM".getBytes());
+
+      buffer.order(ByteOrder.LITTLE_ENDIAN);
+
+      // File Meta Information Group Length
+      buffer
+          .putInt(0x0002_0000)
+          .put((byte) 'U')
+          .put((byte) 'L') // VR = UL
+          .putShort((short) 4) // Length
+          .putInt(100); // Dummy value
+
+      // Transfer Syntax UID
+      buffer
+          .putInt(0x0002_0010)
+          .put((byte) 'U')
+          .put((byte) 'I') // VR = UI
+          .putShort((short) 26); // Length
+
+      var transferSyntax = "1.2.840.10008.1.2.1\0\0\0\0\0\0";
+      buffer.put(transferSyntax.getBytes());
+
+      return buffer.array();
+    }
+
+    static byte[] createDicomWithoutPreamble() {
+      var buffer = ByteBuffer.allocate(100).order(ByteOrder.LITTLE_ENDIAN);
+
+      // Patient Name tag
+      buffer
+          .putInt(0x0008_0010)
+          .putInt(0x0000_0010) // VR and length (implicit VR format)
+          .put("TEST PATIENT    ".getBytes());
+
+      // Study Date tag
+      buffer
+          .putInt(0x0008_0020) // Study Date
+          .putInt(0x0000_0008) // Length
+          .put("20240101".getBytes());
+
+      return buffer.array();
+    }
+
+    static byte[] createRandomBinaryData(int size) {
+      var data = new byte[size];
+      // Simple deterministic "random" pattern for reproducible tests
+      for (int i = 0; i < data.length; i++) {
+        data[i] = (byte) (i * 7 + 13);
+      }
+      return data;
+    }
+
+    static byte[] createJpegLikeHeader() {
+      var data = new byte[200];
+      data[0] = (byte) 0xFF;
+      data[1] = (byte) 0xD8; // JPEG SOI marker
+      data[2] = (byte) 0xFF;
+      data[3] = (byte) 0xE0; // JFIF marker
+      return data;
+    }
+
+    static byte[] createPngLikeHeader() {
+      var data = new byte[200];
+      // PNG signature
+      var pngSignature = new byte[] {(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
+      System.arraycopy(pngSignature, 0, data, 0, pngSignature.length);
+      return data;
+    }
+
+    static byte[] createBmpLikeHeader() {
+      var data = new byte[200];
+      data[0] = 'B';
+      data[1] = 'M';
+      return data;
+    }
+
+    static byte[] createTiffLikeHeader() {
+      var data = new byte[200];
+      // TIFF little-endian signature
+      data[0] = 0x49;
+      data[1] = 0x49;
+      data[2] = 0x2A;
+      data[3] = 0x00;
+      return data;
+    }
   }
 }

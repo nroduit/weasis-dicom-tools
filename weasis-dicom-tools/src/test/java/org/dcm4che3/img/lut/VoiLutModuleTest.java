@@ -11,40 +11,43 @@ package org.dcm4che3.img.lut;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import org.dcm4che3.data.Attributes;
-import org.dcm4che3.data.Sequence;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
-import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.DisplayNameGeneration;
+import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Unit tests for {@link VoiLutModule}.
  *
  * @author Nicolas Roduit
  */
-@DisplayName("VoiLutModule Tests")
+@DisplayNameGeneration(ReplaceUnderscores.class)
 class VoiLutModuleTest {
 
   @Nested
-  @DisplayName("Constructor Tests")
-  class ConstructorTests {
+  class Constructor_Tests {
 
     @Test
-    @DisplayName("Should throw NullPointerException when attributes is null")
-    void shouldThrowNullPointerExceptionWhenAttributesIsNull() {
+    void should_throw_null_pointer_exception_when_attributes_is_null() {
       assertThrows(NullPointerException.class, () -> new VoiLutModule(null));
     }
 
     @Test
-    @DisplayName("Should create instance with empty attributes")
-    void shouldCreateInstanceWithEmptyAttributes() {
-      Attributes attributes = new Attributes();
-      VoiLutModule voiLutModule = new VoiLutModule(attributes);
+    void should_create_instance_with_empty_attributes() {
+      var attributes = new Attributes();
+      var voiLutModule = new VoiLutModule(attributes);
 
       assertNotNull(voiLutModule);
       assertTrue(voiLutModule.getWindowCenter().isEmpty());
@@ -52,24 +55,23 @@ class VoiLutModuleTest {
       assertTrue(voiLutModule.getLutExplanation().isEmpty());
       assertTrue(voiLutModule.getLut().isEmpty());
       assertTrue(voiLutModule.getWindowCenterWidthExplanation().isEmpty());
-      assertFalse(voiLutModule.getVoiLutFunction().isPresent());
+      assertTrue(voiLutModule.getVoiLutFunction().isEmpty());
     }
   }
 
   @Nested
-  @DisplayName("Window Center and Width Tests")
-  class WindowCenterWidthTests {
+  class Window_Center_Width_Tests {
 
     @Test
-    @DisplayName("Should initialize window center and width when both are present")
-    void shouldInitializeWindowCenterAndWidthWhenBothPresent() {
-      Attributes attributes = new Attributes();
-      attributes.setDouble(Tag.WindowCenter, VR.DS, 100.0, 200.0);
-      attributes.setDouble(Tag.WindowWidth, VR.DS, 50.0, 75.0);
-      attributes.setString(Tag.VOILUTFunction, VR.CS, "LINEAR");
-      attributes.setString(Tag.WindowCenterWidthExplanation, VR.LO, "Default", "Enhanced");
+    void should_initialize_window_values_when_both_present() {
+      var attributes =
+          createAttributesWithWindowValues(
+              new double[] {100.0, 200.0},
+              new double[] {50.0, 75.0},
+              "LINEAR",
+              new String[] {"Default", "Enhanced"});
 
-      VoiLutModule voiLutModule = new VoiLutModule(attributes);
+      var voiLutModule = new VoiLutModule(attributes);
 
       assertEquals(List.of(100.0, 200.0), voiLutModule.getWindowCenter());
       assertEquals(List.of(50.0, 75.0), voiLutModule.getWindowWidth());
@@ -78,56 +80,61 @@ class VoiLutModuleTest {
     }
 
     @Test
-    @DisplayName("Should not initialize window values when only center is present")
-    void shouldNotInitializeWhenOnlyCenterPresent() {
-      Attributes attributes = new Attributes();
+    void should_initialize_when_only_center_present() {
+      var attributes = new Attributes();
       attributes.setDouble(Tag.WindowCenter, VR.DS, 100.0);
 
-      VoiLutModule voiLutModule = new VoiLutModule(attributes);
+      var voiLutModule = new VoiLutModule(attributes);
 
-      assertTrue(voiLutModule.getWindowCenter().isEmpty());
+      assertEquals(100.0, voiLutModule.getWindowCenter().get(0));
       assertTrue(voiLutModule.getWindowWidth().isEmpty());
-      assertFalse(voiLutModule.getVoiLutFunction().isPresent());
+      assertTrue(voiLutModule.getVoiLutFunction().isEmpty());
     }
 
     @Test
-    @DisplayName("Should not initialize window values when only width is present")
-    void shouldNotInitializeWhenOnlyWidthPresent() {
-      Attributes attributes = new Attributes();
+    void should_initialize_when_only_width_present() {
+      var attributes = new Attributes();
       attributes.setDouble(Tag.WindowWidth, VR.DS, 50.0);
 
-      VoiLutModule voiLutModule = new VoiLutModule(attributes);
+      var voiLutModule = new VoiLutModule(attributes);
 
       assertTrue(voiLutModule.getWindowCenter().isEmpty());
-      assertTrue(voiLutModule.getWindowWidth().isEmpty());
-      assertFalse(voiLutModule.getVoiLutFunction().isPresent());
+      assertEquals(50.0, voiLutModule.getWindowWidth().get(0));
+      assertTrue(voiLutModule.getVoiLutFunction().isEmpty());
     }
 
-    @Test
-    @DisplayName("Should handle single window center and width values")
-    void shouldHandleSingleWindowCenterAndWidthValues() {
-      Attributes attributes = new Attributes();
-      attributes.setDouble(Tag.WindowCenter, VR.DS, 150.0);
-      attributes.setDouble(Tag.WindowWidth, VR.DS, 100.0);
-      attributes.setString(Tag.VOILUTFunction, VR.CS, "SIGMOID");
+    @ParameterizedTest
+    @MethodSource("singleWindowValuesProvider")
+    void should_handle_single_window_values(double center, double width, String function) {
+      var attributes =
+          createAttributesWithWindowValues(
+              new double[] {center}, new double[] {width}, function, null);
 
-      VoiLutModule voiLutModule = new VoiLutModule(attributes);
+      var voiLutModule = new VoiLutModule(attributes);
 
-      assertEquals(List.of(150.0), voiLutModule.getWindowCenter());
-      assertEquals(List.of(100.0), voiLutModule.getWindowWidth());
-      assertEquals(Optional.of("SIGMOID"), voiLutModule.getVoiLutFunction());
+      assertEquals(List.of(center), voiLutModule.getWindowCenter());
+      assertEquals(List.of(width), voiLutModule.getWindowWidth());
+      assertEquals(Optional.ofNullable(function), voiLutModule.getVoiLutFunction());
       assertTrue(voiLutModule.getWindowCenterWidthExplanation().isEmpty());
     }
 
-    @Test
-    @DisplayName("Should handle multiple window center and width values")
-    void shouldHandleMultipleWindowCenterAndWidthValues() {
-      Attributes attributes = new Attributes();
-      attributes.setDouble(Tag.WindowCenter, VR.DS, 100.0, 200.0, 300.0);
-      attributes.setDouble(Tag.WindowWidth, VR.DS, 50.0, 75.0, 100.0);
-      attributes.setString(Tag.WindowCenterWidthExplanation, VR.LO, "Soft Tissue", "Bone", "Lung");
+    private static Stream<Arguments> singleWindowValuesProvider() {
+      return Stream.of(
+          Arguments.of(150.0, 100.0, "SIGMOID"),
+          Arguments.of(0.0, 0.0, null),
+          Arguments.of(-100.0, -50.0, "LINEAR"),
+          Arguments.of(123.456, 78.901, "LINEAR_EXACT"),
+          Arguments.of(Double.MAX_VALUE, Double.MAX_VALUE, "LINEAR"));
+    }
 
-      VoiLutModule voiLutModule = new VoiLutModule(attributes);
+    @Test
+    void should_handle_multiple_window_values() {
+      var centers = new double[] {100.0, 200.0, 300.0};
+      var widths = new double[] {50.0, 75.0, 100.0};
+      var explanations = new String[] {"Soft Tissue", "Bone", "Lung"};
+
+      var attributes = createAttributesWithWindowValues(centers, widths, null, explanations);
+      var voiLutModule = new VoiLutModule(attributes);
 
       assertEquals(List.of(100.0, 200.0, 300.0), voiLutModule.getWindowCenter());
       assertEquals(List.of(50.0, 75.0, 100.0), voiLutModule.getWindowWidth());
@@ -136,269 +143,38 @@ class VoiLutModuleTest {
     }
 
     @Test
-    @DisplayName("Should handle zero window values")
-    void shouldHandleZeroWindowValues() {
-      Attributes attributes = new Attributes();
-      attributes.setDouble(Tag.WindowCenter, VR.DS, 0.0);
-      attributes.setDouble(Tag.WindowWidth, VR.DS, 0.0);
-
-      VoiLutModule voiLutModule = new VoiLutModule(attributes);
-
-      assertEquals(List.of(0.0), voiLutModule.getWindowCenter());
-      assertEquals(List.of(0.0), voiLutModule.getWindowWidth());
-    }
-
-    @Test
-    @DisplayName("Should handle negative window values")
-    void shouldHandleNegativeWindowValues() {
-      Attributes attributes = new Attributes();
-      attributes.setDouble(Tag.WindowCenter, VR.DS, -100.0);
-      attributes.setDouble(Tag.WindowWidth, VR.DS, -50.0);
-
-      VoiLutModule voiLutModule = new VoiLutModule(attributes);
-
-      assertEquals(List.of(-100.0), voiLutModule.getWindowCenter());
-      assertEquals(List.of(-50.0), voiLutModule.getWindowWidth());
-    }
-
-    @Test
-    @DisplayName("Should handle very large window values")
-    void shouldHandleVeryLargeWindowValues() {
-      Attributes attributes = new Attributes();
-      attributes.setDouble(Tag.WindowCenter, VR.DS, Double.MAX_VALUE);
-      attributes.setDouble(Tag.WindowWidth, VR.DS, Double.MAX_VALUE);
-
-      VoiLutModule voiLutModule = new VoiLutModule(attributes);
-
-      assertEquals(List.of(Double.MAX_VALUE), voiLutModule.getWindowCenter());
-      assertEquals(List.of(Double.MAX_VALUE), voiLutModule.getWindowWidth());
-    }
-
-    @Test
-    @DisplayName("Should handle fractional window values")
-    void shouldHandleFractionalWindowValues() {
-      Attributes attributes = new Attributes();
-      attributes.setDouble(Tag.WindowCenter, VR.DS, 123.456);
-      attributes.setDouble(Tag.WindowWidth, VR.DS, 78.901);
-
-      VoiLutModule voiLutModule = new VoiLutModule(attributes);
-
-      assertEquals(List.of(123.456), voiLutModule.getWindowCenter());
-      assertEquals(List.of(78.901), voiLutModule.getWindowWidth());
-    }
-  }
-
-  @Nested
-  @DisplayName("VOI LUT Sequence Tests")
-  class VoiLutSequenceTests {
-
-    @Test
-    @DisplayName("Should initialize VOI LUT sequence when present and valid")
-    void shouldInitializeVoiLutSequenceWhenPresentAndValid() {
-      Attributes attributes = new Attributes();
-      Sequence voiLutSequence = attributes.newSequence(Tag.VOILUTSequence, 1);
-
-      Attributes lutItem = new Attributes();
-      lutItem.setString(Tag.LUTExplanation, VR.LO, "Test VOI LUT");
-      lutItem.setInt(Tag.LUTDescriptor, VR.US, 256, 0, 8);
-      lutItem.setBytes(Tag.LUTData, VR.OW, createSimpleLutData(256));
-      voiLutSequence.add(lutItem);
-
-      VoiLutModule voiLutModule = new VoiLutModule(attributes);
-
-      assertEquals(List.of("Test VOI LUT"), voiLutModule.getLutExplanation());
-      assertEquals(1, voiLutModule.getLut().size());
-      assertNotNull(voiLutModule.getLut().get(0));
-    }
-
-    @Test
-    @DisplayName("Should handle multiple VOI LUT sequence items")
-    void shouldHandleMultipleVoiLutSequenceItems() {
-      Attributes attributes = new Attributes();
-      Sequence voiLutSequence = attributes.newSequence(Tag.VOILUTSequence, 2);
-
-      // First LUT item
-      Attributes lutItem1 = new Attributes();
-      lutItem1.setString(Tag.LUTExplanation, VR.LO, "Soft Tissue LUT");
-      lutItem1.setInt(Tag.LUTDescriptor, VR.US, 256, 0, 8);
-      lutItem1.setBytes(Tag.LUTData, VR.OW, createSimpleLutData(256));
-      voiLutSequence.add(lutItem1);
-
-      // Second LUT item
-      Attributes lutItem2 = new Attributes();
-      lutItem2.setString(Tag.LUTExplanation, VR.LO, "Bone LUT");
-      lutItem2.setInt(Tag.LUTDescriptor, VR.US, 256, 0, 8);
-      lutItem2.setBytes(Tag.LUTData, VR.OW, createSimpleLutData(256));
-      voiLutSequence.add(lutItem2);
-
-      VoiLutModule voiLutModule = new VoiLutModule(attributes);
-
-      assertEquals(List.of("Soft Tissue LUT", "Bone LUT"), voiLutModule.getLutExplanation());
-      assertEquals(2, voiLutModule.getLut().size());
-    }
-
-    @Test
-    @DisplayName("Should handle empty LUT explanation")
-    void shouldHandleEmptyLutExplanation() {
-      Attributes attributes = new Attributes();
-      Sequence voiLutSequence = attributes.newSequence(Tag.VOILUTSequence, 1);
-
-      Attributes lutItem = new Attributes();
-      // No LUT explanation set, should default to empty string
-      lutItem.setInt(Tag.LUTDescriptor, VR.US, 256, 0, 8);
-      lutItem.setBytes(Tag.LUTData, VR.OW, createSimpleLutData(256));
-      voiLutSequence.add(lutItem);
-
-      VoiLutModule voiLutModule = new VoiLutModule(attributes);
-
-      assertEquals(List.of(""), voiLutModule.getLutExplanation());
-    }
-
-    @Test
-    @DisplayName("Should handle VOI LUT sequence with invalid LUT data")
-    void shouldHandleVoiLutSequenceWithInvalidLutData() {
-      Attributes attributes = new Attributes();
-      Sequence voiLutSequence = attributes.newSequence(Tag.VOILUTSequence, 1);
-
-      Attributes lutItem = new Attributes();
-      lutItem.setString(Tag.LUTExplanation, VR.LO, "Invalid LUT");
-      // Missing LUT descriptor and data - should result in null LUT
-      voiLutSequence.add(lutItem);
-
-      VoiLutModule voiLutModule = new VoiLutModule(attributes);
-
-      assertEquals(List.of("Invalid LUT"), voiLutModule.getLutExplanation());
-      assertEquals(Collections.emptyList(), voiLutModule.getLut());
-    }
-
-    @Test
-    @DisplayName("Should not initialize VOI LUT sequence when empty")
-    void shouldNotInitializeVoiLutSequenceWhenEmpty() {
-      Attributes attributes = new Attributes();
-      attributes.newSequence(Tag.VOILUTSequence, 0); // Empty sequence
-
-      VoiLutModule voiLutModule = new VoiLutModule(attributes);
-
-      assertTrue(voiLutModule.getLutExplanation().isEmpty());
-      assertTrue(voiLutModule.getLut().isEmpty());
-    }
-  }
-
-  @Nested
-  @DisplayName("Combined Scenarios Tests")
-  class CombinedScenariosTests {
-
-    @Test
-    @DisplayName("Should handle both window values and VOI LUT sequence")
-    void shouldHandleBothWindowValuesAndVoiLutSequence() {
-      Attributes attributes = new Attributes();
-
-      // Set window center/width
-      attributes.setDouble(Tag.WindowCenter, VR.DS, 100.0);
-      attributes.setDouble(Tag.WindowWidth, VR.DS, 50.0);
-      attributes.setString(Tag.VOILUTFunction, VR.CS, "LINEAR");
-      attributes.setString(Tag.WindowCenterWidthExplanation, VR.LO, "Window explanation");
-
-      // Set VOI LUT sequence
-      Sequence voiLutSequence = attributes.newSequence(Tag.VOILUTSequence, 1);
-      Attributes lutItem = new Attributes();
-      lutItem.setString(Tag.LUTExplanation, VR.LO, "Combined LUT");
-      lutItem.setInt(Tag.LUTDescriptor, VR.US, 256, 0, 8);
-      lutItem.setBytes(Tag.LUTData, VR.OW, createSimpleLutData(256));
-      voiLutSequence.add(lutItem);
-
-      VoiLutModule voiLutModule = new VoiLutModule(attributes);
-
-      // Both should be initialized
-      assertEquals(List.of(100.0), voiLutModule.getWindowCenter());
-      assertEquals(List.of(50.0), voiLutModule.getWindowWidth());
-      assertEquals(Optional.of("LINEAR"), voiLutModule.getVoiLutFunction());
-      assertEquals(List.of("Window explanation"), voiLutModule.getWindowCenterWidthExplanation());
-      assertEquals(List.of("Combined LUT"), voiLutModule.getLutExplanation());
-      assertEquals(1, voiLutModule.getLut().size());
-    }
-
-    @Test
-    @DisplayName("Should handle window values with mismatched array lengths")
-    void shouldHandleWindowValuesWithMismatchedArrayLengths() {
-      Attributes attributes = new Attributes();
+    void should_handle_mismatched_array_lengths() {
+      var attributes = new Attributes();
       attributes.setDouble(Tag.WindowCenter, VR.DS, 100.0, 200.0);
       attributes.setDouble(Tag.WindowWidth, VR.DS, 50.0); // Only one width value
 
-      VoiLutModule voiLutModule = new VoiLutModule(attributes);
+      var voiLutModule = new VoiLutModule(attributes);
 
       assertEquals(List.of(100.0, 200.0), voiLutModule.getWindowCenter());
       assertEquals(List.of(50.0), voiLutModule.getWindowWidth());
     }
-  }
 
-  @Nested
-  @DisplayName("Edge Cases Tests")
-  class EdgeCasesTests {
+    @ParameterizedTest
+    @ValueSource(strings = {"LINEAR", "SIGMOID", "LINEAR_EXACT"})
+    void should_handle_all_voi_lut_function_types(String function) {
+      var attributes =
+          createAttributesWithWindowValues(
+              new double[] {100.0}, new double[] {50.0}, function, null);
 
-    @Test
-    @DisplayName("Should handle empty window arrays")
-    void shouldHandleEmptyWindowArrays() {
-      Attributes attributes = new Attributes();
-      attributes.setDouble(Tag.WindowCenter, VR.DS); // Empty array
-      attributes.setDouble(Tag.WindowWidth, VR.DS); // Empty array
+      var voiLutModule = new VoiLutModule(attributes);
 
-      VoiLutModule voiLutModule = new VoiLutModule(attributes);
-
-      assertTrue(voiLutModule.getWindowCenter().isEmpty());
-      assertTrue(voiLutModule.getWindowWidth().isEmpty());
+      assertEquals(Optional.of(function), voiLutModule.getVoiLutFunction());
     }
 
     @Test
-    @DisplayName("Should handle large number of window values")
-    void shouldHandleLargeNumberOfWindowValues() {
-      Attributes attributes = new Attributes();
+    void should_handle_special_floating_point_values() {
+      var specialValues =
+          new double[] {Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY};
+      var attributes = new Attributes();
+      attributes.setDouble(Tag.WindowCenter, VR.DS, specialValues);
+      attributes.setDouble(Tag.WindowWidth, VR.DS, specialValues);
 
-      double[] centers = new double[1000];
-      double[] widths = new double[1000];
-      for (int i = 0; i < 1000; i++) {
-        centers[i] = i * 0.1;
-        widths[i] = i * 0.05;
-      }
-
-      attributes.setDouble(Tag.WindowCenter, VR.DS, centers);
-      attributes.setDouble(Tag.WindowWidth, VR.DS, widths);
-
-      VoiLutModule voiLutModule = new VoiLutModule(attributes);
-
-      assertEquals(1000, voiLutModule.getWindowCenter().size());
-      assertEquals(1000, voiLutModule.getWindowWidth().size());
-      assertEquals(0.0, voiLutModule.getWindowCenter().get(0), 0.001);
-      assertEquals(49.95, voiLutModule.getWindowWidth().get(999), 0.001);
-    }
-
-    @Test
-    @DisplayName("Should handle all VOI LUT function types")
-    void shouldHandleAllVoiLutFunctionTypes() {
-      String[] functions = {"LINEAR", "SIGMOID", "LINEAR_EXACT"};
-
-      for (String function : functions) {
-        Attributes attributes = new Attributes();
-        attributes.setDouble(Tag.WindowCenter, VR.DS, 100.0);
-        attributes.setDouble(Tag.WindowWidth, VR.DS, 50.0);
-        attributes.setString(Tag.VOILUTFunction, VR.CS, function);
-
-        VoiLutModule voiLutModule = new VoiLutModule(attributes);
-
-        assertEquals(Optional.of(function), voiLutModule.getVoiLutFunction());
-      }
-    }
-
-    @Test
-    @DisplayName("Should handle special floating point values")
-    void shouldHandleSpecialFloatingPointValues() {
-      Attributes attributes = new Attributes();
-      attributes.setDouble(
-          Tag.WindowCenter, VR.DS, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY);
-      attributes.setDouble(
-          Tag.WindowWidth, VR.DS, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY);
-
-      VoiLutModule voiLutModule = new VoiLutModule(attributes);
+      var voiLutModule = new VoiLutModule(attributes);
 
       assertEquals(3, voiLutModule.getWindowCenter().size());
       assertEquals(3, voiLutModule.getWindowWidth().size());
@@ -406,60 +182,216 @@ class VoiLutModuleTest {
       assertTrue(Double.isInfinite(voiLutModule.getWindowCenter().get(1)));
       assertTrue(Double.isInfinite(voiLutModule.getWindowCenter().get(2)));
     }
-  }
-
-  @Nested
-  @DisplayName("Data Integrity Tests")
-  class DataIntegrityTests {
 
     @Test
-    @DisplayName("Should return immutable lists")
-    void shouldReturnImmutableLists() {
-      Attributes attributes = new Attributes();
-      attributes.setDouble(Tag.WindowCenter, VR.DS, 100.0);
-      attributes.setDouble(Tag.WindowWidth, VR.DS, 50.0);
+    void should_handle_empty_window_arrays() {
+      var attributes = new Attributes();
+      attributes.setDouble(Tag.WindowCenter, VR.DS); // Empty array
+      attributes.setDouble(Tag.WindowWidth, VR.DS); // Empty array
 
-      VoiLutModule voiLutModule = new VoiLutModule(attributes);
+      var voiLutModule = new VoiLutModule(attributes);
 
-      // Lists should not be modifiable
-      assertThrows(
-          UnsupportedOperationException.class, () -> voiLutModule.getWindowCenter().add(200.0));
-      assertThrows(
-          UnsupportedOperationException.class, () -> voiLutModule.getWindowWidth().add(75.0));
-      assertThrows(
-          UnsupportedOperationException.class, () -> voiLutModule.getLutExplanation().add("test"));
-      assertThrows(UnsupportedOperationException.class, () -> voiLutModule.getLut().add(null));
-      assertThrows(
-          UnsupportedOperationException.class,
-          () -> voiLutModule.getWindowCenterWidthExplanation().add("test"));
+      assertTrue(voiLutModule.getWindowCenter().isEmpty());
+      assertTrue(voiLutModule.getWindowWidth().isEmpty());
     }
 
     @Test
-    @DisplayName("Should maintain data consistency after multiple accesses")
-    void shouldMaintainDataConsistencyAfterMultipleAccesses() {
-      Attributes attributes = new Attributes();
-      attributes.setDouble(Tag.WindowCenter, VR.DS, 100.0, 200.0);
-      attributes.setDouble(Tag.WindowWidth, VR.DS, 50.0, 75.0);
+    void should_handle_large_number_of_window_values() {
+      var centers = IntStream.range(0, 1000).mapToDouble(i -> i * 0.1).toArray();
+      var widths = IntStream.range(0, 1000).mapToDouble(i -> i * 0.05).toArray();
 
-      VoiLutModule voiLutModule = new VoiLutModule(attributes);
+      var attributes = new Attributes();
+      attributes.setDouble(Tag.WindowCenter, VR.DS, centers);
+      attributes.setDouble(Tag.WindowWidth, VR.DS, widths);
 
-      // Multiple accesses should return the same data
-      List<Double> firstAccess = voiLutModule.getWindowCenter();
-      List<Double> secondAccess = voiLutModule.getWindowCenter();
+      var voiLutModule = new VoiLutModule(attributes);
+
+      assertEquals(1000, voiLutModule.getWindowCenter().size());
+      assertEquals(1000, voiLutModule.getWindowWidth().size());
+      assertEquals(0.0, voiLutModule.getWindowCenter().get(0), 0.001);
+      assertEquals(49.95, voiLutModule.getWindowWidth().get(999), 0.001);
+    }
+  }
+
+  @Nested
+  @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+  class Voi_Lut_Sequence_Tests {
+
+    @Test
+    void should_initialize_voi_lut_sequence_when_present_and_valid() {
+      var attributes = new Attributes();
+      var voiLutSequence = attributes.newSequence(Tag.VOILUTSequence, 1);
+      voiLutSequence.add(createValidLutItem("Test VOI LUT", 256));
+
+      var voiLutModule = new VoiLutModule(attributes);
+
+      assertEquals(List.of("Test VOI LUT"), voiLutModule.getLutExplanation());
+      assertEquals(1, voiLutModule.getLut().size());
+      assertNotNull(voiLutModule.getLut().get(0));
+    }
+
+    @Test
+    void should_handle_multiple_voi_lut_sequence_items() {
+      var attributes = new Attributes();
+      var voiLutSequence = attributes.newSequence(Tag.VOILUTSequence, 2);
+      voiLutSequence.add(createValidLutItem("Soft Tissue LUT", 256));
+      voiLutSequence.add(createValidLutItem("Bone LUT", 512));
+
+      var voiLutModule = new VoiLutModule(attributes);
+
+      assertEquals(List.of("Soft Tissue LUT", "Bone LUT"), voiLutModule.getLutExplanation());
+      assertEquals(2, voiLutModule.getLut().size());
+    }
+
+    @Test
+    void should_handle_empty_lut_explanation() {
+      var attributes = new Attributes();
+      var voiLutSequence = attributes.newSequence(Tag.VOILUTSequence, 1);
+      voiLutSequence.add(createValidLutItem(null, 256)); // Null explanation
+
+      var voiLutModule = new VoiLutModule(attributes);
+
+      assertEquals(List.of(""), voiLutModule.getLutExplanation());
+    }
+
+    @Test
+    void should_handle_voi_lut_sequence_with_invalid_lut_data() {
+      var attributes = new Attributes();
+      var voiLutSequence = attributes.newSequence(Tag.VOILUTSequence, 1);
+
+      var lutItem = new Attributes();
+      lutItem.setString(Tag.LUTExplanation, VR.LO, "Invalid LUT");
+      // Missing LUT descriptor and data - should result in null LUT
+      voiLutSequence.add(lutItem);
+
+      var voiLutModule = new VoiLutModule(attributes);
+
+      assertEquals(List.of("Invalid LUT"), voiLutModule.getLutExplanation());
+      assertTrue(voiLutModule.getLut().isEmpty());
+    }
+
+    @Test
+    void should_not_initialize_voi_lut_sequence_when_empty() {
+      var attributes = new Attributes();
+      attributes.newSequence(Tag.VOILUTSequence, 0); // Empty sequence
+
+      var voiLutModule = new VoiLutModule(attributes);
+
+      assertTrue(voiLutModule.getLutExplanation().isEmpty());
+      assertTrue(voiLutModule.getLut().isEmpty());
+    }
+
+    private Attributes createValidLutItem(String explanation, int entries) {
+      var lutItem = new Attributes();
+      if (explanation != null) {
+        lutItem.setString(Tag.LUTExplanation, VR.LO, explanation);
+      }
+      lutItem.setInt(Tag.LUTDescriptor, VR.US, entries, 0, 8);
+      lutItem.setBytes(Tag.LUTData, VR.OW, createLutData(entries));
+      return lutItem;
+    }
+  }
+
+  @Nested
+  class Combined_Scenarios_Tests {
+
+    @Test
+    void should_handle_both_window_values_and_voi_lut_sequence() {
+      var attributes =
+          createAttributesWithWindowValues(
+              new double[] {100.0},
+              new double[] {50.0},
+              "LINEAR",
+              new String[] {"Window explanation"});
+
+      var voiLutSequence = attributes.newSequence(Tag.VOILUTSequence, 1);
+      var lutItem = new Attributes();
+      lutItem.setString(Tag.LUTExplanation, VR.LO, "Combined LUT");
+      lutItem.setInt(Tag.LUTDescriptor, VR.US, 256, 0, 8);
+      lutItem.setBytes(Tag.LUTData, VR.OW, createLutData(256));
+      voiLutSequence.add(lutItem);
+
+      var voiLutModule = new VoiLutModule(attributes);
+
+      assertEquals(List.of(100.0), voiLutModule.getWindowCenter());
+      assertEquals(List.of(50.0), voiLutModule.getWindowWidth());
+      assertEquals(Optional.of("LINEAR"), voiLutModule.getVoiLutFunction());
+      assertEquals(List.of("Window explanation"), voiLutModule.getWindowCenterWidthExplanation());
+      assertEquals(List.of("Combined LUT"), voiLutModule.getLutExplanation());
+      assertEquals(1, voiLutModule.getLut().size());
+    }
+  }
+
+  @Nested
+  class Data_Integrity_Tests {
+
+    @Test
+    void should_return_immutable_lists() {
+      var attributes =
+          createAttributesWithWindowValues(new double[] {100.0}, new double[] {50.0}, null, null);
+      var voiLutModule = new VoiLutModule(attributes);
+
+      assertAll(
+          "All lists should be immutable",
+          () ->
+              assertThrows(
+                  UnsupportedOperationException.class,
+                  () -> voiLutModule.getWindowCenter().add(200.0)),
+          () ->
+              assertThrows(
+                  UnsupportedOperationException.class,
+                  () -> voiLutModule.getWindowWidth().add(75.0)),
+          () ->
+              assertThrows(
+                  UnsupportedOperationException.class,
+                  () -> voiLutModule.getLutExplanation().add("test")),
+          () ->
+              assertThrows(
+                  UnsupportedOperationException.class, () -> voiLutModule.getLut().add(null)),
+          () ->
+              assertThrows(
+                  UnsupportedOperationException.class,
+                  () -> voiLutModule.getWindowCenterWidthExplanation().add("test")));
+    }
+
+    @Test
+    void should_maintain_data_consistency_after_multiple_accesses() {
+      var attributes =
+          createAttributesWithWindowValues(
+              new double[] {100.0, 200.0}, new double[] {50.0, 75.0}, null, null);
+      var voiLutModule = new VoiLutModule(attributes);
+
+      var firstAccess = voiLutModule.getWindowCenter();
+      var secondAccess = voiLutModule.getWindowCenter();
 
       assertEquals(firstAccess, secondAccess);
       assertSame(firstAccess, secondAccess); // Should be the same instance
     }
   }
 
-  /**
-   * Creates simple LUT data for testing purposes.
-   *
-   * @param entries Number of LUT entries
-   * @return Byte array representing LUT data
-   */
-  private byte[] createSimpleLutData(int entries) {
-    byte[] data = new byte[entries * 2]; // 16-bit entries
+  // Utility methods for creating test data
+  private static Attributes createAttributesWithWindowValues(
+      double[] centers, double[] widths, String voiLutFunction, String[] explanations) {
+    var attributes = new Attributes();
+
+    if (centers != null) {
+      attributes.setDouble(Tag.WindowCenter, VR.DS, centers);
+    }
+    if (widths != null) {
+      attributes.setDouble(Tag.WindowWidth, VR.DS, widths);
+    }
+    if (voiLutFunction != null) {
+      attributes.setString(Tag.VOILUTFunction, VR.CS, voiLutFunction);
+    }
+    if (explanations != null) {
+      attributes.setString(Tag.WindowCenterWidthExplanation, VR.LO, explanations);
+    }
+
+    return attributes;
+  }
+
+  private static byte[] createLutData(int entries) {
+    var data = new byte[entries * 2]; // 16-bit entries
     for (int i = 0; i < entries; i++) {
       // Create a simple linear mapping
       int value = (i * 65535) / (entries - 1);

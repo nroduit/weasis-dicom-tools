@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Weasis Team and other contributors.
+ * Copyright (c) 2025 Weasis Team and other contributors.
  *
  * This program and the accompanying materials are made available under the terms of the Eclipse
  * Public License 2.0 which is available at https://www.eclipse.org/legal/epl-2.0, or the Apache
@@ -11,311 +11,429 @@ package org.dcm4che3.img.lut;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.util.stream.Stream;
 import org.dcm4che3.data.Attributes;
-import org.dcm4che3.data.Sequence;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.img.util.LutTestDataBuilder;
-import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.DisplayNameGeneration;
+import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
+@DisplayNameGeneration(ReplaceUnderscores.class)
 class ModalityLutModuleTest {
 
-  @Test
-  @DisplayName("Verify ModalityLutModule initialization with non-null attributes")
-  void shouldInitializeWithNonNullAttributes() {
-    Attributes attributes = new Attributes();
-    ModalityLutModule modalityLutModule = new ModalityLutModule(attributes);
+  private static final double PRECISION = 1e-10;
 
-    assertFalse(modalityLutModule.getRescaleSlope().isPresent());
-    assertFalse(modalityLutModule.getRescaleIntercept().isPresent());
-    assertFalse(modalityLutModule.getRescaleType().isPresent());
-    assertFalse(modalityLutModule.getLutType().isPresent());
-    assertFalse(modalityLutModule.getLutExplanation().isPresent());
-    assertFalse(modalityLutModule.getLut().isPresent());
-    assertFalse(modalityLutModule.isOverlayBitMaskApplied());
+  @Test
+  void should_initialize_with_empty_attributes() {
+    final var attributes = new Attributes();
+    final var module = new ModalityLutModule(attributes);
+
+    assertAll(
+        "Empty initialization",
+        () -> assertFalse(module.getRescaleSlope().isPresent()),
+        () -> assertFalse(module.getRescaleIntercept().isPresent()),
+        () -> assertFalse(module.getRescaleType().isPresent()),
+        () -> assertFalse(module.getLutType().isPresent()),
+        () -> assertFalse(module.getLutExplanation().isPresent()),
+        () -> assertFalse(module.getLut().isPresent()),
+        () -> assertFalse(module.isOverlayBitMaskApplied()));
   }
 
   @Test
-  @DisplayName("Verify ModalityLutModule initialization with null attributes")
-  void shouldThrowExceptionWhenAttributesAreNull() {
-    assertThrows(NullPointerException.class, () -> new ModalityLutModule(null));
+  void should_throw_exception_when_attributes_are_null() {
+    final var exception =
+        assertThrows(NullPointerException.class, () -> new ModalityLutModule(null));
+
+    assertEquals("DICOM attributes cannot be null", exception.getMessage());
   }
 
   @Test
-  @DisplayName("Verify do not apply modality LUT for XA and XRF")
-  void verifyLUTForXA() {
-    Attributes attributes = new Attributes();
-    attributes.setString(Tag.Modality, VR.LO, "XA");
-    attributes.setDouble(Tag.RescaleSlope, VR.DS, 2.0);
-    attributes.setDouble(Tag.RescaleIntercept, VR.DS, 1.0);
-    ModalityLutModule modalityLutModule = new ModalityLutModule(attributes);
-    assertEquals(2.0, modalityLutModule.getRescaleSlope().getAsDouble());
-    assertEquals(1.0, modalityLutModule.getRescaleIntercept().getAsDouble());
+  void should_initialize_rescale_values_correctly() {
+    final var attributes = createAttributesWithRescale(2.5, -1024.0, "HU");
+    final var module = new ModalityLutModule(attributes);
 
-    attributes.setString(Tag.Modality, VR.LO, "XRF");
-    attributes.setString(Tag.PixelIntensityRelationship, VR.CS, "DISP");
-    Attributes dcm = LutTestDataBuilder.createLinearLut8Bit();
-    Sequence seq = attributes.newSequence(Tag.ModalityLUTSequence, 1);
-    seq.add(dcm);
-
-    modalityLutModule = new ModalityLutModule(attributes);
-    assertEquals(2.0, modalityLutModule.getRescaleSlope().getAsDouble());
-    assertEquals(1.0, modalityLutModule.getRescaleIntercept().getAsDouble());
-    assertTrue(modalityLutModule.getLutExplanation().isEmpty());
-
-    attributes.setString(Tag.Modality, VR.LO, "PT");
-    dcm.setString(Tag.ModalityLUTType, VR.LO, "MGML");
-    modalityLutModule = new ModalityLutModule(attributes);
-    assertEquals("Linear 8-bit mapping", modalityLutModule.getLutExplanation().get());
-    assertEquals("MGML", modalityLutModule.getLutType().get());
+    assertAll(
+        "Rescale values",
+        () -> assertEquals(2.5, module.getRescaleSlope().getAsDouble()),
+        () -> assertEquals(-1024.0, module.getRescaleIntercept().getAsDouble()),
+        () -> assertEquals("HU", module.getRescaleType().get()));
   }
 
   @Nested
-  @DisplayName("Overlay Bit Mask Adaptation Tests")
-  class OverlayBitMaskTests {
+  class Special_Modality_Handling {
 
-    @Test
-    @DisplayName("Should set correct rescale slope when rescale slope is empty")
-    void shouldSetCorrectRescaleSlopeWhenRescaleSlopeIsEmpty() {
-      ModalityLutModule modalityLutModule = new ModalityLutModule(new Attributes());
-      modalityLutModule.adaptWithOverlayBitMask(2);
+    @ParameterizedTest
+    @ValueSource(strings = {"XA", "XRF"})
+    void should_apply_rescale_values_for_special_modalities_without_restricted_pixel_intensity(
+        final String modality) {
+      final var attributes = createAttributesWithRescale(2.0, 1.0, "US");
+      attributes.setString(Tag.Modality, VR.LO, modality);
 
-      assertEquals(0.0, modalityLutModule.getRescaleIntercept().getAsDouble());
-      assertEquals(0.25, modalityLutModule.getRescaleSlope().getAsDouble());
-      assertEquals("US", modalityLutModule.getRescaleType().get());
-      assertTrue(modalityLutModule.isOverlayBitMaskApplied());
+      final var module = new ModalityLutModule(attributes);
+
+      assertAll(
+          "Special modality rescale values",
+          () -> assertEquals(2.0, module.getRescaleSlope().getAsDouble()),
+          () -> assertEquals(1.0, module.getRescaleIntercept().getAsDouble()));
+    }
+
+    @ParameterizedTest
+    @MethodSource("specialModalitiesWithRestrictedPixelIntensity")
+    void should_ignore_lut_for_special_modalities_with_restricted_pixel_intensity(
+        final String modality, final String pixelIntensity) {
+      final var attributes = createAttributesWithRescale(2.0, 1.0, "US");
+      attributes.setString(Tag.Modality, VR.LO, modality);
+      attributes.setString(Tag.PixelIntensityRelationship, VR.CS, pixelIntensity);
+
+      // Add LUT sequence that should be ignored
+      final var lutAttributes = LutTestDataBuilder.createLinearLut8Bit();
+      final var sequence = attributes.newSequence(Tag.ModalityLUTSequence, 1);
+      sequence.add(lutAttributes);
+
+      final var module = new ModalityLutModule(attributes);
+
+      assertAll(
+          "LUT should be ignored",
+          () -> assertEquals(2.0, module.getRescaleSlope().getAsDouble()),
+          () -> assertEquals(1.0, module.getRescaleIntercept().getAsDouble()),
+          () -> assertTrue(module.getLutExplanation().isEmpty()),
+          () -> assertTrue(module.getLutType().isEmpty()));
     }
 
     @Test
-    @DisplayName("Should adjust existing rescale slope correctly")
-    void shouldAdjustExistingRescaleSlope() {
-      Attributes attributes = new Attributes();
-      attributes.setString(Tag.Modality, VR.LO, "CT");
-      attributes.setDouble(Tag.RescaleSlope, VR.DS, 2.0);
-      attributes.setDouble(Tag.RescaleIntercept, VR.DS, 1.0);
-      attributes.setString(Tag.RescaleType, VR.LO, "HU");
+    void should_apply_lut_for_non_special_modalities() {
+      final var attributes = createAttributesWithRescale(2.0, 1.0, "US");
+      attributes.setString(Tag.Modality, VR.LO, "PT");
 
-      ModalityLutModule modalityLutModule = new ModalityLutModule(attributes);
-      modalityLutModule.adaptWithOverlayBitMask(2);
+      final var lutAttributes = LutTestDataBuilder.createLinearLut8Bit();
+      lutAttributes.setString(Tag.ModalityLUTType, VR.LO, "MGML");
+      final var sequence = attributes.newSequence(Tag.ModalityLUTSequence, 1);
+      sequence.add(lutAttributes);
 
-      assertEquals(1.0, modalityLutModule.getRescaleIntercept().getAsDouble());
-      assertEquals(0.5, modalityLutModule.getRescaleSlope().getAsDouble());
-      assertEquals("HU", modalityLutModule.getRescaleType().get());
-      assertTrue(modalityLutModule.isOverlayBitMaskApplied());
+      final var module = new ModalityLutModule(attributes);
+
+      assertAll(
+          "LUT should be applied",
+          () -> assertEquals("Linear 8-bit mapping", module.getLutExplanation().get()),
+          () -> assertEquals("MGML", module.getLutType().get()),
+          () -> assertTrue(module.getLut().isPresent()));
     }
 
-    @Test
-    @DisplayName("Should prevent multiple applications of overlay bit mask")
-    void shouldPreventMultipleApplications() {
-      Attributes attributes = new Attributes();
-      attributes.setDouble(Tag.RescaleSlope, VR.DS, 4.0);
-      attributes.setDouble(Tag.RescaleIntercept, VR.DS, 2.0);
-
-      ModalityLutModule modalityLutModule = new ModalityLutModule(attributes);
-
-      // First application should work
-      modalityLutModule.adaptWithOverlayBitMask(2);
-      assertEquals(1.0, modalityLutModule.getRescaleSlope().getAsDouble());
-      assertTrue(modalityLutModule.isOverlayBitMaskApplied());
-
-      // Second application should be ignored
-      modalityLutModule.adaptWithOverlayBitMask(3);
-      assertEquals(
-          1.0, modalityLutModule.getRescaleSlope().getAsDouble()); // Should remain unchanged
-      assertTrue(modalityLutModule.isOverlayBitMaskApplied());
-    }
-
-    @Test
-    @DisplayName("Should handle different bit shift values correctly")
-    void shouldHandleDifferentBitShiftValues() {
-      // Test with 1 bit shift
-      Attributes attributes1 = new Attributes();
-      attributes1.setDouble(Tag.RescaleSlope, VR.DS, 2.0);
-      ModalityLutModule module1 = new ModalityLutModule(attributes1);
-      module1.adaptWithOverlayBitMask(1);
-      assertEquals(1.0, module1.getRescaleSlope().getAsDouble()); // 2.0 / 2^1 = 1.0
-
-      // Test with 3 bit shift
-      Attributes attributes2 = new Attributes();
-      attributes2.setDouble(Tag.RescaleSlope, VR.DS, 8.0);
-      ModalityLutModule module2 = new ModalityLutModule(attributes2);
-      module2.adaptWithOverlayBitMask(3);
-      assertEquals(1.0, module2.getRescaleSlope().getAsDouble()); // 8.0 / 2^3 = 1.0
-
-      // Test with 4 bit shift
-      Attributes attributes3 = new Attributes();
-      attributes3.setDouble(Tag.RescaleSlope, VR.DS, 1.0);
-      ModalityLutModule module3 = new ModalityLutModule(attributes3);
-      module3.adaptWithOverlayBitMask(4);
-      assertEquals(0.0625, module3.getRescaleSlope().getAsDouble()); // 1.0 / 2^4 = 0.0625
-    }
-
-    @Test
-    @DisplayName("Should handle zero bit shift gracefully")
-    void shouldHandleZeroBitShift() {
-      Attributes attributes = new Attributes();
-      attributes.setDouble(Tag.RescaleSlope, VR.DS, 3.0);
-
-      ModalityLutModule modalityLutModule = new ModalityLutModule(attributes);
-      modalityLutModule.adaptWithOverlayBitMask(0);
-
-      assertEquals(3.0, modalityLutModule.getRescaleSlope().getAsDouble()); // 3.0 / 2^0 = 3.0
-      assertTrue(modalityLutModule.isOverlayBitMaskApplied());
-    }
-
-    @Test
-    @DisplayName("Should preserve rescale intercept during adaptation")
-    void shouldPreserveRescaleIntercept() {
-      Attributes attributes = new Attributes();
-      attributes.setDouble(Tag.RescaleSlope, VR.DS, 2.0);
-      attributes.setDouble(Tag.RescaleIntercept, VR.DS, 100.0);
-      attributes.setString(Tag.RescaleType, VR.LO, "HU");
-
-      ModalityLutModule modalityLutModule = new ModalityLutModule(attributes);
-      modalityLutModule.adaptWithOverlayBitMask(1);
-
-      assertEquals(100.0, modalityLutModule.getRescaleIntercept().getAsDouble());
-      assertEquals(1.0, modalityLutModule.getRescaleSlope().getAsDouble());
-      assertEquals("HU", modalityLutModule.getRescaleType().get());
-    }
-
-    @Test
-    @DisplayName("Should set default values when no original rescale slope exists")
-    void shouldSetDefaultValuesWhenNoOriginalRescaleSlope() {
-      ModalityLutModule modalityLutModule = new ModalityLutModule(new Attributes());
-
-      // Verify initial state
-      assertFalse(modalityLutModule.getRescaleSlope().isPresent());
-      assertFalse(modalityLutModule.getRescaleIntercept().isPresent());
-      assertFalse(modalityLutModule.getRescaleType().isPresent());
-
-      modalityLutModule.adaptWithOverlayBitMask(3);
-
-      // Should use default slope (1.0) and set defaults for intercept and type
-      assertEquals(0.125, modalityLutModule.getRescaleSlope().getAsDouble()); // 1.0 / 2^3
-      assertEquals(0.0, modalityLutModule.getRescaleIntercept().getAsDouble());
-      assertEquals("US", modalityLutModule.getRescaleType().get());
-    }
-
-    @Test
-    @DisplayName("Should maintain LUT data during overlay bit mask adaptation")
-    void shouldMaintainLutDataDuringAdaptation() {
-      Attributes attributes = new Attributes();
-      attributes.setString(Tag.Modality, VR.LO, "CT");
-      attributes.setDouble(Tag.RescaleSlope, VR.DS, 2.0);
-
-      // Add LUT sequence (though this creates a warning due to mutual exclusivity)
-      Attributes dcmLut = LutTestDataBuilder.createCtHounsfieldLut();
-      Sequence seq = attributes.newSequence(Tag.ModalityLUTSequence, 1);
-      seq.add(dcmLut);
-
-      ModalityLutModule modalityLutModule = new ModalityLutModule(attributes);
-      modalityLutModule.adaptWithOverlayBitMask(1);
-
-      // LUT data should be preserved
-      assertEquals("HU", modalityLutModule.getLutType().get());
-      assertEquals("CT Hounsfield Units", modalityLutModule.getLutExplanation().get());
-      assertTrue(modalityLutModule.getLut().isPresent());
-
-      // Rescale slope should still be adjusted
-      assertEquals(1.0, modalityLutModule.getRescaleSlope().getAsDouble());
+    private static Stream<Arguments> specialModalitiesWithRestrictedPixelIntensity() {
+      return Stream.of(
+          Arguments.of("XA", "LOG"),
+          Arguments.of("XA", "DISP"),
+          Arguments.of("XRF", "LOG"),
+          Arguments.of("XRF", "DISP"));
     }
   }
 
   @Nested
-  @DisplayName("Edge Cases and Error Handling")
-  class EdgeCasesTests {
+  class Overlay_Bit_Mask_Adaptation {
 
     @Test
-    @DisplayName("Should handle very small slope values")
-    void shouldHandleVerySmallSlopeValues() {
-      Attributes attributes = new Attributes();
-      attributes.setDouble(Tag.RescaleSlope, VR.DS, 0.001);
+    void should_set_defaults_when_no_rescale_slope_exists() {
+      final var originalModule = new ModalityLutModule(new Attributes());
+      final var adaptedModule = originalModule.withOverlayBitMask(2);
 
-      ModalityLutModule modalityLutModule = new ModalityLutModule(attributes);
-      modalityLutModule.adaptWithOverlayBitMask(2);
+      assertAll(
+          "Original module unchanged",
+          () -> assertFalse(originalModule.getRescaleSlope().isPresent()),
+          () -> assertFalse(originalModule.isOverlayBitMaskApplied()));
 
-      assertEquals(0.00025, modalityLutModule.getRescaleSlope().getAsDouble(), 1e-10);
-      assertTrue(modalityLutModule.isOverlayBitMaskApplied());
+      assertAll(
+          "Adapted module with default values",
+          () -> assertEquals(0.25, adaptedModule.getRescaleSlope().getAsDouble()),
+          () -> assertEquals(0.0, adaptedModule.getRescaleIntercept().getAsDouble()),
+          () -> assertEquals("US", adaptedModule.getRescaleType().get()),
+          () -> assertTrue(adaptedModule.isOverlayBitMaskApplied()));
     }
 
     @Test
-    @DisplayName("Should handle large slope values")
-    void shouldHandleLargeSlopeValues() {
-      Attributes attributes = new Attributes();
-      attributes.setDouble(Tag.RescaleSlope, VR.DS, 1000.0);
+    void should_adjust_existing_rescale_slope() {
+      final var attributes = createAttributesWithRescale(2.0, 1.0, "HU");
+      attributes.setString(Tag.Modality, VR.LO, "CT");
 
-      ModalityLutModule modalityLutModule = new ModalityLutModule(attributes);
-      modalityLutModule.adaptWithOverlayBitMask(4);
+      final var originalModule = new ModalityLutModule(attributes);
+      final var adaptedModule = originalModule.withOverlayBitMask(2);
 
-      assertEquals(62.5, modalityLutModule.getRescaleSlope().getAsDouble()); // 1000.0 / 16
-      assertTrue(modalityLutModule.isOverlayBitMaskApplied());
+      assertAll(
+          "Original module unchanged",
+          () -> assertEquals(2.0, originalModule.getRescaleSlope().getAsDouble()),
+          () -> assertFalse(originalModule.isOverlayBitMaskApplied()));
+
+      assertAll(
+          "Adapted module with adjusted values",
+          () -> assertEquals(0.5, adaptedModule.getRescaleSlope().getAsDouble()),
+          () -> assertEquals(1.0, adaptedModule.getRescaleIntercept().getAsDouble()),
+          () -> assertEquals("HU", adaptedModule.getRescaleType().get()),
+          () -> assertTrue(adaptedModule.isOverlayBitMaskApplied()));
     }
 
     @Test
-    @DisplayName("Should handle negative slope values")
-    void shouldHandleNegativeSlopeValues() {
-      Attributes attributes = new Attributes();
-      attributes.setDouble(Tag.RescaleSlope, VR.DS, -2.0);
+    void should_prevent_multiple_applications() {
+      final var attributes = createAttributesWithRescale(4.0, 2.0, "HU");
+      final var originalModule = new ModalityLutModule(attributes);
 
-      ModalityLutModule modalityLutModule = new ModalityLutModule(attributes);
-      modalityLutModule.adaptWithOverlayBitMask(1);
+      // First application creates new instance
+      final var firstAdaptedModule = originalModule.withOverlayBitMask(2);
+      final var firstSlope = firstAdaptedModule.getRescaleSlope().getAsDouble();
 
-      assertEquals(-1.0, modalityLutModule.getRescaleSlope().getAsDouble());
-      assertTrue(modalityLutModule.isOverlayBitMaskApplied());
+      // Second application on already adapted module should return same instance
+      final var secondAdaptedModule = firstAdaptedModule.withOverlayBitMask(3);
+
+      assertAll(
+          "Multiple application prevention",
+          () -> assertEquals(1.0, firstSlope),
+          () -> assertSame(firstAdaptedModule, secondAdaptedModule), // Same instance returned
+          () -> assertEquals(firstSlope, secondAdaptedModule.getRescaleSlope().getAsDouble()),
+          () -> assertTrue(secondAdaptedModule.isOverlayBitMaskApplied()));
+    }
+
+    @ParameterizedTest
+    @MethodSource("bitShiftTestCases")
+    void should_handle_different_bit_shift_values(
+        final double originalSlope, final int bitShift, final double expectedSlope) {
+      final var attributes = createAttributesWithRescale(originalSlope, 0.0, "US");
+      final var originalModule = new ModalityLutModule(attributes);
+
+      final var adaptedModule = originalModule.withOverlayBitMask(bitShift);
+
+      assertEquals(expectedSlope, adaptedModule.getRescaleSlope().getAsDouble(), PRECISION);
+    }
+
+    @ParameterizedTest
+    @ValueSource(doubles = {0.001, 1000.0, -2.0})
+    void should_handle_extreme_slope_values(final double extremeSlope) {
+      final var attributes = createAttributesWithRescale(extremeSlope, 0.0, "US");
+      final var originalModule = new ModalityLutModule(attributes);
+
+      final var adaptedModule = originalModule.withOverlayBitMask(1);
+
+      final var expectedSlope = extremeSlope / 2.0;
+      assertAll(
+          "Extreme slope handling",
+          () ->
+              assertEquals(expectedSlope, adaptedModule.getRescaleSlope().getAsDouble(), PRECISION),
+          () -> assertTrue(adaptedModule.isOverlayBitMaskApplied()));
     }
 
     @Test
-    @DisplayName("Should handle module with only intercept set initially")
-    void shouldHandleModuleWithOnlyInterceptSet() {
-      Attributes attributes = new Attributes();
+    void should_preserve_intercept_during_adaptation() {
+      final var attributes = createAttributesWithRescale(2.0, 100.0, "HU");
+      final var originalModule = new ModalityLutModule(attributes);
+
+      final var adaptedModule = originalModule.withOverlayBitMask(1);
+
+      assertAll(
+          "Intercept preservation",
+          () -> assertEquals(100.0, adaptedModule.getRescaleIntercept().getAsDouble()),
+          () -> assertEquals(1.0, adaptedModule.getRescaleSlope().getAsDouble()),
+          () -> assertEquals("HU", adaptedModule.getRescaleType().get()));
+    }
+
+    @Test
+    void should_set_default_values_when_only_intercept_exists() {
+      final var attributes = new Attributes();
       attributes.setDouble(Tag.RescaleIntercept, VR.DS, 50.0);
-      // Note: This is technically invalid DICOM (intercept without slope)
 
-      ModalityLutModule modalityLutModule = new ModalityLutModule(attributes);
-      modalityLutModule.adaptWithOverlayBitMask(2);
+      final var originalModule = new ModalityLutModule(attributes);
+      final var adaptedModule = originalModule.withOverlayBitMask(2);
 
-      // Should use default slope and preserve intercept
-      assertEquals(0.25, modalityLutModule.getRescaleSlope().getAsDouble()); // 1.0 / 4
-      assertEquals(50.0, modalityLutModule.getRescaleIntercept().getAsDouble());
-      assertEquals("US", modalityLutModule.getRescaleType().get());
+      assertAll(
+          "Default values with existing intercept",
+          () -> assertEquals(0.25, adaptedModule.getRescaleSlope().getAsDouble()),
+          () -> assertEquals(50.0, adaptedModule.getRescaleIntercept().getAsDouble()),
+          () -> assertEquals("US", adaptedModule.getRescaleType().get()));
+    }
+
+    @Test
+    void should_maintain_lut_data_during_adaptation() {
+      final var attributes = createAttributesWithRescale(2.0, 0.0, "HU");
+      attributes.setString(Tag.Modality, VR.LO, "CT");
+
+      final var lutAttributes = LutTestDataBuilder.createCtHounsfieldLut();
+      final var sequence = attributes.newSequence(Tag.ModalityLUTSequence, 1);
+      sequence.add(lutAttributes);
+
+      final var originalModule = new ModalityLutModule(attributes);
+      final var adaptedModule = originalModule.withOverlayBitMask(1);
+
+      assertAll(
+          "LUT preservation during adaptation",
+          () -> assertEquals("HU", adaptedModule.getLutType().get()),
+          () -> assertEquals("CT Hounsfield Units", adaptedModule.getLutExplanation().get()),
+          () -> assertTrue(adaptedModule.getLut().isPresent()),
+          () -> assertEquals(1.0, adaptedModule.getRescaleSlope().getAsDouble()));
+    }
+
+    @Test
+    void should_create_independent_instances() {
+      final var attributes = createAttributesWithRescale(4.0, 10.0, "HU");
+      final var originalModule = new ModalityLutModule(attributes);
+
+      final var adapted1 = originalModule.withOverlayBitMask(1);
+      final var adapted2 = originalModule.withOverlayBitMask(2);
+
+      assertAll(
+          "Independent instances",
+          () -> assertNotSame(originalModule, adapted1),
+          () -> assertNotSame(originalModule, adapted2),
+          () -> assertNotSame(adapted1, adapted2),
+          () -> assertEquals(2.0, adapted1.getRescaleSlope().getAsDouble()),
+          () -> assertEquals(1.0, adapted2.getRescaleSlope().getAsDouble()),
+          () -> assertEquals(10.0, adapted1.getRescaleIntercept().getAsDouble()),
+          () -> assertEquals(10.0, adapted2.getRescaleIntercept().getAsDouble()));
+    }
+
+    private static Stream<Arguments> bitShiftTestCases() {
+      return Stream.of(
+          Arguments.of(2.0, 1, 1.0), // 2.0 / 2^1 = 1.0
+          Arguments.of(8.0, 3, 1.0), // 8.0 / 2^3 = 1.0
+          Arguments.of(1.0, 4, 0.0625), // 1.0 / 2^4 = 0.0625
+          Arguments.of(3.0, 0, 3.0) // 3.0 / 2^0 = 3.0
+          );
     }
   }
 
   @Nested
-  @DisplayName("State Management Tests")
-  class StateManagementTests {
+  class Immutability_Tests {
 
     @Test
-    @DisplayName("Should track overlay bit mask application state correctly")
-    void shouldTrackOverlayBitMaskApplicationState() {
-      ModalityLutModule modalityLutModule = new ModalityLutModule(new Attributes());
+    void should_maintain_original_instance_unchanged_after_adaptation() {
+      final var attributes = createAttributesWithRescale(5.0, 15.0, "CT");
+      final var originalModule = new ModalityLutModule(attributes);
 
-      // Initially should not be applied
-      assertFalse(modalityLutModule.isOverlayBitMaskApplied());
+      final var adaptedModule = originalModule.withOverlayBitMask(2);
 
-      // After application should be marked as applied
-      modalityLutModule.adaptWithOverlayBitMask(1);
-      assertTrue(modalityLutModule.isOverlayBitMaskApplied());
+      // Original should remain unchanged
+      assertAll(
+          "Original module unchanged",
+          () -> assertEquals(5.0, originalModule.getRescaleSlope().getAsDouble()),
+          () -> assertEquals(15.0, originalModule.getRescaleIntercept().getAsDouble()),
+          () -> assertEquals("CT", originalModule.getRescaleType().get()),
+          () -> assertFalse(originalModule.isOverlayBitMaskApplied()));
+
+      // New instance should have adapted values
+      assertAll(
+          "Adapted module changed",
+          () -> assertEquals(1.25, adaptedModule.getRescaleSlope().getAsDouble()),
+          () -> assertEquals(15.0, adaptedModule.getRescaleIntercept().getAsDouble()),
+          () -> assertEquals("CT", adaptedModule.getRescaleType().get()),
+          () -> assertTrue(adaptedModule.isOverlayBitMaskApplied()));
     }
 
     @Test
-    @DisplayName("Should maintain consistent state across multiple query attempts")
-    void shouldMaintainConsistentStateAcrossMultipleQueries() {
-      Attributes attributes = new Attributes();
-      attributes.setDouble(Tag.RescaleSlope, VR.DS, 5.0);
-      attributes.setDouble(Tag.RescaleIntercept, VR.DS, 4.0);
+    void should_return_same_instance_when_overlay_already_applied() {
+      final var attributes = createAttributesWithRescale(2.0, 5.0, "US");
+      final var originalModule = new ModalityLutModule(attributes);
 
-      ModalityLutModule modalityLutModule = new ModalityLutModule(attributes);
-      modalityLutModule.adaptWithOverlayBitMask(3);
+      final var firstAdaptation = originalModule.withOverlayBitMask(1);
+      final var secondAdaptation = firstAdaptation.withOverlayBitMask(2);
 
-      // Multiple calls to getters should return same values
+      assertSame(firstAdaptation, secondAdaptation);
+    }
+
+    @Test
+    void should_allow_chaining_operations_on_fresh_instances() {
+      final var attributes = createAttributesWithRescale(8.0, 0.0, "US");
+
+      final var result = new ModalityLutModule(attributes).withOverlayBitMask(3);
+
+      assertAll(
+          "Chained operations",
+          () -> assertEquals(1.0, result.getRescaleSlope().getAsDouble()),
+          () -> assertTrue(result.isOverlayBitMaskApplied()));
+    }
+  }
+
+  @Nested
+  class State_Management {
+
+    @Test
+    void should_track_overlay_bit_mask_application_state() {
+      final var originalModule = new ModalityLutModule(new Attributes());
+      final var adaptedModule = originalModule.withOverlayBitMask(1);
+
+      assertAll(
+          "State tracking",
+          () -> assertFalse(originalModule.isOverlayBitMaskApplied()),
+          () -> assertTrue(adaptedModule.isOverlayBitMaskApplied()));
+    }
+
+    @Test
+    void should_maintain_consistent_state_across_multiple_queries() {
+      final var attributes = createAttributesWithRescale(5.0, 4.0, "HU");
+      final var originalModule = new ModalityLutModule(attributes);
+      final var adaptedModule = originalModule.withOverlayBitMask(3);
+
+      // Multiple calls should return consistent values
+      final var expectedSlope = 5.0 / 8.0; // 5.0 / 2^3
       for (int i = 0; i < 5; i++) {
-        assertEquals(0.625, modalityLutModule.getRescaleSlope().getAsDouble());
-        assertTrue(modalityLutModule.isOverlayBitMaskApplied());
+        assertAll(
+            "Consistent state queries",
+            () -> assertEquals(expectedSlope, adaptedModule.getRescaleSlope().getAsDouble()),
+            () -> assertTrue(adaptedModule.isOverlayBitMaskApplied()));
       }
     }
+  }
+
+  @Nested
+  class LUT_Validation {
+
+    @Test
+    void should_ignore_invalid_lut_sequence_missing_type() {
+      final var attributes = new Attributes();
+      final var lutAttributes = new Attributes();
+      lutAttributes.setInt(Tag.LUTDescriptor, VR.US, 256, 0, 8);
+      lutAttributes.setBytes(Tag.LUTData, VR.OW, new byte[512]);
+      // Missing ModalityLUTType
+
+      final var sequence = attributes.newSequence(Tag.ModalityLUTSequence, 1);
+      sequence.add(lutAttributes);
+
+      final var module = new ModalityLutModule(attributes);
+
+      assertAll(
+          "Invalid LUT handling",
+          () -> assertTrue(module.getLutType().isEmpty()),
+          () -> assertTrue(module.getLut().isEmpty()));
+    }
+
+    @Test
+    void should_ignore_invalid_lut_sequence_missing_descriptor() {
+      final var attributes = new Attributes();
+      final var lutAttributes = new Attributes();
+      lutAttributes.setString(Tag.ModalityLUTType, VR.LO, "US");
+      lutAttributes.setBytes(Tag.LUTData, VR.OW, new byte[512]);
+      // Missing LUTDescriptor
+
+      final var sequence = attributes.newSequence(Tag.ModalityLUTSequence, 1);
+      sequence.add(lutAttributes);
+
+      final var module = new ModalityLutModule(attributes);
+
+      assertAll(
+          "Invalid LUT handling",
+          () -> assertTrue(module.getLutType().isEmpty()),
+          () -> assertTrue(module.getLut().isEmpty()));
+    }
+  }
+
+  // Helper method to create attributes with rescale values
+  private static Attributes createAttributesWithRescale(
+      final double slope, final double intercept, final String type) {
+    final var attributes = new Attributes();
+    attributes.setDouble(Tag.RescaleSlope, VR.DS, slope);
+    attributes.setDouble(Tag.RescaleIntercept, VR.DS, intercept);
+    attributes.setString(Tag.RescaleType, VR.LO, type);
+    return attributes;
   }
 }

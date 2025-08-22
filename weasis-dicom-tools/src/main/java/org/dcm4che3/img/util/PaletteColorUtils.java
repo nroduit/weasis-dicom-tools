@@ -9,6 +9,7 @@
  */
 package org.dcm4che3.img.util;
 
+import java.util.Arrays;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.opencv.core.CvType;
@@ -73,7 +74,7 @@ public final class PaletteColorUtils {
       return source;
     }
 
-    return canUseOptimizedTransform(source, lookup)
+    return hasZeroOffsets(source, lookup)
         ? performOptimizedTransform(source, lookup)
         : performGeneralLookup(source, lookup);
   }
@@ -102,13 +103,12 @@ public final class PaletteColorUtils {
       return source;
     }
 
-    return canUseDirectTransform(source, colorComponents)
+    return hasZeroOffsets(colorComponents)
         ? performDirectTransform(source, colorComponents)
         : performLookupTransform(source, colorComponents);
   }
 
-  // Private helper methods
-
+  // Check if DICOM attributes contain all required palette descriptors
   private static boolean hasPaletteColorDescriptors(Attributes ds) {
     return ds != null
         && ds.containsValue(Tag.RedPaletteColorLookupTableDescriptor)
@@ -116,33 +116,39 @@ public final class PaletteColorUtils {
         && ds.containsValue(Tag.BluePaletteColorLookupTableDescriptor);
   }
 
+  // Extract palette color components from DICOM attributes
   private static ColorComponents extractColorComponents(Attributes ds) {
-    var redDesc = LookupTableUtils.lutDescriptor(ds, Tag.RedPaletteColorLookupTableDescriptor);
-    var greenDesc = LookupTableUtils.lutDescriptor(ds, Tag.GreenPaletteColorLookupTableDescriptor);
-    var blueDesc = LookupTableUtils.lutDescriptor(ds, Tag.BluePaletteColorLookupTableDescriptor);
+    var descriptors =
+        new int[][] {
+          LookupTableUtils.lutDescriptor(ds, Tag.RedPaletteColorLookupTableDescriptor),
+          LookupTableUtils.lutDescriptor(ds, Tag.GreenPaletteColorLookupTableDescriptor),
+          LookupTableUtils.lutDescriptor(ds, Tag.BluePaletteColorLookupTableDescriptor)
+        };
 
-    var redData =
-        LookupTableUtils.lutData(
-            ds,
-            redDesc,
-            Tag.RedPaletteColorLookupTableData,
-            Tag.SegmentedRedPaletteColorLookupTableData);
-    var greenData =
-        LookupTableUtils.lutData(
-            ds,
-            greenDesc,
-            Tag.GreenPaletteColorLookupTableData,
-            Tag.SegmentedGreenPaletteColorLookupTableData);
-    var blueData =
-        LookupTableUtils.lutData(
-            ds,
-            blueDesc,
-            Tag.BluePaletteColorLookupTableData,
-            Tag.SegmentedBluePaletteColorLookupTableData);
+    var data =
+        new byte[][] {
+          LookupTableUtils.lutData(
+              ds,
+              descriptors[0],
+              Tag.RedPaletteColorLookupTableData,
+              Tag.SegmentedRedPaletteColorLookupTableData),
+          LookupTableUtils.lutData(
+              ds,
+              descriptors[1],
+              Tag.GreenPaletteColorLookupTableData,
+              Tag.SegmentedGreenPaletteColorLookupTableData),
+          LookupTableUtils.lutData(
+              ds,
+              descriptors[2],
+              Tag.BluePaletteColorLookupTableData,
+              Tag.SegmentedBluePaletteColorLookupTableData)
+        };
 
-    return new ColorComponents(redDesc, greenDesc, blueDesc, redData, greenData, blueData);
+    return new ColorComponents(
+        descriptors[0], descriptors[1], descriptors[2], data[0], data[1], data[2]);
   }
 
+  // Create LookupTableCV from color components
   private static LookupTableCV createPaletteLookupTable(ColorComponents components) {
     return new LookupTableCV(
         new byte[][] {components.blueData(), components.greenData(), components.redData()},
@@ -150,28 +156,32 @@ public final class PaletteColorUtils {
         true);
   }
 
-  private static boolean canUseOptimizedTransform(PlanarImage source, LookupTableCV lookup) {
+  // Check if lookup table has zero offsets for optimization
+  private static boolean hasZeroOffsets(PlanarImage source, LookupTableCV lookup) {
     return source.depth() <= CvType.CV_8S
         && lookup.getOffset(0) == 0
         && lookup.getOffset(1) == 0
         && lookup.getOffset(2) == 0;
   }
 
-  private static PlanarImage performOptimizedTransform(PlanarImage source, LookupTableCV lookup) {
-    return ImageTransformer.applyLUT(source.toMat(), lookup.getByteData());
-  }
-
-  private static PlanarImage performGeneralLookup(PlanarImage source, LookupTableCV lookup) {
-    return lookup.lookup(source.toMat());
-  }
-
-  private static boolean canUseDirectTransform(PlanarImage source, ColorComponents components) {
-    return source.depth() <= CvType.CV_8S
-        && components.redDesc()[1] == 0
+  // Check if color components have zero offsets for optimization
+  private static boolean hasZeroOffsets(ColorComponents components) {
+    return components.redDesc()[1] == 0
         && components.greenDesc()[1] == 0
         && components.blueDesc()[1] == 0;
   }
 
+  // Apply optimized LUT transformation for 8-bit data with zero offsets
+  private static PlanarImage performOptimizedTransform(PlanarImage source, LookupTableCV lookup) {
+    return ImageTransformer.applyLUT(source.toMat(), lookup.getByteData());
+  }
+
+  // Apply general LUT lookup operation
+  private static PlanarImage performGeneralLookup(PlanarImage source, LookupTableCV lookup) {
+    return lookup.lookup(source.toMat());
+  }
+
+  // Apply direct LUT transformation using color components data
   private static PlanarImage performDirectTransform(
       PlanarImage source, ColorComponents components) {
     return ImageTransformer.applyLUT(
@@ -179,13 +189,14 @@ public final class PaletteColorUtils {
         new byte[][] {components.blueData(), components.greenData(), components.redData()});
   }
 
+  // Apply LUT transformation by creating lookup table first
   private static PlanarImage performLookupTransform(
       PlanarImage source, ColorComponents components) {
     var lookup = createPaletteLookupTable(components);
     return lookup.lookup(source.toMat());
   }
 
-  /** Helper record to organize color component data. */
+  /** Helper record to organize color component data for palette operations. */
   private record ColorComponents(
       int[] redDesc,
       int[] greenDesc,
@@ -193,8 +204,10 @@ public final class PaletteColorUtils {
       byte[] redData,
       byte[] greenData,
       byte[] blueData) {
+    // Check if all color component data is present and valid
     boolean isValid() {
-      return redData != null && greenData != null && blueData != null;
+      return Arrays.stream(new byte[][] {redData, greenData, blueData})
+          .allMatch(data -> data != null && data.length > 0);
     }
   }
 }

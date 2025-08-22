@@ -12,6 +12,7 @@ package org.dcm4che3.img.stream;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.stream.IntStream;
 
 /**
  * Represents a segmented input stream for DICOM image data with multiple segments.
@@ -45,6 +46,48 @@ public record ExtendSegmentedInputImageStream(
     Objects.requireNonNull(segmentLengths, "Segment lengths cannot be null");
     Objects.requireNonNull(imageDescriptor, "Image descriptor cannot be null");
 
+    validateArraysConsistency(segmentPositions, segmentLengths);
+    validateSegmentValues(segmentPositions, segmentLengths);
+  }
+
+  public int getSegmentCount() {
+    return segmentPositions.length;
+  }
+
+  public long getTotalLength() {
+    return Arrays.stream(segmentLengths).asLongStream().sum();
+  }
+
+  public long[] segmentPositions() {
+    return segmentPositions.clone();
+  }
+
+  public int[] segmentLengths() {
+    return segmentLengths.clone();
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    return obj instanceof ExtendSegmentedInputImageStream other
+        && Objects.equals(path, other.path)
+        && Arrays.equals(segmentPositions, other.segmentPositions)
+        && Arrays.equals(segmentLengths, other.segmentLengths)
+        && Objects.equals(imageDescriptor, other.imageDescriptor);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(
+        path, imageDescriptor, Arrays.hashCode(segmentPositions), Arrays.hashCode(segmentLengths));
+  }
+
+  @Override
+  public String toString() {
+    return "ExtendSegmentedInputImageStream{path=%s, segments=%d, totalLength=%d}"
+        .formatted(path, getSegmentCount(), getTotalLength());
+  }
+
+  private static void validateArraysConsistency(long[] segmentPositions, int[] segmentLengths) {
     if (segmentPositions.length != segmentLengths.length) {
       throw new IllegalArgumentException(
           "Segment positions and lengths arrays must have the same length");
@@ -53,62 +96,20 @@ public record ExtendSegmentedInputImageStream(
     if (segmentPositions.length == 0) {
       throw new IllegalArgumentException("At least one segment must be defined");
     }
-
-    for (int i = 0; i < segmentPositions.length; i++) {
-      if (segmentPositions[i] < 0) {
-        throw new IllegalArgumentException(
-            "Segment position cannot be negative: " + segmentPositions[i]);
-      }
-      if (segmentLengths[i] <= 0) {
-        throw new IllegalArgumentException("Segment length must be positive: " + segmentLengths[i]);
-      }
-    }
   }
 
-  /** Returns the number of segments in this stream. */
-  public int getSegmentCount() {
-    return segmentPositions.length;
-  }
-
-  /** Returns the total length of all segments combined. */
-  public long getTotalLength() {
-    return Arrays.stream(segmentLengths).asLongStream().sum();
-  }
-
-  /** Returns a copy of the segment positions array to preserve immutability. */
-  public long[] segmentPositions() {
-    return segmentPositions.clone();
-  }
-
-  /** Returns a copy of the segment lengths array to preserve immutability. */
-  public int[] segmentLengths() {
-    return segmentLengths.clone();
-  }
-
-  @Override
-  public boolean equals(Object obj) {
-    if (this == obj) return true;
-    if (obj == null || getClass() != obj.getClass()) return false;
-
-    ExtendSegmentedInputImageStream other = (ExtendSegmentedInputImageStream) obj;
-    return Objects.equals(path, other.path)
-        && Arrays.equals(segmentPositions, other.segmentPositions)
-        && Arrays.equals(segmentLengths, other.segmentLengths)
-        && Objects.equals(imageDescriptor, other.imageDescriptor);
-  }
-
-  @Override
-  public int hashCode() {
-    int result = Objects.hash(path, imageDescriptor);
-    result = 31 * result + Arrays.hashCode(segmentPositions);
-    result = 31 * result + Arrays.hashCode(segmentLengths);
-    return result;
-  }
-
-  @Override
-  public String toString() {
-    return String.format(
-        "ExtendSegmentedInputImageStream{path=%s, segments=%d, totalLength=%d}",
-        path, getSegmentCount(), getTotalLength());
+  private static void validateSegmentValues(long[] segmentPositions, int[] segmentLengths) {
+    IntStream.range(0, segmentPositions.length)
+        .forEach(
+            i -> {
+              if (segmentPositions[i] < 0) {
+                throw new IllegalArgumentException(
+                    "Segment position cannot be negative: " + segmentPositions[i]);
+              }
+              if (segmentLengths[i] <= 0) {
+                throw new IllegalArgumentException(
+                    "Segment length must be positive: " + segmentLengths[i]);
+              }
+            });
   }
 }

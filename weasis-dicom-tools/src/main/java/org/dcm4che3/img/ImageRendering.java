@@ -15,7 +15,6 @@ import java.util.Objects;
 import java.util.Optional;
 import org.dcm4che3.img.data.EmbeddedOverlay;
 import org.dcm4che3.img.data.OverlayData;
-import org.dcm4che3.img.lut.ModalityLutModule;
 import org.dcm4che3.img.lut.WindLevelParameters;
 import org.dcm4che3.img.stream.ImageDescriptor;
 import org.opencv.core.CvType;
@@ -24,7 +23,6 @@ import org.weasis.opencv.data.ImageCV;
 import org.weasis.opencv.data.LookupTableCV;
 import org.weasis.opencv.data.PlanarImage;
 import org.weasis.opencv.op.ImageTransformer;
-import org.weasis.opencv.op.lut.PresentationStateLut;
 
 /**
  * Utility class for DICOM image rendering and transformation operations.
@@ -44,7 +42,7 @@ import org.weasis.opencv.op.lut.PresentationStateLut;
  *
  * @author Nicolas Roduit
  */
-public class ImageRendering {
+public final class ImageRendering {
 
   private ImageRendering() {}
 
@@ -60,12 +58,9 @@ public class ImageRendering {
    * @throws NullPointerException if any parameter is null
    */
   public static PlanarImage getRawRenderedImage(
-      final PlanarImage imageSource,
-      ImageDescriptor desc,
-      DicomImageReadParam params,
-      int frameIndex) {
-    PlanarImage img = getImageWithoutEmbeddedOverlay(imageSource, desc, frameIndex);
-    DicomImageAdapter adapter = new DicomImageAdapter(img, desc, frameIndex);
+      PlanarImage imageSource, ImageDescriptor desc, DicomImageReadParam params, int frameIndex) {
+    var imageWithoutOverlay = getImageWithoutEmbeddedOverlay(imageSource, desc, frameIndex);
+    var adapter = new DicomImageAdapter(imageWithoutOverlay, desc, frameIndex);
     return getModalityLutImage(imageSource, adapter, params);
   }
 
@@ -81,13 +76,12 @@ public class ImageRendering {
    */
   public static PlanarImage getModalityLutImage(
       PlanarImage img, DicomImageAdapter adapter, DicomImageReadParam params) {
-    WindLevelParameters p = new WindLevelParameters(adapter, params);
-    int datatype = Objects.requireNonNull(img).type();
+    var windLevelParams = new WindLevelParameters(adapter, params);
+    int dataType = Objects.requireNonNull(img).type();
 
-    if (isIntegerDataType(datatype)) {
-      return applyModalityLutToIntegerData(img, adapter, p);
-    }
-    return img;
+    return isIntegerDataType(dataType)
+        ? applyModalityLutToIntegerData(img, adapter, windLevelParams)
+        : img;
   }
 
   /**
@@ -101,13 +95,10 @@ public class ImageRendering {
    * @throws NullPointerException if any parameter is null
    */
   public static PlanarImage getDefaultRenderedImage(
-      final PlanarImage imageSource,
-      ImageDescriptor desc,
-      DicomImageReadParam params,
-      int frameIndex) {
-    PlanarImage img = getImageWithoutEmbeddedOverlay(imageSource, desc, frameIndex);
-    img = getVoiLutImage(img, desc, params, frameIndex);
-    return OverlayData.getOverlayImage(imageSource, img, desc, params, frameIndex);
+      PlanarImage imageSource, ImageDescriptor desc, DicomImageReadParam params, int frameIndex) {
+    var imageWithoutOverlay = getImageWithoutEmbeddedOverlay(imageSource, desc, frameIndex);
+    var voiProcessedImage = getVoiLutImage(imageWithoutOverlay, desc, params, frameIndex);
+    return OverlayData.getOverlayImage(imageSource, voiProcessedImage, desc, params, frameIndex);
   }
 
   /**
@@ -121,11 +112,8 @@ public class ImageRendering {
    * @throws NullPointerException if any parameter is null
    */
   public static PlanarImage getVoiLutImage(
-      final PlanarImage imageSource,
-      ImageDescriptor desc,
-      DicomImageReadParam params,
-      int frameIndex) {
-    DicomImageAdapter adapter = new DicomImageAdapter(imageSource, desc, frameIndex);
+      PlanarImage imageSource, ImageDescriptor desc, DicomImageReadParam params, int frameIndex) {
+    var adapter = new DicomImageAdapter(imageSource, desc, frameIndex);
     return getVoiLutImage(imageSource, adapter, params);
   }
 
@@ -140,15 +128,14 @@ public class ImageRendering {
    */
   public static PlanarImage getVoiLutImage(
       PlanarImage imageSource, DicomImageAdapter adapter, DicomImageReadParam params) {
-    WindLevelParameters p = new WindLevelParameters(adapter, params);
-    int datatype = Objects.requireNonNull(imageSource).type();
+    var windLevelParams = new WindLevelParameters(adapter, params);
+    int dataType = Objects.requireNonNull(imageSource).type();
 
-    if (isIntegerDataType(datatype)) {
-      return processIntegerDataForVoi(imageSource, adapter, p);
-    } else if (isFloatingPointDataType(datatype)) {
-      return processFloatingPointDataForVoi(imageSource, p, datatype);
-    }
-    return null;
+    return switch (getDataTypeCategory(dataType)) {
+      case INTEGER -> processIntegerDataForVoi(imageSource, adapter, windLevelParams);
+      case FLOATING_POINT -> processFloatingPointDataForVoi(imageSource, windLevelParams, dataType);
+      case UNSUPPORTED -> null;
+    };
   }
 
   /**
@@ -187,31 +174,43 @@ public class ImageRendering {
 
   // ======= Private helper methods =======
 
-  private static boolean isIntegerDataType(int datatype) {
-    return datatype >= CvType.CV_8U && datatype < CvType.CV_32S;
+  /** Data type categories for processing logic */
+  private enum DataTypeCategory {
+    INTEGER,
+    FLOATING_POINT,
+    UNSUPPORTED
   }
 
-  private static boolean isFloatingPointDataType(int datatype) {
-    return datatype >= CvType.CV_32S;
+  private static DataTypeCategory getDataTypeCategory(int dataType) {
+    if (dataType >= CvType.CV_8U && dataType < CvType.CV_32S) {
+      return DataTypeCategory.INTEGER;
+    }
+    if (dataType >= CvType.CV_32S) {
+      return DataTypeCategory.FLOATING_POINT;
+    }
+    return DataTypeCategory.UNSUPPORTED;
+  }
+
+  private static boolean isIntegerDataType(int dataType) {
+    return getDataTypeCategory(dataType) == DataTypeCategory.INTEGER;
   }
 
   private static ImageCV applyModalityLutToIntegerData(
-      PlanarImage img, DicomImageAdapter adapter, WindLevelParameters p) {
-    LookupTableCV modalityLookup = adapter.getModalityLookup(p, p.isInverseLut());
+      PlanarImage img, DicomImageAdapter adapter, WindLevelParameters params) {
+    var modalityLookup = adapter.getModalityLookup(params, params.isInverseLut());
     return modalityLookup == null ? img.toImageCV() : modalityLookup.lookup(img.toMat());
   }
 
   private static ImageCV processIntegerDataForVoi(
-      PlanarImage imageSource, DicomImageAdapter adapter, WindLevelParameters p) {
-    ImageDescriptor desc = adapter.getImageDescriptor();
-    LookupTableCV modalityLookup = adapter.getModalityLookup(p, p.isInverseLut());
-    ImageCV imageModalityTransformed = applyModalityTransformation(imageSource, modalityLookup);
+      PlanarImage imageSource, DicomImageAdapter adapter, WindLevelParameters params) {
+    var modalityLookup = adapter.getModalityLookup(params, params.isInverseLut());
+    var imageModalityTransformed = applyModalityTransformation(imageSource, modalityLookup);
 
-    if (shouldSkipVoiLutForColorImage(p, desc)) {
+    if (shouldSkipVoiLutForColorImage(params, adapter.getImageDescriptor())) {
       return imageModalityTransformed;
     }
 
-    return applyVoiAndPresentationLuts(imageModalityTransformed, adapter, p);
+    return applyVoiAndPresentationLuts(imageModalityTransformed, adapter, params);
   }
 
   private static ImageCV applyModalityTransformation(
@@ -222,52 +221,60 @@ public class ImageRendering {
   }
 
   private static boolean shouldSkipVoiLutForColorImage(
-      WindLevelParameters p, ImageDescriptor desc) {
+      WindLevelParameters params, ImageDescriptor desc) {
     /*
      * C.11.2.1.2 Window center and window width
      *
      * These Attributes shall be used only for Images with Photometric Interpretation (0028,0004) values of
      * MONOCHROME1 and MONOCHROME2. They have no meaning for other Images.
      */
-    return (!p.isAllowWinLevelOnColorImage()
-            || MathUtil.isEqual(p.getWindow(), 255.0) && MathUtil.isEqual(p.getLevel(), 127.5))
-        && !desc.getPhotometricInterpretation().isMonochrome();
+    var photometricInterpretation = desc.getPhotometricInterpretation();
+    if (photometricInterpretation.isMonochrome()) {
+      return false;
+    }
+
+    boolean isDefaultWindow =
+        MathUtil.isEqual(params.getWindow(), 255.0) && MathUtil.isEqual(params.getLevel(), 127.5);
+    return !params.isAllowWinLevelOnColorImage() || isDefaultWindow;
   }
 
   private static ImageCV applyVoiAndPresentationLuts(
-      ImageCV imageModalityTransformed, DicomImageAdapter adapter, WindLevelParameters p) {
-    PresentationStateLut prDcm = p.getPresentationState();
-    Optional<LookupTableCV> prLut = prDcm == null ? Optional.empty() : prDcm.getPrLut();
+      ImageCV imageModalityTransformed, DicomImageAdapter adapter, WindLevelParameters params) {
+    var presentationState = params.getPresentationState();
+    Optional<LookupTableCV> presentationLut =
+        presentationState == null ? Optional.empty() : presentationState.getPrLut();
     LookupTableCV voiLookup = null;
-    if (prLut.isEmpty() || p.getLutShape().getLookup() != null) {
-      voiLookup = adapter.getVOILookup(p);
+    if (presentationLut.isEmpty() || params.getLutShape().getLookup() != null) {
+      voiLookup = adapter.getVOILookup(params);
     }
-    if (prLut.isEmpty()) {
+    if (presentationLut.isEmpty()) {
       return voiLookup.lookup(imageModalityTransformed);
     }
 
-    ImageCV imageVoiTransformed =
+    var imageVoiTransformed =
         voiLookup == null ? imageModalityTransformed : voiLookup.lookup(imageModalityTransformed);
-    return prLut.get().lookup(imageVoiTransformed);
+
+    return presentationLut.get().lookup(imageVoiTransformed);
   }
 
   private static ImageCV processFloatingPointDataForVoi(
-      PlanarImage imageSource, WindLevelParameters p, int datatype) {
-    double low = p.getLevel() - p.getWindow() / 2.0;
-    double high = p.getLevel() + p.getWindow() / 2.0;
-    double range = calculateRange(high, low, datatype);
-    double slope = 255.0 / range;
-    double yint = 255.0 - slope * high;
+      PlanarImage imageSource, WindLevelParameters params, int dataType) {
+    double window = params.getWindow();
+    double level = params.getLevel();
 
-    return ImageTransformer.rescaleToByte(ImageCV.toMat(imageSource), slope, yint);
+    double low = level - window / 2.0;
+    double high = level + window / 2.0;
+    double range = calculateRange(high, low, dataType);
+    double slope = 255.0 / range;
+    double yIntercept = 255.0 - slope * high;
+
+    return ImageTransformer.rescaleToByte(ImageCV.toMat(imageSource), slope, yIntercept);
   }
 
-  private static double calculateRange(double high, double low, int datatype) {
+  private static double calculateRange(double high, double low, int dataType) {
     double range = high - low;
-    if (range < 1.0 && datatype == DataBuffer.TYPE_INT) {
-      range = 1.0;
-    }
-    return range;
+    // Ensure minimum range for integer data types
+    return (range < 1.0 && dataType == DataBuffer.TYPE_INT) ? 1.0 : range;
   }
 
   private static boolean shouldApplyOverlayMask(int bitsStored, int bitsAllocated) {
@@ -277,19 +284,20 @@ public class ImageRendering {
   private static int calculateOverlayMask(ImageDescriptor desc, int frameIndex, int bitsStored) {
     int highBit = desc.getHighBit();
     int high = highBit + 1;
-    int val = (1 << high) - 1;
+    int mask = (1 << high) - 1;
     if (high > bitsStored) {
-      val -= (1 << (high - bitsStored)) - 1;
+      mask -= (1 << (high - bitsStored)) - 1;
       adaptModalityLutForOverlay(desc, frameIndex, high - bitsStored);
     }
-    return val;
+    return mask;
   }
 
   private static void adaptModalityLutForOverlay(
       ImageDescriptor desc, int frameIndex, int overlayBits) {
-    ModalityLutModule modLut = desc.getModalityLutForFrame(frameIndex);
-    if (modLut != null && !modLut.isOverlayBitMaskApplied()) {
-      modLut.adaptWithOverlayBitMask(overlayBits);
+    var modalityLut = desc.getModalityLutForFrame(frameIndex);
+    if (modalityLut != null && !modalityLut.isOverlayBitMaskApplied()) {
+      var updatedLut = modalityLut.withOverlayBitMask(overlayBits);
+      desc.setModalityLutForFrame(frameIndex, updatedLut);
     }
   }
 }

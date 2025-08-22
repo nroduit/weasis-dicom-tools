@@ -17,6 +17,15 @@ import java.util.Optional;
  * <p>This interface serves as a bridge between image input streams and their corresponding image
  * descriptors, allowing implementations to provide image metadata in a consistent manner.
  *
+ * <p><strong>Usage Example:</strong>
+ *
+ * <pre>{@code
+ * ImageReaderDescriptor reader = ...;
+ * reader.getImageDescriptorOptional()
+ *       .filter(desc -> desc.getWidth() > 0)
+ *       .ifPresent(desc -> processImage(desc));
+ * }</pre>
+ *
  * @author Nicolas Roduit
  * @since 5.0
  */

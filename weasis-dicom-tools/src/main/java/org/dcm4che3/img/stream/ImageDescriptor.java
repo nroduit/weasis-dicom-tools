@@ -129,10 +129,10 @@ public final class ImageDescriptor {
     this.pixelRepresentation = pixelAttributes.pixelRepresentation();
     this.planarConfiguration = pixelAttributes.planarConfiguration();
     this.pixelPresentation = pixelAttributes.pixelPresentation();
-    this.paletteColorLookupTable = initializePaletteColorLookupTable(dcm);
+    this.paletteColorLookupTable = createPaletteColorLookupTable(dcm);
 
     // Initialize DICOM metadata
-    var metadata = initializeDicomMetadata(dcm);
+    var metadata = createDicomMetadata(dcm);
     this.sopClassUID = metadata.sopClassUID();
     this.seriesInstanceUID = metadata.seriesInstanceUID();
     this.modality = metadata.modality();
@@ -140,25 +140,25 @@ public final class ImageDescriptor {
     this.anatomicRegion = metadata.anatomicRegion();
 
     // Initialize overlay and presentation data
-    var initializedOverlayData = initializeOverlayData(dcm);
-    this.embeddedOverlay = initializedOverlayData.embeddedOverlays();
-    this.overlayData = initializedOverlayData.overlays();
-    this.presentationLUTShape = initializedOverlayData.presentationLUTShape();
+    var overlayContainer = createOverlayData(dcm);
+    this.embeddedOverlay = overlayContainer.embeddedOverlays();
+    this.overlayData = overlayContainer.overlays();
+    this.presentationLUTShape = overlayContainer.presentationLUTShape();
 
     // Initialize pixel padding and LUT modules
-    var lutData = initializeLutData(dcm);
+    var lutData = createLutData(dcm);
     this.pixelPaddingValue = lutData.pixelPaddingValue();
     this.pixelPaddingRangeLimit = lutData.pixelPaddingRangeLimit();
     this.modalityLUT = lutData.modalityLUT();
     this.voiLUT = lutData.voiLUT();
 
     // Initialize frame-specific collections
-    this.minMaxPixelValues = initializeFrameCollection(frames);
-    this.voiLutPerFrame = initializeFrameCollection(frames);
-    this.modalityLutPerFrame = initializeFrameCollection(frames);
+    this.minMaxPixelValues = createNullFilledList(frames);
+    this.voiLutPerFrame = createNullFilledList(frames);
+    this.modalityLutPerFrame = createNullFilledList(frames);
   }
 
-  private LookupTableCV initializePaletteColorLookupTable(Attributes dcm) {
+  private LookupTableCV createPaletteColorLookupTable(Attributes dcm) {
     if (hasPaletteColorLookupTable()) {
       LookupTableCV lookup = PaletteColorUtils.getPaletteColorLookupTable(dcm);
       if (lookup != null) {
@@ -171,20 +171,19 @@ public final class ImageDescriptor {
   }
 
   private PixelAttributes initializePixelAttributes(Attributes dcm, int bitsCompressed) {
-    int numSamples = Math.max(dcm.getInt(Tag.SamplesPerPixel, 1), 1);
+    var numSamples = Math.max(dcm.getInt(Tag.SamplesPerPixel, 1), 1);
     var pixelColorModel =
         PhotometricInterpretation.fromString(
             dcm.getString(Tag.PhotometricInterpretation, "MONOCHROME2"));
-    int maxBitsAllocated = Math.max(dcm.getInt(Tag.BitsAllocated, 8), 1);
-    int bitsStoredValue =
+    var maxBitsAllocated = Math.max(dcm.getInt(Tag.BitsAllocated, 8), 1);
+    var bitsStoredValue =
         Math.min(Math.max(dcm.getInt(Tag.BitsStored, maxBitsAllocated), 1), maxBitsAllocated);
-    int highBitValue = Math.min(dcm.getInt(Tag.HighBit, bitsStoredValue - 1), bitsStoredValue - 1);
-    int finalBitsCompressed =
+    var highBitValue = Math.min(dcm.getInt(Tag.HighBit, bitsStoredValue - 1), bitsStoredValue - 1);
+    var finalBitsCompressed =
         bitsCompressed > 0 ? Math.min(bitsCompressed, maxBitsAllocated) : bitsStoredValue;
-
-    int pixelRepValue = dcm.getInt(Tag.PixelRepresentation, 0);
-    int planarConfig = dcm.getInt(Tag.PlanarConfiguration, 0);
-    String presentationType = dcm.getString(Tag.PixelPresentation);
+    var pixelRepValue = dcm.getInt(Tag.PixelRepresentation, 0);
+    var planarConfig = dcm.getInt(Tag.PlanarConfiguration, 0);
+    var presentationType = dcm.getString(Tag.PixelPresentation);
 
     return new PixelAttributes(
         numSamples,
@@ -198,7 +197,7 @@ public final class ImageDescriptor {
         presentationType);
   }
 
-  private DicomMetadata initializeDicomMetadata(Attributes dcm) {
+  private DicomMetadata createDicomMetadata(Attributes dcm) {
     return new DicomMetadata(
         dcm.getString(Tag.SOPClassUID),
         dcm.getString(Tag.SeriesInstanceUID),
@@ -207,7 +206,7 @@ public final class ImageDescriptor {
         AnatomicRegion.read(dcm));
   }
 
-  private OverlayDataContainer initializeOverlayData(Attributes dcm) {
+  private OverlayDataContainer createOverlayData(Attributes dcm) {
     var embeddedOverlays = EmbeddedOverlay.getEmbeddedOverlay(dcm);
     var overlays = OverlayData.getOverlayData(dcm, 0xffff);
 
@@ -215,104 +214,82 @@ public final class ImageDescriptor {
         embeddedOverlays, overlays, dcm.getString(Tag.PresentationLUTShape));
   }
 
-  private LutDataContainer initializeLutData(Attributes dcm) {
-    Integer paddingValue = DicomUtils.getIntegerFromDicomElement(dcm, Tag.PixelPaddingValue, null);
-    Integer paddingRangeLimit =
+  private LutDataContainer createLutData(Attributes dcm) {
+    var paddingValue = DicomUtils.getIntegerFromDicomElement(dcm, Tag.PixelPaddingValue, null);
+    var paddingRangeLimit =
         DicomUtils.getIntegerFromDicomElement(dcm, Tag.PixelPaddingRangeLimit, null);
-    var mLUT = new ModalityLutModule(dcm);
-    var vLUT = new VoiLutModule(dcm);
-
-    return new LutDataContainer(paddingValue, paddingRangeLimit, mLUT, vLUT);
+    return new LutDataContainer(
+        paddingValue, paddingRangeLimit, new ModalityLutModule(dcm), new VoiLutModule(dcm));
   }
 
-  private static <T> List<T> initializeFrameCollection(int frames) {
-    List<T> collection = new ArrayList<>(frames);
-    for (int i = 0; i < frames; i++) {
-      collection.add(null);
-    }
-    return collection;
+  private static <T> List<T> createNullFilledList(int size) {
+    return new ArrayList<>(Collections.nCopies(size, null));
   }
 
   // === Basic Image Properties ===
 
-  /** Returns the number of rows (height) in the image. */
   public int getRows() {
     return rows;
   }
 
-  /** Returns the number of columns (width) in the image. */
   public int getColumns() {
     return columns;
   }
 
-  /** Returns the number of frames in the image (1 for single-frame images). */
   public int getFrames() {
     return frames;
   }
 
-  /** Returns the number of samples (color components) per pixel. */
   public int getSamples() {
     return samples;
   }
 
-  /** Returns true if this is a multi-frame image. */
   public boolean isMultiframe() {
     return frames > 1;
   }
 
   // === Pixel Representation Properties ===
 
-  /** Returns the photometric interpretation defining the color space. */
   public PhotometricInterpretation getPhotometricInterpretation() {
     return photometricInterpretation;
   }
 
-  /** Returns the number of bits allocated for each pixel sample. */
   public int getBitsAllocated() {
     return bitsAllocated;
   }
 
-  /** Returns the number of bits actually used for pixel data storage. */
   public int getBitsStored() {
     return bitsStored;
   }
 
-  /** Returns the number of bits used in compressed pixel data (0 if uncompressed). */
   public int getBitsCompressed() {
     return bitsCompressed;
   }
 
-  /** Returns the position of the most significant bit in pixel data. */
   public int getHighBit() {
     return highBit;
   }
 
-  /** Returns the pixel representation (0 = unsigned, 1 = signed). */
   public int getPixelRepresentation() {
     return pixelRepresentation;
   }
 
-  /** Returns the planar configuration for multi-sample pixels. */
   public int getPlanarConfiguration() {
     return planarConfiguration;
   }
 
-  /** Returns the pixel presentation value or null if not specified. */
   public String getPixelPresentation() {
     return pixelPresentation;
   }
 
-  /** Returns true if pixel data is signed (two's complement). */
   public boolean isSigned() {
     return pixelRepresentation != 0;
   }
 
-  /** Returns true if pixel samples are stored in separate planes (banded format). */
   public boolean isBanded() {
     return planarConfiguration != 0;
   }
 
-  /** Returns the palette color lookup table if available, or null if not used. */
   public LookupTableCV getPaletteColorLookupTable() {
     return paletteColorLookupTable;
   }
@@ -320,7 +297,9 @@ public final class ImageDescriptor {
   /** Returns true if the image uses a palette color lookup table. */
   public boolean hasPaletteColorLookupTable() {
     return photometricInterpretation == PhotometricInterpretation.PALETTE_COLOR
-        || "COLOR".equals(pixelPresentation);
+        || (photometricInterpretation.isMonochrome()
+            && pixelPresentation != null
+            && pixelPresentation.contains("COLOR"));
   }
 
   /** Returns true if pixel data represents floating-point values. */
@@ -342,27 +321,22 @@ public final class ImageDescriptor {
 
   // === DICOM Metadata ===
 
-  /** Returns the SOP Class UID identifying the type of DICOM object. */
   public String getSopClassUID() {
     return sopClassUID;
   }
 
-  /** Returns the Series Instance UID grouping related images. */
   public String getSeriesInstanceUID() {
     return seriesInstanceUID;
   }
 
-  /** Returns the modality (imaging technique) used to acquire the image. */
   public String getModality() {
     return modality;
   }
 
-  /** Returns the station name where the image was acquired. */
   public String getStationName() {
     return stationName;
   }
 
-  /** Returns the anatomical region information or null if not specified. */
   public AnatomicRegion getAnatomicRegion() {
     return anatomicRegion;
   }
@@ -379,34 +353,28 @@ public final class ImageDescriptor {
     return Collections.unmodifiableList(overlayData);
   }
 
-  /** Returns true if this is a multi-frame image with embedded overlays. */
   public boolean isMultiframeWithEmbeddedOverlays() {
-    return !embeddedOverlay.isEmpty() && frames > 1;
+    return isMultiframe() && !embeddedOverlay.isEmpty();
   }
 
-  /** Returns the presentation LUT shape or null if not specified. */
   public String getPresentationLUTShape() {
     return presentationLUTShape;
   }
 
   // === Pixel Padding and LUT Modules ===
 
-  /** Returns the pixel padding value as an Optional. */
   public Optional<Integer> getPixelPaddingValue() {
     return Optional.ofNullable(pixelPaddingValue);
   }
 
-  /** Returns the pixel padding range limit as an Optional. */
   public Optional<Integer> getPixelPaddingRangeLimit() {
     return Optional.ofNullable(pixelPaddingRangeLimit);
   }
 
-  /** Returns the modality LUT module for pixel value transformations. */
   public ModalityLutModule getModalityLUT() {
     return modalityLUT;
   }
 
-  /** Returns the VOI LUT module for window/level transformations. */
   public VoiLutModule getVoiLUT() {
     return voiLUT;
   }
@@ -420,11 +388,7 @@ public final class ImageDescriptor {
    * @return the min/max result or null if not set or invalid frame
    */
   public MinMaxLocResult getMinMaxPixelValue(int frame) {
-    if (!isValidFrameIndex(frame)) {
-      LOGGER.warn("Invalid frame index for getting minMax: {}", frame);
-      return null;
-    }
-    return minMaxPixelValues.get(frame);
+    return isValidFrameIndex(frame) ? minMaxPixelValues.get(frame) : null;
   }
 
   /**
@@ -434,11 +398,9 @@ public final class ImageDescriptor {
    * @param minMaxPixelValue the min/max result to set
    */
   public void setMinMaxPixelValue(int frame, MinMaxLocResult minMaxPixelValue) {
-    if (!isValidFrameIndex(frame)) {
-      LOGGER.warn("Unable to set MinMaxPixelValue for invalid frame index: {}", frame);
-      return;
+    if (isValidFrameIndex(frame)) {
+      minMaxPixelValues.set(frame, minMaxPixelValue);
     }
-    minMaxPixelValues.set(frame, minMaxPixelValue);
   }
 
   /**
@@ -458,11 +420,9 @@ public final class ImageDescriptor {
    * @param voiLut the VOI LUT module to set
    */
   public void setVoiLutForFrame(int frame, VoiLutModule voiLut) {
-    if (!isValidFrameIndex(frame)) {
-      LOGGER.warn("Unable to set VoiLutModule for invalid frame index: {}", frame);
-      return;
+    if (isValidFrameIndex(frame)) {
+      voiLutPerFrame.set(frame, voiLut);
     }
-    voiLutPerFrame.set(frame, voiLut);
   }
 
   /**
@@ -482,11 +442,9 @@ public final class ImageDescriptor {
    * @param modalityLut the modality LUT module to set
    */
   public void setModalityLutForFrame(int frame, ModalityLutModule modalityLut) {
-    if (!isValidFrameIndex(frame)) {
-      LOGGER.warn("Unable to set ModalityLutModule for invalid frame index: {}", frame);
-      return;
+    if (isValidFrameIndex(frame)) {
+      modalityLutPerFrame.set(frame, modalityLut);
     }
-    modalityLutPerFrame.set(frame, modalityLut);
   }
 
   private boolean isValidFrameIndex(int frame) {
@@ -501,7 +459,7 @@ public final class ImageDescriptor {
     return frameLut != null ? frameLut : baseLut;
   }
 
-  // === Helper Records for Constructor Parameters ===
+  // === Record Types for Data Transfer ===
 
   private record PixelAttributes(
       int samples,

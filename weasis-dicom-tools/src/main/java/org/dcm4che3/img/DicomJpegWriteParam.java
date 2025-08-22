@@ -37,7 +37,7 @@ import org.dcm4che3.imageio.codec.TransferSyntaxType;
  * @see org.dcm4che3.data.UID
  */
 public class DicomJpegWriteParam {
-  // Constants for default values
+  // Default values for compression parameters
   public static final int DEFAULT_COMPRESSION_QUALITY = 85;
   public static final int DEFAULT_LOSSY_COMPRESSION_RATIO = 10;
   public static final int DEFAULT_NEAR_LOSSLESS_ERROR = 0;
@@ -47,17 +47,18 @@ public class DicomJpegWriteParam {
   private static final int DEFAULT_COMPRESSION_RATIO = 0;
   private static final int LOSSLESS_PREDICTION_MODE = 6;
   private static final int DEFAULT_LOSSY_NEAR_LOSSLESS = 2;
+
+  // Immutable transfer syntax configuration
   private final TransferSyntaxType type;
   private final String transferSyntaxUid;
 
-  // JPEG compression parameters
-  private int prediction;
-
-  private int pointTransform;
-  private int nearLosslessError;
-  private int compressionQuality;
-  private int compressionRatioFactor;
-  private boolean losslessCompression;
+  // Mutable compression parameters
+  private int prediction = DEFAULT_PREDICTION;
+  private int pointTransform = DEFAULT_POINT_TRANSFORM;
+  private int nearLosslessError = DEFAULT_NEAR_LOSSLESS_ERROR;
+  private int compressionQuality = DEFAULT_COMPRESSION_QUALITY;
+  private int compressionRatioFactor = DEFAULT_COMPRESSION_RATIO;
+  private boolean losslessCompression = true;
   private Rectangle sourceRegion;
 
   /**
@@ -66,20 +67,9 @@ public class DicomJpegWriteParam {
    * @param type the transfer syntax type
    * @param transferSyntaxUid the transfer syntax UID
    */
-  DicomJpegWriteParam(TransferSyntaxType type, String transferSyntaxUid) {
+  private DicomJpegWriteParam(TransferSyntaxType type, String transferSyntaxUid) {
     this.type = type;
     this.transferSyntaxUid = transferSyntaxUid;
-    initializeDefaults();
-  }
-
-  private void initializeDefaults() {
-    this.prediction = DEFAULT_PREDICTION;
-    this.pointTransform = DEFAULT_POINT_TRANSFORM;
-    this.nearLosslessError = DEFAULT_NEAR_LOSSLESS_ERROR;
-    this.compressionQuality = DEFAULT_COMPRESSION_QUALITY;
-    this.losslessCompression = true;
-    this.sourceRegion = null;
-    this.compressionRatioFactor = DEFAULT_COMPRESSION_RATIO;
   }
 
   /**
@@ -246,10 +236,10 @@ public class DicomJpegWriteParam {
    * @throws IllegalArgumentException if the region has invalid dimensions
    */
   public void setSourceRegion(Rectangle sourceRegion) {
-    this.sourceRegion = sourceRegion;
     if (sourceRegion != null) {
       validateSourceRegion(sourceRegion);
     }
+    this.sourceRegion = sourceRegion;
   }
 
   private void validateSourceRegion(Rectangle region) {
@@ -269,10 +259,10 @@ public class DicomJpegWriteParam {
    * @throws IllegalStateException if the transfer syntax is not supported for compression
    */
   public static DicomJpegWriteParam buildDicomImageWriteParam(String tsuid) {
-    TransferSyntaxType type = TransferSyntaxType.forUID(tsuid);
+    var type = TransferSyntaxType.forUID(tsuid);
     validateSupportedSyntax(type, tsuid);
 
-    DicomJpegWriteParam param = new DicomJpegWriteParam(type, tsuid);
+    var param = new DicomJpegWriteParam(type, tsuid);
     configureCompressionMode(param, tsuid);
     configureLosslessParameters(param, type, tsuid);
 
@@ -296,9 +286,15 @@ public class DicomJpegWriteParam {
     boolean isLossless = !TransferSyntaxType.isLossyCompression(tsuid);
     param.losslessCompression = isLossless;
 
-    param.setNearLosslessError(isLossless ? 0 : DEFAULT_LOSSY_NEAR_LOSSLESS);
-    param.setCompressionRatioFactor(isLossless ? 0 : DEFAULT_LOSSY_COMPRESSION_RATIO);
-    param.setCompressionQuality(isLossless ? 0 : param.getCompressionQuality());
+    if (isLossless) {
+      param.setNearLosslessError(0);
+      param.setCompressionRatioFactor(0);
+      param.setCompressionQuality(0);
+    } else {
+      param.setNearLosslessError(DEFAULT_LOSSY_NEAR_LOSSLESS);
+      param.setCompressionRatioFactor(DEFAULT_LOSSY_COMPRESSION_RATIO);
+      // Keep the default compression quality for lossy modes
+    }
   }
 
   private static void configureLosslessParameters(

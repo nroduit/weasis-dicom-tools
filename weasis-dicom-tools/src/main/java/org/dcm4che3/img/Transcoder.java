@@ -21,7 +21,6 @@ import org.dcm4che3.img.op.MaskArea;
 import org.dcm4che3.img.stream.DicomFileInputStream;
 import org.dcm4che3.img.stream.ImageDescriptor;
 import org.dcm4che3.img.util.Editable;
-import org.dcm4che3.img.util.SupplierEx;
 import org.dcm4che3.io.DicomOutputStream;
 import org.opencv.core.CvType;
 import org.opencv.core.MatOfInt;
@@ -29,7 +28,6 @@ import org.opencv.imgcodecs.Imgcodecs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.util.FileUtil;
-import org.weasis.opencv.data.ImageCV;
 import org.weasis.opencv.data.PlanarImage;
 import org.weasis.opencv.op.ImageIOHandler;
 
@@ -52,7 +50,7 @@ import org.weasis.opencv.op.ImageIOHandler;
  *
  * @author Nicolas Roduit
  */
-public class Transcoder {
+public final class Transcoder {
   private static final Logger LOGGER = LoggerFactory.getLogger(Transcoder.class);
   private static final int DEFAULT_JPEG_QUALITY = 80;
 
@@ -69,11 +67,11 @@ public class Transcoder {
     BMP(".bmp", false, false, false, false),
     HDR(".hdr", false, false, false, true);
 
-    final String extension;
-    final boolean support16U;
-    final boolean support16S;
-    final boolean support32F;
-    final boolean support64F;
+    private final String extension;
+    private final boolean support16U;
+    private final boolean support16S;
+    private final boolean support32F;
+    private final boolean support64F;
 
     Format(
         String ext,
@@ -87,6 +85,37 @@ public class Transcoder {
       this.support32F = support32F;
       this.support64F = support64F;
     }
+
+    public String getExtension() {
+      return extension;
+    }
+
+    public boolean isSupport16U() {
+      return support16U;
+    }
+
+    public boolean isSupport16S() {
+      return support16S;
+    }
+
+    public boolean isSupport32F() {
+      return support32F;
+    }
+
+    public boolean isSupport64F() {
+      return support64F;
+    }
+
+    public boolean isSupported(int cvType) {
+      return switch (cvType) {
+        case CvType.CV_8U -> true;
+        case CvType.CV_16U -> support16U;
+        case CvType.CV_16S -> support16S;
+        case CvType.CV_32F -> support32F;
+        case CvType.CV_64F -> support64F;
+        default -> false;
+      };
+    }
   }
 
   // FIXME: Move to a dedicated service or utility class
@@ -96,6 +125,10 @@ public class Transcoder {
 
   static {
     dicomImageReadParam.setReleaseImageAfterProcessing(true);
+  }
+
+  private Transcoder() {
+    // Utility class - prevent instantiation
   }
 
   /**
@@ -113,17 +146,17 @@ public class Transcoder {
    */
   public static List<Path> dcm2image(Path srcPath, Path dstPath, ImageTranscodeParam params)
       throws Exception {
-    List<Path> outFiles = new ArrayList<>();
-    Format format = params.getFormat();
-    DicomImageReader reader = createAndConfigureReader(srcPath);
+    var outFiles = new ArrayList<Path>();
+    var format = params.getFormat();
+    var reader = createAndConfigureReader(srcPath);
     try {
-      MatOfInt compressionParams = createCompressionParams(format, params);
-      int frameCount = reader.getImageDescriptor().getFrames();
-      int indexSize = calculateIndexSize(frameCount);
+      var compressionParams = createCompressionParams(format, params);
+      var frameCount = reader.getImageDescriptor().getFrames();
+      var indexSize = calculateIndexSize(frameCount);
 
       for (int frameIndex = 0; frameIndex < frameCount; frameIndex++) {
-        PlanarImage processedImage = processImageFrame(reader, params, format, frameIndex);
-        Path outputPath = createOutputPath(srcPath, dstPath, format, frameIndex + 1, indexSize);
+        var processedImage = processImageFrame(reader, params, format, frameIndex);
+        var outputPath = createOutputPath(srcPath, dstPath, format, frameIndex + 1, indexSize);
         writeImageToFile(processedImage, outputPath, format, compressionParams);
         outFiles.add(outputPath);
       }
@@ -147,13 +180,16 @@ public class Transcoder {
    */
   public static Path dcm2dcm(Path srcPath, Path dstPath, DicomTranscodeParam params)
       throws IOException {
-    Path outPath = adaptFileExtension(FileUtil.getOutputPath(srcPath, dstPath), ".dcm", ".dcm");
+    var outPath = adaptFileExtension(FileUtil.getOutputPath(srcPath, dstPath), ".dcm");
 
-    try (OutputStream outputStream = Files.newOutputStream(outPath)) {
+    try (var outputStream = Files.newOutputStream(outPath)) {
       dcm2dcm(srcPath, outputStream, params);
     } catch (Exception e) {
       FileUtil.delete(outPath);
-      throw e;
+      if (e instanceof IOException ioException) {
+        throw ioException;
+      }
+      throw new IOException("Transcoding failed", e);
     }
 
     return outPath;
@@ -175,10 +211,9 @@ public class Transcoder {
     DicomImageReader reader = new DicomImageReader(dicomImageReaderSpi);
     try {
       reader.setInput(new DicomFileInputStream(srcPath));
+      var context = createTranscodeContext(reader, params);
 
-      DicomTranscodeContext context = createTranscodeContext(reader, params);
-
-      try (DicomOutputStream dos = new DicomOutputStream(outputStream, context.actualTsuid)) {
+      try (var dos = new DicomOutputStream(outputStream, context.actualTsuid)) {
         writeTranscodedDicom(dos, context);
       } catch (Exception e) {
         throw new IOException("Transcoding failed", e);
@@ -200,7 +235,7 @@ public class Transcoder {
     }
 
     return image -> {
-      ImageCV maskedImage = MaskArea.drawShape(image.toMat(), maskArea);
+      var maskedImage = MaskArea.drawShape(image.toMat(), maskArea);
       if (image.isReleasedAfterProcessing()) {
         image.release();
         maskedImage.setReleasedAfterProcessing(true);
@@ -210,14 +245,14 @@ public class Transcoder {
   }
 
   private static DicomImageReader createAndConfigureReader(Path srcPath) throws Exception {
-    DicomImageReader reader = new DicomImageReader(dicomImageReaderSpi);
+    var reader = new DicomImageReader(dicomImageReaderSpi);
     reader.setInput(new DicomFileInputStream(srcPath));
     return reader;
   }
 
   private static MatOfInt createCompressionParams(Format format, ImageTranscodeParam params) {
     return format == Format.JPEG
-        ? new MatOfInt(Imgcodecs.IMWRITE_JPEG_QUALITY, getCompressionRatio(params))
+        ? new MatOfInt(Imgcodecs.IMWRITE_JPEG_QUALITY, getCompressionQuality(params))
         : null;
   }
 
@@ -228,8 +263,8 @@ public class Transcoder {
   private static PlanarImage processImageFrame(
       DicomImageReader reader, ImageTranscodeParam params, Format format, int frameIndex)
       throws IOException {
-    PlanarImage image = reader.getPlanarImage(frameIndex, params.getReadParam());
-    boolean preserveRaw = isPreserveRawImage(params, format, image.type());
+    var image = reader.getPlanarImage(frameIndex, params.getReadParam());
+    var preserveRaw = shouldPreserveRawImage(params, format, image.type());
 
     return preserveRaw
         ? ImageRendering.getRawRenderedImage(
@@ -240,15 +275,15 @@ public class Transcoder {
 
   private static Path createOutputPath(
       Path srcPath, Path dstPath, Format format, int frameNumber, int indexSize) {
-    Path basePath = FileUtil.getOutputPath(srcPath, dstPath);
-    Path pathWithExtension = adaptFileExtension(basePath, ".dcm", format.extension);
+    var basePath = FileUtil.getOutputPath(srcPath, dstPath);
+    var pathWithExtension = adaptFileExtension(basePath, format.extension);
     return FileUtil.addFileIndex(pathWithExtension, frameNumber, indexSize);
   }
 
   private static void writeImageToFile(
       PlanarImage image, Path outputPath, Format format, MatOfInt compressionParams) {
     boolean success =
-        (compressionParams == null)
+        compressionParams == null
             ? ImageIOHandler.writeImage(image.toMat(), outputPath)
             : ImageIOHandler.writeImage(image.toMat(), outputPath, compressionParams);
 
@@ -260,23 +295,20 @@ public class Transcoder {
 
   private static DicomTranscodeContext createTranscodeContext(
       DicomImageReader reader, DicomTranscodeParam params) throws IOException {
-    DicomMetaData metaData = reader.getStreamMetadata();
-    Attributes dataSet = new Attributes(metaData.getDicomObject());
+    var metaData = reader.getStreamMetadata();
+    var dataSet = new Attributes(metaData.getDicomObject());
     dataSet.remove(Tag.PixelData);
 
-    Editable<PlanarImage> mask = getMask(dataSet, params);
-    DicomImageReadParam readParams = getEffectiveReadParams(params);
+    var mask = createMask(dataSet, params);
+    var readParams = getEffectiveReadParams(params);
+    var images = reader.getLazyPlanarImages(readParams, mask);
+    var targetTsuid = params.getOutputTsuid();
+    var writeParams = params.getWriteJpegParam();
+    var descriptor = metaData.getImageDescriptor();
 
-    List<SupplierEx<PlanarImage, IOException>> images =
-        reader.getLazyPlanarImages(readParams, mask);
-    String targetTsuid = params.getOutputTsuid();
-    DicomJpegWriteParam writeParams = params.getWriteJpegParam();
-    ImageDescriptor descriptor = metaData.getImageDescriptor();
-
-    DicomOutputData outputData = new DicomOutputData(images, descriptor, targetTsuid);
-    DicomJpegWriteParam adaptedWriteParams =
-        adaptTransferSyntax(outputData, targetTsuid, writeParams);
-    String actualTsuid = outputData.getTsuid();
+    var outputData = new DicomOutputData(images, descriptor, targetTsuid);
+    var adaptedWriteParams = adaptTransferSyntax(outputData, targetTsuid, writeParams);
+    var actualTsuid = outputData.getTsuid();
 
     return new DicomTranscodeContext(
         dataSet, outputData, actualTsuid, adaptedWriteParams, descriptor);
@@ -284,7 +316,7 @@ public class Transcoder {
 
   private static DicomJpegWriteParam adaptTransferSyntax(
       DicomOutputData outputData, String targetTsuid, DicomJpegWriteParam writeParams) {
-    String actualTsuid = outputData.getTsuid();
+    var actualTsuid = outputData.getTsuid();
     if (!targetTsuid.equals(actualTsuid)) {
       if (!DicomOutputData.isNativeSyntax(actualTsuid)) {
         writeParams = DicomJpegWriteParam.buildDicomImageWriteParam(actualTsuid);
@@ -299,7 +331,7 @@ public class Transcoder {
     dos.writeFileMetaInformation(context.dataSet.createFileMetaInformation(context.actualTsuid));
 
     if (DicomOutputData.isNativeSyntax(context.actualTsuid)) {
-      context.outputData.writRawImageData(dos, context.dataSet);
+      context.outputData.writeRawImageData(dos, context.dataSet);
     } else {
       writeCompressedDicomData(dos, context);
     }
@@ -307,7 +339,7 @@ public class Transcoder {
 
   private static void writeCompressedDicomData(DicomOutputStream dos, DicomTranscodeContext context)
       throws IOException {
-    int[] jpegParams =
+    var jpegParams =
         context.outputData.adaptTagsToCompressedImage(
             context.dataSet,
             context.outputData.getFirstImage().get(),
@@ -316,13 +348,13 @@ public class Transcoder {
     context.outputData.writeCompressedImageData(dos, context.dataSet, jpegParams);
   }
 
-  private static Editable<PlanarImage> getMask(Attributes dataSet, DicomTranscodeParam params) {
-    String stationName = dataSet.getString(Tag.StationName, "*");
+  private static Editable<PlanarImage> createMask(Attributes dataSet, DicomTranscodeParam params) {
+    var stationName = dataSet.getString(Tag.StationName, "*");
     return getMaskedImage(params.getMask(stationName));
   }
 
   private static DicomImageReadParam getEffectiveReadParams(DicomTranscodeParam params) {
-    DicomImageReadParam readParams = params.getReadParam();
+    var readParams = params.getReadParam();
     if (readParams == null) {
       return dicomImageReadParam;
     }
@@ -330,17 +362,18 @@ public class Transcoder {
     return readParams;
   }
 
-  private static int getCompressionRatio(ImageTranscodeParam params) {
+  private static int getCompressionQuality(ImageTranscodeParam params) {
     return params != null
         ? params.getJpegCompressionQuality().orElse(DEFAULT_JPEG_QUALITY)
         : DEFAULT_JPEG_QUALITY;
   }
 
-  private static boolean isPreserveRawImage(ImageTranscodeParam params, Format format, int cvType) {
+  private static boolean shouldPreserveRawImage(
+      ImageTranscodeParam params, Format format, int cvType) {
     if (params == null) {
       return false;
     }
-    boolean preserveRaw = params.isPreserveRawImage().orElse(false);
+    var preserveRaw = params.isPreserveRawImage().orElse(false);
     if (!preserveRaw) {
       return false;
     }
@@ -349,26 +382,19 @@ public class Transcoder {
     if (format == Format.HDR || cvType == CvType.CV_8U) {
       return true;
     }
-    // Check format support for specific data types
-    return switch (cvType) {
-      case CvType.CV_16U -> format.support16U;
-      case CvType.CV_16S -> format.support16S;
-      case CvType.CV_32F -> format.support32F;
-      case CvType.CV_64F -> format.support64F;
-      default -> false;
-    };
+    return format.isSupported(cvType);
   }
 
-  private static Path adaptFileExtension(Path path, String inputExt, String outputExt) {
-    String filename = path.getFileName().toString();
-    String currentExt = FileUtil.getExtension(filename);
+  private static Path adaptFileExtension(Path path, String outputExt) {
+    var filename = path.getFileName().toString();
+    var currentExt = FileUtil.getExtension(filename);
 
     if (currentExt.equals(outputExt)) {
       return path;
     }
 
-    if (currentExt.endsWith(inputExt)) {
-      String baseName = filename.substring(0, filename.length() - inputExt.length());
+    if (currentExt.endsWith(".dcm")) {
+      var baseName = filename.substring(0, filename.length() - ".dcm".length());
       return path.resolveSibling(baseName + outputExt);
     }
     return path.resolveSibling(filename + outputExt);

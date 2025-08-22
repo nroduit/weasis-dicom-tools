@@ -37,7 +37,7 @@ import org.weasis.core.util.annotations.Generated;
  * BytesWithImageDescriptor descriptor = ...;
  * ByteBuffer frameData = descriptor.getBytes(0); // Get first frame
  * String transferSyntax = descriptor.getTransferSyntax();
- * boolean isFloatingPoint = descriptor.floatPixelData();
+ * boolean isFloatingPoint = descriptor.isFloatPixelData();
  * }</pre>
  *
  * @author Gunter Zeilinger <gunterze@gmail.com>
@@ -55,7 +55,7 @@ public interface BytesWithImageDescriptor extends ImageReaderDescriptor {
    * @param frame the zero-based frame index to retrieve
    * @return a ByteBuffer containing the frame's pixel data, positioned at the start of the data
    * @throws IOException if an I/O error occurs while reading the pixel data
-   * @throws IndexOutOfBoundsException if the frame index is negative or exceeds the number of
+   * @throws IllegalArgumentException if the frame index is negative or exceeds the number of
    *     available frames
    */
   ByteBuffer getBytes(int frame) throws IOException;
@@ -64,6 +64,7 @@ public interface BytesWithImageDescriptor extends ImageReaderDescriptor {
    * Returns the DICOM transfer syntax UID used for encoding the pixel data.
    *
    * @return the transfer syntax UID, never null
+   * @throws IllegalStateException if the transfer syntax cannot be determined
    */
   String getTransferSyntax();
 
@@ -76,7 +77,7 @@ public interface BytesWithImageDescriptor extends ImageReaderDescriptor {
    * @return true if pixel data is big-endian, false for little-endian (default)
    */
   @Generated
-  default boolean bigEndian() {
+  default boolean isBigEndian() {
     return false;
   }
 
@@ -85,7 +86,7 @@ public interface BytesWithImageDescriptor extends ImageReaderDescriptor {
    *
    * @return true if pixel data contains floating-point values, false for integer values (default)
    */
-  default boolean floatPixelData() {
+  default boolean isFloatPixelData() {
     return false;
   }
 
@@ -93,6 +94,27 @@ public interface BytesWithImageDescriptor extends ImageReaderDescriptor {
    * Returns the Value Representation (VR) of the pixel data element.
    *
    * @return the pixel data VR, never null
+   * @throws IllegalStateException if the VR cannot be determined
    */
   VR getPixelDataVR();
+
+  /**
+   * @deprecated Use {@link #isBigEndian()} instead. This method will be removed in a future
+   *     version.
+   */
+  @Deprecated(since = "5.34.3", forRemoval = true)
+  @Generated
+  default boolean bigEndian() {
+    return isBigEndian();
+  }
+
+  /**
+   * @deprecated Use {@link #isFloatPixelData()} instead. This method will be removed in a future
+   *     version.
+   */
+  @Deprecated(since = "5.34.3", forRemoval = true)
+  @Generated
+  default boolean floatPixelData() {
+    return isFloatPixelData();
+  }
 }

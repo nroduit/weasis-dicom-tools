@@ -11,17 +11,21 @@ package org.dcm4che3.img.util;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.DisplayNameGeneration;
+import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.Scalar;
 import org.opencv.osgi.OpenCVNativeLoader;
-import org.weasis.core.util.Pair;
 import org.weasis.opencv.data.ImageCV;
 import org.weasis.opencv.data.PlanarImage;
 
@@ -31,243 +35,277 @@ import org.weasis.opencv.data.PlanarImage;
  * <p>This test class validates pixel data calculations, color space conversions, and bit depth
  * operations using real test data instead of mocks.
  */
+@DisplayNameGeneration(ReplaceUnderscores.class)
 class PixelDataUtilsTest {
+
+  private static final double PRECISION = 0.001;
+
   @BeforeAll
   static void loadNativeLib() {
-    OpenCVNativeLoader loader = new OpenCVNativeLoader();
+    var loader = new OpenCVNativeLoader();
     loader.init();
   }
 
-  @ParameterizedTest
-  @CsvSource({
-    "1, false, 0.0, 1.0", // 1-bit unsigned: [0, 1]
-    "8, false, 0.0, 255.0", // 8-bit unsigned: [0, 255]
-    "16, false, 0.0, 65535.0", // 16-bit unsigned: [0, 65535]
-    "8, true, -128.0, 127.0", // 8-bit signed: [-128, 127]
-    "16, true, -32768.0, 32767.0", // 16-bit signed: [-32768, 32767]
-    "12, false, 0.0, 4095.0", // 12-bit unsigned: [0, 4095]
-    "12, true, -2048.0, 2047.0" // 12-bit signed: [-2048, 2047]
-  })
-  @DisplayName("getMinMax should return correct ranges for various bit depths and signedness")
-  void testGetMinMaxValidInputs(
-      int bitsStored, boolean signed, double expectedMin, double expectedMax) {
-    Pair<Double, Double> result = PixelDataUtils.getMinMax(bitsStored, signed);
+  @Nested
+  class Get_Min_Max_Tests {
 
-    assertEquals(
-        expectedMin,
-        result.first(),
-        0.001,
-        String.format(
-            "Min value for %d-bit %s should be %f",
-            bitsStored, signed ? "signed" : "unsigned", expectedMin));
-    assertEquals(
-        expectedMax,
-        result.second(),
-        0.001,
-        String.format(
-            "Max value for %d-bit %s should be %f",
-            bitsStored, signed ? "signed" : "unsigned", expectedMax));
+    @ParameterizedTest
+    @CsvSource(
+        textBlock =
+            """
+                    1, false, 0.0, 1.0
+                    8, false, 0.0, 255.0
+                    16, false, 0.0, 65535.0
+                    8, true, -128.0, 127.0
+                    16, true, -32768.0, 32767.0
+                    12, false, 0.0, 4095.0
+                    12, true, -2048.0, 2047.0
+                    """)
+    void should_return_correct_ranges_for_valid_bit_depths_and_signedness(
+        int bitsStored, boolean signed, double expectedMin, double expectedMax) {
+      var result = PixelDataUtils.getMinMax(bitsStored, signed);
+
+      assertAll(
+          () ->
+              assertEquals(
+                  expectedMin,
+                  result.first(),
+                  PRECISION,
+                  () ->
+                      "Min value for %d-bit %s should be %.1f"
+                          .formatted(bitsStored, signed ? "signed" : "unsigned", expectedMin)),
+          () ->
+              assertEquals(
+                  expectedMax,
+                  result.second(),
+                  PRECISION,
+                  () ->
+                      "Max value for %d-bit %s should be %.1f"
+                          .formatted(bitsStored, signed ? "signed" : "unsigned", expectedMax)));
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {-5, 0, 17, 32, 100})
+    void should_clamp_invalid_bit_depths_to_supported_range(int invalidBits) {
+      var unsignedResult = PixelDataUtils.getMinMax(invalidBits, false);
+      var signedResult = PixelDataUtils.getMinMax(invalidBits, true);
+
+      assertAll(
+          () -> assertNotNull(unsignedResult),
+          () -> assertTrue(unsignedResult.first() >= 0, "Unsigned min should be >= 0"),
+          () -> assertTrue(unsignedResult.second() > unsignedResult.first(), "Max should be > min"),
+          () -> assertNotNull(signedResult),
+          () -> assertTrue(signedResult.first() < 0, "Signed min should be < 0"),
+          () -> assertTrue(signedResult.second() >= 0, "Signed max should be >= 0"));
+    }
+
+    @Test
+    void should_return_correct_range_for_1_bit_signed() {
+      var result = PixelDataUtils.getMinMax(1, true);
+
+      assertAll(
+          () -> assertNotNull(result),
+          () -> assertEquals(-1.0, result.first(), PRECISION),
+          () -> assertEquals(0.0, result.second(), PRECISION),
+          () -> assertTrue(result.first() < result.second(), "Min should be less than max"));
+    }
+
+    @Test
+    void should_clamp_large_bit_depth_to_maximum_supported() {
+      var result = PixelDataUtils.getMinMax(20, false);
+
+      assertAll(
+          () -> assertEquals(0.0, result.first(), PRECISION),
+          () -> assertEquals(65535.0, result.second(), PRECISION));
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, -10})
+    void should_clamp_zero_and_negative_bit_depths_to_minimum(int bits) {
+      var result = PixelDataUtils.getMinMax(bits, false);
+
+      assertAll(
+          () -> assertEquals(0.0, result.first(), PRECISION),
+          () -> assertEquals(1.0, result.second(), PRECISION));
+    }
   }
 
-  @ParameterizedTest
-  @ValueSource(ints = {-5, 0, 17, 32, 100})
-  @DisplayName("getMinMax should clamp invalid bit depths to supported range")
-  void testGetMinMaxWithInvalidBitDepths(int invalidBits) {
-    // Test with unsigned - should clamp to 1-bit for values < 1, and 16-bit for values > 16
-    Pair<Double, Double> unsignedResult = PixelDataUtils.getMinMax(invalidBits, false);
-    assertNotNull(unsignedResult);
-    assertTrue(unsignedResult.first() >= 0, "Unsigned min should be >= 0");
-    assertTrue(unsignedResult.second() > unsignedResult.first(), "Max should be > min");
+  @Nested
+  class Color_Conversion_Tests {
 
-    // Test with signed
-    Pair<Double, Double> signedResult = PixelDataUtils.getMinMax(invalidBits, true);
-    assertNotNull(signedResult);
-    assertTrue(signedResult.first() < 0, "Signed min should be < 0");
-    assertTrue(signedResult.second() >= 0, "Signed max should be > 0");
-  }
+    @Test
+    void bgr2rgb_should_return_null_for_null_input() {
+      assertNull(PixelDataUtils.bgr2rgb(null));
+    }
 
-  @Test
-  @DisplayName("bgr2rgb should return null for null input")
-  void testBgr2rgbWithNullInput() {
-    PlanarImage result = PixelDataUtils.bgr2rgb(null);
-    assertNull(result);
-  }
+    @Test
+    void rgb2bgr_should_return_null_for_null_input() {
+      assertNull(PixelDataUtils.rgb2bgr(null));
+    }
 
-  @Test
-  @DisplayName("rgb2bgr should return null for null input")
-  void testRgb2bgrWithNullInput() {
-    PlanarImage result = PixelDataUtils.rgb2bgr(null);
-    assertNull(result);
-  }
+    @ParameterizedTest
+    @MethodSource("singleChannelImageProvider")
+    void bgr2rgb_should_return_same_image_for_single_channel_input(
+        PlanarImage grayscaleImage, String description) {
+      var result = PixelDataUtils.bgr2rgb(grayscaleImage);
 
-  @Test
-  @DisplayName("bgr2rgb should return same image for single-channel (grayscale) input")
-  void testBgr2rgbWithSingleChannel() {
-    // Create a single-channel 8-bit grayscale image (100x100)
-    Mat grayscaleMat = new Mat(100, 100, CvType.CV_8UC1, new Scalar(128));
-    PlanarImage grayscaleImage = ImageCV.fromMat(grayscaleMat);
+      assertAll(
+          () ->
+              assertSame(grayscaleImage, result, "Should return the same instance: " + description),
+          () ->
+              assertEquals(1, result.channels(), "Should maintain single channel: " + description));
+    }
 
-    PlanarImage result = PixelDataUtils.bgr2rgb(grayscaleImage);
+    @ParameterizedTest
+    @MethodSource("singleChannelImageProvider")
+    void rgb2bgr_should_return_same_image_for_single_channel_input(
+        PlanarImage grayscaleImage, String description) {
+      var result = PixelDataUtils.rgb2bgr(grayscaleImage);
 
-    assertSame(grayscaleImage, result, "Single-channel image should be returned unchanged");
-    assertEquals(1, result.channels(), "Result should still have 1 channel");
-  }
+      assertAll(
+          () ->
+              assertSame(grayscaleImage, result, "Should return the same instance: " + description),
+          () ->
+              assertEquals(1, result.channels(), "Should maintain single channel:" + description));
+    }
 
-  @Test
-  @DisplayName("rgb2bgr should return same image for single-channel (grayscale) input")
-  void testRgb2bgrWithSingleChannel() {
-    // Create a single-channel 16-bit grayscale image (50x50)
-    Mat grayscaleMat = new Mat(50, 50, CvType.CV_16UC1, new Scalar(1000));
-    PlanarImage grayscaleImage = ImageCV.fromMat(grayscaleMat);
+    @Test
+    void bgr2rgb_should_convert_3_channel_BGR_image_to_RGB() {
+      // B=100, G=150, R=200
+      var bgrImage = createTestImage(CvType.CV_8UC3, new Scalar(100, 150, 200), 10, 10);
 
-    PlanarImage result = PixelDataUtils.rgb2bgr(grayscaleImage);
+      var result = PixelDataUtils.bgr2rgb(bgrImage);
 
-    assertSame(grayscaleImage, result, "Single-channel image should be returned unchanged");
-    assertEquals(1, result.channels(), "Result should still have 1 channel");
-  }
+      assertColorConversion(
+          bgrImage,
+          result,
+          new double[] {200.0, 150.0, 100.0}, // Expected RGB values
+          "BGR to RGB conversion");
+    }
 
-  @Test
-  @DisplayName("bgr2rgb should convert 3-channel BGR image to RGB")
-  void testBgr2rgbWithThreeChannels() {
-    // Create a 3-channel BGR image with distinct channel values
-    // B=100, G=150, R=200
-    Mat bgrMat = new Mat(10, 10, CvType.CV_8UC3, new Scalar(100, 150, 200));
-    PlanarImage bgrImage = ImageCV.fromMat(bgrMat);
+    @Test
+    void rgb2bgr_should_convert_3_channel_RGB_image_to_BGR() {
+      // R=200, G=150, B=100
+      var rgbImage = createTestImage(CvType.CV_8UC3, new Scalar(200, 150, 100), 15, 15);
 
-    PlanarImage result = PixelDataUtils.bgr2rgb(bgrImage);
+      var result = PixelDataUtils.rgb2bgr(rgbImage);
 
-    assertNotNull(result);
-    assertNotSame(bgrImage, result, "Should return a new image");
-    assertEquals(3, result.channels(), "Result should have 3 channels");
-    assertEquals(bgrImage.width(), result.width(), "Width should be preserved");
-    assertEquals(bgrImage.height(), result.height(), "Height should be preserved");
+      assertColorConversion(
+          rgbImage,
+          result,
+          new double[] {100.0, 150.0, 200.0}, // Expected BGR values
+          "RGB to BGR conversion");
+    }
 
-    // Verify the conversion happened by checking a pixel value
-    // Original BGR (100, 150, 200) should become RGB (200, 150, 100)
-    double[] rgbPixel = result.toMat().get(0, 0);
-    assertEquals(200.0, rgbPixel[0], 0.1, "Red channel should be 200");
-    assertEquals(150.0, rgbPixel[1], 0.1, "Green channel should be 150");
-    assertEquals(100.0, rgbPixel[2], 0.1, "Blue channel should be 100");
-  }
+    @Test
+    void color_conversions_should_be_inverse_operations() {
+      var originalImage = createVariedPixelImage();
 
-  @Test
-  @DisplayName("rgb2bgr should convert 3-channel RGB image to BGR")
-  void testRgb2bgrWithThreeChannels() {
-    // Create a 3-channel RGB image with distinct channel values
-    // R=200, G=150, B=100
-    Mat rgbMat = new Mat(15, 15, CvType.CV_8UC3, new Scalar(200, 150, 100));
-    PlanarImage rgbImage = ImageCV.fromMat(rgbMat);
+      // Convert BGR -> RGB -> BGR
+      var rgbImage = PixelDataUtils.bgr2rgb(originalImage);
+      var backToBgrImage = PixelDataUtils.rgb2bgr(rgbImage);
 
-    PlanarImage result = PixelDataUtils.rgb2bgr(rgbImage);
+      assertDimensionsPreserved(originalImage, backToBgrImage);
+      assertPixelValuesPreserved(originalImage, backToBgrImage);
+    }
 
-    assertNotNull(result);
-    assertNotSame(rgbImage, result, "Should return a new image");
-    assertEquals(3, result.channels(), "Result should have 3 channels");
-    assertEquals(rgbImage.width(), result.width(), "Width should be preserved");
-    assertEquals(rgbImage.height(), result.height(), "Height should be preserved");
+    @Test
+    void bgr2rgb_should_handle_4_channel_BGRA_images() {
+      var bgraImage = createTestImage(CvType.CV_8UC4, new Scalar(50, 100, 150, 128), 8, 8);
 
-    // Verify the conversion happened by checking a pixel value
-    // Original RGB (200, 150, 100) should become BGR (100, 150, 200)
-    double[] bgrPixel = result.toMat().get(0, 0);
-    assertEquals(100.0, bgrPixel[0], 0.1, "Blue channel should be 100");
-    assertEquals(150.0, bgrPixel[1], 0.1, "Green channel should be 150");
-    assertEquals(200.0, bgrPixel[2], 0.1, "Red channel should be 200");
-  }
+      var result = PixelDataUtils.bgr2rgb(bgraImage);
 
-  @Test
-  @DisplayName("bgr2rgb and rgb2bgr should be inverse operations")
-  void testColorConversionsAreInverse() {
-    // Create a test image with varied pixel values
-    Mat originalMat = new Mat(5, 5, CvType.CV_8UC3);
-    // Fill with different values per pixel to test conversion accuracy
-    for (int i = 0; i < 5; i++) {
-      for (int j = 0; j < 5; j++) {
-        originalMat.put(i, j, new double[] {i * 10, j * 20, (i + j) * 15});
+      assertAll(
+          () -> assertNotNull(result),
+          () -> assertNotSame(bgraImage, result, "Should return a new image"));
+
+      var resultPixel = result.toMat().get(0, 0);
+      assertAll(
+          () -> assertEquals(150.0, resultPixel[0], 0.1, "Red channel (was blue)"),
+          () -> assertEquals(100.0, resultPixel[1], 0.1, "Green channel"),
+          () -> assertEquals(50.0, resultPixel[2], 0.1, "Blue channel (was red)"));
+    }
+
+    private static Stream<Arguments> singleChannelImageProvider() {
+      return Stream.of(
+          Arguments.of(
+              createTestImage(CvType.CV_8UC1, new Scalar(128), 100, 100), "8-bit grayscale"),
+          Arguments.of(
+              createTestImage(CvType.CV_16UC1, new Scalar(1000), 50, 50), "16-bit grayscale"),
+          Arguments.of(
+              createTestImage(CvType.CV_32FC1, new Scalar(0.5), 25, 25), "32-bit float grayscale"));
+    }
+
+    private void assertColorConversion(
+        PlanarImage original,
+        PlanarImage result,
+        double[] expectedPixelValues,
+        String conversionType) {
+      assertAll(
+          () -> assertNotNull(result, "Result should not be null"),
+          () -> assertNotSame(original, result, "Should return a new image"),
+          () -> assertEquals(3, result.channels(), "Result should have 3 channels"),
+          () -> assertEquals(original.width(), result.width(), "Width should be preserved"),
+          () -> assertEquals(original.height(), result.height(), "Height should be preserved"));
+
+      var resultPixel = result.toMat().get(0, 0);
+      for (int i = 0; i < expectedPixelValues.length; i++) {
+        final int channel = i;
+        assertEquals(
+            expectedPixelValues[i],
+            resultPixel[i],
+            0.1,
+            () ->
+                "%s: Channel %d should be %.1f"
+                    .formatted(conversionType, channel, expectedPixelValues[channel]));
       }
     }
-    PlanarImage originalImage = ImageCV.fromMat(originalMat);
 
-    // Convert BGR -> RGB -> BGR
-    PlanarImage rgbImage = PixelDataUtils.bgr2rgb(originalImage);
-    PlanarImage backToBgrImage = PixelDataUtils.rgb2bgr(rgbImage);
+    private void assertDimensionsPreserved(PlanarImage original, PlanarImage result) {
+      assertAll(
+          () -> assertEquals(original.width(), result.width()),
+          () -> assertEquals(original.height(), result.height()),
+          () -> assertEquals(original.channels(), result.channels()));
+    }
 
-    // Verify dimensions are preserved
-    assertEquals(originalImage.width(), backToBgrImage.width());
-    assertEquals(originalImage.height(), backToBgrImage.height());
-    assertEquals(originalImage.channels(), backToBgrImage.channels());
+    private void assertPixelValuesPreserved(PlanarImage original, PlanarImage result) {
+      var originalMat = original.toMat();
+      var resultMat = result.toMat();
 
-    // Verify pixel values are preserved (within floating point precision)
-    for (int i = 0; i < 5; i++) {
-      for (int j = 0; j < 5; j++) {
-        double[] originalPixel = originalImage.toMat().get(i, j);
-        double[] resultPixel = backToBgrImage.toMat().get(i, j);
+      for (int i = 0; i < originalMat.rows(); i++) {
+        for (int j = 0; j < originalMat.cols(); j++) {
+          var originalPixel = originalMat.get(i, j);
+          var resultPixel = resultMat.get(i, j);
 
-        for (int c = 0; c < 3; c++) {
-          assertEquals(
-              originalPixel[c],
-              resultPixel[c],
-              0.1,
-              String.format(
-                  "Pixel value at (%d,%d) channel %d should be preserved after round-trip conversion",
-                  i, j, c));
+          for (int c = 0; c < originalPixel.length; c++) {
+            final int row = i, col = j, channel = c;
+            assertEquals(
+                originalPixel[c],
+                resultPixel[c],
+                0.1,
+                () ->
+                    "Pixel value at (%d,%d) channel %d should be preserved after round-trip conversion"
+                        .formatted(row, col, channel));
+          }
         }
       }
     }
   }
 
-  @Test
-  @DisplayName("bgr2rgb should handle 4-channel BGRA images")
-  void testBgr2rgbWithFourChannels() {
-    // Create a 4-channel BGRA image
-    Mat bgraMat = new Mat(8, 8, CvType.CV_8UC4, new Scalar(50, 100, 150, 128));
-    PlanarImage bgraImage = ImageCV.fromMat(bgraMat);
+  // Helper methods
 
-    PlanarImage result = PixelDataUtils.bgr2rgb(bgraImage);
-
-    assertNotNull(result);
-    assertNotSame(bgraImage, result, "Should return a new image");
-
-    // Check that color conversion occurred. Assuming the last channel (alpha) is ignored in
-    // conversion.
-    double[] resultPixel = result.toMat().get(0, 0);
-    assertEquals(150.0, resultPixel[0], 0.1, "Red channel (was blue)");
-    assertEquals(100.0, resultPixel[1], 0.1, "Green channel");
-    assertEquals(50.0, resultPixel[2], 0.1, "Blue channel (was red)");
+  private static PlanarImage createTestImage(int cvType, Scalar color, int width, int height) {
+    var mat = new Mat(height, width, cvType, color);
+    return ImageCV.fromMat(mat);
   }
 
-  @Test
-  @DisplayName("Edge case: 1-bit signed should return valid range")
-  void testOnebitSigned() {
-    Pair<Double, Double> result = PixelDataUtils.getMinMax(1, true);
-
-    // 1-bit signed should have range [-1, 0] mathematically, but implementation might differ
-    assertNotNull(result);
-    assertTrue(result.first() < result.second(), "Min should be less than max");
-    assertEquals(-1.0, result.first(), 0.001, "1-bit signed min");
-    assertEquals(0.0, result.second(), 0.001, "1-bit signed max");
-  }
-
-  @Test
-  @DisplayName("Large bit depth should be clamped to maximum supported")
-  void testLargeBitDepth() {
-    Pair<Double, Double> result = PixelDataUtils.getMinMax(20, false);
-
-    // Should be clamped to 16-bit unsigned
-    assertEquals(0.0, result.first(), 0.001);
-    assertEquals(65535.0, result.second(), 0.001);
-  }
-
-  @Test
-  @DisplayName("Zero and negative bit depths should be clamped to minimum")
-  void testZeroAndNegativeBitDepths() {
-    Pair<Double, Double> resultZero = PixelDataUtils.getMinMax(0, false);
-    Pair<Double, Double> resultNegative = PixelDataUtils.getMinMax(-10, false);
-
-    // Both should be clamped to 1-bit unsigned
-    assertEquals(0.0, resultZero.first(), 0.001);
-    assertEquals(1.0, resultZero.second(), 0.001);
-
-    assertEquals(0.0, resultNegative.first(), 0.001);
-    assertEquals(1.0, resultNegative.second(), 0.001);
+  private static PlanarImage createVariedPixelImage() {
+    var mat = new Mat(5, 5, CvType.CV_8UC3);
+    for (int i = 0; i < 5; i++) {
+      for (int j = 0; j < 5; j++) {
+        mat.put(i, j, i * 10, j * 20, (i + j) * 15);
+      }
+    }
+    return ImageCV.fromMat(mat);
   }
 }

@@ -60,11 +60,7 @@ public final class PixelDataUtils {
    */
   public static Pair<Double, Double> getMinMax(int bitsStored, boolean signed) {
     int clampedBits = MathUtil.clamp(bitsStored, MIN_BITS_STORED, MAX_BITS_STORED);
-    if (signed) {
-      return calculateSignedRange(clampedBits);
-    } else {
-      return calculateUnsignedRange(clampedBits);
-    }
+    return signed ? calculateSignedRange(clampedBits) : calculateUnsignedRange(clampedBits);
   }
 
   /**
@@ -78,11 +74,7 @@ public final class PixelDataUtils {
    * @return a new image in RGB format, or the original image if it's single-channel or null
    */
   public static PlanarImage bgr2rgb(PlanarImage img) {
-    if (!requiresColorConversion(img)) {
-      return img;
-    }
-
-    return performBgrToRgbConversion(img);
+    return requiresColorConversion(img) ? performColorConversion(img, Imgproc.COLOR_BGR2RGB) : img;
   }
 
   /**
@@ -95,10 +87,7 @@ public final class PixelDataUtils {
    * @return a new image in BGR format, or the original image if it's single-channel or null
    */
   public static PlanarImage rgb2bgr(PlanarImage img) {
-    if (!requiresColorConversion(img)) {
-      return img;
-    }
-    return performRgbToBgrConversion(img);
+    return requiresColorConversion(img) ? performColorConversion(img, Imgproc.COLOR_RGB2BGR) : img;
   }
 
   //  ======= Private helper methods =======
@@ -110,24 +99,17 @@ public final class PixelDataUtils {
   }
 
   private static Pair<Double, Double> calculateUnsignedRange(int bitsStored) {
-    double minValue = 0.0;
-    double maxValue = (1L << bitsStored) - 1.0;
-    return new Pair<>(minValue, maxValue);
+    return new Pair<>(0.0, (1L << bitsStored) - 1.0);
   }
 
   private static boolean requiresColorConversion(PlanarImage img) {
     return img != null && img.channels() > 1;
   }
 
-  private static PlanarImage performBgrToRgbConversion(PlanarImage img) {
+  /** Performs color space conversion using the specified OpenCV color code */
+  private static PlanarImage performColorConversion(PlanarImage img, int colorConversionCode) {
     var dstImg = new ImageCV();
-    Imgproc.cvtColor(img.toMat(), dstImg, Imgproc.COLOR_BGR2RGB);
-    return dstImg;
-  }
-
-  private static PlanarImage performRgbToBgrConversion(PlanarImage img) {
-    var dstImg = new ImageCV();
-    Imgproc.cvtColor(img.toMat(), dstImg, Imgproc.COLOR_RGB2BGR);
+    Imgproc.cvtColor(img.toMat(), dstImg, colorConversionCode);
     return dstImg;
   }
 }

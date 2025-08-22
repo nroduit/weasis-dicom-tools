@@ -13,12 +13,14 @@ import java.awt.image.DataBuffer;
 import java.io.IOException;
 import java.lang.reflect.Array;
 import java.util.Optional;
+import java.util.stream.IntStream;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.util.ByteUtils;
 import org.dcm4che3.util.TagUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.weasis.core.util.MathUtil;
 import org.weasis.opencv.data.LookupTableCV;
 import org.weasis.opencv.op.lut.LutShape;
 
@@ -28,7 +30,7 @@ import org.weasis.opencv.op.lut.LutShape;
  * <p>This class provides methods for creating and manipulating lookup tables (LUTs) commonly used
  * in DICOM image processing, including VOI LUTs and standard DICOM LUTs.
  */
-public class LookupTableUtils {
+public final class LookupTableUtils {
   private static final Logger LOGGER = LoggerFactory.getLogger(LookupTableUtils.class);
 
   // DICOM standard constants
@@ -37,6 +39,9 @@ public class LookupTableUtils {
   private static final int SIGMOID_FACTOR = -20;
   private static final int LOG_EXP_FACTOR = 20;
   private static final double FACTOR_DIVISOR = 10.0;
+  private static final int MAX_8_BIT_ENTRIES = 256;
+  private static final int BYTE_MASK = 0xFF;
+  private static final int SHORT_MASK = 0xFFFF;
 
   private LookupTableUtils() {
     // Prevent instantiation
@@ -108,29 +113,13 @@ public class LookupTableUtils {
     var lutInfo = new DicomLutInfo(descriptor);
     byte[] lutData = extractLutData(dicomLutObject, lutInfo);
 
-    if (lutData == null) {
-      return Optional.empty();
-    }
-
-    return createDicomLookupTable(lutData, lutInfo);
+    return lutData == null ? Optional.empty() : createDicomLookupTable(lutData, lutInfo);
   }
 
   /** Extracts and validates LUT descriptor from DICOM attributes. */
   public static int[] lutDescriptor(Attributes ds, int descTag) {
     int[] desc = ds.getInts(descTag);
-    if (desc == null) {
-      throw new IllegalArgumentException("Missing LUT Descriptor!");
-    }
-    if (desc.length != 3) {
-      throw new IllegalArgumentException("Illegal number of LUT Descriptor values: " + desc.length);
-    }
-    if (desc[0] < 0) {
-      throw new IllegalArgumentException("Illegal LUT Descriptor: len=" + desc[0]);
-    }
-    int bits = desc[2];
-    if (bits != 8 && bits != 16) {
-      throw new IllegalArgumentException("Illegal LUT Descriptor: bits=" + bits);
-    }
+    validateDescriptor(desc);
     return desc;
   }
 
@@ -147,52 +136,60 @@ public class LookupTableUtils {
     return processLutData(odata.get(), len, bits, ds.bigEndian());
   }
 
-  // Private helper classes and methods
+  // Private helper methods and classes
 
   /** Configuration container for LUT creation parameters. */
-  private static class LutConfiguration {
-    final int bitsStored;
-    final double window;
-    final double level;
-    final int minInValue;
-    final int maxInValue;
-    final int numEntries;
-    final int minOutValue;
-    final int maxOutValue;
-    final boolean isSigned;
+  private record LutConfiguration(
+      int bitsStored,
+      double window,
+      double level,
+      int minInValue,
+      int maxInValue,
+      int numEntries,
+      int minOutValue,
+      int maxOutValue,
+      boolean isSigned) {
 
     LutConfiguration(
         double window, double level, int minValue, int maxValue, int bitsStored, boolean isSigned) {
-      this.bitsStored = Math.min(Math.max(bitsStored, 1), MAX_BITS_STORED);
-      this.window = Math.max(window, MIN_WINDOW_WIDTH);
-      this.level = level;
-      this.minInValue = Math.min(maxValue, minValue);
-      this.maxInValue = Math.max(maxValue, minValue);
-      this.numEntries = this.maxInValue - this.minInValue + 1;
-      this.isSigned = isSigned;
+      this(
+          MathUtil.clamp(bitsStored, 1, MAX_BITS_STORED),
+          Math.max(window, MIN_WINDOW_WIDTH),
+          level,
+          Math.min(maxValue, minValue),
+          Math.max(maxValue, minValue),
+          Math.max(maxValue, minValue) - Math.min(maxValue, minValue) + 1,
+          calculateMinOutValue(MathUtil.clamp(bitsStored, 1, MAX_BITS_STORED), isSigned),
+          calculateMaxOutValue(MathUtil.clamp(bitsStored, 1, MAX_BITS_STORED), isSigned),
+          isSigned);
+    }
 
-      int bitsAllocated = (this.bitsStored <= 8) ? 8 : 16;
-      int outRangeSize = (1 << bitsAllocated) - 1;
-      this.maxOutValue = isSigned ? (1 << (bitsAllocated - 1)) - 1 : outRangeSize;
-      this.minOutValue = isSigned ? -(this.maxOutValue + 1) : 0;
+    private static int calculateMinOutValue(int bitsStored, boolean isSigned) {
+      int bitsAllocated = (bitsStored <= 8) ? 8 : 16;
+      return isSigned ? -(1 << (bitsAllocated - 1)) : 0;
+    }
+
+    private static int calculateMaxOutValue(int bitsStored, boolean isSigned) {
+      int bitsAllocated = (bitsStored <= 8) ? 8 : 16;
+      return isSigned ? (1 << (bitsAllocated - 1)) - 1 : (1 << bitsAllocated) - 1;
     }
   }
 
   /** Information container for DICOM LUT parameters. */
-  private static class DicomLutInfo {
-    final int numEntries;
-    final int offset;
-    final int numBits;
+  private record DicomLutInfo(int numEntries, int offset, int numBits) {
 
     DicomLutInfo(int[] descriptor) {
-      this.numEntries = (descriptor[0] <= 0) ? descriptor[0] + 0x10000 : descriptor[0];
-      this.offset = (short) descriptor[1]; // Cast to handle negative values
-      this.numBits = descriptor[2];
+      this(
+          (descriptor[0] <= 0) ? descriptor[0] + 0x10000 : descriptor[0],
+          (short) descriptor[1], // Cast to handle negative values
+          descriptor[2]);
     }
   }
 
   private static Object createOutputArray(LutConfiguration config) {
-    return config.bitsStored <= 8 ? new byte[config.numEntries] : new short[config.numEntries];
+    return config.bitsStored() <= 8
+        ? new byte[config.numEntries()]
+        : new short[config.numEntries()];
   }
 
   private static void populateLut(
@@ -212,76 +209,78 @@ public class LookupTableUtils {
 
   private static LookupTableCV createLookupTable(Object outLut, LutConfiguration config) {
     return (outLut instanceof byte[] bytes)
-        ? new LookupTableCV(bytes, config.minInValue)
-        : new LookupTableCV((short[]) outLut, config.minInValue, !config.isSigned);
+        ? new LookupTableCV(bytes, config.minInValue())
+        : new LookupTableCV((short[]) outLut, config.minInValue(), !config.isSigned());
   }
 
   private static void setLinearLut(LutConfiguration config, Object outLut, boolean inverse) {
-    double slope = (config.maxOutValue - config.minOutValue) / config.window;
-    double intercept = config.maxOutValue - slope * (config.level + (config.window / 2.0));
+    double slope = (config.maxOutValue() - config.minOutValue()) / config.window();
+    double intercept = config.maxOutValue() - slope * (config.level() + (config.window() / 2.0));
 
-    for (int i = 0; i < Array.getLength(outLut); i++) {
-      int value = (int) ((i + config.minInValue) * slope + intercept);
-      setLutValue(outLut, config.minOutValue, config.maxOutValue, inverse, i, value);
-    }
+    IntStream.range(0, Array.getLength(outLut))
+        .forEach(
+            i -> {
+              int value = (int) ((i + config.minInValue()) * slope + intercept);
+              setLutValue(outLut, config.minOutValue(), config.maxOutValue(), inverse, i, value);
+            });
   }
 
   private static void setSigmoidLut(
       LutConfiguration config, Object outLut, boolean inverse, boolean normalize) {
-    double outRange = config.maxOutValue - (double) config.minOutValue;
-    double nFactor = SIGMOID_FACTOR;
+    double outRange = config.maxOutValue() - (double) config.minOutValue();
+    var normParams =
+        calculateNormalization(config, normalize, SIGMOID_FACTOR, outRange, LutType.SIGMOID);
 
-    NormalizationParams normParams =
-        calculateNormalization(config, normalize, nFactor, outRange, LutType.SIGMOID);
+    IntStream.range(0, Array.getLength(outLut))
+        .forEach(
+            i -> {
+              double value =
+                  outRange
+                      / (1.0
+                          + Math.exp(
+                              (2.0 * SIGMOID_FACTOR / FACTOR_DIVISOR)
+                                  * (i + config.minInValue() - config.level())
+                                  / config.window()));
 
-    for (int i = 0; i < Array.getLength(outLut); i++) {
-      double value =
-          outRange
-              / (1.0
-                  + Math.exp(
-                      (2.0 * nFactor / FACTOR_DIVISOR)
-                          * (i + config.minInValue - config.level)
-                          / config.window));
-
-      setNormalizedLutValue(outLut, config, inverse, normalize, normParams, i, value);
-    }
+              setNormalizedLutValue(outLut, config, inverse, normalize, normParams, i, value);
+            });
   }
 
   private static void setExponentialLut(LutConfiguration config, Object outLut, boolean inverse) {
-    double outRange = config.maxOutValue - (double) config.minOutValue;
-    double nFactor = LOG_EXP_FACTOR;
+    double outRange = config.maxOutValue() - (double) config.minOutValue();
+    var normParams =
+        calculateNormalization(config, true, LOG_EXP_FACTOR, outRange, LutType.EXPONENTIAL);
 
-    NormalizationParams normParams =
-        calculateNormalization(config, true, nFactor, outRange, LutType.EXPONENTIAL);
+    IntStream.range(0, Array.getLength(outLut))
+        .forEach(
+            i -> {
+              double value =
+                  outRange
+                      * Math.exp(
+                          (LOG_EXP_FACTOR / FACTOR_DIVISOR)
+                              * (i + config.minInValue() - config.level())
+                              / config.window());
 
-    for (int i = 0; i < Array.getLength(outLut); i++) {
-      double value =
-          outRange
-              * Math.exp(
-                  (nFactor / FACTOR_DIVISOR)
-                      * (i + config.minInValue - config.level)
-                      / config.window);
-
-      setNormalizedLutValue(outLut, config, inverse, true, normParams, i, value);
-    }
+              setNormalizedLutValue(outLut, config, inverse, true, normParams, i, value);
+            });
   }
 
   private static void setLogarithmicLut(LutConfiguration config, Object outLut, boolean inverse) {
-    double outRange = config.maxOutValue - (double) config.minOutValue;
-    double nFactor = LOG_EXP_FACTOR;
+    double outRange = config.maxOutValue() - (double) config.minOutValue();
+    var normParams =
+        calculateNormalization(config, true, LOG_EXP_FACTOR, outRange, LutType.LOGARITHMIC);
 
-    NormalizationParams normParams =
-        calculateNormalization(config, true, nFactor, outRange, LutType.LOGARITHMIC);
+    IntStream.range(0, Array.getLength(outLut))
+        .forEach(
+            i -> {
+              double value =
+                  outRange
+                      * Math.log(
+                          (LOG_EXP_FACTOR / FACTOR_DIVISOR)
+                              * (1 + (i + config.minInValue() - config.level()) / config.window()));
 
-    for (int i = 0; i < Array.getLength(outLut); i++) {
-      double value =
-          outRange
-              * Math.log(
-                  (nFactor / FACTOR_DIVISOR)
-                      * (1 + (i + config.minInValue - config.level) / config.window));
-
-      setNormalizedLutValue(outLut, config, inverse, true, normParams, i, value);
-    }
+              setNormalizedLutValue(outLut, config, inverse, true, normParams, i, value);
+            });
   }
 
   private static void setSequenceLut(
@@ -291,8 +290,8 @@ public class LookupTableUtils {
       return;
     }
 
-    var sequenceProcessor = new SequenceLutProcessor(config, inLutDataArray, outLut, inverse);
-    sequenceProcessor.process();
+    var processor = new SequenceLutProcessor(config, inLutDataArray, outLut, inverse);
+    processor.process();
   }
 
   /** Enumeration for different LUT transformation types. */
@@ -303,15 +302,7 @@ public class LookupTableUtils {
   }
 
   /** Container for normalization parameters. */
-  private static class NormalizationParams {
-    final double minValue;
-    final double rescaleRatio;
-
-    NormalizationParams(double minValue, double rescaleRatio) {
-      this.minValue = minValue;
-      this.rescaleRatio = rescaleRatio;
-    }
-  }
+  private record NormalizationParams(double minValue, double rescaleRatio) {}
 
   private static NormalizationParams calculateNormalization(
       LutConfiguration config, boolean normalize, double nFactor, double outRange, LutType type) {
@@ -319,57 +310,40 @@ public class LookupTableUtils {
       return new NormalizationParams(0, 1);
     }
 
-    double lowLevel = config.level - config.window / 2.0;
-    double highLevel = config.level + config.window / 2.0;
+    double lowLevel = config.level() - config.window() / 2.0;
+    double highLevel = config.level() + config.window() / 2.0;
 
-    double minValue =
-        switch (type) {
-          case SIGMOID ->
-              config.minOutValue
-                  + outRange
-                      / (1.0
-                          + Math.exp(
-                              (2.0 * nFactor / FACTOR_DIVISOR)
-                                  * (lowLevel - config.level)
-                                  / config.window));
-          case EXPONENTIAL ->
-              config.minOutValue
-                  + outRange
-                      * Math.exp(
-                          (nFactor / FACTOR_DIVISOR) * (lowLevel - config.level) / config.window);
-          case LOGARITHMIC ->
-              config.minOutValue
-                  + outRange
-                      * Math.log(
-                          (nFactor / FACTOR_DIVISOR)
-                              * (1 + (lowLevel - config.level) / config.window));
-        };
+    double minValue = calculateLutValue(config, nFactor, outRange, type, lowLevel);
+    double maxValue = calculateLutValue(config, nFactor, outRange, type, highLevel);
 
-    double maxValue =
-        switch (type) {
-          case SIGMOID ->
-              config.minOutValue
-                  + outRange
-                      / (1.0
-                          + Math.exp(
-                              (2.0 * nFactor / FACTOR_DIVISOR)
-                                  * (highLevel - config.level)
-                                  / config.window));
-          case EXPONENTIAL ->
-              config.minOutValue
-                  + outRange
-                      * Math.exp(
-                          (nFactor / FACTOR_DIVISOR) * (highLevel - config.level) / config.window);
-          case LOGARITHMIC ->
-              config.minOutValue
-                  + outRange
-                      * Math.log(
-                          (nFactor / FACTOR_DIVISOR)
-                              * (1 + (highLevel - config.level) / config.window));
-        };
-
-    double rescaleRatio = (config.maxOutValue - config.minOutValue) / Math.abs(maxValue - minValue);
+    double rescaleRatio =
+        (config.maxOutValue() - config.minOutValue()) / Math.abs(maxValue - minValue);
     return new NormalizationParams(minValue, rescaleRatio);
+  }
+
+  private static double calculateLutValue(
+      LutConfiguration config, double nFactor, double outRange, LutType type, double level) {
+    return switch (type) {
+      case SIGMOID ->
+          config.minOutValue()
+              + outRange
+                  / (1.0
+                      + Math.exp(
+                          (2.0 * nFactor / FACTOR_DIVISOR)
+                              * (level - config.level())
+                              / config.window()));
+      case EXPONENTIAL ->
+          config.minOutValue()
+              + outRange
+                  * Math.exp(
+                      (nFactor / FACTOR_DIVISOR) * (level - config.level()) / config.window());
+      case LOGARITHMIC ->
+          config.minOutValue()
+              + outRange
+                  * Math.log(
+                      (nFactor / FACTOR_DIVISOR)
+                          * (1 + (level - config.level()) / config.window()));
+    };
   }
 
   private static void setNormalizedLutValue(
@@ -381,19 +355,19 @@ public class LookupTableUtils {
       int i,
       double value) {
     if (normalize) {
-      value = (value - normParams.minValue) * normParams.rescaleRatio;
+      value = (value - normParams.minValue()) * normParams.rescaleRatio();
     }
 
-    value = Math.round(value + config.minOutValue);
-    value = Math.max(config.minOutValue, Math.min(config.maxOutValue, value));
-    value = inverse ? (config.maxOutValue + config.minOutValue - value) : value;
+    value = Math.round(value + config.minOutValue());
+    value = MathUtil.clamp(value, config.minOutValue(), config.maxOutValue());
+    value = inverse ? (config.maxOutValue() + config.minOutValue() - value) : value;
 
     setArrayValue(outLut, i, (int) value);
   }
 
   private static void setLutValue(
       Object outLut, int minOutValue, int maxOutValue, boolean inverse, int i, int value) {
-    value = Math.max(minOutValue, Math.min(maxOutValue, value));
+    value = MathUtil.clamp(value, minOutValue, maxOutValue);
     value = inverse ? (maxOutValue + minOutValue - value) : value;
     setArrayValue(outLut, i, value);
   }
@@ -418,7 +392,7 @@ public class LookupTableUtils {
   }
 
   /** Processor for sequence-based LUT transformations. */
-  private static class SequenceLutProcessor {
+  private static final class SequenceLutProcessor {
     private final LutConfiguration config;
     private final Object inLutDataArray;
     private final Object outLut;
@@ -435,8 +409,8 @@ public class LookupTableUtils {
       this.outLut = outLut;
       this.inverse = inverse;
       this.lutDataValueMask = calculateValueMask(inLutDataArray);
-      this.lowLevel = config.level - config.window / 2.0;
-      this.highLevel = config.level + config.window / 2.0;
+      this.lowLevel = config.level() - config.window() / 2.0;
+      this.highLevel = config.level() + config.window() / 2.0;
       this.maxInLutIndex = Array.getLength(inLutDataArray) - 1;
     }
 
@@ -500,6 +474,26 @@ public class LookupTableUtils {
                           / (inValueRoundUp - inValueRoundDown));
     }
 
+    private static final class LookupRangeAccumulator {
+      private int min = Integer.MAX_VALUE;
+      private int max = Integer.MIN_VALUE;
+
+      void accept(int value) {
+        min = Math.min(min, value);
+        max = Math.max(max, value);
+      }
+
+      LookupRangeAccumulator combine(LookupRangeAccumulator other) {
+        min = Math.min(min, other.min);
+        max = Math.max(max, other.max);
+        return this;
+      }
+
+      LookupRange toLookupRange() {
+        return new LookupRange(min, Math.abs(max - min));
+      }
+    }
+
     private record LookupRange(int min, int range) {}
   }
 
@@ -514,6 +508,22 @@ public class LookupTableUtils {
       return false;
     }
     return true;
+  }
+
+  private static void validateDescriptor(int[] desc) {
+    if (desc == null) {
+      throw new IllegalArgumentException("Missing LUT Descriptor!");
+    }
+    if (desc.length != 3) {
+      throw new IllegalArgumentException("Illegal number of LUT Descriptor values: " + desc.length);
+    }
+    if (desc[0] < 0) {
+      throw new IllegalArgumentException("Illegal LUT Descriptor: len=" + desc[0]);
+    }
+    int bits = desc[2];
+    if (bits != 8 && bits != 16) {
+      throw new IllegalArgumentException("Illegal LUT Descriptor: bits=" + bits);
+    }
   }
 
   private static byte[] extractLutData(Attributes dicomLutObject, DicomLutInfo lutInfo) {
@@ -531,25 +541,24 @@ public class LookupTableUtils {
 
   private static byte[] processLutDataByBits(
       byte[] bData, DicomLutInfo lutInfo, boolean bigEndian) {
-    if (lutInfo.numBits <= 8) {
-      return processEightBitLutData(bData, lutInfo, bigEndian);
-    } else if (lutInfo.numBits <= 16) {
-      return processSixteenBitLutData(bData, lutInfo, bigEndian);
-    } else {
-      LOGGER.debug("Illegal number of bits for each entry in the LUT Data");
-      return null;
-    }
+    return switch (Integer.compare(lutInfo.numBits(), 8)) {
+      case -1, 0 -> processEightBitLutData(bData, lutInfo, bigEndian);
+      case 1 ->
+          lutInfo.numBits() <= 16 ? processSixteenBitLutData(bData, lutInfo, bigEndian) : null;
+      default -> {
+        LOGGER.debug("Illegal number of bits for each entry in the LUT Data");
+        yield null;
+      }
+    };
   }
 
   private static byte[] processEightBitLutData(
       byte[] bData, DicomLutInfo lutInfo, boolean bigEndian) {
-    if (lutInfo.numEntries <= 256 && bData.length == (lutInfo.numEntries << 1)) {
+    if (lutInfo.numEntries() <= MAX_8_BIT_ENTRIES && bData.length == (lutInfo.numEntries() << 1)) {
       // Handle 8-bit entries encoded with 16-bit allocation
-      byte[] bDataNew = new byte[lutInfo.numEntries];
+      byte[] bDataNew = new byte[lutInfo.numEntries()];
       int byteShift = bigEndian ? 1 : 0;
-      for (int i = 0; i < bDataNew.length; i++) {
-        bDataNew[i] = bData[(i << 1) | byteShift];
-      }
+      IntStream.range(0, bDataNew.length).forEach(i -> bDataNew[i] = bData[(i << 1) | byteShift]);
 
       return bDataNew;
     }
@@ -558,43 +567,51 @@ public class LookupTableUtils {
 
   private static byte[] processSixteenBitLutData(
       byte[] bData, DicomLutInfo lutInfo, boolean bigEndian) {
-    short[] sData = new short[lutInfo.numEntries];
+    short[] sData = new short[lutInfo.numEntries()];
     ByteUtils.bytesToShorts(bData, sData, 0, sData.length, bigEndian);
 
-    if (lutInfo.numEntries <= 256) {
-      // Convert 16-bit to 8-bit with scaling
-      int maxIn = (1 << lutInfo.numBits) - 1;
-      int maxOut = lutInfo.numEntries - 1;
-
-      byte[] bDataNew = new byte[lutInfo.numEntries];
-      for (int i = 0; i < lutInfo.numEntries; i++) {
-        bDataNew[i] = (byte) ((sData[i] & 0xffff) * maxOut / maxIn);
-      }
-      return bDataNew;
+    if (lutInfo.numEntries() <= MAX_8_BIT_ENTRIES) {
+      return convertSixteenBitToEightBit(sData, lutInfo);
     }
 
-    // Convert short array to byte array for 16-bit output
+    return convertShortArrayToByteArray(sData);
+  }
+
+  private static byte[] convertSixteenBitToEightBit(short[] sData, DicomLutInfo lutInfo) {
+    // Convert 16-bit to 8-bit with scaling
+    int maxIn = (1 << lutInfo.numBits) - 1;
+    int maxOut = lutInfo.numEntries - 1;
+
+    byte[] bDataNew = new byte[lutInfo.numEntries];
+    for (int i = 0; i < lutInfo.numEntries; i++) {
+      bDataNew[i] = (byte) ((sData[i] & 0xffff) * maxOut / maxIn);
+    }
+    return bDataNew;
+  }
+
+  private static byte[] convertShortArrayToByteArray(short[] sData) {
     byte[] result = new byte[sData.length * 2];
-    for (int i = 0; i < sData.length; i++) {
-      result[i * 2] = (byte) (sData[i] & 0xFF);
-      result[i * 2 + 1] = (byte) ((sData[i] >> 8) & 0xFF);
-    }
+    IntStream.range(0, sData.length)
+        .forEach(
+            i -> {
+              result[i * 2] = (byte) (sData[i] & BYTE_MASK);
+              result[i * 2 + 1] = (byte) ((sData[i] >> 8) & BYTE_MASK);
+            });
     return result;
   }
 
   private static Optional<LookupTableCV> createDicomLookupTable(
       byte[] lutData, DicomLutInfo lutInfo) {
-    if (lutInfo.numBits <= 8) {
-      return Optional.of(new LookupTableCV(lutData, lutInfo.offset));
-    } else {
-      // Convert byte array back to short array for 16-bit LUTs
-      short[] shortData = new short[lutData.length / 2];
-      for (int i = 0; i < shortData.length; i++) {
-        shortData[i] = (short) ((lutData[i * 2] & 0xFF) | ((lutData[i * 2 + 1] & 0xFF) << 8));
-      }
-
-      return Optional.of(new LookupTableCV(shortData, lutInfo.offset, true));
+    if (lutInfo.numBits() <= 8) {
+      return Optional.of(new LookupTableCV(lutData, lutInfo.offset()));
     }
+    // Convert byte array back to short array for 16-bit LUTs
+    short[] shortData = new short[lutData.length / 2];
+    for (int i = 0; i < shortData.length; i++) {
+      shortData[i] = (short) ((lutData[i * 2] & 0xFF) | ((lutData[i * 2 + 1] & 0xFF) << 8));
+    }
+
+    return Optional.of(new LookupTableCV(shortData, lutInfo.offset(), true));
   }
 
   private static byte[] handleSegmentedLutData(Attributes ds, int segmTag, int len, int bits) {
@@ -614,11 +631,8 @@ public class LookupTableUtils {
     if (bits == 16 || data.length != len) {
       if (data.length != len << 1) {
         throw new IllegalArgumentException(
-            "Number of actual LUT entries: "
-                + data.length
-                + " mismatch specified value: "
-                + len
-                + " in LUT Descriptor");
+            "Number of actual LUT entries: %d mismatch specified value: %d in LUT Descriptor"
+                .formatted(data.length, len));
       }
 
       int hilo = bigEndian ? 0 : 1;
@@ -640,7 +654,7 @@ public class LookupTableUtils {
   }
 
   /** Helper class for inflating segmented LUT data according to DICOM standard. */
-  private static class InflateSegmentedLut {
+  private static final class InflateSegmentedLut {
     private final int[] segm;
     private final byte[] data;
     private int readPos;
@@ -685,7 +699,7 @@ public class LookupTableUtils {
       if (readPos >= segm.length) {
         throw new IllegalArgumentException("Running out of data inflating segmented LUT");
       }
-      return segm[readPos++] & 0xffff;
+      return segm[readPos++] & SHORT_MASK;
     }
 
     private void write(int y) {
@@ -699,17 +713,13 @@ public class LookupTableUtils {
     }
 
     private int discreteSegment(int n) {
-      while (n-- > 0) {
-        write(read());
-      }
-      return segm[readPos - 1] & 0xffff;
+      IntStream.range(0, n).forEach(ignored -> write(read()));
+      return segm[readPos - 1] & SHORT_MASK;
     }
 
     private int linearSegment(int n, int y0, int y1) {
       int dy = y1 - y0;
-      for (int j = 1; j <= n; j++) {
-        write(y0 + dy * j / n);
-      }
+      IntStream.rangeClosed(1, n).forEach(j -> write(y0 + dy * j / n));
       return y1;
     }
 

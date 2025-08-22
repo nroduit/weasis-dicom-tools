@@ -11,32 +11,36 @@ package org.dcm4che3.img.stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import java.util.Optional;
+import java.util.stream.Stream;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.image.PhotometricInterpretation;
 import org.dcm4che3.img.util.LutTestDataBuilder;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.DisplayNameGeneration;
+import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.opencv.core.Core.MinMaxLocResult;
 
+@DisplayNameGeneration(ReplaceUnderscores.class)
 class ImageDescriptorTest {
 
   @Nested
   @DisplayName("Constructor Tests")
-  class ConstructorTests {
+  class Constructor_Tests {
 
     @Test
-    @DisplayName("Should create ImageDescriptor with comprehensive valid attributes")
-    void shouldCreateImageDescriptorWithValidAttributes() {
-      Attributes attributes = createCompleteAttributes();
+    void should_create_image_descriptor_with_comprehensive_valid_attributes() {
+      var attributes = createCompleteAttributes();
 
-      ImageDescriptor descriptor = new ImageDescriptor(attributes);
+      var descriptor = new ImageDescriptor(attributes);
 
       // Basic image properties
       assertEquals(512, descriptor.getRows());
@@ -51,7 +55,7 @@ class ImageDescriptorTest {
       assertEquals(1, descriptor.getPlanarConfiguration());
       assertEquals(16, descriptor.getBitsAllocated());
       assertEquals(16, descriptor.getBitsStored());
-      assertEquals(16, descriptor.getBitsCompressed()); // Default when not specified
+      assertEquals(16, descriptor.getBitsCompressed());
       assertEquals(15, descriptor.getHighBit());
       assertEquals(1, descriptor.getPixelRepresentation());
       assertTrue(descriptor.isSigned());
@@ -83,13 +87,12 @@ class ImageDescriptorTest {
     }
 
     @Test
-    @DisplayName("Should create ImageDescriptor with custom bits compressed")
-    void shouldCreateImageDescriptorWithBitsCompressed() {
-      Attributes attributes = new Attributes();
+    void should_create_image_descriptor_with_custom_bits_compressed() {
+      var attributes = new Attributes();
       attributes.setInt(Tag.BitsAllocated, VR.US, 16);
       attributes.setInt(Tag.BitsStored, VR.US, 12);
 
-      ImageDescriptor descriptor = new ImageDescriptor(attributes, 10);
+      var descriptor = new ImageDescriptor(attributes, 10);
 
       assertEquals(16, descriptor.getBitsAllocated());
       assertEquals(12, descriptor.getBitsStored());
@@ -97,17 +100,15 @@ class ImageDescriptorTest {
     }
 
     @Test
-    @DisplayName("Should handle null attributes gracefully")
-    void shouldThrowExceptionForNullAttributes() {
+    void should_throw_exception_for_null_attributes() {
       assertThrows(NullPointerException.class, () -> new ImageDescriptor(null));
     }
 
     @Test
-    @DisplayName("Should create ImageDescriptor with minimal attributes")
-    void shouldCreateImageDescriptorWithMinimalAttributes() {
-      Attributes attributes = new Attributes();
+    void should_create_image_descriptor_with_minimal_attributes() {
+      var attributes = new Attributes();
 
-      ImageDescriptor descriptor = new ImageDescriptor(attributes);
+      var descriptor = new ImageDescriptor(attributes);
 
       // Verify defaults
       assertEquals(0, descriptor.getRows());
@@ -131,23 +132,46 @@ class ImageDescriptorTest {
       assertNull(descriptor.getPresentationLUTShape());
       assertNull(descriptor.getPixelPresentation());
     }
+
+    @ParameterizedTest
+    @CsvSource({
+      "8, 8, 7, 0, false, false",
+      "16, 16, 15, 0, false, false",
+      "16, 12, 11, 1, true, false",
+      "32, 32, 31, 1, true, true"
+    })
+    void should_handle_various_bit_configurations(
+        int bitsAllocated,
+        int bitsStored,
+        int expectedHighBit,
+        int pixelRepresentation,
+        boolean expectedSigned,
+        boolean expectedBanded) {
+      var attributes = new Attributes();
+      attributes.setInt(Tag.BitsAllocated, VR.US, bitsAllocated);
+      attributes.setInt(Tag.BitsStored, VR.US, bitsStored);
+      attributes.setInt(Tag.PixelRepresentation, VR.US, pixelRepresentation);
+      attributes.setInt(Tag.PlanarConfiguration, VR.US, expectedBanded ? 1 : 0);
+
+      var descriptor = new ImageDescriptor(attributes);
+
+      assertEquals(bitsAllocated, descriptor.getBitsAllocated());
+      assertEquals(bitsStored, descriptor.getBitsStored());
+      assertEquals(expectedHighBit, descriptor.getHighBit());
+      assertEquals(expectedSigned, descriptor.isSigned());
+      assertEquals(expectedBanded, descriptor.isBanded());
+    }
   }
 
   @Nested
   @DisplayName("Multiframe Tests")
-  class MultiframeTests {
+  class Multiframe_Tests {
 
     @Test
-    @DisplayName("Should handle multiframe images correctly")
-    void shouldHandleMultiframeImages() {
-      Attributes attributes = new Attributes();
-      attributes.setInt(Tag.Rows, VR.US, 100);
-      attributes.setInt(Tag.Columns, VR.US, 100);
-      attributes.setInt(Tag.SamplesPerPixel, VR.US, 1);
-      attributes.setInt(Tag.BitsAllocated, VR.US, 8);
-      attributes.setInt(Tag.NumberOfFrames, VR.IS, 10);
+    void should_handle_multiframe_images_correctly() {
+      var attributes = createBasicImageAttributes(100, 100, 1, 8, 10);
 
-      ImageDescriptor descriptor = new ImageDescriptor(attributes);
+      var descriptor = new ImageDescriptor(attributes);
 
       assertTrue(descriptor.isMultiframe());
       assertEquals(10, descriptor.getFrames());
@@ -155,30 +179,35 @@ class ImageDescriptorTest {
       assertEquals(100000, descriptor.getLength()); // frameLength * 10 frames
     }
 
-    @Test
-    @DisplayName("Should calculate frame length correctly for different pixel configurations")
-    void shouldCalculateFrameLengthCorrectly() {
-      Attributes attributes = new Attributes();
-      attributes.setInt(Tag.Rows, VR.US, 2);
-      attributes.setInt(Tag.Columns, VR.US, 2);
-      attributes.setInt(Tag.SamplesPerPixel, VR.US, 3);
-      attributes.setInt(Tag.BitsAllocated, VR.US, 8);
-      attributes.setInt(Tag.NumberOfFrames, VR.IS, 5);
+    @ParameterizedTest
+    @CsvSource({
+      "2, 2, 3, 8, 5, 12, 60",
+      "256, 256, 1, 16, 1, 131072, 131072",
+      "512, 512, 3, 8, 4, 786432, 3145728"
+    })
+    void should_calculate_frame_length_correctly(
+        int rows,
+        int columns,
+        int samples,
+        int bitsAllocated,
+        int frames,
+        int expectedFrameLength,
+        int expectedTotalLength) {
+      var attributes = createBasicImageAttributes(rows, columns, samples, bitsAllocated, frames);
 
-      ImageDescriptor descriptor = new ImageDescriptor(attributes);
+      var descriptor = new ImageDescriptor(attributes);
 
-      assertTrue(descriptor.isMultiframe());
-      assertEquals(12, descriptor.getFrameLength()); // 2*2*3*8/8 = 12 bytes
-      assertEquals(60, descriptor.getLength()); // 12 * 5 frames = 60 bytes
+      assertEquals(expectedFrameLength, descriptor.getFrameLength());
+      assertEquals(expectedTotalLength, descriptor.getLength());
+      assertEquals(frames > 1, descriptor.isMultiframe());
     }
   }
 
   @Nested
   @DisplayName("Float Pixel Data Tests")
-  class FloatPixelDataTests {
+  class Float_Pixel_Data_Tests {
 
     @ParameterizedTest
-    @DisplayName("Should identify float pixel data correctly")
     @CsvSource({
       "32, RF, true",
       "32, XA, true",
@@ -188,78 +217,110 @@ class ImageDescriptorTest {
       "16, CT, false",
       "8, MR, false"
     })
-    void shouldIdentifyFloatPixelData(int bitsAllocated, String modality, boolean expectedFloat) {
-      Attributes attributes = new Attributes();
+    void should_identify_float_pixel_data_correctly(
+        int bitsAllocated, String modality, boolean expectedFloat) {
+      var attributes = new Attributes();
       attributes.setInt(Tag.BitsAllocated, VR.US, bitsAllocated);
       attributes.setString(Tag.Modality, VR.CS, modality);
 
-      ImageDescriptor descriptor = new ImageDescriptor(attributes);
+      var descriptor = new ImageDescriptor(attributes);
 
       assertEquals(expectedFloat, descriptor.isFloatPixelData());
+    }
+
+    static Stream<Arguments> floatPixelDataProvider() {
+      return Stream.of(
+          Arguments.of(32, "RF", true, "32-bit RF should be float"),
+          Arguments.of(32, "XA", true, "32-bit XA should be float"),
+          Arguments.of(32, "RTDOSE", false, "32-bit RTDOSE should not be float"),
+          Arguments.of(64, "CT", true, "64-bit should always be float"),
+          Arguments.of(64, "RTDOSE", true, "64-bit RTDOSE should be float"),
+          Arguments.of(16, "CT", false, "16-bit should not be float"),
+          Arguments.of(8, "MR", false, "8-bit should not be float"));
+    }
+
+    @ParameterizedTest
+    @MethodSource("floatPixelDataProvider")
+    void should_identify_float_pixel_data_with_descriptions(
+        int bitsAllocated, String modality, boolean expectedFloat, String description) {
+      var attributes = new Attributes();
+      attributes.setInt(Tag.BitsAllocated, VR.US, bitsAllocated);
+      attributes.setString(Tag.Modality, VR.CS, modality);
+
+      var descriptor = new ImageDescriptor(attributes);
+
+      assertEquals(expectedFloat, descriptor.isFloatPixelData(), description);
     }
   }
 
   @Nested
   @DisplayName("Photometric Interpretation Tests")
-  class PhotometricInterpretationTests {
+  class Photometric_Interpretation_Tests {
 
     @ParameterizedTest
-    @DisplayName("Should handle different photometric interpretations")
     @ValueSource(strings = {"MONOCHROME1", "MONOCHROME2", "PALETTE_COLOR", "RGB", "YBR_FULL"})
-    void shouldHandlePhotometricInterpretations(String piValue) {
-      Attributes attributes = new Attributes();
+    void should_handle_different_photometric_interpretations(String piValue) {
+      var attributes = new Attributes();
       attributes.setString(Tag.PhotometricInterpretation, VR.CS, piValue);
 
       boolean expectedPalette = "PALETTE_COLOR".equals(piValue);
       if (expectedPalette) {
-        // Ensure palette color LUT is created for PALETTE_COLOR
+        // Use existing LUT test data instead of mocking
         attributes.addAll(LutTestDataBuilder.createCompletePaletteLutAttributes());
       }
-      ImageDescriptor descriptor = new ImageDescriptor(attributes);
+
+      var descriptor = new ImageDescriptor(attributes);
 
       assertEquals(
           PhotometricInterpretation.fromString(piValue), descriptor.getPhotometricInterpretation());
-
       assertEquals(
           expectedPalette,
           descriptor.getPhotometricInterpretation() == PhotometricInterpretation.PALETTE_COLOR);
     }
 
     @Test
-    @DisplayName("Should identify palette color lookup table correctly")
-    void shouldIdentifyPaletteColorLookupTable() {
-      Attributes attributes1 = LutTestDataBuilder.createCompletePaletteLutAttributes();
+    void should_identify_palette_color_lookup_table_for_palette_color() {
+      var attributes = LutTestDataBuilder.createCompletePaletteLutAttributes();
 
-      ImageDescriptor descriptor1 = new ImageDescriptor(attributes1);
-      assertTrue(descriptor1.hasPaletteColorLookupTable());
+      var descriptor = new ImageDescriptor(attributes);
 
-      // Test with COLOR pixel presentation
-      Attributes attributes2 = LutTestDataBuilder.createCompletePaletteLutAttributes();
-      attributes2.setString(Tag.PixelPresentation, VR.CS, "COLOR");
+      assertTrue(descriptor.hasPaletteColorLookupTable());
+      assertNotNull(descriptor.getPaletteColorLookupTable());
+    }
 
-      ImageDescriptor descriptor2 = new ImageDescriptor(attributes2);
-      assertTrue(descriptor2.hasPaletteColorLookupTable());
+    @Test
+    void should_identify_palette_color_lookup_table_for_monochrome_with_color_presentation() {
+      var attributes = new Attributes();
+      attributes.setString(Tag.PhotometricInterpretation, VR.CS, "MONOCHROME2");
+      attributes.setString(Tag.PixelPresentation, VR.CS, "COLOR");
 
-      // Test without either
-      Attributes attributes3 = new Attributes();
-      attributes3.setString(Tag.PhotometricInterpretation, VR.CS, "MONOCHROME2");
+      var descriptor = new ImageDescriptor(attributes);
 
-      ImageDescriptor descriptor3 = new ImageDescriptor(attributes3);
-      assertFalse(descriptor3.hasPaletteColorLookupTable());
+      assertTrue(descriptor.hasPaletteColorLookupTable());
+    }
+
+    @Test
+    void should_not_identify_palette_color_lookup_table_for_regular_monochrome() {
+      var attributes = new Attributes();
+      attributes.setString(Tag.PhotometricInterpretation, VR.CS, "MONOCHROME2");
+
+      var descriptor = new ImageDescriptor(attributes);
+
+      assertFalse(descriptor.hasPaletteColorLookupTable());
+      assertNull(descriptor.getPaletteColorLookupTable());
     }
   }
 
   @Nested
-  @DisplayName("Frame-specific Data Tests")
-  class FrameSpecificDataTests {
+  @DisplayName("Frame Specific Data Tests")
+  class Frame_Specific_Data_Tests {
 
     @Test
-    @DisplayName("Should handle frame-specific min/max values")
-    void shouldHandleFrameSpecificMinMaxValues() {
-      Attributes attributes = new Attributes();
+    void should_handle_frame_specific_min_max_values() {
+      var attributes = new Attributes();
       attributes.setInt(Tag.NumberOfFrames, VR.IS, 3);
 
-      ImageDescriptor descriptor = new ImageDescriptor(attributes);
+      var descriptor = new ImageDescriptor(attributes);
 
       // Initially all frames should have null min/max values
       assertNull(descriptor.getMinMaxPixelValue(0));
@@ -267,9 +328,7 @@ class ImageDescriptorTest {
       assertNull(descriptor.getMinMaxPixelValue(2));
 
       // Set min/max for frame 1
-      MinMaxLocResult minMax = new MinMaxLocResult();
-      minMax.minVal = 100.0;
-      minMax.maxVal = 200.0;
+      var minMax = createMinMaxResult(100.0, 200.0);
       descriptor.setMinMaxPixelValue(1, minMax);
 
       // Verify frame 1 has the set value, others remain null
@@ -279,40 +338,61 @@ class ImageDescriptorTest {
     }
 
     @Test
-    @DisplayName("Should handle invalid frame indices gracefully")
-    void shouldHandleInvalidFrameIndices() {
-      Attributes attributes = new Attributes();
+    void should_handle_invalid_frame_indices_gracefully() {
+      var attributes = new Attributes();
       attributes.setInt(Tag.NumberOfFrames, VR.IS, 2);
 
-      ImageDescriptor descriptor = new ImageDescriptor(attributes);
+      var descriptor = new ImageDescriptor(attributes);
 
-      // Test invalid indices
+      // Test invalid indices return null
       assertNull(descriptor.getMinMaxPixelValue(-1));
       assertNull(descriptor.getMinMaxPixelValue(2));
       assertNull(descriptor.getMinMaxPixelValue(100));
 
       // Setting invalid frame indices should not throw exceptions
-      MinMaxLocResult minMax = new MinMaxLocResult();
+      var minMax = createMinMaxResult(50.0, 150.0);
       assertDoesNotThrow(() -> descriptor.setMinMaxPixelValue(-1, minMax));
       assertDoesNotThrow(() -> descriptor.setMinMaxPixelValue(2, minMax));
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {-5, -1, 0, 5, 10})
+    void should_validate_frame_indices_correctly(int frameIndex) {
+      var attributes = new Attributes();
+      attributes.setInt(Tag.NumberOfFrames, VR.IS, 5); // Valid indices: 0-4
+
+      var descriptor = new ImageDescriptor(attributes);
+
+      boolean isValidIndex = frameIndex >= 0 && frameIndex < 5;
+      var minMax = createMinMaxResult(10.0, 90.0);
+
+      if (isValidIndex) {
+        // Valid indices should work
+        assertDoesNotThrow(() -> descriptor.setMinMaxPixelValue(frameIndex, minMax));
+        descriptor.setMinMaxPixelValue(frameIndex, minMax);
+        assertEquals(minMax, descriptor.getMinMaxPixelValue(frameIndex));
+      } else {
+        // Invalid indices should be handled gracefully
+        assertDoesNotThrow(() -> descriptor.setMinMaxPixelValue(frameIndex, minMax));
+        assertNull(descriptor.getMinMaxPixelValue(frameIndex));
+      }
     }
   }
 
   @Nested
   @DisplayName("Edge Cases and Validation")
-  class EdgeCasesTests {
+  class Edge_Cases_Tests {
 
     @Test
-    @DisplayName("Should handle negative or zero dimensions gracefully")
-    void shouldHandleInvalidDimensions() {
-      Attributes attributes = new Attributes();
+    void should_handle_negative_or_zero_dimensions_gracefully() {
+      var attributes = new Attributes();
       attributes.setInt(Tag.Rows, VR.US, 0);
       attributes.setInt(Tag.Columns, VR.US, 0);
       attributes.setInt(Tag.NumberOfFrames, VR.IS, -5);
 
-      ImageDescriptor descriptor = new ImageDescriptor(attributes);
+      var descriptor = new ImageDescriptor(attributes);
 
-      assertEquals(0, descriptor.getRows()); // Negative converted to 0
+      assertEquals(0, descriptor.getRows());
       assertEquals(0, descriptor.getColumns());
       assertEquals(1, descriptor.getFrames()); // Negative/zero converted to 1
       assertEquals(0, descriptor.getFrameLength());
@@ -320,176 +400,185 @@ class ImageDescriptorTest {
     }
 
     @Test
-    @DisplayName("Should handle pixel padding values correctly")
-    void shouldHandlePixelPaddingValues() {
-      Attributes attributes = new Attributes();
+    void should_handle_pixel_padding_values_correctly() {
+      var attributes = new Attributes();
       attributes.setInt(Tag.PixelPaddingValue, VR.SS, -1000);
       attributes.setInt(Tag.PixelPaddingRangeLimit, VR.SS, -500);
 
-      ImageDescriptor descriptor = new ImageDescriptor(attributes);
+      var descriptor = new ImageDescriptor(attributes);
 
       assertTrue(descriptor.getPixelPaddingValue().isPresent());
       assertTrue(descriptor.getPixelPaddingRangeLimit().isPresent());
-      assertEquals(Integer.valueOf(-1000), descriptor.getPixelPaddingValue().get());
-      assertEquals(Integer.valueOf(-500), descriptor.getPixelPaddingRangeLimit().get());
+      assertEquals(-1000, descriptor.getPixelPaddingValue().get());
+      assertEquals(-500, descriptor.getPixelPaddingRangeLimit().get());
     }
 
-    @Test
-    @DisplayName("Should validate bits relationship")
-    void shouldValidateBitsRelationship() {
-      Attributes attributes = new Attributes();
-      attributes.setInt(Tag.BitsAllocated, VR.US, 16);
-      attributes.setInt(Tag.BitsStored, VR.US, 20); // Invalid: more than allocated
-      attributes.setInt(Tag.HighBit, VR.US, 25); // Invalid: higher than stored
+    @ParameterizedTest
+    @CsvSource({
+      "16, 20, 25, 16, 15", // BitsStored > BitsAllocated, HighBit > BitsStored
+      "8, 12, 15, 8, 7", // BitsStored > BitsAllocated, HighBit > BitsStored
+      "32, 24, 20, 24, 20", // Valid case within bounds
+      "16, 16, 16, 16, 15" // HighBit = BitsStored (should be clamped)
+    })
+    void should_validate_bits_relationship(
+        int bitsAllocated,
+        int bitsStored,
+        int highBit,
+        int expectedBitsStored,
+        int expectedHighBit) {
+      var attributes = new Attributes();
+      attributes.setInt(Tag.BitsAllocated, VR.US, bitsAllocated);
+      attributes.setInt(Tag.BitsStored, VR.US, bitsStored);
+      attributes.setInt(Tag.HighBit, VR.US, highBit);
 
-      ImageDescriptor descriptor = new ImageDescriptor(attributes);
+      var descriptor = new ImageDescriptor(attributes);
 
-      assertEquals(16, descriptor.getBitsAllocated());
-      assertEquals(16, descriptor.getBitsStored()); // Should be clamped to allocated
-      assertEquals(15, descriptor.getHighBit()); // Should be calculated correctly
+      assertEquals(bitsAllocated, descriptor.getBitsAllocated());
+      assertEquals(expectedBitsStored, descriptor.getBitsStored());
+      assertEquals(expectedHighBit, descriptor.getHighBit());
     }
   }
 
   @Nested
   @DisplayName("Complex Scenarios")
-  class ComplexScenariosTests {
+  class Complex_Scenarios_Tests {
 
     @Test
-    @DisplayName("Should handle color images with multiple samples")
-    void shouldHandleColorImages() {
-      Attributes attributes = new Attributes();
-      attributes.setInt(Tag.Rows, VR.US, 256);
-      attributes.setInt(Tag.Columns, VR.US, 256);
-      attributes.setInt(Tag.SamplesPerPixel, VR.US, 3);
-      attributes.setString(Tag.PhotometricInterpretation, VR.CS, "RGB");
-      attributes.setInt(Tag.BitsAllocated, VR.US, 8);
-      attributes.setInt(Tag.PlanarConfiguration, VR.US, 0);
+    void should_handle_color_images_with_multiple_samples() {
+      var attributes = createColorImageAttributes();
 
-      ImageDescriptor descriptor = new ImageDescriptor(attributes);
+      var descriptor = new ImageDescriptor(attributes);
 
       assertEquals(3, descriptor.getSamples());
       assertEquals(PhotometricInterpretation.RGB, descriptor.getPhotometricInterpretation());
       assertFalse(descriptor.isBanded()); // PlanarConfiguration = 0
       assertEquals(196608, descriptor.getFrameLength()); // 256*256*3*8/8
+      assertFalse(descriptor.isFloatPixelData());
     }
 
     @Test
-    @DisplayName("Should handle 16-bit signed images")
-    void shouldHandle16BitSignedImages() {
-      Attributes attributes = new Attributes();
-      attributes.setInt(Tag.Rows, VR.US, 512);
-      attributes.setInt(Tag.Columns, VR.US, 512);
-      attributes.setInt(Tag.BitsAllocated, VR.US, 16);
-      attributes.setInt(Tag.BitsStored, VR.US, 12);
-      attributes.setInt(Tag.HighBit, VR.US, 11);
-      attributes.setInt(Tag.PixelRepresentation, VR.US, 1);
-      attributes.setString(Tag.Modality, VR.CS, "CT");
+    void should_handle_16_bit_signed_images() {
+      var attributes = create16BitSignedImageAttributes();
 
-      ImageDescriptor descriptor = new ImageDescriptor(attributes);
+      var descriptor = new ImageDescriptor(attributes);
 
       assertTrue(descriptor.isSigned());
       assertEquals(12, descriptor.getBitsStored());
       assertEquals(11, descriptor.getHighBit());
       assertFalse(descriptor.isFloatPixelData());
       assertEquals("CT", descriptor.getModality());
+      assertEquals(524288, descriptor.getFrameLength()); // 512*512*1*16/8
+    }
+
+    static Stream<Arguments> complexScenarioProvider() {
+      return Stream.of(
+          Arguments.of(
+              "RGB Color Image",
+              createColorImageAttributes(),
+              PhotometricInterpretation.RGB,
+              3,
+              false,
+              196608),
+          Arguments.of(
+              "16-bit Signed CT",
+              create16BitSignedImageAttributes(),
+              PhotometricInterpretation.MONOCHROME2,
+              1,
+              true,
+              524288),
+          Arguments.of(
+              "Palette Color",
+              createPaletteColorImageAttributes(),
+              PhotometricInterpretation.PALETTE_COLOR,
+              1,
+              false,
+              65536));
+    }
+
+    @ParameterizedTest
+    @MethodSource("complexScenarioProvider")
+    void should_handle_complex_image_scenarios(
+        String scenarioName,
+        Attributes attributes,
+        PhotometricInterpretation expectedPI,
+        int expectedSamples,
+        boolean expectedSigned,
+        int expectedFrameLength) {
+      var descriptor = new ImageDescriptor(attributes);
+
+      assertEquals(expectedPI, descriptor.getPhotometricInterpretation(), scenarioName);
+      assertEquals(expectedSamples, descriptor.getSamples(), scenarioName);
+      assertEquals(expectedSigned, descriptor.isSigned(), scenarioName);
+      assertEquals(expectedFrameLength, descriptor.getFrameLength(), scenarioName);
     }
   }
 
   @Nested
-  @DisplayName("ImageReaderDescriptor Interface Tests")
-  class ImageReaderDescriptorTests {
+  @DisplayName("Image Reader Descriptor Interface Tests")
+  class Image_Reader_Descriptor_Tests {
 
     @Test
-    @DisplayName("Should return image descriptor when available")
-    void shouldReturnImageDescriptorWhenAvailable() {
-      ImageDescriptor expectedDescriptor = new ImageDescriptor(createCompleteAttributes());
+    void should_return_image_descriptor_when_available() {
+      var expectedDescriptor = new ImageDescriptor(createCompleteAttributes());
+      var readerDescriptor = new TestImageReaderDescriptor(expectedDescriptor);
 
-      ImageReaderDescriptor readerDescriptor = new TestImageReaderDescriptor(expectedDescriptor);
+      var actualDescriptor = readerDescriptor.getImageDescriptor();
 
-      ImageDescriptor actualDescriptor = readerDescriptor.getImageDescriptor();
       assertEquals(expectedDescriptor, actualDescriptor);
     }
 
     @Test
-    @DisplayName("Should return null when image descriptor is not available")
-    void shouldReturnNullWhenImageDescriptorNotAvailable() {
-      ImageReaderDescriptor readerDescriptor = new TestImageReaderDescriptor(null);
+    void should_return_null_when_image_descriptor_not_available() {
+      var readerDescriptor = new TestImageReaderDescriptor(null);
 
-      ImageDescriptor descriptor = readerDescriptor.getImageDescriptor();
+      var descriptor = readerDescriptor.getImageDescriptor();
+
       assertNull(descriptor);
     }
 
     @Test
-    @DisplayName("Should return Optional with descriptor when available")
-    void shouldReturnOptionalWithDescriptorWhenAvailable() {
-      ImageDescriptor expectedDescriptor = new ImageDescriptor(createCompleteAttributes());
-      ImageReaderDescriptor readerDescriptor = new TestImageReaderDescriptor(expectedDescriptor);
+    void should_return_optional_with_descriptor_when_available() {
+      var expectedDescriptor = new ImageDescriptor(createCompleteAttributes());
+      var readerDescriptor = new TestImageReaderDescriptor(expectedDescriptor);
 
-      Optional<ImageDescriptor> optional = readerDescriptor.getImageDescriptorOptional();
+      var optional = readerDescriptor.getImageDescriptorOptional();
 
       assertTrue(optional.isPresent());
       assertEquals(expectedDescriptor, optional.get());
     }
 
     @Test
-    @DisplayName("Should return empty Optional when descriptor is not available")
-    void shouldReturnEmptyOptionalWhenDescriptorNotAvailable() {
-      ImageReaderDescriptor readerDescriptor = new TestImageReaderDescriptor(null);
-
-      Optional<ImageDescriptor> optional = readerDescriptor.getImageDescriptorOptional();
-
+    void should_return_empty_optional_when_descriptor_not_available() {
+      var readerDescriptor = new TestImageReaderDescriptor(null);
+      var optional = readerDescriptor.getImageDescriptorOptional();
       assertFalse(optional.isPresent());
-      assertTrue(optional.isEmpty());
     }
 
-    @Test
-    @DisplayName("Should return true when image descriptor is available")
-    void shouldReturnTrueWhenImageDescriptorAvailable() {
-      ImageDescriptor descriptor = new ImageDescriptor(createCompleteAttributes());
-      ImageReaderDescriptor readerDescriptor = new TestImageReaderDescriptor(descriptor);
+    @ParameterizedTest
+    @CsvSource({
+      "true, true, true", // Has descriptor
+      "false, false, false" // No descriptor
+    })
+    void should_provide_consistent_behavior_across_methods(
+        boolean hasDescriptor, boolean expectedHasDescriptor, boolean expectedOptionalPresent) {
+      var descriptor = hasDescriptor ? new ImageDescriptor(createCompleteAttributes()) : null;
+      var readerDescriptor = new TestImageReaderDescriptor(descriptor);
 
-      boolean hasDescriptor = readerDescriptor.hasImageDescriptor();
-
-      assertTrue(hasDescriptor);
-    }
-
-    @Test
-    @DisplayName("Should return false when image descriptor is not available")
-    void shouldReturnFalseWhenImageDescriptorNotAvailable() {
-      ImageReaderDescriptor readerDescriptor = new TestImageReaderDescriptor(null);
-
-      boolean hasDescriptor = readerDescriptor.hasImageDescriptor();
-
-      assertFalse(hasDescriptor);
-    }
-
-    @Test
-    @DisplayName("Should handle consistent behavior across all methods")
-    void shouldHandleConsistentBehaviorAcrossAllMethods() {
-      // Test with available descriptor
-      ImageDescriptor expectedDescriptor = new ImageDescriptor(createCompleteAttributes());
-      ImageReaderDescriptor availableReaderDescriptor =
-          new TestImageReaderDescriptor(expectedDescriptor);
-
-      assertEquals(expectedDescriptor, availableReaderDescriptor.getImageDescriptor());
-      assertTrue(availableReaderDescriptor.getImageDescriptorOptional().isPresent());
+      assertEquals(expectedHasDescriptor, readerDescriptor.hasImageDescriptor());
       assertEquals(
-          expectedDescriptor, availableReaderDescriptor.getImageDescriptorOptional().get());
-      assertTrue(availableReaderDescriptor.hasImageDescriptor());
+          expectedOptionalPresent, readerDescriptor.getImageDescriptorOptional().isPresent());
 
-      // Test with unavailable descriptor
-      ImageReaderDescriptor unavailableReaderDescriptor = new TestImageReaderDescriptor(null);
-
-      assertNull(unavailableReaderDescriptor.getImageDescriptor());
-      assertFalse(unavailableReaderDescriptor.getImageDescriptorOptional().isPresent());
-      assertFalse(unavailableReaderDescriptor.hasImageDescriptor());
+      if (hasDescriptor) {
+        assertEquals(descriptor, readerDescriptor.getImageDescriptor());
+        assertEquals(descriptor, readerDescriptor.getImageDescriptorOptional().get());
+      } else {
+        assertNull(readerDescriptor.getImageDescriptor());
+      }
     }
 
     @Test
-    @DisplayName("Should handle default method implementations")
-    void shouldHandleDefaultMethodImplementations() {
-      // Create a minimal implementation that only overrides getImageDescriptor
-      ImageReaderDescriptor minimalImplementation =
+    void should_handle_default_method_implementations() {
+      var minimalImplementation =
           new ImageReaderDescriptor() {
             private final ImageDescriptor descriptor =
                 new ImageDescriptor(createCompleteAttributes());
@@ -500,7 +589,6 @@ class ImageDescriptorTest {
             }
           };
 
-      // Test that default methods work correctly
       assertTrue(minimalImplementation.hasImageDescriptor());
       assertTrue(minimalImplementation.getImageDescriptorOptional().isPresent());
       assertEquals(
@@ -509,9 +597,8 @@ class ImageDescriptorTest {
     }
 
     @Test
-    @DisplayName("Should handle null-safe operations")
-    void shouldHandleNullSafeOperations() {
-      ImageReaderDescriptor nullReaderDescriptor =
+    void should_handle_null_safe_operations() {
+      var nullReaderDescriptor =
           new ImageReaderDescriptor() {
             @Override
             public ImageDescriptor getImageDescriptor() {
@@ -519,21 +606,21 @@ class ImageDescriptorTest {
             }
           };
 
-      // Verify no exceptions are thrown and behavior is consistent
-      assertDoesNotThrow(() -> nullReaderDescriptor.getImageDescriptor());
-      assertDoesNotThrow(() -> nullReaderDescriptor.getImageDescriptorOptional());
-      assertDoesNotThrow(() -> nullReaderDescriptor.hasImageDescriptor());
-
-      assertNull(nullReaderDescriptor.getImageDescriptor());
-      assertFalse(nullReaderDescriptor.getImageDescriptorOptional().isPresent());
-      assertFalse(nullReaderDescriptor.hasImageDescriptor());
+      assertAll(
+          "Null-safe operations",
+          () -> assertDoesNotThrow(nullReaderDescriptor::getImageDescriptor),
+          () -> assertDoesNotThrow(nullReaderDescriptor::getImageDescriptorOptional),
+          () -> assertDoesNotThrow(nullReaderDescriptor::hasImageDescriptor),
+          () -> assertNull(nullReaderDescriptor.getImageDescriptor()),
+          () -> assertFalse(nullReaderDescriptor.getImageDescriptorOptional().isPresent()),
+          () -> assertFalse(nullReaderDescriptor.hasImageDescriptor()));
     }
 
     /** Test implementation of ImageReaderDescriptor for testing purposes. */
-    private static class TestImageReaderDescriptor implements ImageReaderDescriptor {
+    private static final class TestImageReaderDescriptor implements ImageReaderDescriptor {
       private final ImageDescriptor descriptor;
 
-      public TestImageReaderDescriptor(ImageDescriptor descriptor) {
+      TestImageReaderDescriptor(ImageDescriptor descriptor) {
         this.descriptor = descriptor;
       }
 
@@ -544,9 +631,60 @@ class ImageDescriptorTest {
     }
   }
 
-  // Helper method to create comprehensive test attributes
+  // Helper methods for creating test data structures
+
+  private static Attributes createBasicImageAttributes(
+      int rows, int columns, int samples, int bitsAllocated, int frames) {
+    var attributes = new Attributes();
+    attributes.setInt(Tag.Rows, VR.US, rows);
+    attributes.setInt(Tag.Columns, VR.US, columns);
+    attributes.setInt(Tag.SamplesPerPixel, VR.US, samples);
+    attributes.setInt(Tag.BitsAllocated, VR.US, bitsAllocated);
+    attributes.setInt(Tag.NumberOfFrames, VR.IS, frames);
+    return attributes;
+  }
+
+  private static Attributes createColorImageAttributes() {
+    var attributes = new Attributes();
+    attributes.setInt(Tag.Rows, VR.US, 256);
+    attributes.setInt(Tag.Columns, VR.US, 256);
+    attributes.setInt(Tag.SamplesPerPixel, VR.US, 3);
+    attributes.setString(Tag.PhotometricInterpretation, VR.CS, "RGB");
+    attributes.setInt(Tag.BitsAllocated, VR.US, 8);
+    attributes.setInt(Tag.PlanarConfiguration, VR.US, 0);
+    return attributes;
+  }
+
+  private static Attributes create16BitSignedImageAttributes() {
+    var attributes = new Attributes();
+    attributes.setInt(Tag.Rows, VR.US, 512);
+    attributes.setInt(Tag.Columns, VR.US, 512);
+    attributes.setInt(Tag.BitsAllocated, VR.US, 16);
+    attributes.setInt(Tag.BitsStored, VR.US, 12);
+    attributes.setInt(Tag.HighBit, VR.US, 11);
+    attributes.setInt(Tag.PixelRepresentation, VR.US, 1);
+    attributes.setString(Tag.Modality, VR.CS, "CT");
+    return attributes;
+  }
+
+  private static Attributes createPaletteColorImageAttributes() {
+    var attributes = LutTestDataBuilder.createCompletePaletteLutAttributes();
+    attributes.setInt(Tag.Rows, VR.US, 256);
+    attributes.setInt(Tag.Columns, VR.US, 256);
+    attributes.setInt(Tag.SamplesPerPixel, VR.US, 1);
+    attributes.setInt(Tag.BitsAllocated, VR.US, 8);
+    return attributes;
+  }
+
+  private static MinMaxLocResult createMinMaxResult(double minVal, double maxVal) {
+    var result = new MinMaxLocResult();
+    result.minVal = minVal;
+    result.maxVal = maxVal;
+    return result;
+  }
+
   private Attributes createCompleteAttributes() {
-    Attributes attributes = LutTestDataBuilder.createCompletePaletteLutAttributes();
+    var attributes = LutTestDataBuilder.createCompletePaletteLutAttributes();
 
     // Basic dimensions
     attributes.setInt(Tag.Rows, VR.US, 512);

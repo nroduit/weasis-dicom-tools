@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Weasis Team and other contributors.
+ * Copyright (c) 2025 Weasis Team and other contributors.
  *
  * This program and the accompanying materials are made available under the terms of the Eclipse
  * Public License 2.0 which is available at https://www.eclipse.org/legal/epl-2.0, or the Apache
@@ -16,19 +16,25 @@ import java.awt.Polygon;
 import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.geom.Ellipse2D;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.DisplayNameGeneration;
+import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.opencv.core.CvType;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.osgi.OpenCVNativeLoader;
 import org.weasis.opencv.data.ImageCV;
 
+@DisplayNameGeneration(ReplaceUnderscores.class)
 class MaskAreaTest {
 
   private static final int TEST_IMAGE_WIDTH = 16;
@@ -37,51 +43,56 @@ class MaskAreaTest {
   private static final Scalar BACKGROUND_COLOR_8UC3 = new Scalar(1, 2, 3);
   private static final Scalar BACKGROUND_COLOR_16UC1 = new Scalar(1024);
 
+  // Test data constants
+  private static final byte[] ORIGINAL_BGR_PIXEL = {1, 2, 3};
+  private static final byte[] TEST_COLOR_BGR = {(byte) 194, (byte) 193, (byte) 192};
+  private static final short[] ORIGINAL_16UC1_PIXEL = {1024};
+  private static final short[] BLACK_16UC1_PIXEL = {0};
+
   @BeforeAll
-  static void loadNativeLib() {
-    OpenCVNativeLoader loader = new OpenCVNativeLoader();
+  static void load_native_lib() {
+    var loader = new OpenCVNativeLoader();
     loader.init();
   }
 
   @Nested
-  @DisplayName("Constructor Tests")
-  class ConstructorTests {
+  class Constructor_tests {
 
     @Test
-    @DisplayName("Should create MaskArea with shapes and color")
-    void shouldCreateMaskAreaWithShapesAndColor() {
-      List<Shape> shapes = createTestShapes();
+    void create_mask_area_with_shapes_and_color() {
+      var shapes = createTestShapes();
 
-      MaskArea maskArea = new MaskArea(shapes, TEST_COLOR);
+      var maskArea = new MaskArea(shapes, TEST_COLOR);
 
       assertSame(TEST_COLOR, maskArea.getColor());
       assertSame(shapes, maskArea.getShapeList());
     }
 
     @Test
-    @DisplayName("Should create MaskArea with shapes only (blur mode)")
-    void shouldCreateMaskAreaWithShapesOnly() {
-      List<Shape> shapes = createTestShapes();
+    void create_mask_area_with_shapes_only_blur_mode() {
+      var shapes = createTestShapes();
 
-      MaskArea maskArea = new MaskArea(shapes);
+      var maskArea = new MaskArea(shapes);
 
       assertNull(maskArea.getColor());
       assertSame(shapes, maskArea.getShapeList());
     }
 
-    @Test
-    @DisplayName("Should throw NullPointerException when shapes list is null")
-    void shouldThrowExceptionWhenShapesIsNull() {
-      assertThrows(NullPointerException.class, () -> new MaskArea(null));
-      assertThrows(NullPointerException.class, () -> new MaskArea(null, TEST_COLOR));
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void throw_exception_when_shapes_is_null(boolean withColor) {
+      if (withColor) {
+        assertThrows(NullPointerException.class, () -> new MaskArea(null, TEST_COLOR));
+      } else {
+        assertThrows(NullPointerException.class, () -> new MaskArea(null));
+      }
     }
 
     @Test
-    @DisplayName("Should accept empty shapes list")
-    void shouldAcceptEmptyShapesList() {
-      List<Shape> emptyShapes = Collections.emptyList();
+    void accept_empty_shapes_list() {
+      var emptyShapes = Collections.<Shape>emptyList();
 
-      MaskArea maskArea = new MaskArea(emptyShapes, TEST_COLOR);
+      var maskArea = new MaskArea(emptyShapes, TEST_COLOR);
 
       assertSame(TEST_COLOR, maskArea.getColor());
       assertSame(emptyShapes, maskArea.getShapeList());
@@ -89,203 +100,200 @@ class MaskAreaTest {
   }
 
   @Nested
-  @DisplayName("Draw Shape Tests")
-  class DrawShapeTests {
+  class Draw_shape_tests {
 
     @Test
-    @DisplayName("Should return copy of original image when maskArea is null")
-    void shouldReturnOriginalImageWhenMaskAreaIsNull() {
-      try (ImageCV sourceImage = createTestImage8UC3()) {
-        try (ImageCV result = MaskArea.drawShape(sourceImage, null)) {
-          assertNotNull(result);
-          assertImageDataEquals(sourceImage, result, CvType.CV_8UC3);
-        }
+    void return_copy_of_original_image_when_mask_area_is_null() {
+      try (var sourceImage = createTestImage8UC3();
+          var result = MaskArea.drawShape(sourceImage, null)) {
+        assertNotNull(result);
+        assertImageDataEquals(sourceImage, result, CvType.CV_8UC3);
       }
     }
 
     @Test
-    @DisplayName("Should return copy of original image when shapes list is empty")
-    void shouldReturnOriginalImageWhenShapesListIsEmpty() {
-      MaskArea emptyMaskArea = new MaskArea(Collections.emptyList(), TEST_COLOR);
+    void return_copy_of_original_image_when_shapes_list_is_empty() {
+      var emptyMaskArea = new MaskArea(Collections.emptyList(), TEST_COLOR);
 
-      try (ImageCV sourceImage = createTestImage8UC3()) {
-        try (ImageCV result = MaskArea.drawShape(sourceImage, emptyMaskArea)) {
-          assertNotNull(result);
-          assertImageDataEquals(sourceImage, result, CvType.CV_8UC3);
-        }
+      try (var sourceImage = createTestImage8UC3();
+          var result = MaskArea.drawShape(sourceImage, emptyMaskArea)) {
+        assertNotNull(result);
+        assertImageDataEquals(sourceImage, result, CvType.CV_8UC3);
       }
     }
 
     @Test
-    @DisplayName("Should fill rectangle with specified color on 8UC3 image")
-    void shouldFillRectangleWithColorOn8UC3Image() {
-      Rectangle maskRect = new Rectangle(4, 4, 8, 8);
-      MaskArea maskArea = new MaskArea(List.of(maskRect), TEST_COLOR);
+    void fill_rectangle_with_specified_color_on_8UC3_image() {
+      var maskRect = new Rectangle(4, 4, 8, 8);
+      var maskArea = new MaskArea(List.of(maskRect), TEST_COLOR);
 
-      try (ImageCV sourceImage = createTestImage8UC3()) {
-        try (ImageCV result = MaskArea.drawShape(sourceImage, maskArea)) {
-          assertNotNull(result);
+      try (var sourceImage = createTestImage8UC3();
+          var result = MaskArea.drawShape(sourceImage, maskArea)) {
 
-          // Verify original pixels outside mask area remain unchanged
-          assertPixelEquals(result, 0, 0, new byte[] {1, 2, 3});
-          assertPixelEquals(result, 3, 3, new byte[] {1, 2, 3});
+        assertNotNull(result);
 
-          // Verify pixels inside mask area are filled with color (BGR format)
-          assertPixelEquals(result, 4, 4, new byte[] {(byte) 194, (byte) 193, (byte) 192});
-          assertPixelEquals(result, 8, 8, new byte[] {(byte) 194, (byte) 193, (byte) 192});
+        // Verify original pixels outside mask area remain unchanged
+        assertPixelEquals(result, 0, 0, ORIGINAL_BGR_PIXEL);
+        assertPixelEquals(result, 3, 3, ORIGINAL_BGR_PIXEL);
 
-          // Verify pixels just outside mask area remain unchanged
-          assertPixelEquals(result, 13, 13, new byte[] {1, 2, 3});
-        }
+        // Verify pixels inside mask area are filled with color (BGR format)
+        assertPixelEquals(result, 4, 4, TEST_COLOR_BGR);
+        assertPixelEquals(result, 8, 8, TEST_COLOR_BGR);
+
+        // Verify pixels just outside mask area remain unchanged
+        assertPixelEquals(result, 13, 13, ORIGINAL_BGR_PIXEL);
       }
     }
 
     @Test
-    @DisplayName("Should fill rectangle with black color on 16UC1 image")
-    void shouldFillRectangleWithBlackColorOn16UC1Image() {
-      Rectangle maskRect = new Rectangle(4, 4, 8, 8);
-      MaskArea maskArea = new MaskArea(List.of(maskRect), Color.BLACK);
+    void fill_rectangle_with_black_color_on_16UC1_image() {
+      var maskRect = new Rectangle(4, 4, 8, 8);
+      var maskArea = new MaskArea(List.of(maskRect), Color.BLACK);
 
-      try (ImageCV sourceImage = createTestImage16UC1()) {
-        try (ImageCV result = MaskArea.drawShape(sourceImage, maskArea)) {
-          assertNotNull(result);
+      try (var sourceImage = createTestImage16UC1();
+          var result = MaskArea.drawShape(sourceImage, maskArea)) {
 
-          short[] originalPixel = {1024};
-          short[] blackPixel = {0};
+        assertNotNull(result);
 
-          // Verify original pixels outside mask remain unchanged
-          assertPixelEquals16UC1(result, 0, 0, originalPixel);
-          assertPixelEquals16UC1(result, 3, 3, originalPixel);
+        // Verify original pixels outside mask remain unchanged
+        assertPixelEquals16UC1(result, 0, 0, ORIGINAL_16UC1_PIXEL);
+        assertPixelEquals16UC1(result, 3, 3, ORIGINAL_16UC1_PIXEL);
 
-          // Verify pixels inside mask are filled with black
-          assertPixelEquals16UC1(result, 4, 4, blackPixel);
-          assertPixelEquals16UC1(result, 8, 8, blackPixel);
+        // Verify pixels inside mask are filled with black
+        assertPixelEquals16UC1(result, 4, 4, BLACK_16UC1_PIXEL);
+        assertPixelEquals16UC1(result, 8, 8, BLACK_16UC1_PIXEL);
 
-          // Verify pixels outside mask remain unchanged
-          assertPixelEquals16UC1(result, 13, 13, originalPixel);
-        }
+        // Verify pixels outside mask remain unchanged
+        assertPixelEquals16UC1(result, 13, 13, ORIGINAL_16UC1_PIXEL);
       }
     }
 
     @Test
-    @DisplayName("Should apply blur effect when no color is specified")
-    void shouldApplyBlurEffectWhenNoColorSpecified() {
-      Rectangle blurRect = new Rectangle(4, 4, 8, 8);
-      MaskArea maskArea = new MaskArea(List.of(blurRect));
+    void apply_blur_effect_when_no_color_is_specified() {
+      var blurRect = new Rectangle(4, 4, 8, 8);
+      var maskArea = new MaskArea(List.of(blurRect));
 
-      try (ImageCV sourceImage = createTestImage16UC1()) {
-        try (ImageCV result = MaskArea.drawShape(sourceImage, maskArea)) {
-          assertNotNull(result);
+      try (var sourceImage = createTestImage16UC1();
+          var result = MaskArea.drawShape(sourceImage, maskArea)) {
 
-          // Pixels outside blur area should remain unchanged
-          short[] originalData = new short[1];
-          result.get(0, 0, originalData);
-          assertEquals(1024, originalData[0]);
+        assertNotNull(result);
 
-          // Pixels inside blur area should still have values (blur effect, not masking)
-          short[] blurredData = new short[1];
-          result.get(6, 6, blurredData);
-          assertTrue(blurredData[0] > 0, "Blurred pixel should have non-zero value");
-        }
+        // Pixels outside blur area should remain unchanged
+        var originalData = new short[1];
+        result.get(0, 0, originalData);
+        assertEquals(1024, originalData[0]);
+
+        // Pixels inside blur area should still have values (blur effect, not masking)
+        var blurredData = new short[1];
+        result.get(6, 6, blurredData);
+        assertTrue(blurredData[0] > 0, "Blurred pixel should have non-zero value");
       }
     }
 
     @Test
-    @DisplayName("Should handle multiple shapes with different types")
-    void shouldHandleMultipleShapesWithDifferentTypes() {
+    void handle_multiple_shapes_with_different_types() {
       List<Shape> shapes =
           List.of(
               new Rectangle(2, 2, 4, 4), new Ellipse2D.Float(8, 8, 6, 6), createTrianglePolygon());
-      MaskArea maskArea = new MaskArea(shapes, Color.RED);
+      var maskArea = new MaskArea(shapes, Color.RED);
 
-      try (ImageCV sourceImage = createTestImage8UC3()) {
-        try (ImageCV result = MaskArea.drawShape(sourceImage, maskArea)) {
-          assertNotNull(result);
+      try (var sourceImage = createTestImage8UC3();
+          var result = MaskArea.drawShape(sourceImage, maskArea)) {
 
-          // Verify that the image has been modified (contains red pixels)
-          byte[] redPixelBGR = {0, 0, (byte) 255}; // Red in BGR format
-          boolean hasRedPixel = hasPixelWithColor(result, redPixelBGR);
-          assertTrue(hasRedPixel, "Image should contain red pixels from masking");
-        }
+        assertNotNull(result);
+
+        // Verify that the image has been modified (contains red pixels)
+        var redPixelBGR = new byte[] {0, 0, (byte) 255}; // Red in BGR format
+        assertTrue(
+            hasPixelWithColor(result, redPixelBGR), "Image should contain red pixels from masking");
       }
     }
 
     @Test
-    @DisplayName("Should handle rectangle smaller than blur threshold")
-    void shouldHandleSmallRectangleBelowBlurThreshold() {
-      Rectangle tinyRect = new Rectangle(5, 5, 2, 2); // Smaller than MIN_BLUR_DIMENSION (3)
-      MaskArea maskArea = new MaskArea(List.of(tinyRect));
+    void handle_rectangle_smaller_than_blur_threshold() {
+      var tinyRect = new Rectangle(5, 5, 2, 2); // Smaller than MIN_BLUR_DIMENSION (3)
+      var maskArea = new MaskArea(List.of(tinyRect));
 
-      try (ImageCV sourceImage = createTestImage16UC1()) {
-        try (ImageCV result = MaskArea.drawShape(sourceImage, maskArea)) {
-          assertNotNull(result);
+      try (var sourceImage = createTestImage16UC1();
+          var result = MaskArea.drawShape(sourceImage, maskArea)) {
 
-          // Image should remain unchanged since rectangle is too small for blur
-          assertImageDataEquals(sourceImage, result, CvType.CV_16UC1);
-        }
+        assertNotNull(result);
+        // Image should remain unchanged since rectangle is too small for blur
+        assertImageDataEquals(sourceImage, result, CvType.CV_16UC1);
       }
     }
 
-    @Test
-    @DisplayName("Should handle rectangle that extends beyond image boundaries")
-    void shouldHandleRectangleBeyondImageBoundaries() {
-      Rectangle oversizedRect = new Rectangle(-2, -2, 25, 25); // Extends beyond 16x16 image
-      MaskArea maskArea = new MaskArea(List.of(oversizedRect), Color.BLUE);
+    @ParameterizedTest
+    @MethodSource("provideBoundaryTestCases")
+    void handle_rectangles_at_image_boundaries(Rectangle rect, Color color, String description) {
+      var maskArea = new MaskArea(List.of(rect), color);
 
-      try (ImageCV sourceImage = createTestImage8UC3()) {
-        try (ImageCV result = MaskArea.drawShape(sourceImage, maskArea)) {
-          assertNotNull(result);
+      try (var sourceImage = createTestImage8UC3();
+          var result = MaskArea.drawShape(sourceImage, maskArea)) {
 
+        assertNotNull(result, description);
+
+        if (color == Color.BLUE) {
           // Entire image should be filled with blue (clipped to image boundaries)
-          byte[] bluePixelBGR = {(byte) 255, 0, 0}; // Blue in BGR format
+          var bluePixelBGR = new byte[] {(byte) 255, 0, 0}; // Blue in BGR format
           assertPixelEquals(result, 0, 0, bluePixelBGR);
           assertPixelEquals(result, 8, 8, bluePixelBGR);
           assertPixelEquals(result, 15, 15, bluePixelBGR);
         }
       }
     }
+
+    private static Stream<Arguments> provideBoundaryTestCases() {
+      return Stream.of(
+          Arguments.of(
+              new Rectangle(-2, -2, 25, 25),
+              Color.BLUE,
+              "Rectangle extending beyond image boundaries"),
+          Arguments.of(new Rectangle(5, 5, 0, 0), Color.GREEN, "Zero-dimension rectangle"),
+          Arguments.of(
+              new Rectangle(0, 0, TEST_IMAGE_WIDTH, TEST_IMAGE_HEIGHT),
+              Color.RED,
+              "Rectangle covering entire image"));
+    }
   }
 
   @Nested
-  @DisplayName("Edge Cases")
-  class EdgeCaseTests {
+  class Edge_cases {
 
     @Test
-    @DisplayName("Should handle zero-dimension rectangle")
-    void shouldHandleZeroDimensionRectangle() {
-      Rectangle zeroRect = new Rectangle(5, 5, 0, 0);
-      MaskArea maskArea = new MaskArea(List.of(zeroRect), Color.GREEN);
+    void handle_zero_dimension_rectangle() {
+      var zeroRect = new Rectangle(5, 5, 0, 0);
+      var maskArea = new MaskArea(List.of(zeroRect), Color.GREEN);
 
-      try (ImageCV sourceImage = createTestImage8UC3()) {
-        try (ImageCV result = MaskArea.drawShape(sourceImage, maskArea)) {
-          assertNotNull(result);
-          // Image should remain mostly unchanged (zero-area rectangle)
-          assertImageHasOriginalPixels(result);
-        }
+      try (var sourceImage = createTestImage8UC3();
+          var result = MaskArea.drawShape(sourceImage, maskArea)) {
+
+        assertNotNull(result);
+        // Image should remain mostly unchanged (zero-area rectangle)
+        assertImageHasOriginalPixels(result);
       }
     }
 
     @Test
-    @DisplayName("Should handle complex polygon shape")
-    void shouldHandleComplexPolygonShape() {
-      Polygon complexPolygon = createComplexPolygon();
-      MaskArea maskArea = new MaskArea(List.of(complexPolygon), Color.YELLOW);
+    void handle_complex_polygon_shape() {
+      var complexPolygon = createComplexPolygon();
+      var maskArea = new MaskArea(List.of(complexPolygon), Color.YELLOW);
 
-      try (ImageCV sourceImage = createTestImage8UC3()) {
-        try (ImageCV result = MaskArea.drawShape(sourceImage, maskArea)) {
-          assertNotNull(result);
+      try (var sourceImage = createTestImage8UC3();
+          var result = MaskArea.drawShape(sourceImage, maskArea)) {
 
-          // Verify that some pixels have been modified
-          boolean hasYellowPixel =
-              hasPixelWithColor(result, new byte[] {0, (byte) 255, (byte) 255});
-          assertTrue(hasYellowPixel, "Image should contain yellow pixels from polygon masking");
-        }
+        assertNotNull(result);
+
+        // Verify that some pixels have been modified
+        var yellowPixelBGR = new byte[] {0, (byte) 255, (byte) 255};
+        assertTrue(
+            hasPixelWithColor(result, yellowPixelBGR),
+            "Image should contain yellow pixels from polygon masking");
       }
     }
   }
 
-  // Helper methods for creating test data
-
+  // Test data creation methods
   private ImageCV createTestImage8UC3() {
     return new ImageCV(
         new Size(TEST_IMAGE_WIDTH, TEST_IMAGE_HEIGHT), CvType.CV_8UC3, BACKGROUND_COLOR_8UC3);
@@ -297,14 +305,11 @@ class MaskAreaTest {
   }
 
   private List<Shape> createTestShapes() {
-    List<Shape> shapes = new ArrayList<>();
-    shapes.add(new Rectangle(4, 4, 8, 8));
-    shapes.add(new Ellipse2D.Float(2, 2, 4, 4));
-    return shapes;
+    return List.of(new Rectangle(4, 4, 8, 8), new Ellipse2D.Float(2, 2, 4, 4));
   }
 
   private Polygon createTrianglePolygon() {
-    Polygon triangle = new Polygon();
+    var triangle = new Polygon();
     triangle.addPoint(12, 2);
     triangle.addPoint(14, 6);
     triangle.addPoint(10, 6);
@@ -312,50 +317,51 @@ class MaskAreaTest {
   }
 
   private Polygon createComplexPolygon() {
-    Polygon polygon = new Polygon();
-    polygon.addPoint(3, 3);
-    polygon.addPoint(7, 2);
-    polygon.addPoint(9, 5);
-    polygon.addPoint(8, 9);
-    polygon.addPoint(4, 8);
-    polygon.addPoint(2, 6);
+    var polygon = new Polygon();
+    int[] xPoints = {3, 7, 9, 8, 4, 2};
+    int[] yPoints = {3, 2, 5, 9, 8, 6};
+    for (int i = 0; i < xPoints.length; i++) {
+      polygon.addPoint(xPoints[i], yPoints[i]);
+    }
     return polygon;
   }
 
-  // Helper methods for assertions
-
+  // Assertion helper methods
   private void assertPixelEquals(ImageCV image, int row, int col, byte[] expectedBGR) {
-    byte[] actualPixel = new byte[3];
+    var actualPixel = new byte[3];
     image.get(row, col, actualPixel);
     assertArrayEquals(
         expectedBGR,
         actualPixel,
-        String.format("Pixel at (%d,%d) should match expected BGR values", row, col));
+        () -> "Pixel at (%d,%d) should match expected BGR values".formatted(row, col));
   }
 
   private void assertPixelEquals16UC1(ImageCV image, int row, int col, short[] expected) {
-    short[] actualPixel = new short[1];
+    var actualPixel = new short[1];
     image.get(row, col, actualPixel);
     assertArrayEquals(
         expected,
         actualPixel,
-        String.format("Pixel at (%d,%d) should match expected value", row, col));
+        () -> "Pixel at (%d,%d) should match expected value".formatted(row, col));
   }
 
   private void assertImageDataEquals(ImageCV expected, ImageCV actual, int cvType) {
-    assertEquals(expected.width(), actual.width(), "Image widths should match");
-    assertEquals(expected.height(), actual.height(), "Image heights should match");
-    assertEquals(expected.type(), actual.type(), "Image types should match");
+    assertAll(
+        "Image comparison",
+        () -> assertEquals(expected.width(), actual.width(), "Image widths should match"),
+        () -> assertEquals(expected.height(), actual.height(), "Image heights should match"),
+        () -> assertEquals(expected.type(), actual.type(), "Image types should match"));
 
+    var dataSize = TEST_IMAGE_WIDTH * TEST_IMAGE_HEIGHT;
     if (cvType == CvType.CV_8UC3) {
-      byte[] expectedData = new byte[TEST_IMAGE_WIDTH * TEST_IMAGE_HEIGHT * 3];
-      byte[] actualData = new byte[TEST_IMAGE_WIDTH * TEST_IMAGE_HEIGHT * 3];
+      var expectedData = new byte[dataSize * 3];
+      var actualData = new byte[dataSize * 3];
       expected.get(0, 0, expectedData);
       actual.get(0, 0, actualData);
       assertArrayEquals(expectedData, actualData, "Image pixel data should match");
     } else if (cvType == CvType.CV_16UC1) {
-      short[] expectedData = new short[TEST_IMAGE_WIDTH * TEST_IMAGE_HEIGHT];
-      short[] actualData = new short[TEST_IMAGE_WIDTH * TEST_IMAGE_HEIGHT];
+      var expectedData = new short[dataSize];
+      var actualData = new short[dataSize];
       expected.get(0, 0, expectedData);
       actual.get(0, 0, actualData);
       assertArrayEquals(expectedData, actualData, "Image pixel data should match");
@@ -363,7 +369,7 @@ class MaskAreaTest {
   }
 
   private boolean hasPixelWithColor(ImageCV image, byte[] targetBGR) {
-    byte[] pixelData = new byte[TEST_IMAGE_WIDTH * TEST_IMAGE_HEIGHT * 3];
+    var pixelData = new byte[TEST_IMAGE_WIDTH * TEST_IMAGE_HEIGHT * 3];
     image.get(0, 0, pixelData);
 
     for (int i = 0; i < pixelData.length; i += 3) {
@@ -377,8 +383,8 @@ class MaskAreaTest {
   }
 
   private void assertImageHasOriginalPixels(ImageCV image) {
-    byte[] originalBGR = {1, 2, 3};
-    boolean hasOriginalPixels = hasPixelWithColor(image, originalBGR);
-    assertTrue(hasOriginalPixels, "Image should still contain some original pixels");
+    assertTrue(
+        hasPixelWithColor(image, ORIGINAL_BGR_PIXEL),
+        "Image should still contain some original pixels");
   }
 }

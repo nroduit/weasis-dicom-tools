@@ -229,7 +229,7 @@ class DicomUtilsTest {
       "TestTestTest, false, 'Value: $V:l$4$ units', 'Value: Test... units'",
       // Null and invalid pattern cases
       "123.45, true, '$V:f$0.00$$', 123.45$",
-      "123.45, true, '$V:f$0.00', 123.45$0.00",
+      "123.45, true, '$V:f$0.00', 123.45:f$0.00",
       "123.45, true, '$V:f$invalid$', invalid123",
       "TestString, false, '$V:l$invalid$', TestString",
       "not_a_number, true, '$V:f$0.00$', not_a_number",
@@ -242,8 +242,8 @@ class DicomUtilsTest {
       "SimpleValue, false, 'Before $V After', 'Before SimpleValue After'",
       // Pattern extraction edge cases
       "123.45, true, '$V:f$0.00$extra$', '123.45extra$'",
-      "123.45, true, '$V:f', 123.45",
-      "TestString, false, '$V:l', TestString",
+      "123.45, true, '$V:f', 123.45:f",
+      "TestString, false, '$V:l', TestString:l",
       "123.456, true, '$V:f$#,##0.00$', 123.46",
       // Boundary conditions
       "'This is a very long string', false, '$V:l$3$', 'Thi...'",

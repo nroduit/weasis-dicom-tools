@@ -9,6 +9,7 @@
  */
 package org.dcm4che3.img;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
 import org.dcm4che3.img.Transcoder.Format;
@@ -32,7 +33,7 @@ import org.weasis.core.util.LangUtil;
  * <p>Usage example:
  *
  * <pre>{@code
- * ImageTranscodeParam param = new ImageTranscodeParam(Format.JPEG);
+ * var param = new ImageTranscodeParam(Format.JPEG);
  * param.setJpegCompressionQuality(85);
  * param.setPreserveRawImage(false); // Apply windowing/leveling
  * }</pre>
@@ -41,16 +42,14 @@ import org.weasis.core.util.LangUtil;
  * @see DicomImageReadParam
  * @see Transcoder.Format
  */
-public class ImageTranscodeParam {
+public final class ImageTranscodeParam {
 
-  // Constants for validation and defaults
   private static final int MIN_JPEG_QUALITY = 1;
   private static final int MAX_JPEG_QUALITY = 100;
   private static final Format DEFAULT_FORMAT = Format.JPEG;
   private final DicomImageReadParam readParam;
   private final Format format;
 
-  // Optional configuration parameters
   private Integer jpegCompressionQuality;
   private Boolean preserveRawImage;
 
@@ -71,14 +70,8 @@ public class ImageTranscodeParam {
    * @param format the target output format, or null for JPEG default
    */
   public ImageTranscodeParam(DicomImageReadParam readParam, Format format) {
-    this.readParam = initializeReadParam(readParam);
-    this.format = format != null ? format : DEFAULT_FORMAT;
-    this.preserveRawImage = null;
-    this.jpegCompressionQuality = null;
-  }
-
-  private DicomImageReadParam initializeReadParam(DicomImageReadParam readParam) {
-    return readParam != null ? readParam : new DicomImageReadParam();
+    this.readParam = Objects.requireNonNullElseGet(readParam, DicomImageReadParam::new);
+    this.format = Objects.requireNonNullElse(format, DEFAULT_FORMAT);
   }
 
   /**
@@ -107,20 +100,12 @@ public class ImageTranscodeParam {
    * @throws IllegalArgumentException if quality is outside the valid range [1-100]
    */
   public void setJpegCompressionQuality(int jpegCompressionQuality) {
-    validateJpegQuality(jpegCompressionQuality);
-    this.jpegCompressionQuality = jpegCompressionQuality;
-  }
-
-  private void validateJpegQuality(int quality) {
-    if (quality < MIN_JPEG_QUALITY || quality > MAX_JPEG_QUALITY) {
+    if (jpegCompressionQuality < MIN_JPEG_QUALITY || jpegCompressionQuality > MAX_JPEG_QUALITY) {
       throw new IllegalArgumentException(
-          "JPEG quality must be between "
-              + MIN_JPEG_QUALITY
-              + " and "
-              + MAX_JPEG_QUALITY
-              + ", got: "
-              + quality);
+          "JPEG quality must be between %d and %d, got: %d"
+              .formatted(MIN_JPEG_QUALITY, MAX_JPEG_QUALITY, jpegCompressionQuality));
     }
+    this.jpegCompressionQuality = jpegCompressionQuality;
   }
 
   /**
@@ -173,7 +158,7 @@ public class ImageTranscodeParam {
    * @return a new ImageTranscodeParam instance with the same settings
    */
   public ImageTranscodeParam copy() {
-    ImageTranscodeParam copy = new ImageTranscodeParam(readParam, format);
+    var copy = new ImageTranscodeParam(readParam, format);
     copy.jpegCompressionQuality = this.jpegCompressionQuality;
     copy.preserveRawImage = this.preserveRawImage;
     return copy;

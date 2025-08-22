@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Stream;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
@@ -27,29 +28,24 @@ import org.dcm4che3.io.DicomOutputStream;
 import org.dcm4che3.util.UIDUtils;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.DisplayNameGeneration;
+import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.Scalar;
 import org.opencv.osgi.OpenCVNativeLoader;
 import org.weasis.opencv.data.ImageCV;
 import org.weasis.opencv.data.PlanarImage;
 
-/**
- * Test class for {@link DicomOutputData} functionality.
- *
- * <p>This test class covers the main features of DicomOutputData including:
- *
- * <ul>
- *   <li>Constructor validation and behavior
- *   <li>Transfer syntax adaptation
- *   <li>Raw image data handling
- *   <li>Compressed image data processing
- *   <li>DICOM attribute adaptation
- *   <li>Static utility methods
- * </ul>
- */
+/** Test class for {@link DicomOutputData} functionality. */
+@DisplayNameGeneration(ReplaceUnderscores.class)
 class DicomOutputDataTest {
 
   private ImageDescriptor testDescriptor;
@@ -57,49 +53,47 @@ class DicomOutputDataTest {
 
   @BeforeAll
   static void loadNativeLib() {
-    OpenCVNativeLoader loader = new OpenCVNativeLoader();
+    var loader = new OpenCVNativeLoader();
     loader.init();
   }
 
   @BeforeEach
   void setUp() {
-    // Create test DICOM attributes
-    testAttributes = new Attributes();
-    testAttributes.setString(Tag.SOPInstanceUID, VR.UI, UIDUtils.createUID());
-    testAttributes.setString(Tag.SOPClassUID, VR.UI, UID.CTImageStorage);
-
-    testAttributes.setInt(Tag.Rows, VR.US, 100);
-    testAttributes.setInt(Tag.Columns, VR.US, 100);
-    testAttributes.setInt(Tag.SamplesPerPixel, VR.US, 1);
-    testAttributes.setInt(Tag.BitsAllocated, VR.US, 8);
-    testAttributes.setInt(Tag.BitsStored, VR.US, 8);
-    testAttributes.setInt(Tag.HighBit, VR.US, 7);
-    testAttributes.setInt(Tag.PixelRepresentation, VR.US, 0);
-    testAttributes.setString(
-        Tag.PhotometricInterpretation, VR.CS, PhotometricInterpretation.MONOCHROME2.toString());
-
+    testAttributes = createBasicDicomAttributes();
     testDescriptor = new ImageDescriptor(testAttributes);
   }
 
-  // Test data generators
+  private static Attributes createBasicDicomAttributes() {
+    var attrs = new Attributes();
+    attrs.setString(Tag.SOPInstanceUID, VR.UI, UIDUtils.createUID());
+    attrs.setString(Tag.SOPClassUID, VR.UI, UID.CTImageStorage);
+    attrs.setInt(Tag.Rows, VR.US, 100);
+    attrs.setInt(Tag.Columns, VR.US, 100);
+    attrs.setInt(Tag.SamplesPerPixel, VR.US, 1);
+    attrs.setInt(Tag.BitsAllocated, VR.US, 8);
+    attrs.setInt(Tag.BitsStored, VR.US, 8);
+    attrs.setInt(Tag.HighBit, VR.US, 7);
+    attrs.setInt(Tag.PixelRepresentation, VR.US, 0);
+    attrs.setString(
+        Tag.PhotometricInterpretation, VR.CS, PhotometricInterpretation.MONOCHROME2.toString());
+    return attrs;
+  }
+
   private static PlanarImage createTestImage(int width, int height, int type, double fillValue) {
-    Mat mat = new Mat(height, width, type);
-    mat.setTo(org.opencv.core.Scalar.all(fillValue));
+    var mat = new Mat(height, width, type);
+    mat.setTo(Scalar.all(fillValue));
     return ImageCV.fromMat(mat);
   }
 
   private static ImageDescriptor createTestDescriptor(
       int bitsAllocated, int bitsStored, boolean signed) {
-    Attributes attrs = new Attributes();
+    var attrs = createBasicDicomAttributes();
     attrs.setInt(Tag.Rows, VR.US, 64);
     attrs.setInt(Tag.Columns, VR.US, 64);
-    attrs.setInt(Tag.SamplesPerPixel, VR.US, 1);
     attrs.setInt(Tag.BitsAllocated, VR.US, bitsAllocated);
     attrs.setInt(Tag.BitsStored, VR.US, bitsStored);
     attrs.setInt(Tag.HighBit, VR.US, bitsStored - 1);
     attrs.setInt(Tag.PixelRepresentation, VR.US, signed ? 1 : 0);
-    attrs.setString(
-        Tag.PhotometricInterpretation, VR.CS, PhotometricInterpretation.MONOCHROME2.toString());
     return new ImageDescriptor(attrs);
   }
 
@@ -108,16 +102,13 @@ class DicomOutputDataTest {
   }
 
   @Nested
-  @DisplayName("Constructor Tests")
-  class ConstructorTests {
+  class Constructor_Tests {
 
     @Test
-    @DisplayName("Constructor with single image should succeed")
-    void constructorWithSingleImageShouldSucceed() throws IOException {
-      PlanarImage image = createTestImage(100, 100, CvType.CV_8UC1, 128.0);
+    void should_create_with_single_image() throws IOException {
+      var image = createTestImage(100, 100, CvType.CV_8UC1, 128.0);
 
-      DicomOutputData outputData =
-          new DicomOutputData(image, testDescriptor, UID.ExplicitVRLittleEndian);
+      var outputData = new DicomOutputData(image, testDescriptor, UID.ExplicitVRLittleEndian);
 
       assertNotNull(outputData);
       assertEquals(UID.ExplicitVRLittleEndian, outputData.getTsuid());
@@ -126,13 +117,11 @@ class DicomOutputDataTest {
     }
 
     @Test
-    @DisplayName("Constructor with image supplier should succeed")
-    void constructorWithImageSupplierShouldSucceed() throws IOException {
-      PlanarImage image = createTestImage(100, 100, CvType.CV_8UC1, 64.0);
-      SupplierEx<PlanarImage, IOException> supplier = createImageSupplier(image);
+    void should_create_with_image_supplier() throws IOException {
+      var image = createTestImage(100, 100, CvType.CV_8UC1, 64.0);
+      var supplier = createImageSupplier(image);
 
-      DicomOutputData outputData =
-          new DicomOutputData(supplier, testDescriptor, UID.ExplicitVRLittleEndian);
+      var outputData = new DicomOutputData(supplier, testDescriptor, UID.ExplicitVRLittleEndian);
 
       assertNotNull(outputData);
       assertEquals(1, outputData.getImages().size());
@@ -140,24 +129,35 @@ class DicomOutputDataTest {
     }
 
     @Test
-    @DisplayName("Constructor with multiple images should succeed")
-    void constructorWithMultipleImagesShouldSucceed() throws IOException {
-      PlanarImage image1 = createTestImage(100, 100, CvType.CV_8UC1, 50.0);
-      PlanarImage image2 = createTestImage(100, 100, CvType.CV_8UC1, 150.0);
-      List<SupplierEx<PlanarImage, IOException>> images =
-          Arrays.asList(createImageSupplier(image1), createImageSupplier(image2));
+    void should_create_with_multiple_images() throws IOException {
+      var image1 = createTestImage(100, 100, CvType.CV_8UC1, 50.0);
+      var image2 = createTestImage(100, 100, CvType.CV_8UC1, 150.0);
+      var images = Arrays.asList(createImageSupplier(image1), createImageSupplier(image2));
 
-      DicomOutputData outputData =
-          new DicomOutputData(images, testDescriptor, UID.ExplicitVRLittleEndian);
+      var outputData = new DicomOutputData(images, testDescriptor, UID.ExplicitVRLittleEndian);
 
       assertNotNull(outputData);
       assertEquals(2, outputData.getImages().size());
       assertEquals(image1, outputData.getFirstImage().get());
     }
 
+    @ParameterizedTest
+    @ValueSource(
+        strings = {
+          UID.ExplicitVRLittleEndian,
+          UID.JPEGBaseline8Bit,
+          UID.JPEG2000,
+          UID.JPEGLossless
+        })
+    void should_accept_supported_transfer_syntax(String tsuid) {
+      try (var image = createTestImage(64, 64, CvType.CV_8UC1, 100.0)) {
+
+        assertDoesNotThrow(() -> new DicomOutputData(image, testDescriptor, tsuid));
+      }
+    }
+
     @Test
-    @DisplayName("Constructor should throw exception for null images")
-    void constructorShouldThrowForNullImages() {
+    void should_throw_for_null_images() {
       assertThrows(
           NullPointerException.class,
           () ->
@@ -168,8 +168,7 @@ class DicomOutputDataTest {
     }
 
     @Test
-    @DisplayName("Constructor should throw exception for empty image list")
-    void constructorShouldThrowForEmptyImageList() {
+    void should_throw_for_empty_image_list() {
       List<SupplierEx<PlanarImage, IOException>> emptyList = Collections.emptyList();
 
       assertThrows(
@@ -178,241 +177,248 @@ class DicomOutputDataTest {
     }
 
     @Test
-    @DisplayName("Constructor should throw exception for null descriptor")
-    void constructorShouldThrowForNullDescriptor() {
-      PlanarImage image = createTestImage(100, 100, CvType.CV_8UC1, 128.0);
+    void should_throw_for_null_descriptor() {
+      try (var image = createTestImage(100, 100, CvType.CV_8UC1, 128.0)) {
 
-      assertThrows(
-          NullPointerException.class,
-          () -> new DicomOutputData(image, null, UID.ExplicitVRLittleEndian));
+        assertThrows(
+            NullPointerException.class,
+            () -> new DicomOutputData(image, null, UID.ExplicitVRLittleEndian));
+      }
     }
 
     @Test
-    @DisplayName("Constructor should throw exception for null tsuid")
-    void constructorShouldThrowForNullTsuid() {
-      PlanarImage image = createTestImage(100, 100, CvType.CV_8UC1, 128.0);
+    void should_throw_for_null_tsuid() {
+      try (var image = createTestImage(100, 100, CvType.CV_8UC1, 128.0)) {
 
-      assertThrows(
-          NullPointerException.class, () -> new DicomOutputData(image, testDescriptor, null));
+        assertThrows(
+            NullPointerException.class, () -> new DicomOutputData(image, testDescriptor, null));
+      }
     }
 
     @Test
-    @DisplayName("Constructor should throw exception for unsupported syntax")
-    void constructorShouldThrowForUnsupportedSyntax() {
-      PlanarImage image = createTestImage(100, 100, CvType.CV_8UC1, 128.0);
-      String unsupportedSyntax = "1.2.3.4.5.6.7.8"; // Invalid UID
+    void should_throw_for_unsupported_syntax() {
+      try (var image = createTestImage(100, 100, CvType.CV_8UC1, 128.0)) {
+        var unsupportedSyntax = "1.2.3.4.5.6.7.8";
 
-      assertThrows(
-          IllegalStateException.class,
-          () -> new DicomOutputData(image, testDescriptor, unsupportedSyntax));
+        assertThrows(
+            IllegalStateException.class,
+            () -> new DicomOutputData(image, testDescriptor, unsupportedSyntax));
+      }
     }
   }
 
   @Nested
-  @DisplayName("Transfer Syntax Adaptation Tests")
-  class TransferSyntaxAdaptationTests {
+  class Transfer_Syntax_Adaptation_Tests {
 
-    @Test
-    @DisplayName("Should adapt 8-bit data to JPEGBaseline8Bit")
-    void shouldAdapt8BitDataToJpegBaseline() throws IOException {
-      PlanarImage image = createTestImage(64, 64, CvType.CV_8UC1, 128.0);
-      ImageDescriptor desc = createTestDescriptor(8, 8, false);
+    @ParameterizedTest
+    @CsvSource({
+      "8, CV_8U, " + UID.JPEGBaseline8Bit + ", " + UID.JPEGBaseline8Bit,
+      "12, CV_16U, " + UID.JPEGBaseline8Bit + ", " + UID.JPEGLosslessSV1,
+      "16, CV_16S, " + UID.JPEGBaseline8Bit + ", " + UID.JPEGLosslessSV1,
+      "32, CV_32F, " + UID.JPEGBaseline8Bit + ", " + UID.ExplicitVRLittleEndian
+    })
+    void should_adapt_transfer_syntax_based_on_image_type(
+        int bitsStored, String cvTypeStr, String requestedSyntax, String expectedSyntax)
+        throws IOException {
+      int cvType = getCvTypeFromString(cvTypeStr);
+      var image = createTestImage(64, 64, cvType, getDefaultValue(cvType));
+      var desc =
+          createTestDescriptor(getDefaultBitsAllocated(cvType), bitsStored, isSigned(cvType));
 
-      DicomOutputData outputData = new DicomOutputData(image, desc, UID.JPEGBaseline8Bit);
+      var outputData = new DicomOutputData(image, desc, requestedSyntax);
 
-      assertEquals(UID.JPEGBaseline8Bit, outputData.getTsuid());
+      assertEquals(expectedSyntax, outputData.getTsuid());
+    }
+
+    private int getCvTypeFromString(String cvTypeStr) {
+      return switch (cvTypeStr) {
+        case "CV_8U" -> CvType.CV_8UC1;
+        case "CV_16U" -> CvType.CV_16UC1;
+        case "CV_16S" -> CvType.CV_16SC1;
+        case "CV_32F" -> CvType.CV_32FC1;
+        default -> throw new IllegalArgumentException("Unknown CV type: " + cvTypeStr);
+      };
+    }
+
+    private double getDefaultValue(int cvType) {
+      return switch (CvType.depth(cvType)) {
+        case CvType.CV_8U, CvType.CV_8S -> 128.0;
+        case CvType.CV_16U, CvType.CV_16S -> 1000.0;
+        case CvType.CV_32F -> 1000.0f;
+        default -> 0.0;
+      };
+    }
+
+    private int getDefaultBitsAllocated(int cvType) {
+      return switch (CvType.depth(cvType)) {
+        case CvType.CV_16U, CvType.CV_16S -> 16;
+        case CvType.CV_32F -> 32;
+        default -> 8;
+      };
+    }
+
+    private boolean isSigned(int cvType) {
+      return CvType.depth(cvType) == CvType.CV_16S;
     }
 
     @Test
-    @DisplayName("Should adapt 16-bit data to JPEGLosslessSV1 when JPEGBaseline8Bit requested")
-    void shouldAdapt16BitDataToJpegLossless() throws IOException {
-      PlanarImage image = createTestImage(64, 64, CvType.CV_16UC1, 1000.0);
-      ImageDescriptor desc = createTestDescriptor(16, 12, false);
+    void should_handle_jpeg2000_syntax_correctly() throws IOException {
+      var image = createTestImage(64, 64, CvType.CV_16UC1, 1000.0);
+      var desc = createTestDescriptor(16, 12, false);
 
-      DicomOutputData outputData = new DicomOutputData(image, desc, UID.JPEGBaseline8Bit);
-
-      assertEquals(UID.JPEGLosslessSV1, outputData.getTsuid());
-    }
-
-    @Test
-    @DisplayName("Should keep ExplicitVRLittleEndian for unsupported data types")
-    void shouldKeepExplicitVRForUnsupportedTypes() throws IOException {
-      PlanarImage image = createTestImage(64, 64, CvType.CV_32FC1, 1000.0f);
-      ImageDescriptor desc = createTestDescriptor(32, 32, false);
-
-      DicomOutputData outputData = new DicomOutputData(image, desc, UID.JPEGBaseline8Bit);
-
-      assertEquals(UID.ExplicitVRLittleEndian, outputData.getTsuid());
-    }
-
-    @Test
-    @DisplayName("Should handle JPEG2000 syntax correctly")
-    void shouldHandleJpeg2000Syntax() throws IOException {
-      PlanarImage image = createTestImage(64, 64, CvType.CV_16UC1, 1000.0);
-      ImageDescriptor desc = createTestDescriptor(16, 12, false);
-
-      DicomOutputData outputData = new DicomOutputData(image, desc, UID.JPEG2000);
+      var outputData = new DicomOutputData(image, desc, UID.JPEG2000);
 
       assertEquals(UID.JPEG2000, outputData.getTsuid());
     }
   }
 
   @Nested
-  @DisplayName("Raw Image Data Tests")
-  class RawImageDataTests {
+  class Raw_Image_Data_Tests {
 
-    @Test
-    @DisplayName("Should write 8-bit raw image data correctly")
-    void shouldWrite8BitRawImageData() throws IOException {
-      PlanarImage image = createTestImage(4, 4, CvType.CV_8UC1, 100.0);
-      DicomOutputData outputData =
-          new DicomOutputData(image, testDescriptor, UID.ExplicitVRLittleEndian);
+    @ParameterizedTest
+    @CsvSource({"4, 4, CV_8UC1, 100.0", "8, 8, CV_16UC1, 1000.0", "16, 16, CV_32FC1, 500.0"})
+    void should_write_raw_image_data_for_different_types(
+        int width, int height, String cvTypeStr, double fillValue) throws IOException {
+      int cvType = getCvTypeFromString(cvTypeStr);
+      var image = createTestImage(width, height, cvType, fillValue);
+      var desc = createTestDescriptorForType(cvType);
+      var outputData = new DicomOutputData(image, desc, UID.ExplicitVRLittleEndian);
 
-      ByteArrayOutputStream baos = new ByteArrayOutputStream();
-      try (DicomOutputStream dos = new DicomOutputStream(baos, outputData.getTsuid())) {
-        Attributes dataSet = new Attributes(testAttributes);
+      var result = writeRawImageDataToByteArray(outputData);
+
+      assertTrue(result.length > 0);
+      verifyImageDimensions(outputData, width, height);
+    }
+
+    private ImageDescriptor createTestDescriptorForType(int cvType) {
+      return switch (CvType.depth(cvType)) {
+        case CvType.CV_8U, CvType.CV_8S -> createTestDescriptor(8, 8, false);
+        case CvType.CV_16U -> createTestDescriptor(16, 12, false);
+        case CvType.CV_16S -> createTestDescriptor(16, 12, true);
+        case CvType.CV_32F -> createTestDescriptor(32, 32, false);
+        default -> testDescriptor;
+      };
+    }
+
+    private int getCvTypeFromString(String cvTypeStr) {
+      return switch (cvTypeStr) {
+        case "CV_8UC1" -> CvType.CV_8UC1;
+        case "CV_16UC1" -> CvType.CV_16UC1;
+        case "CV_32FC1" -> CvType.CV_32FC1;
+        default -> throw new IllegalArgumentException("Unknown CV type: " + cvTypeStr);
+      };
+    }
+
+    private byte[] writeRawImageDataToByteArray(DicomOutputData outputData) throws IOException {
+      var baos = new ByteArrayOutputStream();
+      try (var dos = new DicomOutputStream(baos, outputData.getTsuid())) {
+        var dataSet = new Attributes(testAttributes);
         dos.writeFileMetaInformation(dataSet.createFileMetaInformation(outputData.getTsuid()));
+        outputData.writeRawImageData(dos, dataSet);
+        return baos.toByteArray();
+      }
+    }
 
-        outputData.writRawImageData(dos, dataSet);
+    private void verifyImageDimensions(
+        DicomOutputData outputData, int expectedWidth, int expectedHeight) throws IOException {
+      var baos = new ByteArrayOutputStream();
+      try (var dos = new DicomOutputStream(baos, outputData.getTsuid())) {
+        var dataSet = new Attributes(testAttributes);
+        outputData.writeRawImageData(dos, dataSet);
 
-        byte[] result = baos.toByteArray();
-        assertTrue(result.length > 0);
-
-        // Verify DICOM attributes were updated
-        assertEquals(4, dataSet.getInt(Tag.Columns, 0));
-        assertEquals(4, dataSet.getInt(Tag.Rows, 0));
-        assertEquals(1, dataSet.getInt(Tag.SamplesPerPixel, 0));
+        assertEquals(expectedWidth, dataSet.getInt(Tag.Columns, 0));
+        assertEquals(expectedHeight, dataSet.getInt(Tag.Rows, 0));
       }
     }
 
     @Test
-    @DisplayName("Should write 16-bit raw image data correctly")
-    void shouldWrite16BitRawImageData() throws IOException {
-      PlanarImage image = createTestImage(4, 4, CvType.CV_16UC1, 1000.0);
-      ImageDescriptor desc = createTestDescriptor(16, 12, false);
-      DicomOutputData outputData = new DicomOutputData(image, desc, UID.ExplicitVRLittleEndian);
-
-      ByteArrayOutputStream baos = new ByteArrayOutputStream();
-      try (DicomOutputStream dos = new DicomOutputStream(baos, outputData.getTsuid())) {
-        Attributes dataSet = new Attributes();
-        // Set necessary DICOM attributes
-        dataSet.setString(Tag.SOPInstanceUID, VR.UI, UIDUtils.createUID());
-        dataSet.setString(Tag.SOPClassUID, VR.UI, UID.CTImageStorage);
-        dos.writeFileMetaInformation(dataSet.createFileMetaInformation(outputData.getTsuid()));
-
-        outputData.writRawImageData(dos, dataSet);
-
-        byte[] result = baos.toByteArray();
-        assertTrue(result.length > 0);
-
-        // 16-bit data should be larger than 8-bit
-        assertTrue(result.length > 16); // Header + 16 pixels * 2 bytes
-      }
-    }
-
-    @Test
-    @DisplayName("Should write RGB image data correctly")
-    void shouldWriteRgbImageData() throws IOException {
-      PlanarImage image = createTestImage(4, 4, CvType.CV_8UC3, 128.0);
-      Attributes attrs = new Attributes(testAttributes);
+    void should_write_rgb_image_data_correctly() throws IOException {
+      var image = createTestImage(4, 4, CvType.CV_8UC3, 128.0);
+      var attrs = new Attributes(testAttributes);
       attrs.setInt(Tag.SamplesPerPixel, VR.US, 3);
-      ImageDescriptor desc = new ImageDescriptor(attrs);
-      DicomOutputData outputData = new DicomOutputData(image, desc, UID.ExplicitVRLittleEndian);
+      var desc = new ImageDescriptor(attrs);
+      var outputData = new DicomOutputData(image, desc, UID.ExplicitVRLittleEndian);
 
-      ByteArrayOutputStream baos = new ByteArrayOutputStream();
-      try (DicomOutputStream dos = new DicomOutputStream(baos, outputData.getTsuid())) {
-        Attributes dataSet = new Attributes(attrs);
+      var result = writeRawImageDataToByteArray(outputData);
 
-        outputData.writRawImageData(dos, dataSet);
+      assertTrue(result.length > 0);
 
-        byte[] result = baos.toByteArray();
-        assertTrue(result.length > 0);
+      // Verify RGB attributes
+      var baos = new ByteArrayOutputStream();
+      try (var dos = new DicomOutputStream(baos, outputData.getTsuid())) {
+        var dataSet = new Attributes(attrs);
+        outputData.writeRawImageData(dos, dataSet);
 
-        // RGB data should be 3 times larger than grayscale
         assertEquals(3, dataSet.getInt(Tag.SamplesPerPixel, 0));
         assertEquals(
             PhotometricInterpretation.RGB.toString(),
             dataSet.getString(Tag.PhotometricInterpretation));
+        assertEquals(0, dataSet.getInt(Tag.PlanarConfiguration, 0));
       }
     }
 
     @Test
-    @DisplayName("Should handle multiple frames correctly")
-    void shouldHandleMultipleFrames() throws IOException {
-      PlanarImage image1 = createTestImage(4, 4, CvType.CV_8UC1, 50.0);
-      PlanarImage image2 = createTestImage(4, 4, CvType.CV_8UC1, 150.0);
-      List<SupplierEx<PlanarImage, IOException>> images =
-          Arrays.asList(createImageSupplier(image1), createImageSupplier(image2));
-      DicomOutputData outputData =
-          new DicomOutputData(images, testDescriptor, UID.ExplicitVRLittleEndian);
+    void should_handle_multiple_frames_correctly() throws IOException {
+      var image1 = createTestImage(4, 4, CvType.CV_8UC1, 50.0);
+      var image2 = createTestImage(4, 4, CvType.CV_8UC1, 150.0);
+      var images = Arrays.asList(createImageSupplier(image1), createImageSupplier(image2));
+      var outputData = new DicomOutputData(images, testDescriptor, UID.ExplicitVRLittleEndian);
 
-      ByteArrayOutputStream baos = new ByteArrayOutputStream();
-      try (DicomOutputStream dos = new DicomOutputStream(baos, outputData.getTsuid())) {
-        Attributes dataSet = new Attributes(testAttributes);
+      var result = writeRawImageDataToByteArray(outputData);
 
-        outputData.writRawImageData(dos, dataSet);
-
-        byte[] result = baos.toByteArray();
-        assertTrue(result.length > 0);
-
-        // Should contain data for both frames
-        assertTrue(result.length > 32); // Header + 2 frames * 16 pixels
-      }
+      assertTrue(result.length > 0);
+      // Should contain data for both frames (header + 2 * 16 pixels)
+      assertTrue(result.length > 32);
     }
   }
 
   @Nested
-  @DisplayName("DICOM Attribute Adaptation Tests")
-  class DicomAttributeAdaptationTests {
+  class DICOM_Attribute_Adaptation_Tests {
 
-    @Test
-    @DisplayName("Should adapt tags for raw 8-bit image correctly")
-    void shouldAdaptTagsForRaw8BitImage() {
-      PlanarImage image = createTestImage(64, 64, CvType.CV_8UC1, 128.0);
-      ImageDescriptor desc = createTestDescriptor(8, 8, false);
-      Attributes data = new Attributes();
+    @ParameterizedTest
+    @MethodSource("imageAttributeTestData")
+    void should_adapt_tags_for_raw_images(ImageTestData testData) {
+      var image =
+          createTestImage(testData.width, testData.height, testData.cvType, testData.fillValue);
+      var desc = createTestDescriptor(testData.bitsAllocated, testData.bitsStored, testData.signed);
+      var data = new Attributes();
 
       DicomOutputData.adaptTagsToRawImage(data, image, desc);
 
-      assertEquals(64, data.getInt(Tag.Columns, 0));
-      assertEquals(64, data.getInt(Tag.Rows, 0));
-      assertEquals(1, data.getInt(Tag.SamplesPerPixel, 0));
-      assertEquals(8, data.getInt(Tag.BitsAllocated, 0));
-      assertEquals(8, data.getInt(Tag.BitsStored, 0));
-      assertEquals(7, data.getInt(Tag.HighBit, 0));
-      assertEquals(0, data.getInt(Tag.PixelRepresentation, 0));
+      assertEquals(testData.width, data.getInt(Tag.Columns, 0));
+      assertEquals(testData.height, data.getInt(Tag.Rows, 0));
+      assertEquals(testData.expectedChannels, data.getInt(Tag.SamplesPerPixel, 0));
+      assertEquals(testData.bitsAllocated, data.getInt(Tag.BitsAllocated, 0));
+      assertEquals(testData.bitsStored, data.getInt(Tag.BitsStored, 0));
+      assertEquals(testData.bitsStored - 1, data.getInt(Tag.HighBit, 0));
+      assertEquals(testData.signed ? 1 : 0, data.getInt(Tag.PixelRepresentation, 0));
     }
 
-    @Test
-    @DisplayName("Should adapt tags for raw 16-bit signed image correctly")
-    void shouldAdaptTagsForRaw16BitSignedImage() {
-      PlanarImage image = createTestImage(32, 32, CvType.CV_16SC1, -1000.0);
-      ImageDescriptor desc = createTestDescriptor(16, 12, true);
-      Attributes data = new Attributes();
-
-      DicomOutputData.adaptTagsToRawImage(data, image, desc);
-
-      assertEquals(32, data.getInt(Tag.Columns, 0));
-      assertEquals(32, data.getInt(Tag.Rows, 0));
-      assertEquals(1, data.getInt(Tag.SamplesPerPixel, 0));
-      assertEquals(16, data.getInt(Tag.BitsAllocated, 0));
-      assertEquals(12, data.getInt(Tag.BitsStored, 0));
-      assertEquals(11, data.getInt(Tag.HighBit, 0));
-      assertEquals(1, data.getInt(Tag.PixelRepresentation, 0));
+    static Stream<Arguments> imageAttributeTestData() {
+      return Stream.of(
+          Arguments.of(new ImageTestData(64, 64, CvType.CV_8UC1, 128.0, 8, 8, false, 1)),
+          Arguments.of(new ImageTestData(32, 32, CvType.CV_16SC1, -1000.0, 16, 12, true, 1)),
+          Arguments.of(new ImageTestData(16, 16, CvType.CV_8UC3, 128.0, 8, 8, false, 3)));
     }
 
+    record ImageTestData(
+        int width,
+        int height,
+        int cvType,
+        double fillValue,
+        int bitsAllocated,
+        int bitsStored,
+        boolean signed,
+        int expectedChannels) {}
+
     @Test
-    @DisplayName("Should adapt tags for RGB image correctly")
-    void shouldAdaptTagsForRgbImage() {
-      PlanarImage image = createTestImage(16, 16, CvType.CV_8UC3, 128.0);
-      ImageDescriptor desc = createTestDescriptor(8, 8, false);
-      Attributes data = new Attributes();
+    void should_set_rgb_photometric_interpretation_for_multi_channel_images() {
+      var image = createTestImage(16, 16, CvType.CV_8UC3, 128.0);
+      var desc = createTestDescriptor(8, 8, false);
+      var data = new Attributes();
 
       DicomOutputData.adaptTagsToRawImage(data, image, desc);
 
-      assertEquals(16, data.getInt(Tag.Columns, 0));
-      assertEquals(16, data.getInt(Tag.Rows, 0));
-      assertEquals(3, data.getInt(Tag.SamplesPerPixel, 0));
       assertEquals(
           PhotometricInterpretation.RGB.toString(), data.getString(Tag.PhotometricInterpretation));
       assertEquals(0, data.getInt(Tag.PlanarConfiguration, 0));
@@ -420,74 +426,93 @@ class DicomOutputDataTest {
   }
 
   @Nested
-  @DisplayName("Static Utility Method Tests")
-  class StaticUtilityMethodTests {
+  class Static_Utility_Method_Tests {
+
+    @ParameterizedTest
+    @ValueSource(
+        strings = {
+          UID.ExplicitVRLittleEndian,
+          UID.ImplicitVRLittleEndian,
+          UID.JPEGBaseline8Bit,
+          UID.JPEGLossless,
+          UID.JPEG2000,
+          UID.JPEGLSLossless
+        })
+    void should_identify_supported_syntax(String syntax) {
+      assertTrue(DicomOutputData.isSupportedSyntax(syntax));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"1.2.3.4.5.6.7.8", "invalid.uid", ""})
+    void should_identify_unsupported_syntax(String syntax) {
+      assertFalse(DicomOutputData.isSupportedSyntax(syntax));
+    }
 
     @Test
-    @DisplayName("Should correctly identify supported syntax")
-    void shouldIdentifySupportedSyntax() {
-      assertTrue(DicomOutputData.isSupportedSyntax(UID.ExplicitVRLittleEndian));
-      assertTrue(DicomOutputData.isSupportedSyntax(UID.ImplicitVRLittleEndian));
-      assertTrue(DicomOutputData.isSupportedSyntax(UID.JPEGBaseline8Bit));
-      assertTrue(DicomOutputData.isSupportedSyntax(UID.JPEGLossless));
-      assertTrue(DicomOutputData.isSupportedSyntax(UID.JPEG2000));
-
-      assertFalse(DicomOutputData.isSupportedSyntax("1.2.3.4.5.6.7.8"));
+    void should_throw_for_null_syntax_check() {
       assertThrows(NullPointerException.class, () -> DicomOutputData.isSupportedSyntax(null));
     }
 
-    @Test
-    @DisplayName("Should correctly identify native syntax")
-    void shouldIdentifyNativeSyntax() {
-      assertTrue(DicomOutputData.isNativeSyntax(UID.ExplicitVRLittleEndian));
-      assertTrue(DicomOutputData.isNativeSyntax(UID.ImplicitVRLittleEndian));
-
-      assertFalse(DicomOutputData.isNativeSyntax(UID.JPEGBaseline8Bit));
-      assertFalse(DicomOutputData.isNativeSyntax(UID.JPEG2000));
+    @ParameterizedTest
+    @ValueSource(strings = {UID.ExplicitVRLittleEndian, UID.ImplicitVRLittleEndian})
+    void should_identify_native_syntax(String syntax) {
+      assertTrue(DicomOutputData.isNativeSyntax(syntax));
     }
 
-    @Test
-    @DisplayName("Should correctly identify adaptable syntax")
-    void shouldIdentifyAdaptableSyntax() {
-      assertTrue(DicomOutputData.isAdaptableSyntax(UID.JPEGBaseline8Bit));
-      assertTrue(DicomOutputData.isAdaptableSyntax(UID.JPEGExtended12Bit));
-
-      assertFalse(DicomOutputData.isAdaptableSyntax(UID.ExplicitVRLittleEndian));
-      assertFalse(DicomOutputData.isAdaptableSyntax(UID.JPEG2000));
+    @ParameterizedTest
+    @ValueSource(strings = {UID.JPEGBaseline8Bit, UID.JPEG2000})
+    void should_identify_non_native_syntax(String syntax) {
+      assertFalse(DicomOutputData.isNativeSyntax(syntax));
     }
 
-    @Test
-    @DisplayName("Should adapt suitable syntax based on image characteristics")
-    void shouldAdaptSuitableSyntax() {
-      // 8-bit data should keep JPEGBaseline8Bit
-      assertEquals(
+    @ParameterizedTest
+    @ValueSource(
+        strings = {
           UID.JPEGBaseline8Bit,
-          DicomOutputData.adaptSuitableSyntax(8, CvType.CV_8U, UID.JPEGBaseline8Bit));
+          UID.JPEGExtended12Bit,
+          UID.JPEGSpectralSelectionNonHierarchical68
+        })
+    void should_identify_adaptable_syntax(String syntax) {
+      assertTrue(DicomOutputData.isAdaptableSyntax(syntax));
+    }
 
-      // 16-bit signed data should adapt to JPEGLosslessSV1
-      assertEquals(
-          UID.JPEGLosslessSV1,
-          DicomOutputData.adaptSuitableSyntax(12, CvType.CV_16S, UID.JPEGBaseline8Bit));
+    @ParameterizedTest
+    @ValueSource(strings = {UID.ExplicitVRLittleEndian, UID.JPEG2000})
+    void should_identify_non_adaptable_syntax(String syntax) {
+      assertFalse(DicomOutputData.isAdaptableSyntax(syntax));
+    }
 
-      // Unsupported types should fall back to ExplicitVRLittleEndian
-      assertEquals(
-          UID.ExplicitVRLittleEndian,
-          DicomOutputData.adaptSuitableSyntax(32, CvType.CV_32F, UID.JPEGBaseline8Bit));
+    @ParameterizedTest
+    @CsvSource({
+      "8, CV_8U, " + UID.JPEGBaseline8Bit + ", " + UID.JPEGBaseline8Bit,
+      "12, CV_16S, " + UID.JPEGBaseline8Bit + ", " + UID.JPEGLosslessSV1,
+      "32, CV_32F, " + UID.JPEGBaseline8Bit + ", " + UID.ExplicitVRLittleEndian,
+      "8, CV_8U, " + UID.ImplicitVRLittleEndian + ", " + UID.ExplicitVRLittleEndian
+    })
+    void should_adapt_suitable_syntax_based_on_characteristics(
+        int bitStored, String cvTypeStr, String requestedSyntax, String expectedSyntax) {
+      int cvType = getCvTypeValue(cvTypeStr);
 
-      // Native syntaxes should adapt to ExplicitVRLittleEndian
-      assertEquals(
-          UID.ExplicitVRLittleEndian,
-          DicomOutputData.adaptSuitableSyntax(8, CvType.CV_8U, UID.ImplicitVRLittleEndian));
+      var result = DicomOutputData.adaptSuitableSyntax(bitStored, cvType, requestedSyntax);
+
+      assertEquals(expectedSyntax, result);
+    }
+
+    private int getCvTypeValue(String cvTypeStr) {
+      return switch (cvTypeStr) {
+        case "CV_8U" -> CvType.CV_8U;
+        case "CV_16S" -> CvType.CV_16S;
+        case "CV_32F" -> CvType.CV_32F;
+        default -> throw new IllegalArgumentException("Unknown type: " + cvTypeStr);
+      };
     }
   }
 
   @Nested
-  @DisplayName("Error Handling Tests")
-  class ErrorHandlingTests {
+  class Error_Handling_Tests {
 
     @Test
-    @DisplayName("Should handle IO exceptions during image access gracefully")
-    void shouldHandleImageAccessErrors() {
+    void should_handle_io_exceptions_during_image_access() {
       SupplierEx<PlanarImage, IOException> failingSupplier =
           () -> {
             throw new IOException("Simulated image access error");
@@ -499,64 +524,86 @@ class DicomOutputDataTest {
     }
 
     @Test
-    @DisplayName("Should handle invalid image types gracefully")
-    void shouldHandleInvalidImageTypes() throws IOException {
-      // Create an image with an unusual type that might cause issues
-      PlanarImage image = createTestImage(1, 1, CvType.CV_64FC1, 1.0);
-      DicomOutputData outputData =
-          new DicomOutputData(image, testDescriptor, UID.ExplicitVRLittleEndian);
+    void should_handle_unusual_image_types_gracefully() throws IOException {
+      var image = createTestImage(1, 1, CvType.CV_64FC1, 1.0);
+      var outputData = new DicomOutputData(image, testDescriptor, UID.ExplicitVRLittleEndian);
 
-      ByteArrayOutputStream baos = new ByteArrayOutputStream();
-      try (DicomOutputStream dos = new DicomOutputStream(baos, outputData.getTsuid())) {
-        Attributes dataSet = new Attributes(testAttributes);
+      var baos = new ByteArrayOutputStream();
+      try (var dos = new DicomOutputStream(baos, outputData.getTsuid())) {
+        var dataSet = new Attributes(testAttributes);
         dos.writeFileMetaInformation(dataSet.createFileMetaInformation(outputData.getTsuid()));
 
-        // Should not throw exception, but may log warnings
-        assertDoesNotThrow(() -> outputData.writRawImageData(dos, dataSet));
+        assertDoesNotThrow(() -> outputData.writeRawImageData(dos, dataSet));
       }
     }
   }
 
   @Nested
-  @DisplayName("Edge Cases Tests")
-  class EdgeCasesTests {
+  class Edge_Cases_Tests {
 
-    @Test
-    @DisplayName("Should handle minimum size images")
-    void shouldHandleMinimumSizeImages() throws IOException {
-      PlanarImage image = createTestImage(1, 1, CvType.CV_8UC1, 255.0);
-      DicomOutputData outputData =
-          new DicomOutputData(image, testDescriptor, UID.ExplicitVRLittleEndian);
+    @ParameterizedTest
+    @CsvSource({"1, 1, CV_8UC1, 255.0", "1, 1, CV_16UC1, 65535.0", "1, 1, CV_32FC1, 1.0"})
+    void should_handle_minimum_size_images(
+        int width, int height, String cvTypeStr, double fillValue) throws IOException {
+      int cvType = getCvTypeFromString(cvTypeStr);
+      var image = createTestImage(width, height, cvType, fillValue);
+
+      var outputData = new DicomOutputData(image, testDescriptor, UID.ExplicitVRLittleEndian);
 
       assertNotNull(outputData);
       assertEquals(1, outputData.getImages().size());
     }
 
+    private int getCvTypeFromString(String cvTypeStr) {
+      return switch (cvTypeStr) {
+        case "CV_8UC1" -> CvType.CV_8UC1;
+        case "CV_16UC1" -> CvType.CV_16UC1;
+        case "CV_32FC1" -> CvType.CV_32FC1;
+        default -> throw new IllegalArgumentException("Unknown type: " + cvTypeStr);
+      };
+    }
+
     @Test
-    @DisplayName("Should handle large images efficiently")
-    void shouldHandleLargeImages() throws IOException {
-      PlanarImage image = createTestImage(512, 512, CvType.CV_16UC1, 32768.0);
-      ImageDescriptor desc = createTestDescriptor(16, 16, false);
-      DicomOutputData outputData = new DicomOutputData(image, desc, UID.ExplicitVRLittleEndian);
+    void should_handle_large_images_efficiently() throws IOException {
+      var image = createTestImage(512, 512, CvType.CV_16UC1, 32768.0);
+      var desc = createTestDescriptor(16, 16, false);
+
+      var outputData = new DicomOutputData(image, desc, UID.ExplicitVRLittleEndian);
 
       assertNotNull(outputData);
       assertEquals(UID.ExplicitVRLittleEndian, outputData.getTsuid());
     }
 
     @Test
-    @DisplayName("Should handle empty pixel values correctly")
-    void shouldHandleEmptyPixelValues() throws IOException {
-      PlanarImage image = createTestImage(16, 16, CvType.CV_8UC1, 0.0);
-      DicomOutputData outputData =
-          new DicomOutputData(image, testDescriptor, UID.ExplicitVRLittleEndian);
+    void should_handle_zero_pixel_values() throws IOException {
+      var image = createTestImage(16, 16, CvType.CV_8UC1, 0.0);
+      var outputData = new DicomOutputData(image, testDescriptor, UID.ExplicitVRLittleEndian);
 
-      ByteArrayOutputStream baos = new ByteArrayOutputStream();
-      try (DicomOutputStream dos = new DicomOutputStream(baos, outputData.getTsuid())) {
-        Attributes dataSet = new Attributes(testAttributes);
+      var baos = new ByteArrayOutputStream();
+      try (var dos = new DicomOutputStream(baos, outputData.getTsuid())) {
+        var dataSet = new Attributes(testAttributes);
         dos.writeFileMetaInformation(dataSet.createFileMetaInformation(outputData.getTsuid()));
 
-        assertDoesNotThrow(() -> outputData.writRawImageData(dos, dataSet));
+        assertDoesNotThrow(() -> outputData.writeRawImageData(dos, dataSet));
       }
+    }
+
+    @Test
+    void should_handle_extreme_pixel_values() throws IOException {
+      var maxValueImage = createTestImage(8, 8, CvType.CV_8UC1, 255.0);
+      var outputData =
+          new DicomOutputData(maxValueImage, testDescriptor, UID.ExplicitVRLittleEndian);
+
+      assertDoesNotThrow(
+          () -> {
+            var baos = new ByteArrayOutputStream();
+            try (var dos = new DicomOutputStream(baos, outputData.getTsuid())) {
+              var dataSet = new Attributes(testAttributes);
+              dos.writeFileMetaInformation(
+                  dataSet.createFileMetaInformation(outputData.getTsuid()));
+              outputData.writeRawImageData(dos, dataSet);
+            }
+          });
     }
   }
 }

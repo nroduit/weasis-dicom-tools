@@ -22,9 +22,11 @@ import org.dcm4che3.data.VR;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.opencv.osgi.OpenCVNativeLoader;
 
 class DicomizerTest {
 
+  static final Path IN_DIR = FileSystems.getDefault().getPath("target/test-classes/org/dcm4che3");
   static final Path OUT_DIR = FileSystems.getDefault().getPath("target/test-out/");
 
   private static byte[] generateExamplePdfBytes() {
@@ -39,12 +41,11 @@ class DicomizerTest {
   }
 
   @BeforeAll
-  static void setUp() {
-    try {
-      Files.createDirectories(OUT_DIR);
-    } catch (IOException e) {
-      System.err.println(e.getMessage());
-    }
+  static void setUp() throws IOException {
+    Files.createDirectories(OUT_DIR);
+
+    OpenCVNativeLoader loader = new OpenCVNativeLoader();
+    loader.init();
   }
 
   @Test
@@ -72,5 +73,72 @@ class DicomizerTest {
     File dcmFile = new File(OUT_DIR.toFile(), "test.dcm");
 
     Assertions.assertThrows(IOException.class, () -> Dicomizer.pdf(attrs, pdfFile, dcmFile));
+  }
+
+  @Test
+  void convertPngToJpegAndWrite_createsJpegFileSuccessfully() throws IOException {
+    Path inputFile = IN_DIR.resolve("img/expected_imgForPrLUT.png");
+    Path outputFile = OUT_DIR.resolve("output.jpg");
+    try {
+      boolean result = Dicomizer.convertToJpegAndWrite(inputFile, outputFile, 90);
+
+      Assertions.assertTrue(result);
+      Assertions.assertTrue(Files.exists(outputFile));
+    } finally {
+      Files.deleteIfExists(outputFile);
+    }
+  }
+
+  @Test
+  void convertJpegToJpegAndWrite_createsJpegFileSuccessfully() throws IOException {
+    Path inputFile = IN_DIR.resolve("imageio/codec/jpeg/readable/eof-sos-segment-bug.jpg");
+    Path outputFile = OUT_DIR.resolve("output.jpg");
+    try {
+      boolean result = Dicomizer.convertToJpegAndWrite(inputFile, outputFile, 90);
+
+      Assertions.assertTrue(result);
+      Assertions.assertTrue(Files.exists(outputFile));
+    } finally {
+      Files.deleteIfExists(outputFile);
+    }
+  }
+
+  @Test
+  void convertNonJpegBaselineToJpegAndWrite_createsJpegFileSuccessfully() throws IOException {
+    Path inputFile = IN_DIR.resolve("imageio/codec/jpeg/readable/jfif-16bit-dqt.jpg");
+    Path outputFile = OUT_DIR.resolve("output.jpg");
+    try {
+      boolean result = Dicomizer.convertToJpegAndWrite(inputFile, outputFile, null);
+
+      Assertions.assertTrue(result);
+      Assertions.assertTrue(Files.exists(outputFile));
+    } finally {
+      Files.deleteIfExists(outputFile);
+    }
+  }
+
+  @Test
+  void convertToJpegAndWrite_returnsFalseForInvalidInput() {
+    Path invalidFile = OUT_DIR.resolve("invalid.png");
+    Path outputFile = OUT_DIR.resolve("output.jpg");
+
+    boolean result = Dicomizer.convertToJpegAndWrite(invalidFile, outputFile, 90);
+
+    Assertions.assertFalse(result);
+    Assertions.assertFalse(Files.exists(outputFile));
+  }
+
+  @Test
+  void convertToJpegAndWrite_usesDefaultQualityWhenNotSpecified() throws IOException {
+    Path inputFile = IN_DIR.resolve("img/expected_imgForPrLUT.png");
+    Path outputFile = OUT_DIR.resolve("output_default_quality.jpg");
+    try {
+      boolean result = Dicomizer.convertToJpegAndWrite(inputFile, outputFile, null);
+
+      Assertions.assertTrue(result);
+      Assertions.assertTrue(Files.exists(outputFile));
+    } finally {
+      Files.deleteIfExists(outputFile);
+    }
   }
 }

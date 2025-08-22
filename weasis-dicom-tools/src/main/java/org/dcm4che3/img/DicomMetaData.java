@@ -11,6 +11,7 @@ package org.dcm4che3.img;
 
 import java.io.IOException;
 import java.util.Objects;
+import java.util.Optional;
 import javax.imageio.metadata.IIOMetadata;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
@@ -60,7 +61,7 @@ import org.w3c.dom.Node;
  * @see ImageDescriptor
  * @see DicomInputStream
  */
-public class DicomMetaData extends IIOMetadata {
+public final class DicomMetaData extends IIOMetadata {
 
   private static final String VIDEO_TRANSFER_SYNTAX_PREFIX = "1.2.840.10008.1.2.4.10";
 
@@ -78,7 +79,7 @@ public class DicomMetaData extends IIOMetadata {
    *
    * @param dcmStream the DICOM input stream to read from
    * @throws IOException if an I/O error occurs while reading the stream
-   * @throws IllegalArgumentException if dcmStream is null
+   * @throws NullPointerException if dcmStream is null
    */
   public DicomMetaData(DicomInputStream dcmStream) throws IOException {
     Objects.requireNonNull(dcmStream, "DICOM input stream cannot be null");
@@ -86,7 +87,7 @@ public class DicomMetaData extends IIOMetadata {
     this.fileMetaInformation = dcmStream.readFileMetaInformation();
     this.dcm = dcmStream.readDataset();
     this.desc = new ImageDescriptor(dcm);
-    this.transferSyntaxUID = determineTransferSyntax(dcmStream);
+    this.transferSyntaxUID = resolveTransferSyntax(dcmStream);
   }
 
   /**
@@ -98,7 +99,7 @@ public class DicomMetaData extends IIOMetadata {
    *
    * @param dcm the DICOM dataset attributes
    * @param transferSyntaxUID the transfer syntax UID
-   * @throws IllegalArgumentException if either parameter is null
+   * @throws NullPointerException if either parameter is null
    */
   public DicomMetaData(Attributes dcm, String transferSyntaxUID) {
     this.fileMetaInformation = null;
@@ -108,11 +109,10 @@ public class DicomMetaData extends IIOMetadata {
         Objects.requireNonNull(transferSyntaxUID, "Transfer syntax UID cannot be null");
   }
 
-  private String determineTransferSyntax(DicomInputStream dcmStream) {
-    if (fileMetaInformation != null) {
-      return fileMetaInformation.getString(Tag.TransferSyntaxUID, dcmStream.getTransferSyntax());
-    }
-    return dcmStream.getTransferSyntax();
+  private String resolveTransferSyntax(DicomInputStream dcmStream) {
+    return Optional.ofNullable(fileMetaInformation)
+        .map(fmi -> fmi.getString(Tag.TransferSyntaxUID, dcmStream.getTransferSyntax()))
+        .orElseGet(dcmStream::getTransferSyntax);
   }
 
   /**
@@ -124,7 +124,7 @@ public class DicomMetaData extends IIOMetadata {
    *
    * @return the File Meta Information attributes, or null if not available
    */
-  public final Attributes getFileMetaInformation() {
+  public Attributes getFileMetaInformation() {
     return fileMetaInformation;
   }
 
@@ -136,7 +136,7 @@ public class DicomMetaData extends IIOMetadata {
    *
    * @return the DICOM dataset attributes, never null
    */
-  public final Attributes getDicomObject() {
+  public Attributes getDicomObject() {
     return dcm;
   }
 
@@ -149,7 +149,7 @@ public class DicomMetaData extends IIOMetadata {
    *
    * @return the image descriptor, never null
    */
-  public final ImageDescriptor getImageDescriptor() {
+  public ImageDescriptor getImageDescriptor() {
     return desc;
   }
 
@@ -165,18 +165,10 @@ public class DicomMetaData extends IIOMetadata {
     return transferSyntaxUID;
   }
 
-  /**
-   * Gets the Media Storage SOP Class UID from File Meta Information.
-   *
-   * <p>This identifies the type of DICOM object stored, such as CT Image Storage, MR Image Storage,
-   * etc. Only available if File Meta Information is present.
-   *
-   * @return the Media Storage SOP Class UID, or null if File Meta Information is not available
-   */
-  public String getMediaStorageSOPClassUID() {
-    return fileMetaInformation != null
-        ? fileMetaInformation.getString(Tag.MediaStorageSOPClassUID)
-        : null;
+  /** Gets the Media Storage SOP Class UID from File Meta Information. */
+  public Optional<String> getMediaStorageSOPClassUID() {
+    return Optional.ofNullable(fileMetaInformation)
+        .map(fmi -> fmi.getString(Tag.MediaStorageSOPClassUID));
   }
 
   /**
@@ -191,51 +183,29 @@ public class DicomMetaData extends IIOMetadata {
     return transferSyntaxUID != null && transferSyntaxUID.startsWith(VIDEO_TRANSFER_SYNTAX_PREFIX);
   }
 
-  /**
-   * Checks if this DICOM represents a Media Storage Directory.
-   *
-   * <p>Media Storage Directory (DICOMDIR) is a special DICOM file that serves as an index for DICOM
-   * files on removable media like CDs or DVDs.
-   *
-   * @return true if this is a Media Storage Directory, false otherwise
-   */
+  /** Checks if this DICOM represents a Media Storage Directory. */
   public boolean isMediaStorageDirectory() {
-    return UID.MediaStorageDirectoryStorage.equals(getMediaStorageSOPClassUID());
+    return getMediaStorageSOPClassUID()
+        .filter(UID.MediaStorageDirectoryStorage::equals)
+        .isPresent();
   }
 
-  /**
-   * Checks if this DICOM represents a Segmentation Storage object.
-   *
-   * <p>Segmentation Storage objects contain image segmentation data, typically regions of interest
-   * or anatomical structures derived from other images.
-   *
-   * @return true if this is a Segmentation Storage object, false otherwise
-   */
+  /** Checks if this DICOM represents a Segmentation Storage object. */
   public boolean isSegmentationStorage() {
-    return UID.SegmentationStorage.equals(getMediaStorageSOPClassUID());
+    return getMediaStorageSOPClassUID().filter(UID.SegmentationStorage::equals).isPresent();
   }
 
-  /**
-   * Checks if File Meta Information is available.
-   *
-   * @return true if File Meta Information is present, false otherwise
-   */
+  /** Checks if File Meta Information is available. */
   public boolean hasFileMetaInformation() {
     return fileMetaInformation != null;
   }
 
-  /**
-   * Gets the number of frames in this DICOM image. Convenience method that delegates to the image
-   * descriptor.
-   *
-   * @return the number of frames, 1 for single-frame images
-   */
+  /** Gets the number of frames in this DICOM image. */
   public int getNumberOfFrames() {
     return desc.getFrames();
   }
 
-  // ======== IIOMetadata implementation - all operations are unsupported as this is read-only
-  // ========
+  // ======== IIOMetadata implementation ========
   @Override
   public boolean isReadOnly() {
     return true;
@@ -258,17 +228,12 @@ public class DicomMetaData extends IIOMetadata {
 
   @Override
   public String toString() {
-    return "DicomMetaData{"
-        + "transferSyntax='"
-        + transferSyntaxUID
-        + '\''
-        + ", sopClass='"
-        + getMediaStorageSOPClassUID()
-        + '\''
-        + ", frames="
-        + getNumberOfFrames()
-        + ", hasFileMetaInfo="
-        + hasFileMetaInformation()
-        + '}';
+    return """
+        DicomMetaData{transferSyntax='%s', sopClass='%s', frames=%d, hasFileMetaInfo=%s}"""
+        .formatted(
+            transferSyntaxUID,
+            getMediaStorageSOPClassUID().orElse("N/A"),
+            getNumberOfFrames(),
+            hasFileMetaInformation());
   }
 }

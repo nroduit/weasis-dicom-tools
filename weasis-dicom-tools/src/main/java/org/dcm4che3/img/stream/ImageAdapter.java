@@ -9,12 +9,11 @@
  */
 package org.dcm4che3.img.stream;
 
-import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import org.dcm4che3.data.Attributes;
@@ -23,7 +22,6 @@ import org.dcm4che3.data.Fragments;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
 import org.dcm4che3.data.VR;
-import org.dcm4che3.data.VR.Holder;
 import org.dcm4che3.imageio.codec.TransferSyntaxType;
 import org.dcm4che3.imageio.codec.jpeg.JPEGParser;
 import org.dcm4che3.img.*;
@@ -53,27 +51,29 @@ import org.weasis.opencv.data.PlanarImage;
  *
  * @author Nicolas Roduit
  */
-public class ImageAdapter {
+public final class ImageAdapter {
   private static final Logger LOGGER = LoggerFactory.getLogger(ImageAdapter.class);
 
-  private static final DicomImageReadParam DICOM_IMAGE_READ_PARAM = new DicomImageReadParam();
+  private static final DicomImageReadParam DICOM_IMAGE_READ_PARAM = createReadParam();
+  private static final byte[] EMPTY_BYTES = new byte[0];
 
-  static {
-    DICOM_IMAGE_READ_PARAM.setReleaseImageAfterProcessing(true);
+  /** Creates configured DICOM read parameters */
+  private static DicomImageReadParam createReadParam() {
+    var param = new DicomImageReadParam();
+    param.setReleaseImageAfterProcessing(true);
+    return param;
   }
 
-  protected static final byte[] EMPTY_BYTES = {};
-
   /**
-   * Configuration class for managing transfer syntax adaptation during DICOM image processing.
+   * Configuration for managing transfer syntax adaptation during DICOM image processing.
    * Encapsulates the original transfer syntax, requested syntax, and the final suitable syntax
    * along with compression parameters.
    */
-  public static class AdaptTransferSyntax {
+  public static final class AdaptTransferSyntax {
     private final String original;
     private final String requested;
     private String suitable;
-    private int jpegQuality;
+    private int jpegQuality = 85;
     private int compressionRatioFactor;
 
     /**
@@ -85,14 +85,14 @@ public class ImageAdapter {
      */
     public AdaptTransferSyntax(String original, String requested) {
       if (!StringUtil.hasText(original) || !StringUtil.hasText(requested)) {
-        throw new IllegalArgumentException("A non empty value is required");
+        throw new IllegalArgumentException("Non-empty values required for transfer syntax UIDs");
       }
       this.original = original;
       this.requested = requested;
       this.suitable = requested;
-      this.jpegQuality = 85;
     }
 
+    // Getters
     public String getOriginal() {
       return original;
     }
@@ -109,23 +109,20 @@ public class ImageAdapter {
       return jpegQuality;
     }
 
-    public void setJpegQuality(int jpegQuality) {
-      this.jpegQuality = jpegQuality;
-    }
-
     public int getCompressionRatioFactor() {
       return compressionRatioFactor;
+    }
+
+    // Setters
+    public void setJpegQuality(int jpegQuality) {
+      this.jpegQuality = jpegQuality;
     }
 
     public void setCompressionRatioFactor(int compressionRatioFactor) {
       this.compressionRatioFactor = compressionRatioFactor;
     }
 
-    /**
-     * Sets the suitable transfer syntax if it's a valid and supported syntax.
-     *
-     * @param suitable the transfer syntax UID to set as suitable
-     */
+    /** Sets the suitable transfer syntax if it's valid and supported */
     public void setSuitable(String suitable) {
       if (TransferSyntaxType.forUID(suitable) != TransferSyntaxType.UNKNOWN) {
         this.suitable = suitable;
@@ -142,7 +139,7 @@ public class ImageAdapter {
    * @param syntax the transfer syntax configuration
    * @param editable the image editing operations to apply
    * @param desc the image descriptor containing pixel data, or null for metadata-only files
-   * @param file the output file to write
+   * @param outputPath the output path to write
    * @return true if the file was written successfully, false otherwise
    */
   public static boolean writeDicomFile(
@@ -150,23 +147,34 @@ public class ImageAdapter {
       AdaptTransferSyntax syntax,
       Editable<PlanarImage> editable,
       BytesWithImageDescriptor desc,
-      File file) {
-    if (desc == null) {
-      return writeMetadataOnlyFile(data, syntax, file);
+      Path outputPath) {
+
+    if (outputPath == null) {
+      throw new IllegalArgumentException("Output path is required");
     }
-    return writeImageFile(data, syntax, editable, desc, file);
+    try {
+      FileUtil.prepareToWriteFile(outputPath);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
+    return desc == null
+        ? writeMetadataOnlyFile(data, syntax, outputPath)
+        : writeImageFile(data, syntax, editable, desc, outputPath);
   }
 
+  /** Writes a metadata-only DICOM file */
   private static boolean writeMetadataOnlyFile(
-      Attributes data, AdaptTransferSyntax syntax, File file) {
+      Attributes data, AdaptTransferSyntax syntax, Path outputPath) {
     adjustSyntaxForMetadataOnly(syntax);
-    try (DicomOutputStream writer = new DicomOutputStream(file)) {
+    try (var outputStream = Files.newOutputStream(outputPath);
+        var writer = new DicomOutputStream(outputStream, UID.ExplicitVRLittleEndian)) {
       writer.writeDataset(data.createFileMetaInformation(syntax.suitable), data);
       writer.finish();
       return true;
     } catch (Exception e) {
-      LOGGER.error("Writing DICOM metadata file", e);
-      FileUtil.delete(file.toPath());
+      LOGGER.error("Writing DICOM metadata file to {}", outputPath, e);
+      FileUtil.delete(outputPath);
       return false;
     }
   }
@@ -183,28 +191,29 @@ public class ImageAdapter {
       AdaptTransferSyntax syntax,
       Editable<PlanarImage> editable,
       BytesWithImageDescriptor desc,
-      File file) {
-    DicomImageReader reader = new DicomImageReader(Transcoder.dicomImageReaderSpi);
+      Path outputPath) {
+
+    var reader = new DicomImageReader(Transcoder.dicomImageReaderSpi);
     try {
-      DicomOutputData imgData = getDicomOutputData(reader, syntax.requested, desc, editable);
+      var imgData = getDicomOutputData(reader, syntax.requested, desc, editable);
       checkSyntax(syntax, imgData);
 
-      Attributes dataSet = new Attributes(data);
+      var dataSet = new Attributes(data);
       dataSet.remove(Tag.PixelData);
       String dstTsuid = syntax.suitable;
-      try (DicomOutputStream dos =
-          new DicomOutputStream(new BufferedOutputStream(new FileOutputStream(file)), dstTsuid)) {
+      try (var outputStream = Files.newOutputStream(outputPath);
+          var dos = new DicomOutputStream(outputStream, dstTsuid)) {
         dos.writeFileMetaInformation(dataSet.createFileMetaInformation(dstTsuid));
         writeImage(syntax, desc, imgData, dataSet, dstTsuid, dos);
       }
 
       return true;
     } catch (IOException e) {
-      LOGGER.error("Get DicomOutputData", e);
+      LOGGER.error("Error getting DICOM output data for {}", outputPath, e);
       return false;
     } catch (Exception e) {
-      LOGGER.error("Transcoding image data", e);
-      FileUtil.delete(file.toPath());
+      LOGGER.error("Error transcoding image data for {}", outputPath, e);
+      FileUtil.delete(outputPath);
       return false;
     } finally {
       reader.dispose();
@@ -220,7 +229,7 @@ public class ImageAdapter {
       DicomOutputStream dos)
       throws IOException {
     if (DicomOutputData.isNativeSyntax(dstTsuid)) {
-      imgData.writRawImageData(dos, dataSet);
+      imgData.writeRawImageData(dos, dataSet);
     } else {
       writeCompressedImage(syntax, desc, imgData, dataSet, dstTsuid, dos);
     }
@@ -235,47 +244,37 @@ public class ImageAdapter {
       DicomOutputStream dos)
       throws IOException {
 
-    DicomJpegWriteParam dicomJpegWriteParam =
-        DicomJpegWriteParam.buildDicomImageWriteParam(dstTsuid);
-
-    configureCompressionQuality(syntax, dicomJpegWriteParam);
-    configureCompressionRatio(syntax, dicomJpegWriteParam);
+    var writeParam = DicomJpegWriteParam.buildDicomImageWriteParam(dstTsuid);
+    configureCompressionParameters(syntax, writeParam);
 
     int[] jpegWriteParams =
         imgData.adaptTagsToCompressedImage(
-            dataSet, imgData.getFirstImage().get(), desc.getImageDescriptor(), dicomJpegWriteParam);
+            dataSet, imgData.getFirstImage().get(), desc.getImageDescriptor(), writeParam);
     imgData.writeCompressedImageData(dos, dataSet, jpegWriteParams);
   }
 
-  private static void configureCompressionQuality(
+  /** Configures compression parameters for JPEG writing */
+  private static void configureCompressionParameters(
       AdaptTransferSyntax syntax, DicomJpegWriteParam params) {
     if (params.getCompressionQuality() > 0) {
       int quality = syntax.getJpegQuality() <= 0 ? 85 : syntax.getJpegQuality();
       params.setCompressionQuality(quality);
     }
-  }
 
-  private static void configureCompressionRatio(
-      AdaptTransferSyntax syntax, DicomJpegWriteParam params) {
     if (params.getCompressionRatioFactor() > 0 && syntax.getCompressionRatioFactor() > 0) {
       params.setCompressionRatioFactor(syntax.getCompressionRatioFactor());
     }
   }
 
   /**
-   * Validates and adjusts the transfer syntax based on the actual output capabilities. Updates the
+   * Validates and adjusts the transfer syntax based on actual output capabilities. Updates the
    * suitable syntax if the requested syntax cannot be used.
-   *
-   * @param syntax the transfer syntax configuration to check and potentially modify
-   * @param imgData the image output data containing the actual transfer syntax used
    */
   public static void checkSyntax(AdaptTransferSyntax syntax, DicomOutputData imgData) {
     if (!syntax.requested.equals(imgData.getTsuid())) {
       syntax.suitable = imgData.getTsuid();
       LOGGER.warn(
-          "Transcoding into {} is not possible, used instead {}",
-          syntax.requested,
-          syntax.suitable);
+          "Transcoding into {} not possible, using {} instead", syntax.requested, syntax.suitable);
     }
   }
 
@@ -295,17 +294,16 @@ public class ImageAdapter {
       Editable<PlanarImage> editable,
       BytesWithImageDescriptor desc)
       throws IOException {
-    if (desc == null) {
-      return createMetadataDataWriter(data, syntax);
-    }
 
-    return createImageDataWriter(data, syntax, editable, desc);
+    return desc == null
+        ? createMetadataDataWriter(data, syntax)
+        : createImageDataWriter(data, syntax, editable, desc);
   }
 
   private static DataWriter createMetadataDataWriter(Attributes data, AdaptTransferSyntax syntax) {
     syntax.suitable = syntax.original;
     return (out, tsuid) -> {
-      try (DicomOutputStream writer = new DicomOutputStream(out, tsuid)) {
+      try (var writer = new DicomOutputStream(out, tsuid)) {
         writer.writeDataset(null, data);
         writer.finish();
       }
@@ -318,17 +316,18 @@ public class ImageAdapter {
       Editable<PlanarImage> editable,
       BytesWithImageDescriptor desc)
       throws IOException {
-    DicomImageReader reader = new DicomImageReader(Transcoder.dicomImageReaderSpi);
-    DicomOutputData imgData = getDicomOutputData(reader, syntax.requested, desc, editable);
+
+    var reader = new DicomImageReader(Transcoder.dicomImageReaderSpi);
+    var imgData = getDicomOutputData(reader, syntax.requested, desc, editable);
     checkSyntax(syntax, imgData);
 
     return (out, tsuid) -> {
-      Attributes dataSet = new Attributes(data);
+      var dataSet = new Attributes(data);
       dataSet.remove(Tag.PixelData);
-      try (DicomOutputStream dos = new DicomOutputStream(out, tsuid)) {
+      try (var dos = new DicomOutputStream(out, tsuid)) {
         writeImage(syntax, desc, imgData, dataSet, tsuid, dos);
       } catch (Exception e) {
-        LOGGER.error("Transcoding image data", e);
+        LOGGER.error("Error transcoding image data", e);
       } finally {
         reader.dispose();
       }
@@ -341,9 +340,8 @@ public class ImageAdapter {
   }
 
   /**
-   * Creates a BytesWithImageDescriptor for image transcoding operations. This method extracts pixel
-   * data from DICOM attributes and provides access to image frames with support for various
-   * transfer syntaxes and pixel processing.
+   * Creates a BytesWithImageDescriptor for image transcoding operations. Extracts pixel data from
+   * DICOM attributes and provides access to image frames.
    *
    * @param data the DICOM attributes containing image data
    * @param syntax the transfer syntax configuration
@@ -353,29 +351,29 @@ public class ImageAdapter {
   public static BytesWithImageDescriptor imageTranscode(
       Attributes data, AdaptTransferSyntax syntax, AttributeEditorContext context) {
 
-    Holder pixeldataVR = new Holder();
-    Object pixdata = data.getValue(Tag.PixelData, pixeldataVR);
-    if (!isTranscodingApplicable(pixdata, syntax, context)) {
+    var pixelDataVR = new VR.Holder();
+    Object dataValue = data.getValue(Tag.PixelData, pixelDataVR);
+    if (!isTranscodingApplicable(dataValue, syntax, context)) {
       return null;
     }
 
-    ImageDescriptor imageDescriptor = new ImageDescriptor(data);
-    return new ImageBytesDescriptor(pixdata, pixeldataVR, imageDescriptor, syntax.original);
+    var imageDescriptor = new ImageDescriptor(data);
+    return new ImageBytesDescriptor(dataValue, pixelDataVR, imageDescriptor, syntax.original);
   }
 
   private static boolean isTranscodingApplicable(
-      Object pixdata, AdaptTransferSyntax syntax, AttributeEditorContext context) {
+      Object pixData, AdaptTransferSyntax syntax, AttributeEditorContext context) {
 
-    return pixdata != null
+    return pixData != null
         && DicomImageReader.isSupportedSyntax(syntax.original)
         && DicomOutputData.isSupportedSyntax(syntax.requested)
         && (context.hasPixelProcessing() || isTranscodable(syntax.original, syntax.requested));
   }
 
-  /** Implementation of BytesWithImageDescriptor for handling DICOM pixel data access. */
-  private static class ImageBytesDescriptor implements BytesWithImageDescriptor {
+  /** Implementation of BytesWithImageDescriptor for DICOM pixel data access */
+  private static final class ImageBytesDescriptor implements BytesWithImageDescriptor {
     private final Object pixdata;
-    private final Holder pixeldataVR;
+    private final VR.Holder pixeldataVR;
     private final ImageDescriptor imageDescriptor;
     private final String transferSyntax;
     private final ByteBuffer[] multiFrameBuffer = new ByteBuffer[1];
@@ -383,7 +381,7 @@ public class ImageAdapter {
 
     ImageBytesDescriptor(
         Object pixdata,
-        Holder pixeldataVR,
+        VR.Holder pixeldataVR,
         ImageDescriptor imageDescriptor,
         String transferSyntax) {
       this.pixdata = pixdata;
@@ -398,7 +396,7 @@ public class ImageAdapter {
     }
 
     @Override
-    public boolean bigEndian() {
+    public boolean isBigEndian() {
       if (pixdata instanceof BulkData bulkData) {
         return bulkData.bigEndian();
       } else if (pixdata instanceof Fragments fragments) {
@@ -413,9 +411,13 @@ public class ImageAdapter {
     }
 
     @Override
+    public String getTransferSyntax() {
+      return transferSyntax;
+    }
+
+    @Override
     public ByteBuffer getBytes(int frame) throws IOException {
-      int bitsStored = imageDescriptor.getBitsStored();
-      if (bitsStored < 1) {
+      if (imageDescriptor.getBitsStored() < 1) {
         return ByteBuffer.wrap(EMPTY_BYTES);
       }
 
@@ -432,17 +434,18 @@ public class ImageAdapter {
       int frameLength = calculateFrameLength();
 
       if (multiFrameBuffer[0] == null) {
-        multiFrameBuffer[0] = ByteBuffer.wrap(bulkData.toBytes(pixeldataVR.vr, bigEndian()));
+        multiFrameBuffer[0] = ByteBuffer.wrap(bulkData.toBytes(pixeldataVR.vr, isBigEndian()));
       }
 
       validateFrameAccess(frame, frameLength);
 
-      byte[] bytes = new byte[frameLength];
+      var frameData = new byte[frameLength];
       multiFrameBuffer[0].position(frame * frameLength);
-      multiFrameBuffer[0].get(bytes, 0, frameLength);
-      return ByteBuffer.wrap(bytes);
+      multiFrameBuffer[0].get(frameData, 0, frameLength);
+      return ByteBuffer.wrap(frameData);
     }
 
+    /** Calculates the length of a single frame in bytes */
     private int calculateFrameLength() {
       return imageDescriptor
           .getPhotometricInterpretation()
@@ -454,46 +457,44 @@ public class ImageAdapter {
     }
 
     private void validateFrameAccess(int frame, int frameLength) throws IOException {
-      if (multiFrameBuffer[0].limit() < frame * frameLength + frameLength) {
-        throw new IOException("Frame out of the stream limit");
+      if (multiFrameBuffer[0].limit() < (frame + 1) * frameLength) {
+        throw new IOException("Frame " + frame + " exceeds stream bounds");
       }
     }
 
     private ByteBuffer getBytesFromFragments(Fragments fragments, int frame) throws IOException {
       int numberOfFrames = imageDescriptor.getFrames();
 
-      if (numberOfFrames == 1) {
-        return getSingleFrameFromFragments(fragments);
-      } else {
-        return getMultiFrameFromFragments(fragments, frame, numberOfFrames);
-      }
+      return numberOfFrames == 1
+          ? getSingleFrameFromFragments(fragments)
+          : getMultiFrameFromFragments(fragments, frame, numberOfFrames);
     }
 
     private ByteBuffer getSingleFrameFromFragments(Fragments fragments) throws IOException {
       int nbFragments = fragments.size();
-      int length = calculateTotalFragmentLength(fragments, nbFragments);
+      int totalLength = calculateTotalFragmentLength(fragments, nbFragments);
 
-      try (ByteArrayOutputStream out = new ByteArrayOutputStream(length)) {
-        writeFragmentsToStream(fragments, nbFragments, out);
+      try (var out = new ByteArrayOutputStream(totalLength)) {
+        writeFragmentsToStream(fragments, 1, nbFragments, out);
         return ByteBuffer.wrap(out.toByteArray());
       }
     }
 
     private int calculateTotalFragmentLength(Fragments fragments, int nbFragments) {
-      int length = 0;
-      for (int i = 1; i < nbFragments; i++) {
-        BulkData b = (BulkData) fragments.get(i);
-        length += b.length();
-      }
-      return length;
+      return fragments.stream()
+          .skip(1)
+          .limit(nbFragments - 1)
+          .mapToInt(obj -> ((BulkData) obj).length())
+          .sum();
     }
 
+    /** Writes fragments to output stream */
     private void writeFragmentsToStream(
-        Fragments fragments, int nbFragments, ByteArrayOutputStream out) throws IOException {
-      for (int i = 1; i < nbFragments; i++) {
-        BulkData b = (BulkData) fragments.get(i);
-        byte[] bytes = b.toBytes(pixeldataVR.vr, bigEndian());
-        out.write(bytes, 0, bytes.length);
+        Fragments fragments, int start, int end, ByteArrayOutputStream out) throws IOException {
+      for (int i = start; i < end; i++) {
+        var bulkData = (BulkData) fragments.get(i);
+        var bytes = bulkData.toBytes(pixeldataVR.vr, isBigEndian());
+        out.write(bytes);
       }
     }
 
@@ -504,7 +505,11 @@ public class ImageAdapter {
       }
 
       if (fragmentsPositions.size() != numberOfFrames) {
-        throw new IOException("Cannot match all the fragments to all the frames!");
+        throw new IOException(
+            "Fragment count mismatch: expected "
+                + numberOfFrames
+                + ", found "
+                + fragmentsPositions.size());
       }
 
       return extractFrameFromFragments(fragments, frame);
@@ -528,24 +533,22 @@ public class ImageAdapter {
 
     private void initializeJPEGFragmentPositions(Fragments fragments, int nbFragments) {
       for (int i = 1; i < nbFragments; i++) {
-        BulkData b = (BulkData) fragments.get(i);
-        if (isValidJPEGFragment(b)) {
+        var bulkData = (BulkData) fragments.get(i);
+        if (isValidJPEGFragment(bulkData)) {
           fragmentsPositions.add(i);
         }
       }
     }
 
     private boolean isValidJPEGFragment(BulkData bulkData) {
-      try (ByteArrayOutputStream out = new ByteArrayOutputStream(bulkData.length())) {
-        byte[] bytes = bulkData.toBytes(pixeldataVR.vr, bigEndian());
-        out.write(bytes, 0, bytes.length);
-        try (SeekableInMemoryByteChannel channel =
-            new SeekableInMemoryByteChannel(out.toByteArray())) {
+      try {
+        var bytes = bulkData.toBytes(pixeldataVR.vr, isBigEndian());
+        try (var channel = new SeekableInMemoryByteChannel(bytes)) {
           new JPEGParser(channel);
           return true;
         }
       } catch (Exception e) {
-        return false; // Not a valid JPEG stream
+        return false;
       }
     }
 
@@ -556,11 +559,10 @@ public class ImageAdapter {
           (frame + 1) >= fragmentsPositions.size()
               ? fragments.size()
               : fragmentsPositions.get(frame + 1);
+      int totalLength = calculateFragmentRangeLength(fragments, start, end);
 
-      int length = calculateFragmentRangeLength(fragments, start, end);
-
-      try (ByteArrayOutputStream out = new ByteArrayOutputStream(length)) {
-        writeFragmentRange(fragments, start, end, out);
+      try (var out = new ByteArrayOutputStream(totalLength)) {
+        writeFragmentsToStream(fragments, start, end, out);
         return ByteBuffer.wrap(out.toByteArray());
       }
     }
@@ -568,27 +570,13 @@ public class ImageAdapter {
     private int calculateFragmentRangeLength(Fragments fragments, int start, int end) {
       int length = 0;
       for (int i = start; i < end; i++) {
-        BulkData b = (BulkData) fragments.get(i);
-        length += b.length();
+        length += ((BulkData) fragments.get(i)).length();
       }
       return length;
     }
-
-    private void writeFragmentRange(
-        Fragments fragments, int start, int end, ByteArrayOutputStream out) throws IOException {
-      for (int i = start; i < end; i++) {
-        BulkData b = (BulkData) fragments.get(i);
-        byte[] bytes = b.toBytes(pixeldataVR.vr, bigEndian());
-        out.write(bytes, 0, bytes.length);
-      }
-    }
-
-    @Override
-    public String getTransferSyntax() {
-      return transferSyntax;
-    }
   }
 
+  /** Creates DicomOutputData from reader and descriptor */
   private static DicomOutputData getDicomOutputData(
       DicomImageReader reader,
       String outputTsuid,

@@ -12,23 +12,38 @@ package org.dcm4che3.img.util;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.awt.image.DataBuffer;
-import java.util.Optional;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.DisplayNameGeneration;
+import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.weasis.opencv.data.LookupTableCV;
 import org.weasis.opencv.op.lut.LutShape;
 
+@DisplayNameGeneration(ReplaceUnderscores.class)
 class LookupTableUtilsTest {
+
+  // Test constants for medical imaging scenarios
+  private static final double CT_BONE_WINDOW = 2000.0;
+  private static final double CT_BONE_LEVEL = 400.0;
+  private static final double CT_SOFT_TISSUE_WINDOW = 400.0;
+  private static final double CT_SOFT_TISSUE_LEVEL = 50.0;
+
+  private static final int STANDARD_8BIT_ENTRIES = 256;
+  private static final int STANDARD_12BIT_MAX = 4095;
+  private static final int LARGE_LUT_ENTRIES = 65536;
 
   private Attributes lutAttributes;
 
@@ -38,75 +53,70 @@ class LookupTableUtilsTest {
   }
 
   @Nested
-  @DisplayName("VOI LUT Creation")
-  class VoiLutCreation {
+  class Voi_lut_creation {
 
     @Test
-    @DisplayName("Should return null for null LUT shape")
-    void shouldReturnNullForNullLutShape() {
-      LookupTableCV result =
-          LookupTableUtils.createVoiLut(null, 100.0, 50.0, 0, 255, 8, false, false);
+    void should_return_null_for_null_lut_shape() {
+      var result = LookupTableUtils.createVoiLut(null, 100.0, 50.0, 0, 255, 8, false, false);
 
       assertNull(result);
     }
 
     @Test
-    @DisplayName("Should create linear VOI LUT for 8-bit unsigned")
-    void shouldCreateLinearVoiLutFor8BitUnsigned() {
-      LutShape lutShape = createLinearLutShape();
+    void should_create_linear_voi_lut_for_8_bit_unsigned() {
+      var lutShape = LutShape.LINEAR;
 
-      LookupTableCV result =
-          LookupTableUtils.createVoiLut(lutShape, 100.0, 128.0, 0, 255, 8, false, false);
+      var result = LookupTableUtils.createVoiLut(lutShape, 100.0, 128.0, 0, 255, 8, false, false);
 
       assertNotNull(result);
       assertEquals(DataBuffer.TYPE_BYTE, result.getDataType());
       assertEquals(0, result.getOffset());
 
-      // Test specific values
       byte[] data = result.getByteData(0);
-      assertEquals(256, data.length);
+      assertEquals(STANDARD_8BIT_ENTRIES, data.length);
 
       // Test windowing: center=128, width=100, so window is [78, 178]
-      assertEquals(0, data[0] & 0xFF); // Below window should be 0
-      assertEquals(255, data[255] & 0xFF); // Above window should be 255
+      assertEquals(0, Byte.toUnsignedInt(data[0])); // Below window should be 0
+      assertEquals(255, Byte.toUnsignedInt(data[255])); // Above window should be 255
     }
 
     @Test
-    @DisplayName("Should create linear VOI LUT for 8-bit signed")
-    void shouldCreateLinearVoiLutFor8BitSigned() {
-      LutShape lutShape = createLinearLutShape();
+    void should_create_linear_voi_lut_for_8_bit_signed() {
+      var lutShape = LutShape.LINEAR;
 
-      LookupTableCV result =
-          LookupTableUtils.createVoiLut(lutShape, 100.0, 0.0, -128, 127, 8, true, false);
+      var result = LookupTableUtils.createVoiLut(lutShape, 100.0, 0.0, -128, 127, 8, true, false);
 
       assertNotNull(result);
       assertEquals(DataBuffer.TYPE_BYTE, result.getDataType());
 
       byte[] data = result.getByteData(0);
-      assertEquals(256, data.length);
+      assertEquals(STANDARD_8BIT_ENTRIES, data.length);
+
+      // Verify signed range
+      assertTrue(data[0] >= -128 && data[0] <= 127);
+      assertTrue(data[data.length - 1] >= -128 && data[data.length - 1] <= 127);
     }
 
     @Test
-    @DisplayName("Should create linear VOI LUT for 16-bit unsigned")
-    void shouldCreateLinearVoiLutFor16BitUnsigned() {
-      LutShape lutShape = createLinearLutShape();
+    void should_create_linear_voi_lut_for_12_bit_unsigned() {
+      var lutShape = LutShape.LINEAR;
 
-      LookupTableCV result =
-          LookupTableUtils.createVoiLut(lutShape, 1000.0, 2048.0, 0, 4095, 12, false, false);
+      var result =
+          LookupTableUtils.createVoiLut(
+              lutShape, 1000.0, 2048.0, 0, STANDARD_12BIT_MAX, 12, false, false);
 
       assertNotNull(result);
       assertEquals(DataBuffer.TYPE_USHORT, result.getDataType());
 
       short[] data = result.getShortData(0);
-      assertEquals(4096, data.length);
+      assertEquals(STANDARD_12BIT_MAX + 1, data.length);
     }
 
     @Test
-    @DisplayName("Should create linear VOI LUT for 16-bit signed")
-    void shouldCreateLinearVoiLutFor16BitSigned() {
-      LutShape lutShape = createLinearLutShape();
+    void should_create_linear_voi_lut_for_16_bit_signed() {
+      var lutShape = LutShape.LINEAR;
 
-      LookupTableCV result =
+      var result =
           LookupTableUtils.createVoiLut(lutShape, 1000.0, 0.0, -2048, 2047, 12, true, false);
 
       assertNotNull(result);
@@ -116,65 +126,41 @@ class LookupTableUtilsTest {
       assertEquals(4096, data.length);
     }
 
-    @Test
-    @DisplayName("Should create sigmoid VOI LUT")
-    void shouldCreateSigmoidVoiLut() {
-      LutShape lutShape = createSigmoidLutShape();
+    @ParameterizedTest
+    @ValueSource(strings = {"SIGMOID", "LOG", "LOG_INV", "SIGMOID_NORM"})
+    void should_create_non_linear_voi_luts(String shapeType) {
+      var lutShape =
+          switch (shapeType) {
+            case "SIGMOID" -> LutShape.SIGMOID;
+            case "LOG" -> LutShape.LOG;
+            case "LOG_INV" -> LutShape.LOG_INV;
+            case "SIGMOID_NORM" -> LutShape.SIGMOID_NORM;
+            default -> throw new IllegalArgumentException("Unknown shape: " + shapeType);
+          };
 
-      LookupTableCV result =
-          LookupTableUtils.createVoiLut(lutShape, 100.0, 128.0, 0, 255, 8, false, false);
-
-      assertNotNull(result);
-      assertEquals(DataBuffer.TYPE_BYTE, result.getDataType());
-
-      byte[] data = result.getByteData(0);
-      assertEquals(256, data.length);
-
-      // Sigmoid should have smooth transition
-      int midValue = data[128] & 0xFF;
-      assertTrue(
-          midValue > 100 && midValue < 200, "Sigmoid midpoint should be in reasonable range");
-    }
-
-    @Test
-    @DisplayName("Should create logarithmic VOI LUT")
-    void shouldCreateLogarithmicVoiLut() {
-      LutShape lutShape = createLogarithmicLutShape();
-
-      LookupTableCV result =
-          LookupTableUtils.createVoiLut(lutShape, 100.0, 128.0, 0, 255, 8, false, false);
+      var result = LookupTableUtils.createVoiLut(lutShape, 100.0, 128.0, 0, 255, 8, false, false);
 
       assertNotNull(result);
       assertEquals(DataBuffer.TYPE_BYTE, result.getDataType());
 
       byte[] data = result.getByteData(0);
-      assertEquals(256, data.length);
+      assertEquals(STANDARD_8BIT_ENTRIES, data.length);
+
+      // Verify non-linear transformation produces different results than linear
+      var linearResult =
+          LookupTableUtils.createVoiLut(LutShape.LINEAR, 100.0, 128.0, 0, 255, 8, false, false);
+      byte[] linearData = linearResult.getByteData(0);
+
+      boolean isDifferent = IntStream.range(0, data.length).anyMatch(i -> data[i] != linearData[i]);
+      assertTrue(isDifferent, "Non-linear LUT should differ from linear");
     }
 
     @Test
-    @DisplayName("Should create exponential VOI LUT")
-    void shouldCreateExponentialVoiLut() {
-      LutShape lutShape = createExponentialLutShape();
+    void should_create_inverted_voi_lut() {
+      var lutShape = LutShape.LINEAR;
 
-      LookupTableCV result =
-          LookupTableUtils.createVoiLut(lutShape, 100.0, 128.0, 0, 255, 8, false, false);
-
-      assertNotNull(result);
-      assertEquals(DataBuffer.TYPE_BYTE, result.getDataType());
-
-      byte[] data = result.getByteData(0);
-      assertEquals(256, data.length);
-    }
-
-    @Test
-    @DisplayName("Should create inverted VOI LUT")
-    void shouldCreateInvertedVoiLut() {
-      LutShape lutShape = createLinearLutShape();
-
-      LookupTableCV normal =
-          LookupTableUtils.createVoiLut(lutShape, 100.0, 128.0, 0, 255, 8, false, false);
-      LookupTableCV inverted =
-          LookupTableUtils.createVoiLut(lutShape, 100.0, 128.0, 0, 255, 8, false, true);
+      var normal = LookupTableUtils.createVoiLut(lutShape, 100.0, 128.0, 0, 255, 8, false, false);
+      var inverted = LookupTableUtils.createVoiLut(lutShape, 100.0, 128.0, 0, 255, 8, false, true);
 
       assertNotNull(normal);
       assertNotNull(inverted);
@@ -182,48 +168,91 @@ class LookupTableUtilsTest {
       byte[] normalData = normal.getByteData(0);
       byte[] invertedData = inverted.getByteData(0);
 
-      // Values should be inverted
-      assertEquals(normalData[0] & 0xFF, 255 - (invertedData[0] & 0xFF));
-      assertEquals(normalData[255] & 0xFF, 255 - (invertedData[255] & 0xFF));
+      // Values should be inverted: normal + inverted = max + min
+      for (int i = 0; i < normalData.length; i++) {
+        int normalValue = Byte.toUnsignedInt(normalData[i]);
+        int invertedValue = Byte.toUnsignedInt(invertedData[i]);
+        assertEquals(255, normalValue + invertedValue, 2); // Allow small rounding error
+      }
     }
 
     @Test
-    @DisplayName("Should create sequence-based VOI LUT")
-    void shouldCreateSequenceBasedVoiLut() {
-      // Create a sequence LUT with custom lookup table
-      LookupTableCV sequenceLut = createCustomSequenceLut();
-      LutShape lutShape = createSequenceLutShape(sequenceLut);
+    void should_create_sequence_based_voi_lut() {
+      var sequenceLut = createRealSequenceLut();
+      var lutShape = new LutShape(sequenceLut, "Test Sequence");
 
-      LookupTableCV result =
-          LookupTableUtils.createVoiLut(lutShape, 100.0, 128.0, 0, 255, 8, false, false);
+      var result = LookupTableUtils.createVoiLut(lutShape, 100.0, 128.0, 0, 255, 8, false, false);
 
       assertNotNull(result);
       assertEquals(DataBuffer.TYPE_BYTE, result.getDataType());
 
       byte[] data = result.getByteData(0);
-      assertEquals(256, data.length);
+      assertEquals(STANDARD_8BIT_ENTRIES, data.length);
     }
 
     @ParameterizedTest
     @MethodSource("provideVoiLutParameters")
-    @DisplayName("Should handle various VOI LUT parameter combinations")
-    void shouldHandleVariousVoiLutParameters(
+    void should_handle_various_parameter_combinations(
         double window, double level, int minValue, int maxValue, int bitsStored, boolean signed) {
-      LutShape lutShape = createLinearLutShape();
+      var lutShape = LutShape.LINEAR;
 
-      LookupTableCV result =
+      var result =
           LookupTableUtils.createVoiLut(
               lutShape, window, level, minValue, maxValue, bitsStored, signed, false);
 
       assertNotNull(result);
+      assertValidLutProperties(result, bitsStored);
+    }
 
-      if (bitsStored <= 8) {
-        assertEquals(DataBuffer.TYPE_BYTE, result.getDataType());
-      } else {
-        assertTrue(
-            result.getDataType() == DataBuffer.TYPE_SHORT
-                || result.getDataType() == DataBuffer.TYPE_USHORT);
-      }
+    @ParameterizedTest
+    @CsvSource({
+      "2000.0, 400.0,  0, 4095, 12, false", // CT Bone window
+      "400.0,  50.0,   0, 4095, 12, false", // CT Soft tissue
+      "1600.0, -600.0, 0, 4095, 12, false", // CT Lung window
+      "255.0,  128.0,  0, 255,   8, false", // X-ray window
+      "4096.0, 2048.0, 0, 4095, 12, false" // Full range window
+    })
+    void should_handle_medical_imaging_scenarios(
+        double window, double level, int minValue, int maxValue, int bitsStored, boolean signed) {
+      var lutShape = LutShape.LINEAR;
+
+      var result =
+          LookupTableUtils.createVoiLut(
+              lutShape, window, level, minValue, maxValue, bitsStored, signed, false);
+
+      assertNotNull(result, "Should handle medical imaging window/level values");
+      assertValidLutProperties(result, bitsStored);
+    }
+
+    @Test
+    void should_handle_extreme_bit_depths() {
+      var lutShape = LutShape.LINEAR;
+
+      // Test 1-bit
+      var result1 = LookupTableUtils.createVoiLut(lutShape, 2.0, 1.0, 0, 1, 1, false, false);
+      assertNotNull(result1);
+      assertEquals(DataBuffer.TYPE_BYTE, result1.getDataType());
+
+      // Test 16-bit (maximum)
+      var result16 =
+          LookupTableUtils.createVoiLut(lutShape, 65536.0, 32768.0, 0, 65535, 16, false, false);
+      assertNotNull(result16);
+
+      // Test beyond 16-bit (should be clamped)
+      var result17 =
+          LookupTableUtils.createVoiLut(lutShape, 65536.0, 32768.0, 0, 65535, 20, false, false);
+      assertNotNull(result17);
+    }
+
+    @Test
+    void should_handle_swapped_min_max_values() {
+      var lutShape = LutShape.LINEAR;
+
+      var result = LookupTableUtils.createVoiLut(lutShape, 100.0, 128.0, 255, 0, 8, false, false);
+
+      assertNotNull(result);
+      assertEquals(DataBuffer.TYPE_BYTE, result.getDataType());
+      assertEquals(STANDARD_8BIT_ENTRIES, result.getByteData(0).length);
     }
 
     static Stream<Arguments> provideVoiLutParameters() {
@@ -234,79 +263,58 @@ class LookupTableUtilsTest {
           Arguments.of(2000.0, 0.0, -2048, 2047, 12, true),
           Arguments.of(65536.0, 32768.0, 0, 65535, 16, false),
           Arguments.of(1.0, 128.0, 0, 255, 8, false), // Minimum window width
-          Arguments.of(100.0, 128.0, 100, 50, 8, false) // Swapped min/max
-          );
-    }
-
-    @Test
-    @DisplayName("Should handle extreme bit depths")
-    void shouldHandleExtremeBitDepths() {
-      LutShape lutShape = createLinearLutShape();
-
-      // Test 1-bit
-      LookupTableCV result1 =
-          LookupTableUtils.createVoiLut(lutShape, 2.0, 1.0, 0, 1, 1, false, false);
-      assertNotNull(result1);
-
-      // Test 16-bit (maximum)
-      LookupTableCV result16 =
-          LookupTableUtils.createVoiLut(lutShape, 65536.0, 32768.0, 0, 65535, 16, false, false);
-      assertNotNull(result16);
-
-      // Test beyond 16-bit (should be clamped)
-      LookupTableCV result17 =
-          LookupTableUtils.createVoiLut(lutShape, 65536.0, 32768.0, 0, 65535, 17, false, false);
-      assertNotNull(result17);
+          Arguments.of(CT_BONE_WINDOW, CT_BONE_LEVEL, 0, 4095, 12, false),
+          Arguments.of(CT_SOFT_TISSUE_WINDOW, CT_SOFT_TISSUE_LEVEL, 0, 4095, 12, false));
     }
   }
 
   @Nested
-  @DisplayName("DICOM LUT Creation")
-  class DicomLutCreation {
+  class Dicom_lut_creation {
 
     @Test
-    @DisplayName("Should return empty Optional for null attributes")
-    void shouldReturnEmptyOptionalForNullAttributes() {
-      Optional<LookupTableCV> result = LookupTableUtils.createLut(null);
+    void should_return_empty_optional_for_null_attributes() {
+      var result = LookupTableUtils.createLut(null);
 
       assertTrue(result.isEmpty());
     }
 
     @Test
-    @DisplayName("Should return empty Optional for empty attributes")
-    void shouldReturnEmptyOptionalForEmptyAttributes() {
-      Attributes empty = new Attributes();
+    void should_return_empty_optional_for_empty_attributes() {
+      var empty = new Attributes();
 
-      Optional<LookupTableCV> result = LookupTableUtils.createLut(empty);
+      var result = LookupTableUtils.createLut(empty);
 
       assertTrue(result.isEmpty());
     }
 
     @Test
-    @DisplayName("Should create 8-bit DICOM LUT")
-    void shouldCreate8BitDicomLut() {
+    void should_create_8_bit_dicom_lut() {
       create8BitLutAttributes();
 
-      Optional<LookupTableCV> result = LookupTableUtils.createLut(lutAttributes);
+      var result = LookupTableUtils.createLut(lutAttributes);
 
       assertTrue(result.isPresent());
-      LookupTableCV lut = result.get();
+      var lut = result.get();
       assertEquals(DataBuffer.TYPE_BYTE, lut.getDataType());
       assertEquals(-100, lut.getOffset()); // From descriptor
 
       byte[] data = lut.getByteData(0);
-      assertEquals(256, data.length);
+      assertEquals(STANDARD_8BIT_ENTRIES, data.length);
+
+      // Verify data integrity - should be a gradient
+      for (int i = 1; i < data.length; i++) {
+        assertTrue(Byte.toUnsignedInt(data[i]) >= Byte.toUnsignedInt(data[i - 1]));
+      }
     }
 
     @Test
-    @DisplayName("Should create 16-bit DICOM LUT")
-    void shouldCreate16BitDicomLut() {
+    void should_create_16_bit_dicom_lut() {
       create16BitLutAttributes();
 
-      Optional<LookupTableCV> result = LookupTableUtils.createLut(lutAttributes);
+      var result = LookupTableUtils.createLut(lutAttributes);
 
       assertTrue(result.isPresent());
-      LookupTableCV lut = result.get();
+      var lut = result.get();
       assertTrue(
           lut.getDataType() == DataBuffer.TYPE_SHORT
               || lut.getDataType() == DataBuffer.TYPE_USHORT);
@@ -314,87 +322,100 @@ class LookupTableUtilsTest {
     }
 
     @Test
-    @DisplayName("Should handle large DICOM LUT (65536 entries)")
-    void shouldHandleLargeDicomLut() {
-      createLargeLutAttributes();
+    void should_handle_large_dicom_lut() {
+      var attributes = new Attributes(false);
+      attributes.setInt(Tag.LUTDescriptor, VR.US, 32768, 0, 16);
+      attributes.setBytes(Tag.LUTData, VR.OW, create16BitLutData(32768));
 
-      Optional<LookupTableCV> result = LookupTableUtils.createLut(lutAttributes);
+      var result = LookupTableUtils.createLut(attributes);
 
       assertTrue(result.isPresent());
-      LookupTableCV lut = result.get();
+      var lut = result.get();
 
-      // Large LUTs should use appropriate data type
+      // Large LUTs should use 16-bit data type
       assertTrue(
           lut.getDataType() == DataBuffer.TYPE_SHORT
               || lut.getDataType() == DataBuffer.TYPE_USHORT);
     }
 
     @Test
-    @DisplayName("Should handle big-endian DICOM LUT")
-    void shouldHandleBigEndianDicomLut() {
-      createBigEndianLutAttributes();
+    void should_handle_big_endian_dicom_lut() {
+      var bigEndianAttrs = new Attributes(true);
+      bigEndianAttrs.setInt(Tag.LUTDescriptor, VR.US, STANDARD_8BIT_ENTRIES, 0, 8);
+      bigEndianAttrs.setBytes(Tag.LUTData, VR.OB, createGradient8BitData());
 
-      Optional<LookupTableCV> result = LookupTableUtils.createLut(lutAttributes);
+      var result = LookupTableUtils.createLut(bigEndianAttrs);
 
       assertTrue(result.isPresent());
-      LookupTableCV lut = result.get();
-      assertNotNull(lut);
+      assertNotNull(result.get());
     }
 
     @Test
-    @DisplayName("Should return empty Optional for invalid descriptor")
-    void shouldReturnEmptyOptionalForInvalidDescriptor() {
-      // Create attributes with invalid descriptor
+    void should_return_empty_optional_for_invalid_descriptor() {
       lutAttributes.setInt(
-          Tag.LUTDescriptor, VR.US, new int[] {256, 0}); // Only 2 values instead of 3
+          Tag.LUTDescriptor, VR.US, STANDARD_8BIT_ENTRIES, 0); // Missing third value
 
-      Optional<LookupTableCV> result = LookupTableUtils.createLut(lutAttributes);
-
-      assertTrue(result.isEmpty());
-    }
-
-    @Test
-    @DisplayName("Should return empty Optional for missing LUT data")
-    void shouldReturnEmptyOptionalForMissingLutData() {
-      // Create attributes with descriptor but no data
-      lutAttributes.setInt(Tag.LUTDescriptor, VR.US, new int[] {256, 0, 8});
-
-      Optional<LookupTableCV> result = LookupTableUtils.createLut(lutAttributes);
+      var result = LookupTableUtils.createLut(lutAttributes);
 
       assertTrue(result.isEmpty());
     }
 
     @Test
-    @DisplayName("Should handle 8-bit LUT with 16-bit allocation")
-    void shouldHandle8BitLutWith16BitAllocation() {
+    void should_return_empty_optional_for_missing_lut_data() {
+      lutAttributes.setInt(Tag.LUTDescriptor, VR.US, STANDARD_8BIT_ENTRIES, 0, 8);
+      // No LUT data
+
+      var result = LookupTableUtils.createLut(lutAttributes);
+
+      assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void should_handle_8_bit_lut_with_16_bit_allocation() {
       create8BitLutWith16BitAllocation();
 
-      Optional<LookupTableCV> result = LookupTableUtils.createLut(lutAttributes);
+      var result = LookupTableUtils.createLut(lutAttributes);
 
       assertTrue(result.isPresent());
-      LookupTableCV lut = result.get();
+      var lut = result.get();
       assertEquals(DataBuffer.TYPE_BYTE, lut.getDataType());
+
+      byte[] data = lut.getByteData(0);
+      assertEquals(STANDARD_8BIT_ENTRIES, data.length);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {128, 512, 1024, 2048})
+    void should_handle_various_lut_sizes(int size) {
+      lutAttributes.setInt(Tag.LUTDescriptor, VR.US, size, 0, 8);
+      lutAttributes.setBytes(Tag.LUTData, VR.OB, createGradientData(size));
+
+      var result = LookupTableUtils.createLut(lutAttributes);
+
+      assertTrue(result.isPresent());
+      var lut = result.get();
+      byte[] data = lut.getByteData(0);
+      assertEquals(size, data.length);
     }
   }
 
   @Nested
-  @DisplayName("LUT Descriptor Validation")
-  class LutDescriptorValidation {
+  class Lut_descriptor_validation {
 
     @Test
-    @DisplayName("Should extract valid LUT descriptor")
-    void shouldExtractValidLutDescriptor() {
-      lutAttributes.setInt(Tag.LUTDescriptor, VR.US, 256, -100, 8);
+    void should_extract_valid_lut_descriptor() {
+      lutAttributes.setInt(Tag.LUTDescriptor, VR.US, STANDARD_8BIT_ENTRIES, -100, 8);
 
       int[] descriptor = LookupTableUtils.lutDescriptor(lutAttributes, Tag.LUTDescriptor);
+
       assertArrayEquals(
-          new int[] {256, 65436, 8}, descriptor); // -100 becomes 65436 in unsigned short
+          new int[] {STANDARD_8BIT_ENTRIES, 65436, 8},
+          descriptor); // -100 becomes 65436 in unsigned short
     }
 
     @Test
-    @DisplayName("Should throw exception for missing LUT descriptor")
-    void shouldThrowExceptionForMissingLutDescriptor() {
-      IllegalArgumentException exception =
+    void should_throw_exception_for_missing_lut_descriptor() {
+      var exception =
           assertThrows(
               IllegalArgumentException.class,
               () -> LookupTableUtils.lutDescriptor(lutAttributes, Tag.LUTDescriptor));
@@ -403,11 +424,10 @@ class LookupTableUtilsTest {
     }
 
     @Test
-    @DisplayName("Should throw exception for invalid descriptor length")
-    void shouldThrowExceptionForInvalidDescriptorLength() {
-      lutAttributes.setInt(Tag.LUTDescriptor, VR.US, 256, 0); // Only 2 values
+    void should_throw_exception_for_invalid_descriptor_length() {
+      lutAttributes.setInt(Tag.LUTDescriptor, VR.US, STANDARD_8BIT_ENTRIES, 0); // Only 2 values
 
-      IllegalArgumentException exception =
+      var exception =
           assertThrows(
               IllegalArgumentException.class,
               () -> LookupTableUtils.lutDescriptor(lutAttributes, Tag.LUTDescriptor));
@@ -416,34 +436,34 @@ class LookupTableUtilsTest {
     }
 
     @ParameterizedTest
+    @ValueSource(ints = {8, 16})
+    void should_accept_valid_bit_depths(int bits) {
+      lutAttributes.setInt(Tag.LUTDescriptor, VR.US, STANDARD_8BIT_ENTRIES, 0, bits);
+
+      assertDoesNotThrow(() -> LookupTableUtils.lutDescriptor(lutAttributes, Tag.LUTDescriptor));
+    }
+
+    @ParameterizedTest
     @ValueSource(ints = {1, 2, 4, 9, 10, 12, 15, 17, 32})
-    @DisplayName("Should throw exception for invalid bit depths")
-    void shouldThrowExceptionForInvalidBitDepths(int bits) {
-      lutAttributes.setInt(Tag.LUTDescriptor, VR.US, new int[] {256, 0, bits});
+    void should_throw_exception_for_invalid_bit_depths(int bits) {
+      lutAttributes.setInt(Tag.LUTDescriptor, VR.US, STANDARD_8BIT_ENTRIES, 0, bits);
 
-      if (bits != 8 && bits != 16) {
-        IllegalArgumentException exception =
-            assertThrows(
-                IllegalArgumentException.class,
-                () -> LookupTableUtils.lutDescriptor(lutAttributes, Tag.LUTDescriptor));
+      var exception =
+          assertThrows(
+              IllegalArgumentException.class,
+              () -> LookupTableUtils.lutDescriptor(lutAttributes, Tag.LUTDescriptor));
 
-        assertTrue(exception.getMessage().contains("Illegal LUT Descriptor: bits="));
-      } else {
-        // Valid bit depths should not throw
-        assertDoesNotThrow(() -> LookupTableUtils.lutDescriptor(lutAttributes, Tag.LUTDescriptor));
-      }
+      assertTrue(exception.getMessage().contains("Illegal LUT Descriptor: bits="));
     }
   }
 
   @Nested
-  @DisplayName("LUT Data Extraction")
-  class LutDataExtraction {
+  class Lut_data_extraction {
 
     @Test
-    @DisplayName("Should extract 8-bit LUT data")
-    void shouldExtract8BitLutData() {
-      int[] descriptor = {256, 0, 8};
-      byte[] expectedData = create8BitLutData();
+    void should_extract_8_bit_lut_data() {
+      int[] descriptor = {STANDARD_8BIT_ENTRIES, 0, 8};
+      byte[] expectedData = createGradient8BitData();
       lutAttributes.setBytes(Tag.LUTData, VR.OB, expectedData);
 
       byte[] result = LookupTableUtils.lutData(lutAttributes, descriptor, Tag.LUTData, 0);
@@ -452,53 +472,50 @@ class LookupTableUtilsTest {
     }
 
     @Test
-    @DisplayName("Should extract 16-bit LUT data")
-    void shouldExtract16BitLutData() {
-      int[] descriptor = {256, 0, 16};
-      byte[] lutData = create16BitLutData();
+    void should_extract_16_bit_lut_data() {
+      int[] descriptor = {STANDARD_8BIT_ENTRIES, 0, 16};
+      byte[] lutData = create16BitLutData(STANDARD_8BIT_ENTRIES);
       lutAttributes.setBytes(Tag.LUTData, VR.OW, lutData);
 
       byte[] result = LookupTableUtils.lutData(lutAttributes, descriptor, Tag.LUTData, 0);
 
       assertNotNull(result);
-      assertEquals(lutData.length / 2, result.length); // lutData entries are 2 bytes each
+      assertEquals(lutData.length / 2, result.length);
     }
 
     @Test
-    @DisplayName("Should handle zero-length descriptor for 65536 entries")
-    void shouldHandleZeroLengthDescriptorFor65536Entries() {
+    void should_handle_zero_length_descriptor_for_65536_entries() {
       int[] descriptor = {0, 0, 16}; // 0 means 65536 entries
-      byte[] lutData = createLargeLutData();
+      byte[] lutData = create16BitLutData(LARGE_LUT_ENTRIES);
       lutAttributes.setBytes(Tag.LUTData, VR.OW, lutData);
 
       byte[] result = LookupTableUtils.lutData(lutAttributes, descriptor, Tag.LUTData, 0);
 
       assertNotNull(result);
+      assertTrue(result.length > 0);
     }
 
     @Test
-    @DisplayName("Should handle big-endian LUT data")
-    void shouldHandleBigEndianLutData() {
-      int[] descriptor = {256, 0, 8};
-      byte[] lutData = create8BitLutData();
+    void should_handle_big_endian_lut_data() {
+      int[] descriptor = {STANDARD_8BIT_ENTRIES, 0, 8};
+      byte[] lutData = createGradient8BitData();
 
-      // Set big-endian flag
-      Attributes bigEndianAttrs = new Attributes(true); // big-endian
+      var bigEndianAttrs = new Attributes(true);
       bigEndianAttrs.setBytes(Tag.LUTData, VR.OB, lutData);
 
       byte[] result = LookupTableUtils.lutData(bigEndianAttrs, descriptor, Tag.LUTData, 0);
 
       assertNotNull(result);
+      assertEquals(lutData.length, result.length);
     }
 
     @Test
-    @DisplayName("Should throw exception for data length mismatch")
-    void shouldThrowExceptionForDataLengthMismatch() {
-      int[] descriptor = {256, 0, 8};
+    void should_throw_exception_for_data_length_mismatch() {
+      int[] descriptor = {STANDARD_8BIT_ENTRIES, 0, 8};
       byte[] incorrectData = new byte[100]; // Wrong length
       lutAttributes.setBytes(Tag.LUTData, VR.OB, incorrectData);
 
-      IllegalArgumentException exception =
+      var exception =
           assertThrows(
               IllegalArgumentException.class,
               () -> LookupTableUtils.lutData(lutAttributes, descriptor, Tag.LUTData, 0));
@@ -507,10 +524,9 @@ class LookupTableUtilsTest {
     }
 
     @Test
-    @DisplayName("Should handle segmented LUT data")
-    void shouldHandleSegmentedLutData() {
-      int[] descriptor = {256, 0, 16};
-      int[] segmentedData = createSegmentedLutData();
+    void should_handle_segmented_lut_data() {
+      int[] descriptor = {STANDARD_8BIT_ENTRIES, 0, 16};
+      int[] segmentedData = createValidSegmentedLutData();
       lutAttributes.setInt(Tag.SegmentedRedPaletteColorLookupTableData, VR.OW, segmentedData);
 
       byte[] result =
@@ -518,192 +534,228 @@ class LookupTableUtilsTest {
               lutAttributes, descriptor, Tag.LUTData, Tag.SegmentedRedPaletteColorLookupTableData);
 
       assertNotNull(result);
-      assertEquals(256, result.length);
+      assertEquals(STANDARD_8BIT_ENTRIES, result.length);
     }
 
     @Test
-    @DisplayName("Should throw exception for missing LUT data")
-    void shouldThrowExceptionForMissingLutData() {
-      int[] descriptor = {256, 0, 8};
+    void should_throw_exception_for_missing_lut_data() {
+      int[] descriptor = {STANDARD_8BIT_ENTRIES, 0, 8};
 
-      IllegalArgumentException exception =
+      var exception =
           assertThrows(
               IllegalArgumentException.class,
               () -> LookupTableUtils.lutData(lutAttributes, descriptor, Tag.LUTData, 0));
 
       assertEquals("Missing LUT Data!", exception.getMessage());
     }
+
+    @Test
+    void should_throw_exception_for_segmented_8_bit_data() {
+      int[] descriptor = {STANDARD_8BIT_ENTRIES, 0, 8}; // 8-bit
+      int[] segmentedData = createValidSegmentedLutData();
+      lutAttributes.setInt(Tag.SegmentedRedPaletteColorLookupTableData, VR.OW, segmentedData);
+
+      var exception =
+          assertThrows(
+              IllegalArgumentException.class,
+              () ->
+                  LookupTableUtils.lutData(
+                      lutAttributes,
+                      descriptor,
+                      Tag.LUTData,
+                      Tag.SegmentedRedPaletteColorLookupTableData));
+
+      assertTrue(exception.getMessage().contains("Segmented LUT Data with LUT Descriptor: bits=8"));
+    }
   }
 
   @Nested
-  @DisplayName("Integration Tests")
-  class IntegrationTests {
+  class Integration_tests {
 
     @Test
-    @DisplayName("Should work with real DICOM modality LUT")
-    void shouldWorkWithRealDicomModalityLut() {
-      Attributes modalityLutAttrs = LutTestDataBuilder.createContrastLut12Bit();
-      Optional<LookupTableCV> result = LookupTableUtils.createLut(modalityLutAttrs);
+    void should_work_with_ct_bone_window_scenario() {
+      var lutShape = LutShape.LINEAR;
+
+      var result =
+          LookupTableUtils.createVoiLut(
+              lutShape, CT_BONE_WINDOW, CT_BONE_LEVEL, -1024, 3071, 12, false, false);
+
+      assertNotNull(result);
+      assertEquals(DataBuffer.TYPE_USHORT, result.getDataType());
+
+      short[] data = result.getShortData(0);
+      assertEquals(4096, data.length); // -1024 to 3071 = 4096 values
+
+      // Verify windowing behavior
+      assertTrue(Short.toUnsignedInt(data[0]) <= Short.toUnsignedInt(data[data.length - 1]));
+    }
+
+    @Test
+    void should_handle_complete_dicom_workflow() {
+      // Create realistic DICOM LUT attributes
+      var dicomLut = createRealisticDicomLut();
+
+      var result = LookupTableUtils.createLut(dicomLut);
 
       assertTrue(result.isPresent());
-      LookupTableCV lut = result.get();
+      var lut = result.get();
       assertNotNull(lut);
     }
 
     @Test
-    @DisplayName("Should handle VOI LUT with custom sequence")
-    void shouldHandleVoiLutWithCustomSequence() {
-      // Create a complex sequence-based LUT
-      LookupTableCV customLut = createComplexSequenceLut();
-      LutShape lutShape = createSequenceLutShape(customLut);
+    void should_handle_sequence_based_voi_lut_with_interpolation() {
+      var customLut = createComplexSequenceLut();
+      var lutShape = new LutShape(customLut, "Complex Sine Wave");
 
-      LookupTableCV result =
-          LookupTableUtils.createVoiLut(lutShape, 200.0, 100.0, 0, 511, 9, false, false);
+      var result = LookupTableUtils.createVoiLut(lutShape, 200.0, 100.0, 0, 511, 9, false, false);
 
       assertNotNull(result);
       assertEquals(DataBuffer.TYPE_USHORT, result.getDataType());
+
+      short[] data = result.getShortData(0);
+      assertEquals(512, data.length);
+    }
+
+    @Test
+    void should_demonstrate_medical_imaging_presets() {
+      var testCases =
+          List.of(
+              new MedicalPreset("CT Bone", CT_BONE_WINDOW, CT_BONE_LEVEL, 12),
+              new MedicalPreset("CT Soft Tissue", CT_SOFT_TISSUE_WINDOW, CT_SOFT_TISSUE_LEVEL, 12),
+              new MedicalPreset("CT Lung", 1600.0, -600.0, 12),
+              new MedicalPreset("X-Ray", 255.0, 128.0, 8));
+
+      for (var preset : testCases) {
+        var result =
+            LookupTableUtils.createVoiLut(
+                LutShape.LINEAR,
+                preset.window(),
+                preset.level(),
+                0,
+                (1 << preset.bitsStored()) - 1,
+                preset.bitsStored(),
+                false,
+                false);
+
+        assertNotNull(result, "Failed for preset: " + preset.name());
+        assertValidLutProperties(result, preset.bitsStored());
+      }
     }
   }
 
-  // Helper methods to create realistic test data
+  // Helper methods for creating realistic test data
 
-  private LutShape createLinearLutShape() {
-    return LutShape.LINEAR;
-  }
+  private void assertValidLutProperties(LookupTableCV lut, int bitsStored) {
+    assertNotNull(lut);
 
-  private LutShape createSigmoidLutShape() {
-    return LutShape.SIGMOID;
-  }
-
-  private LutShape createLogarithmicLutShape() {
-    return LutShape.LOG;
-  }
-
-  private LutShape createExponentialLutShape() {
-    return LutShape.LOG_INV;
-  }
-
-  private LutShape createSequenceLutShape(LookupTableCV sequenceLut) {
-    return new LutShape(sequenceLut, "Custom shape");
-  }
-
-  private LookupTableCV createCustomSequenceLut() {
-    // Create a simple ramp sequence
-    byte[] sequenceData = new byte[256];
-    for (int i = 0; i < sequenceData.length; i++) {
-      sequenceData[i] = (byte) i;
+    if (bitsStored <= 8) {
+      assertEquals(DataBuffer.TYPE_BYTE, lut.getDataType());
+      byte[] data = lut.getByteData(0);
+      assertNotNull(data);
+      assertTrue(data.length > 0);
+    } else {
+      assertTrue(
+          lut.getDataType() == DataBuffer.TYPE_SHORT
+              || lut.getDataType() == DataBuffer.TYPE_USHORT);
+      short[] data = lut.getShortData(0);
+      assertNotNull(data);
+      assertTrue(data.length > 0);
     }
+  }
+
+  private LookupTableCV createRealSequenceLut() {
+    byte[] sequenceData = createGradientData(STANDARD_8BIT_ENTRIES);
     return new LookupTableCV(sequenceData, 0);
   }
 
   private LookupTableCV createComplexSequenceLut() {
-    // Create a more complex sequence with 16-bit data
     short[] sequenceData = new short[512];
     for (int i = 0; i < sequenceData.length; i++) {
-      // Create a sine wave pattern
+      // Create a sine wave pattern scaled to 16-bit range
       sequenceData[i] = (short) (32767 * Math.sin(2 * Math.PI * i / sequenceData.length));
     }
     return new LookupTableCV(sequenceData, 0, true);
   }
 
   private void create8BitLutAttributes() {
-    // Create descriptor: 256 entries, offset -100, 8 bits
-    lutAttributes.setInt(Tag.LUTDescriptor, VR.US, 256, -100, 8);
-
-    // Create LUT data: simple ramp
-    byte[] lutData = create8BitLutData();
-    lutAttributes.setBytes(Tag.LUTData, VR.OB, lutData);
+    lutAttributes.setInt(Tag.LUTDescriptor, VR.US, STANDARD_8BIT_ENTRIES, -100, 8);
+    lutAttributes.setBytes(Tag.LUTData, VR.OB, createGradient8BitData());
   }
 
   private void create16BitLutAttributes() {
-    // Create descriptor: 256 entries, offset 0, 16 bits
-    lutAttributes.setInt(Tag.LUTDescriptor, VR.US, 256, 0, 16);
-
-    // Create LUT data: 16-bit values
-    byte[] lutData = create16BitLutData();
-    lutAttributes.setBytes(Tag.LUTData, VR.OW, lutData);
-  }
-
-  private void createLargeLutAttributes() {
-    // Create descriptor: 65536 entries (represented as 0), offset 0, 16 bits
-    lutAttributes.setInt(Tag.LUTDescriptor, VR.US, 0, 0, 16);
-
-    // Create large LUT data
-    byte[] lutData = createLargeLutData();
-    lutAttributes.setBytes(Tag.LUTData, VR.OW, lutData);
-  }
-
-  private void createBigEndianLutAttributes() {
-    Attributes bigEndianAttrs = new Attributes(true); // Create big-endian attributes
-
-    bigEndianAttrs.setInt(Tag.LUTDescriptor, VR.US, 256, 0, 8);
-    byte[] lutData = create8BitLutData();
-    bigEndianAttrs.setBytes(Tag.LUTData, VR.OB, lutData);
-
-    // Copy to our test attributes
-    lutAttributes.addAll(bigEndianAttrs);
+    lutAttributes.setInt(Tag.LUTDescriptor, VR.US, STANDARD_8BIT_ENTRIES, 0, 16);
+    lutAttributes.setBytes(Tag.LUTData, VR.OW, create16BitLutData(STANDARD_8BIT_ENTRIES));
   }
 
   private void create8BitLutWith16BitAllocation() {
-    // Create descriptor for 8-bit LUT
-    lutAttributes.setInt(Tag.LUTDescriptor, VR.US, 256, 0, 8);
+    lutAttributes.setInt(Tag.LUTDescriptor, VR.US, STANDARD_8BIT_ENTRIES, 0, 8);
 
-    // Create data with 16-bit allocation (512 bytes for 256 entries)
-    byte[] lutData = new byte[512];
-    for (int i = 0; i < 256; i++) {
-      // Store 8-bit values in 16-bit slots (little-endian)
+    byte[] lutData = new byte[512]; // 16-bit allocation for 8-bit data
+    for (int i = 0; i < STANDARD_8BIT_ENTRIES; i++) {
       lutData[i * 2] = (byte) i; // Low byte
       lutData[i * 2 + 1] = 0; // High byte (padding)
     }
     lutAttributes.setBytes(Tag.LUTData, VR.OW, lutData);
   }
 
-  private byte[] create8BitLutData() {
-    byte[] data = new byte[256];
-    for (int i = 0; i < data.length; i++) {
-      data[i] = (byte) i;
+  private byte[] createGradient8BitData() {
+    return createGradientData(STANDARD_8BIT_ENTRIES);
+  }
+
+  private byte[] createGradientData(int size) {
+    byte[] data = new byte[size];
+    for (int i = 0; i < size; i++) {
+      data[i] = (byte) (i * 255 / (size - 1));
     }
     return data;
   }
 
-  private byte[] create16BitLutData() {
-    byte[] data = new byte[512]; // 256 entries * 2 bytes each
-    for (int i = 0; i < 256; i++) {
-      // Store as little-endian 16-bit values
-      int value = i * 257; // Scale 8-bit to 16-bit range
+  private byte[] create16BitLutData(int entries) {
+    byte[] data = new byte[entries * 2];
+    for (int i = 0; i < entries; i++) {
+      int value = i * 65535 / (entries - 1); // Scale to 16-bit range
       data[i * 2] = (byte) (value & 0xFF); // Low byte
       data[i * 2 + 1] = (byte) ((value >> 8) & 0xFF); // High byte
     }
     return data;
   }
 
-  private byte[] createLargeLutData() {
-    // Create data for 65536 entries
-    byte[] data = new byte[65536 * 2];
-    for (int i = 0; i < 65536; i++) {
-      data[i] = (byte) (i % 256);
-      data[i + 1] = (byte) ((i >> 8) & 0xFF); // High byte
+  private int[] createValidSegmentedLutData() {
+    // Create simple valid segmented LUT data according to DICOM standard
+    // Total should generate exactly 256 values for the descriptor {256, 0, 16}
+
+    var data = new ArrayList<Integer>();
+
+    // First discrete segment: 128 values (0-127)
+    data.add(0); // opcode: discrete
+    data.add(128); // count: 128 values follow
+    for (int i = 0; i < 128; i++) {
+      data.add(i * 2); // Values 0, 2, 4, 6, ..., 254
     }
-    return data;
+
+    // Linear segment: 128 values interpolating from 254 to 65535
+    data.add(1); // opcode: linear
+    data.add(128); // count: 128 interpolated values
+    data.add(65535); // end value
+
+    return data.stream().mapToInt(Integer::intValue).toArray();
   }
 
-  private int[] createSegmentedLutData() {
-    // Create simple segmented LUT data according to DICOM standard
-    // Format: [opcode, length, data...]
-    return new int[] {
-      0,
-      4,
-      0,
-      64,
-      128,
-      255, // Discrete segment: 4 values
-      1,
-      4,
-      128, // Linear segment: 4 values from 128 to next value
-      0,
-      2,
-      200,
-      150 // Another discrete segment: 2 values
-    };
+  private Attributes createRealisticDicomLut() {
+    var attrs = new Attributes();
+    attrs.setInt(Tag.LUTDescriptor, VR.US, 1024, 0, 12);
+
+    // Create realistic 12-bit LUT data
+    byte[] lutData = new byte[1024 * 2];
+    for (int i = 0; i < 1024; i++) {
+      int value = (int) (4095 * (1.0 - Math.exp(-i / 256.0))); // Exponential curve
+      lutData[i * 2] = (byte) (value & 0xFF);
+      lutData[i * 2 + 1] = (byte) ((value >> 8) & 0xFF);
+    }
+    attrs.setBytes(Tag.LUTData, VR.OW, lutData);
+
+    return attrs;
   }
+
+  private record MedicalPreset(String name, double window, double level, int bitsStored) {}
 }

@@ -36,7 +36,7 @@ public class ServiceUtil {
 
   private ServiceUtil() {}
 
-  public static final ThreadFactory getThreadFactory(String name) {
+  public static ThreadFactory getThreadFactory(String name) {
     return r -> {
       Thread t = Executors.defaultThreadFactory().newThread(r);
       t.setName(name + "-" + t.getName());

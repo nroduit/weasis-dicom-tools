@@ -40,7 +40,6 @@ import org.weasis.core.util.StringUtil;
  */
 public class DicomTranscodeParam {
 
-  // Constants for mask handling
   private static final String WILDCARD_MASK_KEY = "*";
 
   private final DicomImageReadParam readParam;
@@ -48,7 +47,6 @@ public class DicomTranscodeParam {
   private final String outputTsuid;
   private final Map<String, MaskArea> maskMap;
 
-  // Configuration flags
   private boolean outputFmi;
 
   /**
@@ -73,21 +71,18 @@ public class DicomTranscodeParam {
     this.outputTsuid = validateTransferSyntax(dstTsuid);
     this.readParam = readParam != null ? readParam : new DicomImageReadParam();
     this.maskMap = new HashMap<>();
-    this.writeJpegParam = initializeWriteParam(dstTsuid);
+    this.writeJpegParam =
+        DicomOutputData.isNativeSyntax(dstTsuid)
+            ? null
+            : DicomJpegWriteParam.buildDicomImageWriteParam(dstTsuid);
     this.outputFmi = false;
   }
 
-  private String validateTransferSyntax(String tsuid) {
+  private static String validateTransferSyntax(String tsuid) {
     if (!StringUtil.hasText(tsuid)) {
       throw new IllegalArgumentException("Transfer syntax UID cannot be null or empty");
     }
     return tsuid;
-  }
-
-  private DicomJpegWriteParam initializeWriteParam(String tsuid) {
-    return DicomOutputData.isNativeSyntax(tsuid)
-        ? null
-        : DicomJpegWriteParam.buildDicomImageWriteParam(tsuid);
   }
 
   /**
@@ -144,7 +139,7 @@ public class DicomTranscodeParam {
    * overwritten.
    *
    * @param maskMap the map of station names to mask areas to add
-   * @throws IllegalArgumentException if maskMap is null
+   * @throws NullPointerException if maskMap is null
    */
   public void addMaskMap(Map<? extends String, ? extends MaskArea> maskMap) {
     Objects.requireNonNull(maskMap, "Mask map cannot be null");
@@ -166,10 +161,8 @@ public class DicomTranscodeParam {
    * @return the mask area for the key, wildcard mask, or null if not found
    */
   public MaskArea getMask(String key) {
-    if (key == null) {
-      return maskMap.get(WILDCARD_MASK_KEY);
-    }
-    return Optional.ofNullable(maskMap.get(key)).orElse(maskMap.get(WILDCARD_MASK_KEY));
+    var exactKey = Objects.requireNonNullElse(key, WILDCARD_MASK_KEY);
+    return Optional.ofNullable(maskMap.get(exactKey)).orElse(maskMap.get(WILDCARD_MASK_KEY));
   }
 
   /**
@@ -179,27 +172,24 @@ public class DicomTranscodeParam {
    * @param maskArea the mask area to apply, or null to remove the mask
    */
   public void addMask(String stationName, MaskArea maskArea) {
-    String key = stationName != null ? stationName : WILDCARD_MASK_KEY;
+    var key = Objects.requireNonNullElse(stationName, WILDCARD_MASK_KEY);
     if (maskArea != null) {
-      this.maskMap.put(key, maskArea);
+      maskMap.put(key, maskArea);
     } else {
-      this.maskMap.remove(key);
+      maskMap.remove(key);
     }
   }
 
   /**
-   * Gets a copy of the current mask map. Modifications to the returned map will not affect this
-   * instance.
+   * Gets a copy of the current mask map.
    *
    * @return a new map containing all current masks
    */
   public Map<String, MaskArea> getMaskMap() {
-    return new HashMap<>(maskMap);
+    return Map.copyOf(maskMap);
   }
 
   /**
-   * Checks if the transcoding configuration supports JPEG compression.
-   *
    * @return true if JPEG parameters are available (compressed syntax), false for native syntax
    */
   public boolean isCompressionEnabled() {
@@ -207,8 +197,6 @@ public class DicomTranscodeParam {
   }
 
   /**
-   * Checks if any image masks are configured.
-   *
    * @return true if at least one mask is configured, false otherwise
    */
   public boolean hasMasks() {
@@ -227,14 +215,11 @@ public class DicomTranscodeParam {
    * @return true if a mask was removed, false if no mask existed
    */
   public boolean removeMask(String stationName) {
-    String key = stationName != null ? stationName : WILDCARD_MASK_KEY;
+    var key = Objects.requireNonNullElse(stationName, WILDCARD_MASK_KEY);
     return maskMap.remove(key) != null;
   }
 
   /**
-   * Checks if a mask exists for the specified station (including wildcard).
-   *
-   * @param stationName the station name to check
    * @return true if a specific or wildcard mask exists, false otherwise
    */
   public boolean hasMask(String stationName) {
@@ -242,13 +227,12 @@ public class DicomTranscodeParam {
   }
 
   /**
-   * Creates a copy of this transcoding parameter configuration. The mask map is deep-copied to
-   * ensure independence.
+   * Creates a copy of this transcoding parameter configuration.
    *
    * @return a new DicomTranscodeParam instance with the same settings
    */
   public DicomTranscodeParam copy() {
-    DicomTranscodeParam copy = new DicomTranscodeParam(readParam, outputTsuid);
+    var copy = new DicomTranscodeParam(readParam, outputTsuid);
     copy.outputFmi = this.outputFmi;
     copy.maskMap.putAll(this.maskMap);
     return copy;

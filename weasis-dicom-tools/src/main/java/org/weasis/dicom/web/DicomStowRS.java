@@ -341,7 +341,7 @@ public class DicomStowRS implements AutoCloseable {
         try (DicomOutputStream dos = new DicomOutputStream(out, imgData.getTsuid())) {
           dos.writeFileMetaInformation(dataSet.createFileMetaInformation(imgData.getTsuid()));
           if (DicomOutputData.isNativeSyntax(imgData.getTsuid())) {
-            imgData.writRawImageData(dos, dataSet);
+            imgData.writeRawImageData(dos, dataSet);
           } else {
             int[] jpegWriteParams =
                 imgData.adaptTagsToCompressedImage(

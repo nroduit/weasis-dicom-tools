@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author Nicolas Roduit
  */
-public class DicomAttributeUtils {
+public final class DicomAttributeUtils {
   private static final Logger LOGGER = LoggerFactory.getLogger(DicomAttributeUtils.class);
 
   private DicomAttributeUtils() {
@@ -42,26 +42,7 @@ public class DicomAttributeUtils {
    * @return the modality string, or null if not found in the hierarchy
    */
   public static String getModality(Attributes dcm) {
-    if (dcm == null) {
-      return null;
-    }
-
-    String modality = dcm.getString(Tag.Modality);
-    if (modality != null) {
-      return modality;
-    }
-
-    // Search in parent hierarchy
-    Attributes parent = dcm.getParent();
-    while (parent != null) {
-      modality = parent.getString(Tag.Modality);
-      if (modality != null) {
-        return modality;
-      }
-      parent = parent.getParent();
-    }
-
-    return null;
+    return findInHierarchy(dcm, Tag.Modality);
   }
 
   /**
@@ -89,11 +70,21 @@ public class DicomAttributeUtils {
     }
 
     try {
-      byte[] data = dicom.getBytes(tag);
-      return Optional.ofNullable(data);
+      return Optional.ofNullable(dicom.getBytes(tag)).filter(data -> data.length > 0);
     } catch (IOException e) {
       LOGGER.error("Error extracting byte data from {}", TagUtils.toString(tag), e);
       return Optional.empty();
     }
+  }
+
+  /** Finds a string value in the DICOM hierarchy starting from the given attributes. */
+  private static String findInHierarchy(Attributes attributes, int tag) {
+    for (var current = attributes; current != null; current = current.getParent()) {
+      var value = current.getString(tag);
+      if (value != null && !value.isEmpty()) {
+        return value;
+      }
+    }
+    return null;
   }
 }

@@ -10,7 +10,6 @@
 package org.dcm4che3.img.stream;
 
 import java.io.IOException;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
@@ -36,7 +35,7 @@ public class DicomFileInputStream extends DicomInputStream implements ImageReade
   private static final Logger LOGGER = LoggerFactory.getLogger(DicomFileInputStream.class);
 
   private final Path path;
-  private DicomMetaData metadata;
+  private volatile DicomMetaData metadata;
 
   /**
    * Constructs a new DICOM file input stream from the specified file path.
@@ -44,7 +43,6 @@ public class DicomFileInputStream extends DicomInputStream implements ImageReade
    * @param path the path to the DICOM file, must not be null and must exist
    * @throws IOException if an I/O error occurs while opening the file
    * @throws IllegalArgumentException if the path is null
-   * @throws java.nio.file.NoSuchFileException if the file does not exist
    */
   public DicomFileInputStream(Path path) throws IOException {
     super(Files.newInputStream(Objects.requireNonNull(path, "Path cannot be null")));
@@ -54,14 +52,12 @@ public class DicomFileInputStream extends DicomInputStream implements ImageReade
   /**
    * Constructs a new DICOM file input stream from the specified file path string.
    *
-   * @param path the string representation of the path to the DICOM file, must not be null
+   * @param pathString the string representation of the path to the DICOM file, must not be null
    * @throws IOException if an I/O error occurs while opening the file
    * @throws IllegalArgumentException if the path is null or empty
-   * @throws java.nio.file.InvalidPathException if the path string is invalid
-   * @throws java.nio.file.NoSuchFileException if the file does not exist
    */
-  public DicomFileInputStream(String path) throws IOException {
-    this(createPath(path));
+  public DicomFileInputStream(String pathString) throws IOException {
+    this(createPath(pathString));
   }
 
   /**
@@ -76,19 +72,19 @@ public class DicomFileInputStream extends DicomInputStream implements ImageReade
   /**
    * Returns the DICOM metadata for this file, creating and caching it if necessary.
    *
-   * <p>The metadata is lazily loaded and cached for subsequent calls. This method is thread-safe
-   * through the use of volatile and double-checked locking pattern.
+   * <p>The metadata is lazily loaded and cached for subsequent calls using double-checked locking.
    *
    * @return the DICOM metadata, never null
    * @throws IOException if an I/O error occurs while reading the metadata
    */
   public DicomMetaData getMetadata() throws IOException {
-    DicomMetaData result = metadata;
+    var result = metadata;
     if (result == null) {
       synchronized (this) {
         result = metadata;
         if (result == null) {
-          metadata = result = new DicomMetaData(this);
+          result = new DicomMetaData(this);
+          metadata = result;
         }
       }
     }
@@ -98,8 +94,7 @@ public class DicomFileInputStream extends DicomInputStream implements ImageReade
   /**
    * Returns the image descriptor for this DICOM file.
    *
-   * <p>This method attempts to retrieve the image descriptor from the metadata. If metadata cannot
-   * be read due to I/O errors, null is returned.
+   * <p>If metadata cannot be read due to I/O errors, null is returned.
    *
    * @return the image descriptor, or null if metadata cannot be read
    */
@@ -108,17 +103,16 @@ public class DicomFileInputStream extends DicomInputStream implements ImageReade
     try {
       return getMetadata().getImageDescriptor();
     } catch (IOException e) {
-      LOGGER.error("Error reading image descriptor", e);
+      LOGGER.error("Error reading image descriptor from path: {}", path, e);
       return null;
     }
   }
 
-  /** Creates a Path from a string, validating input. */
   private static Path createPath(String pathString) {
     if (!StringUtil.hasText(pathString)) {
       throw new IllegalArgumentException("Path string cannot be null or empty");
     }
-    return FileSystems.getDefault().getPath(pathString);
+    return Path.of(pathString);
   }
 
   @Override

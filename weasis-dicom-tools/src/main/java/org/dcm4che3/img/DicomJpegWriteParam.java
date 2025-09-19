@@ -29,6 +29,8 @@ public class DicomJpegWriteParam {
   private Rectangle sourceRegion;
   private int compressionRatioFactor;
   private final String transferSyntaxUid;
+  private int jxlEffort;
+  private int jxlDecodingSpeed;
 
   DicomJpegWriteParam(TransferSyntaxType type, String transferSyntaxUid) {
     this.type = type;
@@ -40,6 +42,8 @@ public class DicomJpegWriteParam {
     this.losslessCompression = true;
     this.sourceRegion = null;
     this.compressionRatioFactor = 0;
+    this.jxlEffort = 7;
+    this.jxlDecodingSpeed = 0;
   }
 
   public String getTransferSyntaxUid() {
@@ -70,6 +74,26 @@ public class DicomJpegWriteParam {
     if (nearLosslessError < 0)
       throw new IllegalArgumentException("nearLossless invalid value: " + nearLosslessError);
     this.nearLosslessError = nearLosslessError;
+  }
+
+  public int getJxlEffort() {
+    return jxlEffort;
+  }
+
+  public int getJxlDecodingSpeed() {
+    return jxlDecodingSpeed;
+  }
+
+  public void setJxlEffort(int jxlEffort) {
+    if (jxlEffort < 1 || jxlEffort > 9)
+      throw new IllegalArgumentException("jxlEffort invalid value: " + jxlEffort);
+    this.jxlEffort = jxlEffort;
+  }
+
+  public void setJxlDecodingSpeed(int jxlDecodingSpeed) {
+    if (jxlDecodingSpeed < 0 || jxlDecodingSpeed > 7)
+      throw new IllegalArgumentException("jxlDecodingSpeed invalid value: " + jxlDecodingSpeed);
+    this.jxlDecodingSpeed = jxlDecodingSpeed;
   }
 
   public int getCompressionQuality() {

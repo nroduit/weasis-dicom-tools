@@ -15,7 +15,7 @@
     <sha1/>
 
     <dcm4che.version>5.34.0</dcm4che.version>
-    <weasis.core.img.version>4.11.0.1</weasis.core.img.version>
+    <weasis.core.img.version>4.12.1</weasis.core.img.version>
   </properties>
 
   <modules>
@@ -46,7 +46,7 @@
     </repository>
     <repository>
       <id>mvn-repo-master</id>
-      <url>https://raw.github.com/nroduit/mvn-repo/master/</url>
+      <url>https://raw.githubusercontent.com/nroduit/mvn-repo/master/</url>
       <snapshots>
         <enabled>false</enabled>
       </snapshots>

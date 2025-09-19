@@ -131,7 +131,6 @@ public class DicomImageReader extends ImageReader {
 
   private static final Map<String, Boolean> series2FloatImages = new ConcurrentHashMap<>();
 
-  private static boolean allowFloatImageConversion = false;
   private final List<Integer> fragmentsPositions = new ArrayList<>();
 
   private BytesWithImageDescriptor bdis;
@@ -430,6 +429,7 @@ public class DicomImageReader extends ImageReader {
     }
 
     String seriesUID = desc.getSeriesInstanceUID();
+    boolean allowFloatImageConversion = param != null && param.isAllowFloatImageConversion();
     if (allowFloatImageConversion && StringUtil.hasText(seriesUID)) {
       Boolean isFloatPixelData = series2FloatImages.get(seriesUID);
       if (isFloatPixelData != Boolean.FALSE) {
@@ -787,7 +787,10 @@ public class DicomImageReader extends ImageReader {
               UID.JPEG2000Lossless,
               UID.JPEG2000,
               UID.JPEG2000MCLossless,
-              UID.JPEG2000MC ->
+              UID.JPEG2000MC,
+              UID.JPEGXL,
+              UID.JPEGXLLossless,
+              UID.JPEGXLJPEGRecompression ->
           true;
       default -> false;
     };
@@ -803,18 +806,5 @@ public class DicomImageReader extends ImageReader {
 
   public static void removeSeriesToFloatImages(String seriesInstanceUID) {
     series2FloatImages.remove(seriesInstanceUID);
-  }
-
-  /**
-   * Allow to convert images into float images when the result of the Modality LUT is outside the
-   * range of original image type.
-   *
-   * <p>Note: by default, the conversion is not allowed. If the conversion is set to true, <code>
-   * removeSeriesToFloatImages()</code> must be called when the series is disposed.
-   *
-   * @param allowFloatImageConversion true to allow conversion
-   */
-  public static void setAllowFloatImageConversion(boolean allowFloatImageConversion) {
-    DicomImageReader.allowFloatImageConversion = allowFloatImageConversion;
   }
 }

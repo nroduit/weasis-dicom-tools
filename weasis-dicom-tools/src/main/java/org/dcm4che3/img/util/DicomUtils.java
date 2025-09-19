@@ -75,6 +75,13 @@ public class DicomUtils {
     };
   }
 
+  public static boolean isJpegXL(String uid) {
+    return switch (uid) {
+      case UID.JPEG2000Lossless, UID.JPEGXLJPEGRecompression, UID.JPEGXL -> true;
+      default -> false;
+    };
+  }
+
   public static boolean isNative(String uid) {
     return switch (uid) {
       case UID.ImplicitVRLittleEndian, UID.ExplicitVRLittleEndian, UID.ExplicitVRBigEndian -> true;

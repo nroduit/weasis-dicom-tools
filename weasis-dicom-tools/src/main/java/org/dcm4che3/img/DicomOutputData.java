@@ -95,7 +95,9 @@ public class DicomOutputData {
         PlanarImage image = images.get(i).get();
         boolean releaseSrc = image.isReleasedAfterProcessing();
         PlanarImage writeImg =
-            DicomUtils.isJpeg2000(tsuid) ? image : DicomImageUtils.bgr2rgb(image);
+            DicomUtils.isJpeg2000(tsuid) || DicomUtils.isJpegXL(tsuid)
+                ? image
+                : DicomImageUtils.bgr2rgb(image);
         if (releaseSrc && !writeImg.equals(image)) {
           image.release();
         }
@@ -275,6 +277,11 @@ public class DicomOutputData {
     int compressType = Imgcodecs.DICOM_CP_JPG;
     if (ts == TransferSyntaxType.JPEG_2000) {
       compressType = Imgcodecs.DICOM_CP_J2K;
+    } else if (ts == TransferSyntaxType.JPEG_XL) {
+      compressType = Imgcodecs.DICOM_CP_JXL;
+      if (!UID.JPEGXL.equals(param.getTransferSyntaxUid()) || elemSize == 2) {
+        param.setCompressionQuality(100);
+      }
     } else if (ts == TransferSyntaxType.JPEG_LS) {
       compressType = Imgcodecs.DICOM_CP_JPLS;
       if (signed) {
@@ -308,7 +315,7 @@ public class DicomOutputData {
       bitCompressedForEncoder = 12;
     }
 
-    int[] params = new int[16];
+    int[] params = new int[18];
     params[Imgcodecs.DICOM_PARAM_IMREAD] = Imgcodecs.IMREAD_UNCHANGED; // Image flags
     params[Imgcodecs.DICOM_PARAM_DCM_IMREAD] = dcmFlags; // DICOM flags
     params[Imgcodecs.DICOM_PARAM_WIDTH] = img.width(); // Image width
@@ -328,6 +335,10 @@ public class DicomOutputData {
         param.getPrediction(); // JPEG lossless prediction
     params[Imgcodecs.DICOM_PARAM_JPEG_PT_TRANSFORM] =
         param.getPointTransform(); // JPEG lossless transformation point
+    params[Imgcodecs.DICOM_PARAM_JXL_EFFORT] = param.getJxlEffort(); // Effort (1-9)
+    params[Imgcodecs.DICOM_PARAM_JXL_DECODING_SPEED] =
+        param.getJxlDecodingSpeed(); // Decoding speed (0-4) (0 lowest to decode, best
+    // quality/density)
 
     data.setInt(Tag.Columns, VR.US, img.width());
     data.setInt(Tag.Rows, VR.US, img.height());
@@ -365,7 +376,16 @@ public class DicomOutputData {
       case UID.JPEGLSNearLossless:
       case UID.JPEG2000Lossless:
       case UID.JPEG2000:
+      case UID.HTJ2KLossless:
+      case UID.HTJ2KLosslessRPCL:
+      case UID.HTJ2K:
         return type <= CvType.CV_16S ? dstTsuid : UID.ExplicitVRLittleEndian;
+      case UID.JPEGXLLossless:
+        return type <= CvType.CV_32F ? dstTsuid : UID.ExplicitVRLittleEndian;
+      case UID.JPEGXLJPEGRecompression, UID.JPEGXL:
+        return type <= CvType.CV_8S
+            ? dstTsuid
+            : type <= CvType.CV_32F ? UID.JPEGXLLossless : UID.ExplicitVRLittleEndian;
       default:
         return dstTsuid;
     }
@@ -407,8 +427,11 @@ public class DicomOutputData {
       case UID.JPEGLSNearLossless:
       case UID.JPEG2000Lossless:
       case UID.JPEG2000:
-        // case UID.JPEG2000Part2MultiComponentLosslessOnly:
-        // case UID.JPEG2000Part2MultiComponent:
+      // case UID.JPEG2000Part2MultiComponentLosslessOnly:
+      // case UID.JPEG2000Part2MultiComponent:
+      case UID.JPEGXL:
+      case UID.JPEGXLLossless:
+      case UID.JPEGXLJPEGRecompression:
         return true;
       default:
         return false;

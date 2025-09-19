@@ -243,10 +243,6 @@ class DicomImageReaderTest {
 
     DicomImageReader.removeSeriesToFloatImages(seriesUID);
     assertNull(DicomImageReader.getForceToFloatImages(seriesUID));
-
-    // Test global float conversion setting
-    DicomImageReader.setAllowFloatImageConversion(true);
-    DicomImageReader.setAllowFloatImageConversion(false);
   }
 
   @Test
@@ -348,9 +344,6 @@ class DicomImageReaderTest {
 
     @Test
     void range_outside_lut_with_float_conversion_settings() throws IOException {
-      DicomImageReader.setAllowFloatImageConversion(true);
-
-      try {
         readDicomFile("mono2-CT-16bit.dcm");
         var descriptor = reader.getImageDescriptor();
         var rawImage = reader.getRawImage(0, null);
@@ -373,9 +366,6 @@ class DicomImageReaderTest {
         } finally {
           rawImage.release();
         }
-      } finally {
-        DicomImageReader.setAllowFloatImageConversion(false);
-      }
     }
 
     static Stream<Arguments> modalityTestCases() {

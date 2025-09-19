@@ -119,7 +119,6 @@ public class DicomImageReader extends ImageReader {
   public static final BulkDataDescriptor BULK_DATA_DESCRIPTOR = DicomImageReader::shouldBeBulkData;
 
   private static final Map<String, Boolean> series2FloatImages = new ConcurrentHashMap<>();
-  private static volatile boolean allowFloatImageConversion = false;
 
   private final List<Integer> fragmentsPositions = new ArrayList<>();
 
@@ -319,7 +318,9 @@ public class DicomImageReader extends ImageReader {
 
     result = applyPaletteColorLUT(result);
     result = applyRegionTransformations(result, param);
-    result = applyFloatConversion(result, getImageDescriptor(), frameIndex);
+    if (param != null && param.isAllowFloatImageConversion()) {
+      result = applyFloatConversion(result, getImageDescriptor(), frameIndex);
+    }
 
     if (!rawImage.equals(result)) {
       rawImage.release();
@@ -360,8 +361,6 @@ public class DicomImageReader extends ImageReader {
 
   private PlanarImage applyFloatConversion(
       PlanarImage image, ImageDescriptor desc, int frameIndex) {
-    if (!allowFloatImageConversion) return image;
-
     String seriesUID = desc.getSeriesInstanceUID();
     if (!StringUtil.hasText(seriesUID)) return image;
     Boolean isFloatPixelData = series2FloatImages.get(seriesUID);
@@ -931,7 +930,10 @@ public class DicomImageReader extends ImageReader {
               UID.JPEG2000Lossless,
               UID.JPEG2000,
               UID.JPEG2000MCLossless,
-              UID.JPEG2000MC ->
+              UID.JPEG2000MC,
+              UID.JPEGXL,
+              UID.JPEGXLLossless,
+              UID.JPEGXLJPEGRecompression ->
           true;
       default -> false;
     };
@@ -964,16 +966,6 @@ public class DicomImageReader extends ImageReader {
    */
   public static void removeSeriesToFloatImages(String seriesInstanceUID) {
     series2FloatImages.remove(seriesInstanceUID);
-  }
-
-  /**
-   * Enables float image conversion when modality LUT results exceed original image type range.
-   *
-   * <p><strong>Note:</strong> When enabled, {@link #removeSeriesToFloatImages(String)} must be
-   * called when the series is disposed to prevent memory leaks.
-   */
-  public static void setAllowFloatImageConversion(boolean allowFloatImageConversion) {
-    DicomImageReader.allowFloatImageConversion = allowFloatImageConversion;
   }
 
   // Private utility methods for resource management

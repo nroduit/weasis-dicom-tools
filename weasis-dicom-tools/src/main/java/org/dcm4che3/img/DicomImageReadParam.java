@@ -74,6 +74,7 @@ public class DicomImageReadParam extends ImageReadParam {
   private int overlayActivationMask = 0xf;
   private int overlayGrayscaleValue = 0xffff;
   private Color overlayColor;
+  private boolean allowFloatImageConversion = false;
 
   /**
    * Creates a new DICOM image read parameter with default settings. Enables source render size
@@ -381,5 +382,22 @@ public class DicomImageReadParam extends ImageReadParam {
    */
   public void setOverlayColor(Color overlayColor) {
     this.overlayColor = overlayColor;
+  }
+
+  public boolean isAllowFloatImageConversion() {
+    return allowFloatImageConversion;
+  }
+
+  /**
+   * Allow to convert images into float images when the result of the Modality LUT is outside the
+   * range of original image type.
+   *
+   * <p>Note: by default, the conversion is not allowed. If the conversion is set to true, <code>
+   * DicomImageReader.removeSeriesToFloatImages()</code> must be called when the series is disposed.
+   *
+   * @param allowFloatImageConversion true to allow conversion
+   */
+  public void setAllowFloatImageConversion(boolean allowFloatImageConversion) {
+    this.allowFloatImageConversion = allowFloatImageConversion;
   }
 }

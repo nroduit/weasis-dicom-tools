@@ -60,6 +60,8 @@ public class DicomJpegWriteParam {
   private int compressionRatioFactor = DEFAULT_COMPRESSION_RATIO;
   private boolean losslessCompression = true;
   private Rectangle sourceRegion;
+  private int jxlEffort = 7;
+  private int jxlDecodingSpeed = 0;
 
   /**
    * Creates DICOM JPEG write parameters for the specified transfer syntax.
@@ -139,6 +141,49 @@ public class DicomJpegWriteParam {
       throw new IllegalArgumentException("nearLossless invalid value: " + nearLosslessError);
     }
     this.nearLosslessError = nearLosslessError;
+  }
+
+  /**
+   * @see #setJxlEffort(int)
+   */
+  public int getJxlEffort() {
+    return jxlEffort;
+  }
+
+  /**
+   * @see #setJxlDecodingSpeed(int)
+   */
+  public int getJxlDecodingSpeed() {
+    return jxlDecodingSpeed;
+  }
+
+  /**
+   * Sets the effort level for JPEG XL (JXL) operations. The effort level determines the trade-off
+   * between encoding speed and compression efficiency. Higher values increase encoding time but may
+   * yield better compression results.
+   *
+   * @param jxlEffort the effort level (must be between 1 and 9, inclusive), default value is 7
+   * @throws IllegalArgumentException if the effort level is outside the valid range
+   */
+  public void setJxlEffort(int jxlEffort) {
+    if (jxlEffort < 1 || jxlEffort > 9)
+      throw new IllegalArgumentException("jxlEffort invalid value: " + jxlEffort);
+    this.jxlEffort = jxlEffort;
+  }
+
+  /**
+   * Sets the decoding speed for JPEG XL (JXL) operations. The decoding speed determines the
+   * trade-off between decoding performance and the quality of the resulting image. A higher value
+   * corresponds to faster decoding, potentially at the cost of quality.
+   *
+   * @param jxlDecodingSpeed the decoding speed (must be between 0 and 7, inclusive), default value
+   *     is 0
+   * @throws IllegalArgumentException if the decoding speed is outside the valid range
+   */
+  public void setJxlDecodingSpeed(int jxlDecodingSpeed) {
+    if (jxlDecodingSpeed < 0 || jxlDecodingSpeed > 7)
+      throw new IllegalArgumentException("jxlDecodingSpeed invalid value: " + jxlDecodingSpeed);
+    this.jxlDecodingSpeed = jxlDecodingSpeed;
   }
 
   /**

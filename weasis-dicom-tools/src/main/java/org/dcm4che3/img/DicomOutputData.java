@@ -160,7 +160,10 @@ public class DicomOutputData {
   private Mat encodeImageFrame(int frameIndex, MatOfInt dicomParams) throws IOException {
     PlanarImage image = images.get(frameIndex).get();
     boolean releaseSrc = image.isReleasedAfterProcessing();
-    PlanarImage writeImg = DicomUtils.isJpeg2000(tsuid) ? image : PixelDataUtils.bgr2rgb(image);
+    PlanarImage writeImg =
+        DicomUtils.isJpeg2000(tsuid) || DicomUtils.isJpegXL(tsuid)
+            ? image
+            : PixelDataUtils.bgr2rgb(image);
     if (releaseSrc && !writeImg.equals(image)) {
       image.release();
     }
@@ -343,7 +346,7 @@ public class DicomOutputData {
   public int[] adaptTagsToCompressedImage(
       Attributes data, PlanarImage img, ImageDescriptor desc, DicomJpegWriteParam param) {
     var characteristics = analyzeImageCharacteristics(img, desc);
-    var settings = determineCompressionSettings(param, characteristics);
+    var settings = determineCompressionSettings(param, characteristics, (int) img.elemSize1());
     var encodingParams = buildEncodingParameters(img, settings, characteristics, param);
 
     updateDicomAttributes(data, img, characteristics);
@@ -363,12 +366,16 @@ public class DicomOutputData {
   }
 
   private CompressionSettings determineCompressionSettings(
-      DicomJpegWriteParam param, ImageCharacteristics characteristics) {
+      DicomJpegWriteParam param, ImageCharacteristics characteristics, int elemSize) {
     var transferSyntax = param.getType();
     int jpeglsNearLosslessError = param.getNearLosslessError();
     int bitDepthForEncoder = characteristics.bitCompressed();
 
     int compressionType = determineCompressionType(transferSyntax);
+
+    if (!UID.JPEGXL.equals(param.getTransferSyntaxUid()) || elemSize == 2) {
+      param.setCompressionQuality(100);
+    }
 
     if (transferSyntax == TransferSyntaxType.JPEG_LS && characteristics.signed()) {
       LOGGER.warn("Force compression to JPEG-LS lossless as lossy is not adapted to signed data.");
@@ -385,6 +392,7 @@ public class DicomOutputData {
     return switch (transferSyntax) {
       case JPEG_2000 -> Imgcodecs.DICOM_CP_J2K;
       case JPEG_LS -> Imgcodecs.DICOM_CP_JPLS;
+      case JPEG_XL -> Imgcodecs.DICOM_CP_JXL;
       default -> Imgcodecs.DICOM_CP_JPG;
     };
   }
@@ -428,7 +436,7 @@ public class DicomOutputData {
         characteristics.signed ? Imgcodecs.DICOM_FLAG_SIGNED : Imgcodecs.DICOM_FLAG_UNSIGNED;
     int epi = characteristics.channels == 1 ? Imgcodecs.EPI_Monochrome2 : Imgcodecs.EPI_RGB;
 
-    int[] params = new int[16];
+    int[] params = new int[18];
     params[Imgcodecs.DICOM_PARAM_IMREAD] = Imgcodecs.IMREAD_UNCHANGED; // Image flags
     params[Imgcodecs.DICOM_PARAM_DCM_IMREAD] = dcmFlags; // DICOM flags
     params[Imgcodecs.DICOM_PARAM_WIDTH] = img.width(); // Image width
@@ -450,6 +458,9 @@ public class DicomOutputData {
         param.getPrediction(); // JPEG lossless prediction
     params[Imgcodecs.DICOM_PARAM_JPEG_PT_TRANSFORM] =
         param.getPointTransform(); // JPEG lossless transformation point
+    params[Imgcodecs.DICOM_PARAM_JXL_EFFORT] = param.getJxlEffort(); // Effort (1-9)
+    params[Imgcodecs.DICOM_PARAM_JXL_DECODING_SPEED] =
+        param.getJxlDecodingSpeed(); // Decoding speed (0-4)
     return params;
   }
 
@@ -480,8 +491,16 @@ public class DicomOutputData {
               UID.JPEGLSLossless,
               UID.JPEGLSNearLossless,
               UID.JPEG2000Lossless,
-              UID.JPEG2000 ->
+              UID.JPEG2000,
+              UID.HTJ2KLossless,
+              UID.HTJ2KLosslessRPCL,
+              UID.HTJ2K ->
           type <= CvType.CV_16S ? dstTsuid : UID.ExplicitVRLittleEndian;
+      case UID.JPEGXLLossless -> type <= CvType.CV_32F ? dstTsuid : UID.ExplicitVRLittleEndian;
+      case UID.JPEGXLJPEGRecompression, UID.JPEGXL ->
+          type <= CvType.CV_8S
+              ? dstTsuid
+              : type <= CvType.CV_32F ? UID.JPEGXLLossless : UID.ExplicitVRLittleEndian;
       default -> dstTsuid;
     };
   }
@@ -537,7 +556,10 @@ public class DicomOutputData {
               UID.JPEGLSLossless,
               UID.JPEGLSNearLossless,
               UID.JPEG2000Lossless,
-              UID.JPEG2000 ->
+              UID.JPEG2000,
+              UID.JPEGXL,
+              UID.JPEGXLLossless,
+              UID.JPEGXLJPEGRecompression ->
           true;
       default -> false;
     };

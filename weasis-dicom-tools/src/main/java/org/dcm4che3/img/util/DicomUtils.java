@@ -91,6 +91,19 @@ public final class DicomUtils {
   }
 
   /**
+   * Determines whether the given UID represents a JPEG XL transfer syntax.
+   *
+   * @param uid the transfer syntax UID to check
+   * @return true if the UID is one of the JPEG XL-related transfer syntaxes, false otherwise
+   */
+  public static boolean isJpegXL(String uid) {
+    return switch (uid) {
+      case UID.JPEG2000Lossless, UID.JPEGXLJPEGRecompression, UID.JPEGXL -> true;
+      default -> false;
+    };
+  }
+
+  /**
    * Checks if the given UID represents a JPEG 2000 transfer syntax.
    *
    * @param uid the transfer syntax UID to check

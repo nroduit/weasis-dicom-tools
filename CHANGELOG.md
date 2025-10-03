@@ -1,5 +1,9 @@
 # Changelog
 
+## [v5.34.1](https://github.com/nroduit/weasis-dicom-tools/tree/v5.34.1) (2025-10-03)
+
+[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.34.0.1...v5.34.1)
+
 ## [v5.34.0.1](https://github.com/nroduit/weasis-dicom-tools/tree/v5.34.0.1) (2025-08-14)
 
 [Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.34.0...v5.34.0.1)
@@ -12,7 +16,7 @@
 
 [Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.33.1.1...v5.33.1.2)
 
-**Closed issues:**
+**Fixed bugs:**
 
 - Window/Level issue with multiframe [\#34](https://github.com/nroduit/weasis-dicom-tools/issues/34)
 
@@ -27,10 +31,6 @@
 ## [v5.33.0](https://github.com/nroduit/weasis-dicom-tools/tree/v5.33.0) (2024-12-13)
 
 [Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.32.0.2...v5.33.0)
-
-**Closed issues:**
-
-- ImageAdapter cannot deal with IncludeBulkData.YES and compressed image data [\#30](https://github.com/nroduit/weasis-dicom-tools/issues/30)
 
 ## [v5.32.0.2](https://github.com/nroduit/weasis-dicom-tools/tree/v5.32.0.2) (2024-07-26)
 
@@ -52,10 +52,6 @@
 
 [Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.30.0...v5.31.1)
 
-**Closed issues:**
-
-- Cannot integrate tools to Weasis  [\#27](https://github.com/nroduit/weasis-dicom-tools/issues/27)
-
 ## [v5.30.0](https://github.com/nroduit/weasis-dicom-tools/tree/v5.30.0) (2023-08-15)
 
 [Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.29.2.2...v5.30.0)
@@ -76,10 +72,6 @@
 ## [v5.29.2](https://github.com/nroduit/weasis-dicom-tools/tree/v5.29.2) (2023-04-17)
 
 [Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.29.0.2...v5.29.2)
-
-**Closed issues:**
-
-- can't read Chinese words [\#24](https://github.com/nroduit/weasis-dicom-tools/issues/24)
 
 ## [v5.29.0.2](https://github.com/nroduit/weasis-dicom-tools/tree/v5.29.0.2) (2023-02-14)
 
@@ -105,7 +97,7 @@
 
 [Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.27.0...v5.27.0.1)
 
-**Closed issues:**
+**Fixed bugs:**
 
 - NPE with corrupted LUT [\#17](https://github.com/nroduit/weasis-dicom-tools/issues/17)
 

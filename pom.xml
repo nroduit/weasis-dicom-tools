@@ -11,11 +11,11 @@
 
   <properties>
     <revision>${dcm4che.version}.1</revision>
-    <changelist>-SNAPSHOT</changelist> <!-- Remove "-SNAPSHOT" for release -->
+    <changelist></changelist> <!-- Remove "-SNAPSHOT" for release -->
     <sha1/>
 
     <dcm4che.version>5.34.1</dcm4che.version>
-    <weasis.core.img.version>4.12.1</weasis.core.img.version>
+    <weasis.core.img.version>4.12.2</weasis.core.img.version>
   </properties>
 
   <modules>

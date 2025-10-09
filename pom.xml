@@ -15,7 +15,7 @@
     <sha1/>
 
     <dcm4che.version>5.34.1</dcm4che.version>
-    <weasis.core.img.version>4.12.1.7</weasis.core.img.version>
+    <weasis.core.img.version>4.12.2.7</weasis.core.img.version>
   </properties>
 
   <modules>

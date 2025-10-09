@@ -68,10 +68,10 @@ public class DicomImageUtils {
     int stored = (bitsStored > 16) ? 16 : Math.max(bitsStored, 1);
     if (signed) {
       minValue = -(1 << (stored - 1));
-      maxValue = (1 << (stored - 1)) - 1;
+      maxValue = (1 << (stored - 1)) - 1.0;
     } else {
       minValue = 0;
-      maxValue = (1 << stored) - 1;
+      maxValue = (1 << stored) - 1.0;
     }
     return new Pair<>(minValue, maxValue);
   }

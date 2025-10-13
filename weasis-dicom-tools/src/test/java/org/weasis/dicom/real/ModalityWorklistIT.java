@@ -7,7 +7,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
  */
-package org.weasis.dicom;
+package org.weasis.dicom.real;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 

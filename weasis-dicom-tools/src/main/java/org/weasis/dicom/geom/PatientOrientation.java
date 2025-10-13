@@ -21,13 +21,6 @@ import org.weasis.core.util.StringUtil;
  * <p>This class provides anatomical orientation mappings for both biped (human) and quadruped
  * (animal) patients, following DICOM standards for Image Position and Image Orientation (Patient).
  *
- * <p>The orientations use standard anatomical terminology:
- *
- * <ul>
- *   <li><b>Biped orientations</b>: Right/Left, Anterior/Posterior, Head/Foot
- *   <li><b>Quadruped orientations</b>: Right/Left, Ventral/Dorsal, Cranial/Caudal
- * </ul>
- *
  * <p>Color coding follows anatomical conventions:
  *
  * <ul>
@@ -45,42 +38,45 @@ public final class PatientOrientation {
   private static final Logger LOGGER = LoggerFactory.getLogger(PatientOrientation.class);
 
   /** Color for lateral orientations (left/right) */
-  public static final Color blue = new Color(44783);
+  public static final Color BLUE = new Color(44783);
 
   /** Color for sagittal orientations (anterior/posterior, ventral/dorsal) */
-  public static final Color red = new Color(15539236);
+  public static final Color RED = new Color(15539236);
 
   /** Color for longitudinal orientations (head/foot, cranial/caudal) */
-  public static final Color green = new Color(897355);
+  public static final Color GREEN = new Color(897355);
 
-  private PatientOrientation() {
-    // Utility class - prevent instantiation
-  }
+  // Deprecated color constants for backward compatibility
+  /**
+   * @deprecated Use {@link #BLUE} instead
+   */
+  @Deprecated(since = "5.34.0.3", forRemoval = true)
+  public static final Color blue = BLUE;
 
   /**
-   * Human anatomical orientations following standard medical terminology.
-   *
-   * <p>These orientations represent the standard anatomical position for humans:
-   *
-   * <ul>
-   *   <li><b>R/L</b> - Patient's right/left (lateral axis)
-   *   <li><b>A/P</b> - Anterior/posterior (front/back, sagittal axis)
-   *   <li><b>H/F</b> - Head/foot (superior/inferior, longitudinal axis)
-   * </ul>
+   * @deprecated Use {@link #RED} instead
    */
+  @Deprecated(since = "5.34.0.3", forRemoval = true)
+  public static final Color red = RED;
+
+  /**
+   * @deprecated Use {@link #GREEN} instead
+   */
+  @Deprecated(since = "5.34.0.3", forRemoval = true)
+  public static final Color green = GREEN;
+
+  private PatientOrientation() {
+    // Utility class
+  }
+
+  /** Human anatomical orientations following standard medical terminology. */
   public enum Biped implements Orientation {
-    /** Patient's right side */
-    R("Right", blue),
-    /** Patient's left side */
-    L("Left", blue),
-    /** Anterior (front) aspect */
-    A("Anterior", red),
-    /** Posterior (back) aspect */
-    P("Posterior", red),
-    /** Foot (inferior) direction */
-    F("Foot", green),
-    /** Head (superior) direction */
-    H("Head", green);
+    R("Right", BLUE),
+    L("Left", BLUE),
+    A("Anterior", RED),
+    P("Posterior", RED),
+    F("Foot", GREEN),
+    H("Head", GREEN);
 
     private final String fullName;
     private final Color color;
@@ -106,9 +102,9 @@ public final class PatientOrientation {
     }
 
     /**
-     * Parses a string value to a Biped orientation.
+     * Parses a string to a Biped orientation.
      *
-     * @param value the string value to parse (e.g., "R", "L", "A", "P", "F", "H")
+     * @param value the string to parse
      * @return the corresponding Biped orientation, or null if not found
      */
     public static Biped fromString(String value) {
@@ -116,7 +112,7 @@ public final class PatientOrientation {
         return null;
       }
       try {
-        return Biped.valueOf(value.trim().toUpperCase());
+        return valueOf(value.trim().toUpperCase());
       } catch (IllegalArgumentException e) {
         LOGGER.debug("Unknown biped orientation: {}", value);
         return null;
@@ -124,30 +120,14 @@ public final class PatientOrientation {
     }
   }
 
-  /**
-   * Animal anatomical orientations following veterinary terminology.
-   *
-   * <p>These orientations represent the standard anatomical position for quadrupeds:
-   *
-   * <ul>
-   *   <li><b>RT/LE</b> - Right/left (lateral axis)
-   *   <li><b>V/D</b> - Ventral/dorsal (belly/back, sagittal axis)
-   *   <li><b>CR/CD</b> - Cranial/caudal (head/tail, longitudinal axis)
-   * </ul>
-   */
+  /** Animal anatomical orientations following veterinary terminology. */
   public enum Quadruped implements Orientation {
-    /** Right side */
-    RT("Right", blue),
-    /** Left side */
-    LE("Left", blue),
-    /** Ventral (belly) aspect */
-    V("Ventral", red),
-    /** Dorsal (back) aspect */
-    D("Dorsal", red),
-    /** Caudal (tail) direction */
-    CD("Caudal", green),
-    /** Cranial (head) direction */
-    CR("Cranial", green);
+    RT("Right", BLUE),
+    LE("Left", BLUE),
+    V("Ventral", RED),
+    D("Dorsal", RED),
+    CD("Caudal", GREEN),
+    CR("Cranial", GREEN);
 
     private final String fullName;
     private final Color color;
@@ -173,9 +153,9 @@ public final class PatientOrientation {
     }
 
     /**
-     * Parses a string value to a Quadruped orientation.
+     * Parses a string to a Quadruped orientation.
      *
-     * @param value the string value to parse (e.g., "RT", "LE", "V", "D", "CR", "CD")
+     * @param value the string to parse
      * @return the corresponding Quadruped orientation, or null if not found
      */
     public static Quadruped fromString(String value) {
@@ -183,7 +163,7 @@ public final class PatientOrientation {
         return null;
       }
       try {
-        return Quadruped.valueOf(value.trim().toUpperCase());
+        return valueOf(value.trim().toUpperCase());
       } catch (IllegalArgumentException e) {
         LOGGER.debug("Unknown quadruped orientation: {}", value);
         return null;
@@ -191,94 +171,107 @@ public final class PatientOrientation {
     }
   }
 
-  // Biped orientation determination methods
+  // Axis orientation methods
 
   /**
-   * Determines the biped X-axis orientation from a direction vector.
+   * Gets X-axis orientation for biped.
    *
    * @param vector the direction cosine vector
-   * @return the X-axis biped orientation (Right for negative X, Left for positive X)
+   * @return Right for negative X, Left for positive X
    * @throws NullPointerException if vector is null
    */
   public static Biped getBipedXOrientation(Vector3 vector) {
     Objects.requireNonNull(vector, "Vector cannot be null");
-    return vector.x < 0 ? Biped.R : Biped.L;
+    return vector.x() < 0 ? Biped.R : Biped.L;
   }
 
   /**
-   * Determines the biped Y-axis orientation from a direction vector.
+   * Gets Y-axis orientation for biped.
    *
    * @param vector the direction cosine vector
-   * @return the Y-axis biped orientation (Anterior for negative Y, Posterior for positive Y)
+   * @return Anterior for negative Y, Posterior for positive Y
    * @throws NullPointerException if vector is null
    */
   public static Biped getBipedYOrientation(Vector3 vector) {
     Objects.requireNonNull(vector, "Vector cannot be null");
-    return vector.y < 0 ? Biped.A : Biped.P;
+    return vector.y() < 0 ? Biped.A : Biped.P;
   }
 
   /**
-   * Determines the biped Z-axis orientation from a direction vector.
+   * Gets Z-axis orientation for biped.
    *
    * @param vector the direction cosine vector
-   * @return the Z-axis biped orientation (Foot for negative Z, Head for positive Z)
+   * @return Foot for negative Z, Head for positive Z
    * @throws NullPointerException if vector is null
    */
   public static Biped getBipedZOrientation(Vector3 vector) {
     Objects.requireNonNull(vector, "Vector cannot be null");
-    return vector.z < 0 ? Biped.F : Biped.H;
+    return vector.z() < 0 ? Biped.F : Biped.H;
   }
 
-  // Quadruped orientation determination methods
-
   /**
-   * Determines the quadruped X-axis orientation from a direction vector.
+   * Gets X-axis orientation for quadruped.
    *
    * @param vector the direction cosine vector
-   * @return the X-axis quadruped orientation (Right for negative X, Left for positive X)
+   * @return Right for negative X, Left for positive X
    * @throws NullPointerException if vector is null
    */
   public static Quadruped getQuadrupedXOrientation(Vector3 vector) {
     Objects.requireNonNull(vector, "Vector cannot be null");
-    return vector.x < 0 ? Quadruped.RT : Quadruped.LE;
+    return vector.x() < 0 ? Quadruped.RT : Quadruped.LE;
   }
 
   /**
-   * Determines the quadruped Y-axis orientation from a direction vector.
+   * Gets Y-axis orientation for quadruped.
    *
    * @param vector the direction cosine vector
-   * @return the Y-axis quadruped orientation (Ventral for negative Y, Dorsal for positive Y)
+   * @return Ventral for negative Y, Dorsal for positive Y
    * @throws NullPointerException if vector is null
    */
   public static Quadruped getQuadrupedYOrientation(Vector3 vector) {
     Objects.requireNonNull(vector, "Vector cannot be null");
-    return vector.y < 0 ? Quadruped.V : Quadruped.D;
+    return vector.y() < 0 ? Quadruped.V : Quadruped.D;
   }
 
   /**
-   * Determines the quadruped Z-axis orientation from a direction vector.
+   * Gets Z-axis orientation for quadruped.
    *
    * @param vector the direction cosine vector
-   * @return the Z-axis quadruped orientation (Caudal for negative Z, Cranial for positive Z)
+   * @return Caudal for negative Z, Cranial for positive Z
    * @throws NullPointerException if vector is null
    */
   public static Quadruped getQuadrupedZOrientation(Vector3 vector) {
     Objects.requireNonNull(vector, "Vector cannot be null");
-    return vector.z < 0 ? Quadruped.CD : Quadruped.CR;
+    return vector.z() < 0 ? Quadruped.CD : Quadruped.CR;
+  }
+
+  // Generic axis orientation methods
+
+  /**
+   * Gets axis orientation for any patient type.
+   *
+   * @param vector the direction cosine vector
+   * @param axis the axis (X, Y, or Z)
+   * @param quadruped true for quadruped, false for biped
+   * @return the appropriate orientation
+   * @throws NullPointerException if vector or axis is null
+   * @throws IllegalArgumentException if axis is not X, Y, or Z
+   */
+  public static Orientation getAxisOrientation(Vector3 vector, Axis axis, boolean quadruped) {
+    Objects.requireNonNull(vector, "Vector cannot be null");
+    Objects.requireNonNull(axis, "Axis cannot be null");
+
+    return switch (axis) {
+      case X -> quadruped ? getQuadrupedXOrientation(vector) : getBipedXOrientation(vector);
+      case Y -> quadruped ? getQuadrupedYOrientation(vector) : getBipedYOrientation(vector);
+      case Z -> quadruped ? getQuadrupedZOrientation(vector) : getBipedZOrientation(vector);
+    };
   }
 
   // Opposite orientation methods
 
   /**
    * Returns the anatomically opposite biped orientation.
-   *
-   * <p>Opposite pairs:
-   *
-   * <ul>
-   *   <li>Right ↔ Left
-   *   <li>Anterior ↔ Posterior
-   *   <li>Head ↔ Foot
-   * </ul>
    *
    * @param orientation the biped orientation
    * @return the opposite biped orientation
@@ -300,14 +293,6 @@ public final class PatientOrientation {
   /**
    * Returns the anatomically opposite quadruped orientation.
    *
-   * <p>Opposite pairs:
-   *
-   * <ul>
-   *   <li>Right ↔ Left
-   *   <li>Ventral ↔ Dorsal
-   *   <li>Cranial ↔ Caudal
-   * </ul>
-   *
    * @param orientation the quadruped orientation
    * @return the opposite quadruped orientation
    * @throws NullPointerException if orientation is null
@@ -323,5 +308,12 @@ public final class PatientOrientation {
       case CD -> Quadruped.CR;
       case CR -> Quadruped.CD;
     };
+  }
+
+  /** Coordinate axes for anatomical orientation. */
+  public enum Axis {
+    X,
+    Y,
+    Z
   }
 }

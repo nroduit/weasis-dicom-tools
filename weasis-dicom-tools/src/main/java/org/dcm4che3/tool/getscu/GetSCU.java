@@ -9,8 +9,10 @@
  */
 package org.dcm4che3.tool.getscu;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.security.GeneralSecurityException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -36,7 +38,6 @@ import org.dcm4che3.net.pdu.RoleSelection;
 import org.dcm4che3.net.service.BasicCStoreSCP;
 import org.dcm4che3.net.service.DicomServiceException;
 import org.dcm4che3.net.service.DicomServiceRegistry;
-import org.dcm4che3.util.SafeClose;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.util.FileUtil;
@@ -45,12 +46,19 @@ import org.weasis.dicom.param.DicomState;
 import org.weasis.dicom.util.ServiceUtil;
 
 /**
+ * A Service Class User (SCU) implementation for DICOM C-GET operations.
+ *
+ * <p>Supports retrieval of DICOM objects using Query/Retrieve service classes. Retrieved objects
+ * are stored to a local directory with progress tracking and cancellation support.
+ *
  * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Nicolas Roduit
  */
 public class GetSCU implements AutoCloseable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GetSCU.class);
 
+  /** Supported DICOM information models for C-GET operations. */
   public enum InformationModel {
     PatientRoot(UID.PatientRootQueryRetrieveInformationModelGet, "STUDY"),
     StudyRoot(UID.StudyRootQueryRetrieveInformationModelGet, "STUDY"),
@@ -85,7 +93,7 @@ public class GetSCU implements AutoCloseable {
   private final AAssociateRQ rq = new AAssociateRQ();
   private int priority;
   private InformationModel model;
-  private File storageDir;
+  private Path storageDir;
   private final Attributes keys = new Attributes();
   private int[] inFilter = DEF_IN_FILTER;
   private Association as;
@@ -109,18 +117,21 @@ public class GetSCU implements AutoCloseable {
             return;
           }
 
-          String iuid = rq.getString(Tag.AffectedSOPInstanceUID);
-          String cuid = rq.getString(Tag.AffectedSOPClassUID);
-          String tsuid = pc.getTransferSyntax();
-          File file = new File(storageDir, TMP_DIR + File.separator + iuid);
+          var iuid = rq.getString(Tag.AffectedSOPInstanceUID);
+          var cuid = rq.getString(Tag.AffectedSOPClassUID);
+          var tsuid = pc.getTransferSyntax();
+
+          var tempPath = storageDir.resolve(TMP_DIR).resolve(iuid);
+          var finalPath = storageDir.resolve(iuid);
           try {
-            storeTo(as, as.createFileMetaInformation(iuid, cuid, tsuid), data, file);
-            totalSize += file.length();
-            File rename = new File(storageDir, iuid);
-            renameTo(as, file, rename);
-            DicomProgress p = state.getProgress();
-            if (p != null) {
-              p.setProcessedFile(rename);
+            var fmi = as.createFileMetaInformation(iuid, cuid, tsuid);
+            storeTo(as, fmi, data, tempPath);
+            totalSize += Files.size(tempPath);
+            renameTo(as, tempPath, finalPath);
+
+            var progress = state.getProgress();
+            if (progress != null) {
+              progress.setProcessedFile(finalPath);
             }
           } catch (Exception e) {
             throw new DicomServiceException(Status.ProcessingFailure, e);
@@ -129,11 +140,17 @@ public class GetSCU implements AutoCloseable {
         }
       };
 
-  public GetSCU() throws IOException {
+  /** Creates a new GetSCU without progress tracking. */
+  public GetSCU() {
     this(null);
   }
 
-  public GetSCU(DicomProgress progress) throws IOException {
+  /**
+   * Creates a new GetSCU with optional progress tracking.
+   *
+   * @param progress the progress handler, may be null
+   */
+  public GetSCU(DicomProgress progress) {
     ae = new ApplicationEntity("GETSCU");
     device.addConnection(conn);
     device.addApplicationEntity(ae);
@@ -166,38 +183,49 @@ public class GetSCU implements AutoCloseable {
     return keys;
   }
 
-  public static void storeTo(Association as, Attributes fmi, PDVInputStream data, File file)
+  /** Stores DICOM data to the specified path. */
+  public static void storeTo(Association as, Attributes fmi, PDVInputStream data, Path path)
       throws IOException {
-    LOGGER.debug("{}: M-WRITE {}", as, file);
-    file.getParentFile().mkdirs();
-    DicomOutputStream out = new DicomOutputStream(file);
-    try {
+    LOGGER.debug("{}: M-WRITE {}", as, path);
+    Files.createDirectories(path.getParent());
+
+    try (var out = new DicomOutputStream(path.toFile())) {
       out.writeFileMetaInformation(fmi);
       data.copyTo(out);
-    } finally {
-      SafeClose.close(out);
     }
   }
 
-  private static void renameTo(Association as, File from, File dest) throws IOException {
+  private static void renameTo(Association as, Path from, Path dest) throws IOException {
     LOGGER.info("{}: M-RENAME {} to {}", as, from, dest);
-    FileUtil.prepareToWriteFile(dest.toPath());
-    if (!from.renameTo(dest)) throw new IOException("Failed to rename " + from + " to " + dest);
+    FileUtil.prepareToWriteFile(dest);
+    Files.move(from, dest, StandardCopyOption.REPLACE_EXISTING);
   }
 
   private DicomServiceRegistry createServiceRegistry() {
-    DicomServiceRegistry serviceRegistry = new DicomServiceRegistry();
+    var serviceRegistry = new DicomServiceRegistry();
     serviceRegistry.addDicomService(storageSCP);
     return serviceRegistry;
   }
 
-  public void setStorageDirectory(File storageDir) {
+  /** Sets the directory where retrieved DICOM files will be stored. */
+  public void setStorageDirectory(Path storageDir) {
     if (storageDir != null) {
-      if (storageDir.mkdirs()) {
+      try {
+        Files.createDirectories(storageDir);
         System.out.println("M-WRITE " + storageDir);
+      } catch (IOException e) {
+        LOGGER.warn("Failed to create storage directory: {}", storageDir, e);
       }
     }
     this.storageDir = storageDir;
+  }
+
+  /**
+   * @deprecated Use {@link #setStorageDirectory(Path)} instead
+   */
+  @Deprecated(since = "5.34.0.3", forRemoval = true)
+  public void setStorageDirectory(java.io.File storageDir) {
+    setStorageDirectory(storageDir != null ? storageDir.toPath() : null);
   }
 
   public final void setPriority(int priority) {
@@ -208,6 +236,7 @@ public class GetSCU implements AutoCloseable {
     this.cancelAfter = cancelAfter;
   }
 
+  /** Configures the DICOM information model for C-GET operations. */
   public final void setInformationModel(InformationModel model, String[] tss, boolean relational) {
     this.model = model;
     rq.addPresentationContext(new PresentationContext(1, model.cuid, tss));
@@ -224,7 +253,7 @@ public class GetSCU implements AutoCloseable {
   }
 
   public void addKey(int tag, String... ss) {
-    VR vr = ElementDictionary.vrOf(tag, keys.getPrivateCreator(tag));
+    var vr = ElementDictionary.vrOf(tag, keys.getPrivateCreator(tag));
     keys.setString(tag, vr, ss);
   }
 
@@ -232,6 +261,7 @@ public class GetSCU implements AutoCloseable {
     this.inFilter = inFilter;
   }
 
+  /** Adds an offered storage SOP class for the association. */
   public void addOfferedStorageSOPClass(String cuid, String... tsuids) {
     if (!rq.containsPresentationContextFor(cuid)) {
       rq.addRoleSelection(new RoleSelection(cuid, false, true));
@@ -240,6 +270,7 @@ public class GetSCU implements AutoCloseable {
         new PresentationContext(2 * rq.getNumberOfPresentationContexts() + 1, cuid, tsuids));
   }
 
+  /** Opens the association to the remote DICOM node. */
   public void open()
       throws IOException,
           InterruptedException,
@@ -256,45 +287,60 @@ public class GetSCU implements AutoCloseable {
     }
   }
 
-  public void retrieve(File f) throws IOException, InterruptedException {
-    Attributes attrs = new Attributes();
-    try (DicomInputStream dis = new DicomInputStream(f)) {
+  /** Retrieves DICOM objects based on keys extracted from the specified file. */
+  public void retrieve(Path filePath) throws IOException, InterruptedException {
+    var attrs = new Attributes();
+    try (var dis = new DicomInputStream(Files.newInputStream(filePath))) {
       attrs.addSelected(dis.readDataset(), inFilter);
     }
     attrs.addAll(keys);
     retrieve(attrs);
   }
 
+  /**
+   * @deprecated Use {@link #retrieve(Path)} instead
+   */
+  @Deprecated(since = "5.34.0.3", forRemoval = true)
+  public void retrieve(java.io.File f) throws IOException, InterruptedException {
+    retrieve(f.toPath());
+  }
+
+  /** Retrieves DICOM objects using the configured query keys. */
   public void retrieve() throws IOException, InterruptedException {
     retrieve(keys);
   }
 
   private void retrieve(Attributes keys) throws IOException, InterruptedException {
-    final DimseRSPHandler rspHandler =
-        new DimseRSPHandler(as.nextMessageID()) {
-
-          @Override
-          public void onDimseRSP(Association as, Attributes cmd, Attributes data) {
-            super.onDimseRSP(as, cmd, data);
-            updateProgress(as, cmd);
-          }
-        };
-
+    var rspHandler = createResponseHandler();
     retrieve(keys, rspHandler);
+    scheduleCancellationIfNeeded(rspHandler);
+  }
+
+  private DimseRSPHandler createResponseHandler() {
+    return new DimseRSPHandler(as.nextMessageID()) {
+      @Override
+      public void onDimseRSP(Association as, Attributes cmd, Attributes data) {
+        super.onDimseRSP(as, cmd, data);
+        updateProgress(as, cmd);
+      }
+    };
+  }
+
+  private void scheduleCancellationIfNeeded(DimseRSPHandler rspHandler) {
     if (cancelAfter > 0) {
-      device.schedule(
-          () -> {
-            try {
-              rspHandler.cancel(as);
-            } catch (IOException e) {
-              LOGGER.error("Cancel C-GET", e);
-            }
-          },
-          cancelAfter,
-          TimeUnit.MILLISECONDS);
+      device.schedule(() -> cancelRetrieve(rspHandler), cancelAfter, TimeUnit.MILLISECONDS);
     }
   }
 
+  private void cancelRetrieve(DimseRSPHandler rspHandler) {
+    try {
+      rspHandler.cancel(as);
+    } catch (IOException e) {
+      LOGGER.error("Cancel C-GET", e);
+    }
+  }
+
+  /** Retrieves DICOM objects using a custom response handler. */
   public void retrieve(DimseRSPHandler rspHandler) throws IOException, InterruptedException {
     retrieve(keys, rspHandler);
   }
@@ -317,6 +363,7 @@ public class GetSCU implements AutoCloseable {
     return totalSize;
   }
 
+  /** Stops the GetSCU and releases all resources. */
   public void stop() {
     try {
       close();
@@ -331,15 +378,11 @@ public class GetSCU implements AutoCloseable {
   }
 
   private void updateProgress(Association as, Attributes cmd) {
-    DicomProgress p = state.getProgress();
-    if (p != null) {
-      p.setAttributes(cmd);
-      if (p.isCancel() && rspHandler != null) {
-        try {
-          rspHandler.cancel(as);
-        } catch (IOException e) {
-          LOGGER.error("Cancel C-GET", e);
-        }
+    var progress = state.getProgress();
+    if (progress != null) {
+      progress.setAttributes(cmd);
+      if (progress.isCancelled() && rspHandler != null) {
+        cancelRetrieve(rspHandler);
       }
     }
   }

@@ -147,7 +147,7 @@ public class Code extends Module implements ItemCode {
 
   @Override
   public CodingScheme getCodingScheme() {
-    return CodingScheme.getSchemeFromDesignator(getCodingSchemeDesignator());
+    return CodingScheme.fromDesignator(getCodingSchemeDesignator()).orElse(null);
   }
 
   public void setCodingScheme(CodingScheme codingScheme) {

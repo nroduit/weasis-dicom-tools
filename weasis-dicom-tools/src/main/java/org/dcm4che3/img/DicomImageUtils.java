@@ -41,9 +41,9 @@ import org.weasis.opencv.op.lut.LutShape;
  * deprecated class.
  *
  * @author Benoit Jacquemoud, Nicolas Roduit
- * @deprecated Use specialized utility classes instead. This class will be removed in version 5.0.
+ * @deprecated Use specialized utility classes instead.
  */
-@Deprecated(since = "4.12", forRemoval = true)
+@Deprecated(since = "5.34.0.3", forRemoval = true)
 @Generated
 public class DicomImageUtils {
 
@@ -56,7 +56,7 @@ public class DicomImageUtils {
   /**
    * @deprecated Use {@link DicomAttributeUtils#getModality(Attributes)} instead
    */
-  @Deprecated(since = "4.12", forRemoval = true)
+  @Deprecated(since = "5.34.0.3", forRemoval = true)
   public static String getModality(Attributes dcm) {
     return DicomAttributeUtils.getModality(dcm);
   }
@@ -64,7 +64,7 @@ public class DicomImageUtils {
   /**
    * @deprecated Use {@link RescaleUtils#createRescaleRampLut(LutParameters)} instead
    */
-  @Deprecated(since = "4.12", forRemoval = true)
+  @Deprecated(since = "5.34.0.3", forRemoval = true)
   public static LookupTableCV createRescaleRampLut(LutParameters params) {
     return RescaleUtils.createRescaleRampLut(params);
   }
@@ -73,7 +73,7 @@ public class DicomImageUtils {
    * @deprecated Use {@link RescaleUtils#createRescaleRampLut(double, double, int, boolean, boolean,
    *     int)} instead
    */
-  @Deprecated(since = "4.12", forRemoval = true)
+  @Deprecated(since = "5.34.0.3", forRemoval = true)
   public static LookupTableCV createRescaleRampLut(
       double intercept,
       double slope,
@@ -89,7 +89,7 @@ public class DicomImageUtils {
    * @deprecated Use {@link RescaleUtils#createRescaleRampLut(double, double, int, int, int,
    *     boolean, boolean, boolean, int)} instead
    */
-  @Deprecated(since = "4.12", forRemoval = true)
+  @Deprecated(since = "5.34.0.3", forRemoval = true)
   public static LookupTableCV createRescaleRampLut(
       double intercept,
       double slope,
@@ -116,7 +116,7 @@ public class DicomImageUtils {
    * @deprecated Use {@link RescaleUtils#applyPixelPaddingToModalityLUT(LookupTableCV,
    *     LutParameters)} instead
    */
-  @Deprecated(since = "4.12", forRemoval = true)
+  @Deprecated(since = "5.34.0.3", forRemoval = true)
   public static void applyPixelPaddingToModalityLUT(
       LookupTableCV modalityLookup, LutParameters lutparams) {
     RescaleUtils.applyPixelPaddingToModalityLUT(modalityLookup, lutparams);
@@ -125,7 +125,7 @@ public class DicomImageUtils {
   /**
    * @deprecated Use {@link RescaleUtils#pixel2rescale(LookupTableCV, double)} instead
    */
-  @Deprecated(since = "4.12", forRemoval = true)
+  @Deprecated(since = "5.34.0.3", forRemoval = true)
   public static double pixel2rescale(LookupTableCV lookup, double pixelValue) {
     return RescaleUtils.pixel2rescale(lookup, pixelValue);
   }
@@ -133,7 +133,7 @@ public class DicomImageUtils {
   /**
    * @deprecated Use {@link RescaleUtils#pixel2rescale(Attributes, double)} instead
    */
-  @Deprecated(since = "4.12", forRemoval = true)
+  @Deprecated(since = "5.34.0.3", forRemoval = true)
   public static double pixel2rescale(Attributes dcm, double pixelValue) {
     return RescaleUtils.pixel2rescale(dcm, pixelValue);
   }
@@ -141,7 +141,7 @@ public class DicomImageUtils {
   /**
    * @deprecated Use {@link DicomAttributeUtils#getByteData(Attributes, int)} instead
    */
-  @Deprecated(since = "4.12", forRemoval = true)
+  @Deprecated(since = "5.34.0.3", forRemoval = true)
   public static Optional<byte[]> getByteData(Attributes dicom, int tag) {
     return DicomAttributeUtils.getByteData(dicom, tag);
   }
@@ -149,7 +149,7 @@ public class DicomImageUtils {
   /**
    * @deprecated Use {@link DicomAttributeUtils#getByteData(Attributes, String, int)} instead
    */
-  @Deprecated(since = "4.12", forRemoval = true)
+  @Deprecated(since = "5.34.0.3", forRemoval = true)
   public static Optional<byte[]> getByteData(Attributes dicom, String privateCreator, int tag) {
     return DicomAttributeUtils.getByteData(dicom, privateCreator, tag);
   }
@@ -157,7 +157,7 @@ public class DicomImageUtils {
   /**
    * @deprecated Use {@link PaletteColorUtils#getPaletteColorLookupTable(Attributes)} instead
    */
-  @Deprecated(since = "4.12", forRemoval = true)
+  @Deprecated(since = "5.34.0.3", forRemoval = true)
   public static LookupTableCV getPaletteColorLookupTable(Attributes ds) {
     return PaletteColorUtils.getPaletteColorLookupTable(ds);
   }
@@ -166,7 +166,7 @@ public class DicomImageUtils {
    * @deprecated Use {@link PaletteColorUtils#getRGBImageFromPaletteColorModel(PlanarImage,
    *     LookupTableCV)} instead
    */
-  @Deprecated(since = "4.12", forRemoval = true)
+  @Deprecated(since = "5.34.0.3", forRemoval = true)
   public static PlanarImage getRGBImageFromPaletteColorModel(
       PlanarImage source, LookupTableCV lookup) {
     return PaletteColorUtils.getRGBImageFromPaletteColorModel(source, lookup);
@@ -176,7 +176,7 @@ public class DicomImageUtils {
    * @deprecated Use {@link PaletteColorUtils#getRGBImageFromPaletteColorModel(PlanarImage,
    *     Attributes)} instead
    */
-  @Deprecated(since = "4.12", forRemoval = true)
+  @Deprecated(since = "5.34.0.3", forRemoval = true)
   public static PlanarImage getRGBImageFromPaletteColorModel(PlanarImage source, Attributes ds) {
     return PaletteColorUtils.getRGBImageFromPaletteColorModel(source, ds);
   }
@@ -184,7 +184,7 @@ public class DicomImageUtils {
   /**
    * @deprecated Use {@link LookupTableUtils#createLut(Attributes)} instead
    */
-  @Deprecated(since = "4.12", forRemoval = true)
+  @Deprecated(since = "5.34.0.3", forRemoval = true)
   public static Optional<LookupTableCV> createLut(Attributes dicomLutObject) {
     return LookupTableUtils.createLut(dicomLutObject);
   }
@@ -193,7 +193,7 @@ public class DicomImageUtils {
    * @deprecated Use {@link LookupTableUtils#createVoiLut(LutShape, double, double, int, int, int,
    *     boolean, boolean)} instead
    */
-  @Deprecated(since = "4.12", forRemoval = true)
+  @Deprecated(since = "5.34.0.3", forRemoval = true)
   public static LookupTableCV createVoiLut(
       LutShape lutShape,
       double level,
@@ -210,7 +210,7 @@ public class DicomImageUtils {
   /**
    * @deprecated Use {@link LookupTableUtils#lutDescriptor(Attributes, int)} instead
    */
-  @Deprecated(since = "4.12", forRemoval = true)
+  @Deprecated(since = "5.34.0.3", forRemoval = true)
   public static int[] lutDescriptor(Attributes ds, int tag) {
     return LookupTableUtils.lutDescriptor(ds, tag);
   }
@@ -218,7 +218,7 @@ public class DicomImageUtils {
   /**
    * @deprecated Use {@link LookupTableUtils#lutData(Attributes, int[], int, int)} instead
    */
-  @Deprecated(since = "4.12", forRemoval = true)
+  @Deprecated(since = "5.34.0.3", forRemoval = true)
   public static byte[] lutData(Attributes ds, int[] desc, int tag, int segmentedTag) {
     return LookupTableUtils.lutData(ds, desc, tag, segmentedTag);
   }
@@ -226,7 +226,7 @@ public class DicomImageUtils {
   /**
    * @deprecated Use {@link PixelDataUtils#getMinMax(int, boolean)} instead
    */
-  @Deprecated(since = "4.12", forRemoval = true)
+  @Deprecated(since = "5.34.0.3", forRemoval = true)
   public static Pair<Double, Double> getMinMax(int bitsStored, boolean signed) {
     return PixelDataUtils.getMinMax(bitsStored, signed);
   }
@@ -234,7 +234,7 @@ public class DicomImageUtils {
   /**
    * @deprecated Use {@link PixelDataUtils#bgr2rgb(PlanarImage)} instead
    */
-  @Deprecated(since = "4.12", forRemoval = true)
+  @Deprecated(since = "5.34.0.3", forRemoval = true)
   public static PlanarImage bgr2rgb(PlanarImage img) {
     return PixelDataUtils.bgr2rgb(img);
   }

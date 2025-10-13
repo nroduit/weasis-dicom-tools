@@ -14,6 +14,7 @@ import java.io.InputStream;
 import java.net.URL;
 import java.text.MessageFormat;
 import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.net.ApplicationEntity;
@@ -24,7 +25,6 @@ import org.dcm4che3.tool.storescu.StoreSCU;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.util.FileUtil;
-import org.weasis.core.util.StreamUtil;
 import org.weasis.core.util.StringUtil;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.CstoreParams;
@@ -34,58 +34,71 @@ import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
 import org.weasis.dicom.util.ServiceUtil;
 
-public class CStore {
+/**
+ * DICOM C-STORE operations utility class for sending DICOM objects to remote storage servers.
+ *
+ * <p>Provides static methods to perform C-STORE operations with various parameter combinations,
+ * supporting progress tracking, advanced connection parameters, and custom store options.
+ */
+public final class CStore {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(CStore.class);
+  private static final String DEVICE_NAME = "storescu";
 
-  private CStore() {}
+  private CStore() {
+    // Utility class - prevent instantiation
+  }
 
   /**
+   * Performs C-STORE operation with basic parameters.
+   *
    * @param callingNode the calling DICOM node configuration
    * @param calledNode the called DICOM node configuration
-   * @param files the list of file paths
-   * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error
-   *     message and the progression.
+   * @param files the list of file paths to store
+   * @return the DICOM state containing response, status, and error information
    */
   public static DicomState process(
       DicomNode callingNode, DicomNode calledNode, List<String> files) {
-    return process(null, callingNode, calledNode, files);
+    return process(null, callingNode, calledNode, files, null, null);
   }
 
   /**
+   * Performs C-STORE operation with progress tracking.
+   *
    * @param callingNode the calling DICOM node configuration
    * @param calledNode the called DICOM node configuration
-   * @param files the list of file paths
+   * @param files the list of file paths to store
    * @param progress the progress handler
-   * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error
-   *     message and the progression.
+   * @return the DICOM state containing response, status, and error information
    */
   public static DicomState process(
       DicomNode callingNode, DicomNode calledNode, List<String> files, DicomProgress progress) {
-    return process(null, callingNode, calledNode, files, progress);
+    return process(null, callingNode, calledNode, files, progress, null);
   }
 
   /**
+   * Performs C-STORE operation with advanced parameters.
+   *
    * @param params optional advanced parameters (proxy, authentication, connection and TLS)
    * @param callingNode the calling DICOM node configuration
    * @param calledNode the called DICOM node configuration
-   * @param files the list of file paths
-   * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error
-   *     message and the progression.
+   * @param files the list of file paths to store
+   * @return the DICOM state containing response, status, and error information
    */
   public static DicomState process(
       AdvancedParams params, DicomNode callingNode, DicomNode calledNode, List<String> files) {
-    return process(params, callingNode, calledNode, files, null);
+    return process(params, callingNode, calledNode, files, null, null);
   }
 
   /**
+   * Performs C-STORE operation with advanced parameters and progress tracking.
+   *
    * @param params the optional advanced parameters (proxy, authentication, connection and TLS)
    * @param callingNode the calling DICOM node configuration
    * @param calledNode the called DICOM node configuration
-   * @param files the list of file paths
+   * @param files the list of file paths to store
    * @param progress the progress handler
-   * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error
-   *     message and the progression.
+   * @return the DICOM state containing response, status, and error information
    */
   public static DicomState process(
       AdvancedParams params,
@@ -97,14 +110,15 @@ public class CStore {
   }
 
   /**
+   * Performs C-STORE operation with full parameter control.
+   *
    * @param params the optional advanced parameters (proxy, authentication, connection and TLS)
    * @param callingNode the calling DICOM node configuration
    * @param calledNode the called DICOM node configuration
-   * @param files the list of file paths
+   * @param files the list of file paths to store
    * @param progress the progress handler
-   * @param cstoreParams c-store options, see CstoreParams
-   * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error
-   *     message and the progression.
+   * @param cstoreParams C-STORE specific options
+   * @return the DICOM state containing response, status, and error information
    */
   public static DicomState process(
       AdvancedParams params,
@@ -113,110 +127,166 @@ public class CStore {
       List<String> files,
       DicomProgress progress,
       CstoreParams cstoreParams) {
-    if (callingNode == null || calledNode == null) {
-      throw new IllegalArgumentException("callingNode or calledNode cannot be null!");
-    }
 
-    AdvancedParams options = params == null ? new AdvancedParams() : params;
-    CstoreParams storeOptions =
-        cstoreParams == null ? new CstoreParams(null, false, null) : cstoreParams;
+    validateParameters(callingNode, calledNode);
 
-    StoreSCU storeSCU = null;
+    var options = Objects.requireNonNullElse(params, new AdvancedParams());
+    var storeOptions =
+        Objects.requireNonNullElse(cstoreParams, new CstoreParams(null, false, null));
 
     try {
-      Device device = new Device("storescu");
-      Connection conn = new Connection();
-      device.addConnection(conn);
-      ApplicationEntity ae = new ApplicationEntity(callingNode.getAet());
-      device.addApplicationEntity(ae);
-      ae.addConnection(conn);
-      storeSCU = new StoreSCU(ae, progress, storeOptions.getDicomEditors());
-      Connection remote = storeSCU.getRemoteConnection();
-      DeviceOpService service = new DeviceOpService(device);
-
-      options.configureConnect(storeSCU.getAAssociateRQ(), remote, calledNode);
-      options.configureBind(ae, conn, callingNode);
-
-      // configure
-      options.configure(conn);
-      options.configureTLS(conn, remote);
-
-      storeSCU.setAttributes(new Attributes());
-
-      if (storeOptions.isExtendNegociation()) {
-        configureRelatedSOPClass(storeSCU, storeOptions.getExtendSopClassesURL());
-      }
-      // storeSCU.setUIDSuffix(cl.getOptionValue("uid-suffix"));
-      storeSCU.setPriority(options.getPriority());
-
-      storeSCU.scanFiles(files, false);
-
-      DicomState dcmState = storeSCU.getState();
-
-      int n = storeSCU.getFilesScanned();
-      if (n == 0) {
-        return new DicomState(Status.UnableToProcess, "No DICOM file has been found!", null);
-      } else {
-        service.start();
-        try {
-          long t1 = System.currentTimeMillis();
-          storeSCU.open();
-          long t2 = System.currentTimeMillis();
-          storeSCU.sendFiles();
-          ServiceUtil.forceGettingAttributes(dcmState, storeSCU);
-          long t3 = System.currentTimeMillis();
-          String timeMsg =
-              MessageFormat.format(
-                  "DICOM C-STORE connected in {2}ms from {0} to {1}. Stored files in {3}ms. Total size {4}",
-                  storeSCU.getAAssociateRQ().getCallingAET(),
-                  storeSCU.getAAssociateRQ().getCalledAET(),
-                  t2 - t1,
-                  t3 - t2,
-                  FileUtil.humanReadableByte(storeSCU.getTotalSize(), false));
-          dcmState = DicomState.buildMessage(dcmState, timeMsg, null);
-          dcmState.addProcessTime(t1, t2, t3);
-          dcmState.setBytesSize(storeSCU.getTotalSize());
-          return dcmState;
-        } catch (Exception e) {
-          if (e instanceof InterruptedException) {
-            Thread.currentThread().interrupt();
-          }
-          LOGGER.error("storescu", e);
-          ServiceUtil.forceGettingAttributes(storeSCU.getState(), storeSCU);
-          return DicomState.buildMessage(storeSCU.getState(), null, e);
-        } finally {
-          StreamUtil.safeClose(storeSCU);
-          service.stop();
-        }
-      }
+      return executeStoreOperation(options, storeOptions, callingNode, calledNode, files, progress);
     } catch (Exception e) {
-      LOGGER.error("storescu", e);
-      return DicomState.buildMessage(
-          new DicomState(
-              Status.UnableToProcess,
-              "DICOM Store failed" + StringUtil.COLON_AND_SPACE + e.getMessage(),
-              null),
-          null,
-          e);
-    } finally {
-      StreamUtil.safeClose(storeSCU);
+      LOGGER.error("C-STORE operation failed", e);
+      return createErrorState(e);
     }
   }
 
-  private static void configureRelatedSOPClass(StoreSCU storescu, URL url) throws IOException {
-    storescu.enableSOPClassRelationshipExtNeg(true);
-    Properties p = new Properties();
-    try {
-      if (url == null) {
-        p.load(storescu.getClass().getResourceAsStream("rel-sop-classes.properties"));
-      } else {
-        try (InputStream in = url.openStream()) {
-          p.load(in);
-        }
-      }
-    } catch (Exception e) {
-      LOGGER.error("Read sop classes", e);
+  private static void validateParameters(DicomNode callingNode, DicomNode calledNode) {
+    Objects.requireNonNull(callingNode, "callingNode cannot be null");
+    Objects.requireNonNull(calledNode, "calledNode cannot be null");
+  }
+
+  private static DicomState executeStoreOperation(
+      AdvancedParams options,
+      CstoreParams storeOptions,
+      DicomNode callingNode,
+      DicomNode calledNode,
+      List<String> files,
+      DicomProgress progress)
+      throws Exception {
+
+    try (var storeSCU = createStoreSCU(options, storeOptions, callingNode, calledNode, progress)) {
+      return performStore(storeSCU, files);
     }
-    storescu.relSOPClasses.init(p);
+  }
+
+  private static StoreSCU createStoreSCU(
+      AdvancedParams options,
+      CstoreParams storeOptions,
+      DicomNode callingNode,
+      DicomNode calledNode,
+      DicomProgress progress)
+      throws IOException {
+
+    var device = new Device(DEVICE_NAME);
+    var conn = new Connection();
+    device.addConnection(conn);
+    var ae = new ApplicationEntity(callingNode.getAet());
+    device.addApplicationEntity(ae);
+    ae.addConnection(conn);
+    var storeSCU = new StoreSCU(ae, progress, storeOptions.getDicomEditors());
+    var remote = storeSCU.getRemoteConnection();
+
+    configureConnection(options, storeSCU, conn, remote, callingNode, calledNode);
+    configureStoreOptions(storeSCU, storeOptions, options);
+
+    return storeSCU;
+  }
+
+  private static void configureConnection(
+      AdvancedParams options,
+      StoreSCU storeSCU,
+      Connection conn,
+      Connection remote,
+      DicomNode callingNode,
+      DicomNode calledNode)
+      throws IOException {
+
+    options.configureConnect(storeSCU.getAAssociateRQ(), remote, calledNode);
+    options.configureBind(new ApplicationEntity(callingNode.getAet()), conn, callingNode);
+    options.configure(conn);
+    options.configureTLS(conn, remote);
+  }
+
+  private static void configureStoreOptions(
+      StoreSCU storeSCU, CstoreParams storeOptions, AdvancedParams options) throws IOException {
+
+    storeSCU.setAttributes(new Attributes());
+
+    if (storeOptions.isExtendNegotiation()) {
+      configureRelatedSOPClass(storeSCU, storeOptions.getExtendSopClassesURL());
+    }
+    storeSCU.setPriority(options.getPriority());
+  }
+
+  private static DicomState performStore(StoreSCU storeSCU, List<String> files) throws Exception {
+    storeSCU.scanFiles(files, false);
+
+    int filesScanned = storeSCU.getFilesScanned();
+    if (filesScanned == 0) {
+      return new DicomState(Status.UnableToProcess, "No DICOM files found", null);
+    }
+
+    var service = new DeviceOpService(storeSCU.getApplicationEntity().getDevice());
+    service.start();
+    try {
+      return executeTransfer(storeSCU);
+    } finally {
+      service.stop();
+    }
+  }
+
+  private static DicomState executeTransfer(StoreSCU storeSCU) throws Exception {
+    long startTime = System.currentTimeMillis();
+    storeSCU.open();
+    long connectTime = System.currentTimeMillis();
+    storeSCU.sendFiles();
+    long transferTime = System.currentTimeMillis();
+
+    ServiceUtil.forceGettingAttributes(storeSCU.getState(), storeSCU);
+
+    return createSuccessState(storeSCU, startTime, connectTime, transferTime);
+  }
+
+  private static DicomState createSuccessState(
+      StoreSCU storeSCU, long startTime, long connectTime, long transferTime) {
+
+    var associateRQ = storeSCU.getAAssociateRQ();
+    String timeMsg =
+        MessageFormat.format(
+            "DICOM C-STORE connected in {2}ms from {0} to {1}. Stored files in {3}ms. Total size {4}",
+            associateRQ.getCallingAET(),
+            associateRQ.getCalledAET(),
+            connectTime - startTime,
+            transferTime - connectTime,
+            FileUtil.humanReadableByte(storeSCU.getTotalSize(), false));
+    var dcmState = DicomState.buildMessage(storeSCU.getState(), timeMsg, null);
+    dcmState.addProcessTime(startTime, connectTime, transferTime);
+    dcmState.setBytesSize(storeSCU.getTotalSize());
+    return dcmState;
+  }
+
+  private static DicomState createErrorState(Exception e) {
+    if (e instanceof InterruptedException) {
+      Thread.currentThread().interrupt();
+    }
+    return DicomState.buildMessage(
+        new DicomState(
+            Status.UnableToProcess,
+            "DICOM Store failed" + StringUtil.COLON_AND_SPACE + e.getMessage(),
+            null),
+        null,
+        e);
+  }
+
+  private static void configureRelatedSOPClass(StoreSCU storeSCU, URL url) throws IOException {
+    storeSCU.enableSOPClassRelationshipExtNeg(true);
+
+    var properties = new Properties();
+    try (InputStream inputStream = getSOPClassesInputStream(storeSCU, url)) {
+      properties.load(inputStream);
+    } catch (Exception e) {
+      LOGGER.error("Failed to read SOP classes configuration", e);
+    }
+
+    storeSCU.relSOPClasses.init(properties);
+  }
+
+  private static InputStream getSOPClassesInputStream(StoreSCU storeSCU, URL url)
+      throws IOException {
+    return url != null
+        ? url.openStream()
+        : storeSCU.getClass().getResourceAsStream("rel-sop-classes.properties");
   }
 }

@@ -10,33 +10,41 @@
 package org.weasis.dicom.ref;
 
 import java.util.Locale;
-import java.util.MissingResourceException;
-import java.util.ResourceBundle;
 
-public class MesCategory {
-  private static final String BUNDLE_NAME = "org.weasis.dicom.ref.category"; // NON-NLS
+/**
+ * Resource bundle accessor for anatomical category terminology. Provides localized human-readable
+ * names for anatomical category context UIDs used in DICOM anatomical region classification.
+ *
+ * @see AnatomicBuilder.Category
+ * @see AnatomicRegion
+ */
+public final class MesCategory {
 
-  private static final ResourceBundle RESOURCE_BUNDLE = ResourceBundle.getBundle(BUNDLE_NAME);
+  private static final AbstractResourceBundle BUNDLE =
+      new AbstractResourceBundle("org.weasis.dicom.ref.category") {};
 
-  private MesCategory() {}
-
-  public static String getString(String key) {
-    try {
-      return RESOURCE_BUNDLE.getString(key);
-    } catch (MissingResourceException e) {
-      return '!' + key + '!';
-    }
+  private MesCategory() {
+    // Utility class - prevent instantiation
   }
 
+  /**
+   * Gets the localized string for a category context UID using the default locale.
+   *
+   * @param key the category context UID
+   * @return the localized category name
+   */
+  public static String getString(String key) {
+    return BUNDLE.getString(key);
+  }
+
+  /**
+   * Gets the localized string for a category context UID using the specified locale.
+   *
+   * @param contextUID the category context UID
+   * @param locale the desired locale, or null to use default locale
+   * @return the localized category name
+   */
   public static String getString(String contextUID, Locale locale) {
-    try {
-      if (locale == null) {
-        locale = Locale.getDefault();
-      }
-      ResourceBundle bundle = ResourceBundle.getBundle(BUNDLE_NAME, locale);
-      return bundle.getString(contextUID);
-    } catch (MissingResourceException e) {
-      return '!' + contextUID + '!';
-    }
+    return BUNDLE.getString(contextUID, locale);
   }
 }

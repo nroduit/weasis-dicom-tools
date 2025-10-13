@@ -9,14 +9,12 @@
  */
 package org.weasis.dicom.op;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URL;
+import java.nio.file.Path;
 import java.text.MessageFormat;
-import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Properties;
-import org.dcm4che3.net.Connection;
 import org.dcm4che3.net.QueryOption;
 import org.dcm4che3.net.Status;
 import org.dcm4che3.tool.common.CLIUtils;
@@ -35,176 +33,251 @@ import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
 import org.weasis.dicom.util.ServiceUtil;
 
-public class CGet {
+/**
+ * DICOM C-GET service for retrieving DICOM objects from remote nodes. Provides static methods to
+ * initiate DICOM C-GET operations with support for advanced parameters including TLS,
+ * authentication, and custom SOP class configurations.
+ *
+ * <p>The C-GET service allows a DICOM SCU (Service Class User) to retrieve DICOM objects from a
+ * remote DICOM SCP (Service Class Provider). Retrieved objects are stored in a specified output
+ * directory.
+ */
+public final class CGet {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(CGet.class);
+  private static final String DEFAULT_STORE_TCS_PROPERTIES = "store-tcs.properties";
 
   private CGet() {}
 
   /**
+   * Performs a DICOM C-GET operation with basic parameters.
+   *
    * @param callingNode the calling DICOM node configuration
    * @param calledNode the called DICOM node configuration
-   * @param progress the progress handler
-   * @param keys the matching and returning keys. DicomParam with no value is a returning key.
-   * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error
-   *     message and the progression.
+   * @param progress the progress handler for monitoring operation status
+   * @param outputDir the directory where retrieved DICOM files will be stored
+   * @param keys the query parameters and return keys
+   * @return the DICOM state containing response status and progress information
+   * @throws IllegalArgumentException if any required parameter is null
    */
   public static DicomState process(
       DicomNode callingNode,
       DicomNode calledNode,
       DicomProgress progress,
-      File outputDir,
+      Path outputDir,
       DicomParam... keys) {
-    return process(null, callingNode, calledNode, progress, outputDir, keys);
+    return process(null, callingNode, calledNode, progress, outputDir, null, keys);
   }
 
   /**
-   * @param params the optional advanced parameters (proxy, authentication, connection and TLS)
+   * Performs a DICOM C-GET operation with advanced parameters.
+   *
+   * @param params the advanced parameters (proxy, authentication, connection and TLS options)
    * @param callingNode the calling DICOM node configuration
    * @param calledNode the called DICOM node configuration
-   * @param progress the progress handler
-   * @param keys the matching and returning keys. DicomParam with no value is a returning key.
-   * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error
-   *     message and the progression.
+   * @param progress the progress handler for monitoring operation status
+   * @param outputDir the directory where retrieved DICOM files will be stored
+   * @param keys the query parameters and return keys
+   * @return the DICOM state containing response status and progress information
+   * @throws IllegalArgumentException if any required parameter is null
    */
   public static DicomState process(
       AdvancedParams params,
       DicomNode callingNode,
       DicomNode calledNode,
       DicomProgress progress,
-      File outputDir,
+      Path outputDir,
       DicomParam... keys) {
     return process(params, callingNode, calledNode, progress, outputDir, null, keys);
   }
 
   /**
-   * @param params the optional advanced parameters (proxy, authentication, connection and TLS)
+   * Performs a DICOM C-GET operation with custom SOP class configuration.
+   *
+   * @param params the advanced parameters (may be null for defaults)
    * @param callingNode the calling DICOM node configuration
    * @param calledNode the called DICOM node configuration
-   * @param progress the progress handler
-   * @param keys the matching and returning keys. DicomParam with no value is a returning key.
-   * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error
-   *     message and the progression.
+   * @param progress the progress handler for monitoring operation status
+   * @param outputDir the directory where retrieved DICOM files will be stored
+   * @param sopClassURL optional URL to custom SOP class configuration
+   * @param keys the query parameters and return keys
+   * @return the DICOM state containing response status and progress information
+   * @throws IllegalArgumentException if any required parameter is null
    */
   public static DicomState process(
       AdvancedParams params,
       DicomNode callingNode,
       DicomNode calledNode,
       DicomProgress progress,
-      File outputDir,
+      Path outputDir,
       URL sopClassURL,
       DicomParam... keys) {
-    if (callingNode == null || calledNode == null || outputDir == null) {
-      throw new IllegalArgumentException("callingNode, calledNode or outputDir cannot be null!");
-    }
-    GetSCU getSCU = null;
-    AdvancedParams options = params == null ? new AdvancedParams() : params;
+    validateRequiredParameters(callingNode, calledNode, outputDir);
+    var options = Objects.requireNonNullElse(params, new AdvancedParams());
 
     try {
-      getSCU = new GetSCU(progress);
-      Connection remote = getSCU.getRemoteConnection();
-      Connection conn = getSCU.getConnection();
-      options.configureConnect(getSCU.getAAssociateRQ(), remote, calledNode);
-      options.configureBind(getSCU.getApplicationEntity(), conn, callingNode);
-      DeviceOpService service = new DeviceOpService(getSCU.getDevice());
-
-      // configure
-      options.configure(conn);
-      options.configureTLS(conn, remote);
-
-      getSCU.setPriority(options.getPriority());
-
-      getSCU.setStorageDirectory(outputDir);
-
-      getSCU.setInformationModel(
-          getInformationModel(options),
-          options.getTsuidOrder(),
-          options.getQueryOptions().contains(QueryOption.RELATIONAL));
-
-      configureRelatedSOPClass(getSCU, sopClassURL);
-
-      DicomState dcmState = getSCU.getState();
-      for (DicomParam p : keys) {
-        String[] values = p.getValues();
-        getSCU.addKey(p.getTag(), values);
-        if (values != null && values.length > 0) {
-          dcmState.addDicomMatchingKeys(p);
-        }
-      }
-
-      service.start();
-      try {
-        long t1 = System.currentTimeMillis();
-        getSCU.open();
-        long t2 = System.currentTimeMillis();
-        getSCU.retrieve();
-        ServiceUtil.forceGettingAttributes(dcmState, getSCU);
-        long t3 = System.currentTimeMillis();
-        String timeMsg =
-            MessageFormat.format(
-                "DICOM C-GET connected in {2}ms from {0} to {1}. Get files in {3}ms.",
-                getSCU.getAAssociateRQ().getCallingAET(),
-                getSCU.getAAssociateRQ().getCalledAET(),
-                t2 - t1,
-                t3 - t2);
-        dcmState = DicomState.buildMessage(dcmState, timeMsg, null);
-        dcmState.addProcessTime(t1, t2, t3);
-        dcmState.setBytesSize(getSCU.getTotalSize());
-        return dcmState;
-      } catch (Exception e) {
-        if (e instanceof InterruptedException) {
-          Thread.currentThread().interrupt();
-        }
-        LOGGER.error("getscu", e);
-        ServiceUtil.forceGettingAttributes(getSCU.getState(), getSCU);
-        return DicomState.buildMessage(getSCU.getState(), null, e);
-      } finally {
-        StreamUtil.safeClose(getSCU);
-        service.stop();
-      }
+      return executeGetOperation(
+          options, callingNode, calledNode, progress, outputDir, sopClassURL, keys);
     } catch (Exception e) {
-      LOGGER.error("getscu", e);
-      return DicomState.buildMessage(
-          new DicomState(
-              Status.UnableToProcess,
-              "DICOM Get failed" + StringUtil.COLON_AND_SPACE + e.getMessage(),
-              null),
-          null,
-          e);
+      LOGGER.error("DICOM C-GET operation failed", e);
+      return createErrorState(e);
     }
   }
 
+  private static void validateRequiredParameters(
+      DicomNode callingNode, DicomNode calledNode, Path outputDir) {
+    Objects.requireNonNull(callingNode, "callingNode cannot be null");
+    Objects.requireNonNull(calledNode, "calledNode cannot be null");
+    Objects.requireNonNull(outputDir, "outputDir cannot be null");
+  }
+
+  private static DicomState executeGetOperation(
+      AdvancedParams options,
+      DicomNode callingNode,
+      DicomNode calledNode,
+      DicomProgress progress,
+      Path outputDir,
+      URL sopClassURL,
+      DicomParam... keys)
+      throws Exception {
+
+    var getSCU = new GetSCU(progress);
+    var service = new DeviceOpService(getSCU.getDevice());
+
+    try {
+      configureGetSCU(getSCU, options, callingNode, calledNode, outputDir, sopClassURL);
+      addQueryKeys(getSCU, keys);
+
+      service.start();
+      return performRetrievalOperation(getSCU);
+
+    } finally {
+      StreamUtil.safeClose(getSCU);
+      service.stop();
+    }
+  }
+
+  private static void configureGetSCU(
+      GetSCU getSCU,
+      AdvancedParams options,
+      DicomNode callingNode,
+      DicomNode calledNode,
+      Path outputDir,
+      URL sopClassURL)
+      throws IOException {
+
+    var remote = getSCU.getRemoteConnection();
+    var conn = getSCU.getConnection();
+
+    // Configure connection parameters
+    options.configureConnect(getSCU.getAAssociateRQ(), remote, calledNode);
+    options.configureBind(getSCU.getApplicationEntity(), conn, callingNode);
+    options.configure(conn);
+    options.configureTLS(conn, remote);
+
+    // Configure operation parameters
+    getSCU.setPriority(options.getPriority());
+
+    getSCU.setStorageDirectory(outputDir);
+
+    getSCU.setInformationModel(
+        getInformationModel(options),
+        options.getTsuidOrder(),
+        options.getQueryOptions().contains(QueryOption.RELATIONAL));
+
+    configureRelatedSOPClass(getSCU, sopClassURL);
+  }
+
+  private static void addQueryKeys(GetSCU getSCU, DicomParam... keys) {
+    var dcmState = getSCU.getState();
+    for (var param : keys) {
+      var values = param.getValues();
+      getSCU.addKey(param.getTag(), values);
+      if (values != null && values.length > 0) {
+        dcmState.addDicomMatchingKeys(param);
+      }
+    }
+  }
+
+  private static DicomState performRetrievalOperation(GetSCU getSCU) throws Exception {
+    var startTime = System.currentTimeMillis();
+    getSCU.open();
+    var connectTime = System.currentTimeMillis();
+    try {
+      getSCU.retrieve();
+      ServiceUtil.forceGettingAttributes(getSCU.getState(), getSCU);
+      var endTime = System.currentTimeMillis();
+
+      return buildSuccessState(getSCU, startTime, connectTime, endTime);
+    } catch (Exception e) {
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
+      LOGGER.error("DICOM C-GET retrieval failed", e);
+      ServiceUtil.forceGettingAttributes(getSCU.getState(), getSCU);
+      return DicomState.buildMessage(getSCU.getState(), null, e);
+    }
+  }
+
+  private static DicomState buildSuccessState(
+      GetSCU getSCU, long startTime, long connectTime, long endTime) {
+    var timeMsg =
+        MessageFormat.format(
+            "DICOM C-GET connected in {2}ms from {0} to {1}. Retrieved files in {3}ms.",
+            getSCU.getAAssociateRQ().getCallingAET(),
+            getSCU.getAAssociateRQ().getCalledAET(),
+            connectTime - startTime,
+            endTime - connectTime);
+
+    var dcmState = DicomState.buildMessage(getSCU.getState(), timeMsg, null);
+    dcmState.addProcessTime(startTime, connectTime, endTime);
+    dcmState.setBytesSize(getSCU.getTotalSize());
+    return dcmState;
+  }
+
+  private static DicomState createErrorState(Exception e) {
+    return DicomState.buildMessage(
+        new DicomState(
+            Status.UnableToProcess,
+            "DICOM Get failed" + StringUtil.COLON_AND_SPACE + e.getMessage(),
+            null),
+        null,
+        e);
+  }
+
   private static void configureRelatedSOPClass(GetSCU getSCU, URL url) throws IOException {
-    Properties p = new Properties();
+    var properties = new Properties();
     try {
       if (url == null) {
-        p.load(getSCU.getClass().getResourceAsStream("store-tcs.properties"));
+        try (var inputStream =
+            getSCU.getClass().getResourceAsStream(DEFAULT_STORE_TCS_PROPERTIES)) {
+          if (inputStream != null) {
+            properties.load(inputStream);
+          }
+        }
       } else {
-        try (InputStream in = url.openStream()) {
-          p.load(in);
+        try (var inputStream = url.openStream()) {
+          properties.load(inputStream);
         }
       }
-      for (Entry<Object, Object> entry : p.entrySet()) {
+      for (var entry : properties.entrySet()) {
         configureStorageSOPClass(getSCU, (String) entry.getKey(), (String) entry.getValue());
       }
     } catch (Exception e) {
-      LOGGER.error("Read sop classes", e);
+      LOGGER.error("Failed to read SOP class configuration", e);
     }
   }
 
   private static void configureStorageSOPClass(GetSCU getSCU, String cuid, String tsuids) {
-    String[] ts = StringUtils.split(tsuids, ';');
-    for (int i = 0; i < ts.length; i++) {
-      ts[i] = CLIUtils.toUID(ts[i]);
+    var transferSyntaxes = StringUtils.split(tsuids, ';');
+    for (int i = 0; i < transferSyntaxes.length; i++) {
+      transferSyntaxes[i] = CLIUtils.toUID(transferSyntaxes[i]);
     }
-    getSCU.addOfferedStorageSOPClass(CLIUtils.toUID(cuid), ts);
+    getSCU.addOfferedStorageSOPClass(CLIUtils.toUID(cuid), transferSyntaxes);
   }
 
   private static InformationModel getInformationModel(AdvancedParams options) {
-    Object model = options.getInformationModel();
-    if (model instanceof InformationModel) {
-      return (InformationModel) model;
-    }
-    return InformationModel.StudyRoot;
+    var model = options.getInformationModel();
+    return model instanceof InformationModel im ? im : InformationModel.StudyRoot;
   }
 }

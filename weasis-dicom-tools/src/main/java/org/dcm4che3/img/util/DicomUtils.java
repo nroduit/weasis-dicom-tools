@@ -81,6 +81,16 @@ public final class DicomUtils {
   private DicomUtils() {}
 
   /**
+   * Validates if the given string is a valid DICOM UID.
+   *
+   * @param uid the UID string to validate
+   * @return true if the UID is valid, false otherwise
+   */
+  public static boolean isValidUID(String uid) {
+    return StringUtil.hasText(uid) && uid.matches("^[0-9]+(\\.[0-9]+)*$") && uid.length() <= 64;
+  }
+
+  /**
    * Checks if the given UID represents a video transfer syntax.
    *
    * @param uid the transfer syntax UID to check

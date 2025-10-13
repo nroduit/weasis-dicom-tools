@@ -11,17 +11,26 @@ package org.weasis.dicom.ref;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+import java.util.stream.Stream;
 import org.dcm4che3.data.Attributes;
-import org.dcm4che3.data.Sequence;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
+import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestFactory;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junitpioneer.jupiter.DefaultLocale;
 import org.weasis.core.util.StringUtil;
 import org.weasis.dicom.macro.Code;
@@ -32,46 +41,71 @@ import org.weasis.dicom.ref.AnatomicBuilder.Category;
 @DisplayNameGeneration(ReplaceUnderscores.class)
 class AnatomicRegionTest {
 
-  private static final String TEST_CODE_VALUE = "86381001";
-  private static final String TEST_CODE_MEANING = "Skin of trunk";
-  private static final String TEST_CONTEXT_UID = "1.2.840.3.5.98";
-  private static final String TEST_CONTEXT_IDENTIFIER = "C13";
+  // Test data constants using real DICOM values
+  private static final String CUSTOM_CODE_VALUE = "86381001";
+  private static final String CUSTOM_CODE_MEANING = "Skin of trunk";
+  private static final String CUSTOM_CONTEXT_UID = "1.2.840.3.5.98";
+  private static final String CUSTOM_CONTEXT_IDENTIFIER = "C13";
+
+  // Test data sets for parameterized tests
+  private static final List<BodyPart> SAMPLE_BODY_PARTS =
+      List.of(
+          BodyPart.ABDOMEN, BodyPart.HEAD_AND_NECK, BodyPart.HEART, BodyPart.LUNG, BodyPart.BRAIN);
+
+  private static final List<SurfacePart> SAMPLE_SURFACE_PARTS =
+      List.of(SurfacePart.IRIS, SurfacePart.CORNEA, SurfacePart.SKIN, SurfacePart.HAIR);
+
+  private static final List<AnatomicModifier> SAMPLE_MODIFIERS =
+      List.of(
+          AnatomicModifier.LEFT,
+          AnatomicModifier.RIGHT,
+          AnatomicModifier.BILATERAL,
+          AnatomicModifier.SURFACE,
+          AnatomicModifier.MARGINAL);
 
   @Nested
   class Constructor_Tests {
 
-    @Test
-    void creates_region_with_single_anatomic_item() {
-      AnatomicItem item = SurfacePart.IRIS;
+    @ParameterizedTest(name = "creates region with {0}")
+    @EnumSource(
+        value = BodyPart.class,
+        names = {"ABDOMEN", "HEART", "BRAIN", "LUNG"})
+    void creates_region_with_body_part(BodyPart bodyPart) {
+      var region = new AnatomicRegion(bodyPart);
 
-      AnatomicRegion region = new AnatomicRegion(item);
+      assertEquals(bodyPart, region.getRegion());
+      assertTrue(region.getModifiers().isEmpty());
+      assertNull(region.getCategory());
+    }
 
-      assertEquals(item, region.getRegion());
+    @ParameterizedTest(name = "creates region with {0}")
+    @EnumSource(
+        value = SurfacePart.class,
+        names = {"IRIS", "CORNEA", "SKIN", "HAIR"})
+    void creates_region_with_surface_part(SurfacePart surfacePart) {
+      var region = new AnatomicRegion(surfacePart);
+
+      assertEquals(surfacePart, region.getRegion());
       assertTrue(region.getModifiers().isEmpty());
       assertNull(region.getCategory());
     }
 
     @Test
     void creates_region_with_category_and_modifiers() {
-      AnatomicItem item = BodyPart.ABDOMEN;
-      Set<AnatomicModifier> modifiers = new HashSet<>();
-      modifiers.add(AnatomicModifier.BILATERAL);
+      var modifiers = Set.of(AnatomicModifier.BILATERAL, AnatomicModifier.SURFACE);
 
-      AnatomicRegion region = new AnatomicRegion(Category.COMMON, item, modifiers);
+      var region = new AnatomicRegion(Category.COMMON, BodyPart.ABDOMEN, modifiers);
 
-      assertEquals(item, region.getRegion());
+      assertEquals(BodyPart.ABDOMEN, region.getRegion());
       assertEquals(Category.COMMON, region.getCategory());
       assertEquals(modifiers, region.getModifiers());
-      assertTrue(region.getModifiers().contains(AnatomicModifier.BILATERAL));
     }
 
     @Test
     void handles_null_modifiers_gracefully() {
-      AnatomicItem item = BodyPart.ABDOMEN;
+      var region = new AnatomicRegion(Category.COMMON, BodyPart.ABDOMEN, null);
 
-      AnatomicRegion region = new AnatomicRegion(Category.COMMON, item, null);
-
-      assertEquals(item, region.getRegion());
+      assertEquals(BodyPart.ABDOMEN, region.getRegion());
       assertEquals(Category.COMMON, region.getCategory());
       assertNotNull(region.getModifiers());
       assertTrue(region.getModifiers().isEmpty());
@@ -80,23 +114,33 @@ class AnatomicRegionTest {
     @Test
     void throws_exception_for_null_region() {
       assertThrows(NullPointerException.class, () -> new AnatomicRegion(null));
+      assertThrows(
+          NullPointerException.class, () -> new AnatomicRegion(Category.COMMON, null, null));
     }
 
     @Test
     void handles_null_category_gracefully() {
-      AnatomicItem item = BodyPart.HEAD_AND_NECK;
-      Set<AnatomicModifier> modifiers = Set.of(AnatomicModifier.LEFT);
+      var modifiers = Set.of(AnatomicModifier.LEFT);
 
-      AnatomicRegion region = new AnatomicRegion(null, item, modifiers);
+      var region = new AnatomicRegion(null, BodyPart.HEAD_AND_NECK, modifiers);
 
-      assertEquals(item, region.getRegion());
+      assertEquals(BodyPart.HEAD_AND_NECK, region.getRegion());
       assertNull(region.getCategory());
       assertEquals(modifiers, region.getModifiers());
+    }
+
+    @ParameterizedTest
+    @EnumSource(Category.class)
+    void creates_region_with_all_standard_categories(Category category) {
+      var region = new AnatomicRegion(category, BodyPart.ABDOMEN, Set.of());
+
+      assertEquals(BodyPart.ABDOMEN, region.getRegion());
+      assertEquals(category, region.getCategory());
     }
   }
 
   @Nested
-  class Modifier_management_Tests {
+  class Modifier_Management_Tests {
 
     private AnatomicRegion region;
 
@@ -105,35 +149,39 @@ class AnatomicRegionTest {
       region = new AnatomicRegion(BodyPart.ABDOMEN);
     }
 
-    @Test
-    void adds_modifier_correctly() {
-      region.addModifier(AnatomicModifier.MARGINAL);
+    @ParameterizedTest(name = "adds {0} modifier correctly")
+    @EnumSource(
+        value = AnatomicModifier.class,
+        names = {"LEFT", "RIGHT", "BILATERAL", "SURFACE", "MARGINAL"})
+    void adds_modifier_correctly(AnatomicModifier modifier) {
+      region.addModifier(modifier);
 
-      assertTrue(region.getModifiers().contains(AnatomicModifier.MARGINAL));
+      assertTrue(region.getModifiers().contains(modifier));
       assertEquals(1, region.getModifiers().size());
     }
 
-    @Test
-    void removes_modifier_correctly() {
-      region.addModifier(AnatomicModifier.MARGINAL);
-      assertTrue(region.getModifiers().contains(AnatomicModifier.MARGINAL));
+    @ParameterizedTest(name = "removes {0} modifier correctly")
+    @EnumSource(
+        value = AnatomicModifier.class,
+        names = {"LEFT", "RIGHT", "BILATERAL", "SURFACE", "MARGINAL"})
+    void removes_modifier_correctly(AnatomicModifier modifier) {
+      region.addModifier(modifier);
+      assertTrue(region.getModifiers().contains(modifier));
 
-      region.removeModifier(AnatomicModifier.MARGINAL);
+      region.removeModifier(modifier);
 
-      assertFalse(region.getModifiers().contains(AnatomicModifier.MARGINAL));
+      assertFalse(region.getModifiers().contains(modifier));
       assertTrue(region.getModifiers().isEmpty());
     }
 
     @Test
     void handles_multiple_modifiers() {
-      region.addModifier(AnatomicModifier.LEFT);
-      region.addModifier(AnatomicModifier.SURFACE);
-      region.addModifier(AnatomicModifier.MARGINAL);
+      var modifiers =
+          List.of(AnatomicModifier.LEFT, AnatomicModifier.SURFACE, AnatomicModifier.MARGINAL);
+      modifiers.forEach(region::addModifier);
 
-      assertEquals(3, region.getModifiers().size());
-      assertTrue(region.getModifiers().contains(AnatomicModifier.LEFT));
-      assertTrue(region.getModifiers().contains(AnatomicModifier.SURFACE));
-      assertTrue(region.getModifiers().contains(AnatomicModifier.MARGINAL));
+      assertEquals(modifiers.size(), region.getModifiers().size());
+      modifiers.forEach(modifier -> assertTrue(region.getModifiers().contains(modifier)));
     }
 
     @Test
@@ -152,14 +200,31 @@ class AnatomicRegionTest {
     }
 
     @Test
-    void handles_null_modifier_operations() {
+    void handles_null_modifier_operations_gracefully() {
       assertDoesNotThrow(() -> region.addModifier(null));
       assertDoesNotThrow(() -> region.removeModifier(null));
+    }
+
+    @TestFactory
+    Stream<DynamicTest> modifier_operations_with_various_combinations() {
+      return SAMPLE_MODIFIERS.stream()
+          .map(
+              modifier ->
+                  DynamicTest.dynamicTest(
+                      "Add and remove " + modifier.name(),
+                      () -> {
+                        var testRegion = new AnatomicRegion(BodyPart.LUNG);
+                        testRegion.addModifier(modifier);
+                        assertTrue(testRegion.getModifiers().contains(modifier));
+
+                        testRegion.removeModifier(modifier);
+                        assertFalse(testRegion.getModifiers().contains(modifier));
+                      }));
     }
   }
 
   @Nested
-  class DICOM_read_Tests {
+  class DICOM_Read_Tests {
 
     @Test
     void returns_null_for_null_attributes() {
@@ -171,45 +236,43 @@ class AnatomicRegionTest {
       assertNull(AnatomicRegion.read(new Attributes()));
     }
 
-    @Test
-    void reads_anatomic_region_from_legacy_body_part_examined() {
-      Attributes dcm = new Attributes();
-      dcm.setString(Tag.BodyPartExamined, VR.CS, BodyPart.ABDOMEN.getLegacyCode());
+    @ParameterizedTest(name = "reads {0} from legacy body part examined")
+    @MethodSource("bodyPartsWithLegacyCodes")
+    void reads_anatomic_region_from_legacy_body_part_examined(BodyPart bodyPart) {
+      var dcm = createAttributesWithLegacyCode(bodyPart.getLegacyCode());
 
-      AnatomicRegion region = AnatomicRegion.read(dcm);
+      var region = AnatomicRegion.read(dcm);
 
       assertNotNull(region);
-      assertEquals(BodyPart.ABDOMEN, region.getRegion());
+      assertEquals(bodyPart, region.getRegion());
       assertTrue(region.getModifiers().isEmpty());
+      assertNull(region.getCategory());
     }
 
     @Test
     void reads_body_part_with_modifiers_from_anatomic_region_sequence() {
-      Attributes dcm = new Attributes();
-      Attributes regionAttr = codeAttributesFor(BodyPart.HEAD_AND_NECK);
-      Sequence modSeq = regionAttr.newSequence(Tag.AnatomicRegionModifierSequence, 2);
-      modSeq.add(modifierAttributes(AnatomicModifier.LEFT));
-      modSeq.add(modifierAttributes(AnatomicModifier.SURFACE));
+      var dcm = new Attributes();
+      var regionAttr = createCodeAttributes(BodyPart.HEAD_AND_NECK);
+      var modifiers = List.of(AnatomicModifier.LEFT, AnatomicModifier.SURFACE);
+      addModifiersToRegion(regionAttr, modifiers);
       dcm.newSequence(Tag.AnatomicRegionSequence, 1).add(regionAttr);
 
-      AnatomicRegion region = AnatomicRegion.read(dcm);
+      var region = AnatomicRegion.read(dcm);
 
       assertNotNull(region);
       assertEquals(BodyPart.HEAD_AND_NECK, region.getRegion());
-      assertEquals(2, region.getModifiers().size());
-      assertTrue(region.getModifiers().contains(AnatomicModifier.LEFT));
-      assertTrue(region.getModifiers().contains(AnatomicModifier.SURFACE));
+      assertEquals(modifiers.size(), region.getModifiers().size());
+      modifiers.forEach(modifier -> assertTrue(region.getModifiers().contains(modifier)));
     }
 
     @Test
     void reads_surface_part_from_anatomic_region_sequence() {
-      Attributes dcm = new Attributes();
-      Attributes regionAttr = codeAttributesFor(SurfacePart.IRIS);
-      Sequence modSeq = regionAttr.newSequence(Tag.AnatomicRegionModifierSequence, 1);
-      modSeq.add(modifierAttributes(AnatomicModifier.RIGHT));
+      var dcm = new Attributes();
+      var regionAttr = createCodeAttributes(SurfacePart.IRIS);
+      addModifiersToRegion(regionAttr, List.of(AnatomicModifier.RIGHT));
       dcm.newSequence(Tag.AnatomicRegionSequence, 1).add(regionAttr);
 
-      AnatomicRegion region = AnatomicRegion.read(dcm);
+      var region = AnatomicRegion.read(dcm);
 
       assertNotNull(region);
       assertEquals(SurfacePart.IRIS, region.getRegion());
@@ -219,26 +282,18 @@ class AnatomicRegionTest {
 
     @Test
     void reads_custom_other_part_with_category_and_modifiers() {
-      Attributes dcm = new Attributes();
-      // laterality is "U" so pairing must not be inferred from laterality
-      dcm.setString(Tag.FrameLaterality, VR.CS, "U");
-
-      Attributes regionAttr = new Attributes();
-      regionAttr.setString(Tag.CodeValue, VR.SH, TEST_CODE_VALUE);
-      regionAttr.setString(Tag.CodingSchemeDesignator, VR.SH, CodingScheme.SCT.getDesignator());
-      regionAttr.setString(Tag.CodeMeaning, VR.LO, TEST_CODE_MEANING);
-      regionAttr.setString(Tag.ContextUID, VR.UI, TEST_CONTEXT_UID);
-      regionAttr.setString(Tag.ContextIdentifier, VR.SH, TEST_CONTEXT_IDENTIFIER);
-      Sequence modSeq = regionAttr.newSequence(Tag.AnatomicRegionModifierSequence, 1);
-      modSeq.add(modifierAttributes(AnatomicModifier.SURFACE));
+      var dcm = createAttributesWithLaterality("U"); // Unknown laterality
+      var regionAttr = createOtherPartAttributes();
+      addModifiersToRegion(regionAttr, List.of(AnatomicModifier.SURFACE));
       dcm.newSequence(Tag.AnatomicRegionSequence, 1).add(regionAttr);
 
-      AnatomicRegion region = AnatomicRegion.read(dcm);
+      var region = AnatomicRegion.read(dcm);
 
       assertNotNull(region);
-      assertEquals(TEST_CODE_VALUE, region.getRegion().getCodeValue());
+      assertInstanceOf(OtherPart.class, region.getRegion());
+      assertEquals(CUSTOM_CODE_VALUE, region.getRegion().getCodeValue());
       assertNull(region.getRegion().getLegacyCode());
-      assertEquals(TEST_CODE_MEANING, region.getRegion().getCodeMeaning());
+      assertEquals(CUSTOM_CODE_MEANING, region.getRegion().getCodeMeaning());
       assertFalse(region.getRegion().isPaired());
       assertEquals(CodingScheme.SCT, region.getRegion().getCodingScheme());
       assertTrue(region.getModifiers().contains(AnatomicModifier.SURFACE));
@@ -246,165 +301,196 @@ class AnatomicRegionTest {
 
     @Test
     void returns_null_when_code_value_is_missing() {
-      Attributes dcm = new Attributes();
-      Attributes regionAttr = new Attributes();
+      var dcm = new Attributes();
+      var regionAttr = new Attributes();
       regionAttr.setString(Tag.CodeMeaning, VR.LO, "Some meaning");
-      regionAttr.setString(Tag.CodingSchemeDesignator, VR.SH, "SCT");
+      regionAttr.setString(Tag.CodingSchemeDesignator, VR.SH, CodingScheme.SCT.getDesignator());
       dcm.newSequence(Tag.AnatomicRegionSequence, 1).add(regionAttr);
 
       assertNull(AnatomicRegion.read(dcm));
     }
 
-    @Test
-    void infers_paired_from_laterality_even_without_modifiers() {
-      Attributes dcm = new Attributes();
-      Attributes regionAttr =
-          codeAttributesFor(new OtherPart("X-123", "Custom", CodingScheme.SCT, false));
-      // Set laterality (not Unknown) at dataset level
-      dcm.setString(Tag.FrameLaterality, VR.CS, "R");
+    @ParameterizedTest(name = "infers pairing from laterality {0}")
+    @ValueSource(strings = {"L", "R", "B"})
+    void infers_paired_from_laterality_even_without_modifiers(String laterality) {
+      var dcm = createAttributesWithLaterality(laterality);
+      var regionAttr = createCodeAttributes(createOtherPart(false));
       dcm.newSequence(Tag.AnatomicRegionSequence, 1).add(regionAttr);
 
-      AnatomicRegion region = AnatomicRegion.read(dcm);
+      var region = AnatomicRegion.read(dcm);
 
       assertNotNull(region);
       assertTrue(region.getRegion().isPaired());
     }
+
+    @ParameterizedTest(name = "handles {0} modifier for pairing determination")
+    @EnumSource(
+        value = AnatomicModifier.class,
+        names = {"LEFT", "RIGHT", "BILATERAL"})
+    void handles_laterality_modifier_in_pairing_determination(AnatomicModifier lateralityModifier) {
+      var dcm = new Attributes();
+      var regionAttr = createCodeAttributes(createOtherPart(false));
+      addModifiersToRegion(regionAttr, List.of(lateralityModifier));
+      dcm.newSequence(Tag.AnatomicRegionSequence, 1).add(regionAttr);
+
+      var region = AnatomicRegion.read(dcm);
+
+      assertNotNull(region);
+      assertTrue(region.getRegion().isPaired());
+    }
+
+    @Test
+    void does_not_infer_pairing_from_unknown_laterality() {
+      var dcm = createAttributesWithLaterality("U");
+      var regionAttr = createCodeAttributes(createOtherPart(false));
+      dcm.newSequence(Tag.AnatomicRegionSequence, 1).add(regionAttr);
+
+      var region = AnatomicRegion.read(dcm);
+
+      assertNotNull(region);
+      assertFalse(region.getRegion().isPaired());
+    }
+
+    private static Stream<Arguments> bodyPartsWithLegacyCodes() {
+      return Stream.of(BodyPart.values())
+          .filter(bp -> StringUtil.hasText(bp.getLegacyCode()))
+          .limit(5) // Limit for test performance
+          .map(Arguments::of);
+    }
   }
 
   @Nested
-  class DICOM_write_Tests {
+  class DICOM_Write_Tests {
 
     @Test
     void handles_null_parameters_gracefully() {
-      // No exception should be thrown
       assertDoesNotThrow(() -> AnatomicRegion.write(null, null));
       assertDoesNotThrow(() -> AnatomicRegion.write(new Attributes(), null));
+      assertDoesNotThrow(() -> AnatomicRegion.write(null, new AnatomicRegion(BodyPart.ABDOMEN)));
     }
 
     @Test
     void writes_body_part_with_legacy_code_and_modifiers() {
-      AnatomicRegion region = new AnatomicRegion(BodyPart.ABDOMEN);
-      region.addModifier(AnatomicModifier.LEFT);
-      region.addModifier(AnatomicModifier.SURFACE);
+      var region = new AnatomicRegion(BodyPart.ABDOMEN);
+      var modifiers = List.of(AnatomicModifier.LEFT, AnatomicModifier.SURFACE);
+      modifiers.forEach(region::addModifier);
 
-      Attributes dcm = new Attributes();
+      var dcm = new Attributes();
       AnatomicRegion.write(dcm, region);
 
-      // BodyPartExamined should be set from legacy code
       assertEquals(BodyPart.ABDOMEN.getLegacyCode(), dcm.getString(Tag.BodyPartExamined));
 
-      // Region sequence content
-      Attributes written = dcm.getNestedDataset(Tag.AnatomicRegionSequence);
+      var written = dcm.getNestedDataset(Tag.AnatomicRegionSequence);
       assertNotNull(written);
 
-      Code code = new Code(written);
+      var code = new Code(written);
       assertEquals(BodyPart.ABDOMEN.getCodingScheme(), code.getCodingScheme());
       assertEquals(BodyPart.ABDOMEN.getCodeValue(), code.getExistingCodeValue());
       assertEquals(BodyPart.ABDOMEN.getCodeMeaning(), code.getCodeMeaning());
 
-      Sequence modSeq = written.getSequence(Tag.AnatomicRegionModifierSequence);
+      var modSeq = written.getSequence(Tag.AnatomicRegionModifierSequence);
       assertNotNull(modSeq);
-      assertEquals(2, modSeq.size());
+      assertEquals(modifiers.size(), modSeq.size());
     }
 
     @Test
     void writes_surface_part_without_legacy_code() {
-      AnatomicRegion region = new AnatomicRegion(SurfacePart.IRIS);
+      var region = new AnatomicRegion(SurfacePart.IRIS);
 
-      Attributes dcm = new Attributes();
+      var dcm = new Attributes();
       AnatomicRegion.write(dcm, region);
 
-      // No legacy BodyPartExamined should be written
       assertFalse(StringUtil.hasText(dcm.getString(Tag.BodyPartExamined)));
 
-      Attributes written = dcm.getNestedDataset(Tag.AnatomicRegionSequence);
+      var written = dcm.getNestedDataset(Tag.AnatomicRegionSequence);
       assertNotNull(written);
-      Code code = new Code(written);
+      var code = new Code(written);
       assertEquals(SurfacePart.IRIS.getCodeValue(), code.getExistingCodeValue());
     }
 
     @Test
     void writes_custom_other_part_with_category_context() {
-      OtherPart other = new OtherPart(TEST_CODE_VALUE, TEST_CODE_MEANING, CodingScheme.SCT, false);
-      AnatomicRegion region = new AnatomicRegion(Category.COMMON, other, Set.of());
+      var other = new OtherPart(CUSTOM_CODE_VALUE, CUSTOM_CODE_MEANING, CodingScheme.SCT, false);
+      var region = new AnatomicRegion(Category.COMMON, other, Collections.emptySet());
 
-      Attributes dcm = new Attributes();
+      var dcm = new Attributes();
       AnatomicRegion.write(dcm, region);
 
-      Attributes written = dcm.getNestedDataset(Tag.AnatomicRegionSequence);
-      Code code = new Code(written);
+      var written = dcm.getNestedDataset(Tag.AnatomicRegionSequence);
+      var code = new Code(written);
 
-      // Category context should be written when present
       assertEquals(Category.COMMON.getContextUID(), code.getContextUID());
       assertEquals(Category.COMMON.getIdentifier(), code.getContextIdentifier());
     }
 
-    @Test
-    void writes_region_without_modifiers() {
-      AnatomicRegion region = new AnatomicRegion(BodyPart.HEAD_AND_NECK);
+    @ParameterizedTest
+    @EnumSource(BodyPart.class)
+    void writes_region_without_modifiers(BodyPart bodyPart) {
+      var region = new AnatomicRegion(bodyPart);
 
-      Attributes dcm = new Attributes();
+      var dcm = new Attributes();
       AnatomicRegion.write(dcm, region);
 
-      Attributes written = dcm.getNestedDataset(Tag.AnatomicRegionSequence);
+      var written = dcm.getNestedDataset(Tag.AnatomicRegionSequence);
+      assertNotNull(written);
       assertNull(written.getSequence(Tag.AnatomicRegionModifierSequence));
     }
 
     @Test
     void writes_region_with_empty_modifier_set() {
-      AnatomicRegion region = new AnatomicRegion(null, BodyPart.HEAD_AND_NECK, new HashSet<>());
+      var region = new AnatomicRegion(null, BodyPart.HEAD_AND_NECK, new HashSet<>());
 
-      Attributes dcm = new Attributes();
+      var dcm = new Attributes();
       AnatomicRegion.write(dcm, region);
 
-      Attributes written = dcm.getNestedDataset(Tag.AnatomicRegionSequence);
+      var written = dcm.getNestedDataset(Tag.AnatomicRegionSequence);
+      assertNotNull(written);
       assertNull(written.getSequence(Tag.AnatomicRegionModifierSequence));
     }
   }
 
   @Nested
-  class Round_trip_serialization_Tests {
+  class Round_Trip_Serialization_Tests {
 
-    @Test
-    void maintains_data_integrity_through_write_read_cycle_for_body_part() {
-      AnatomicRegion original = new AnatomicRegion(BodyPart.ABDOMEN);
+    @ParameterizedTest(name = "maintains integrity for {0}")
+    @MethodSource("org.weasis.dicom.ref.AnatomicRegionTest#sampleBodyParts")
+    void maintains_data_integrity_through_write_read_cycle_for_body_parts(BodyPart bodyPart) {
+      var original = new AnatomicRegion(bodyPart);
       original.addModifier(AnatomicModifier.LEFT);
 
-      Attributes dcm = new Attributes();
+      var dcm = new Attributes();
       AnatomicRegion.write(dcm, original);
-
-      AnatomicRegion parsed = AnatomicRegion.read(dcm);
+      var parsed = AnatomicRegion.read(dcm);
 
       assertNotNull(parsed);
       assertEquals(original.getRegion(), parsed.getRegion());
       assertEquals(original.getModifiers(), parsed.getModifiers());
     }
 
-    @Test
-    void maintains_data_integrity_through_write_read_cycle_for_surface_part() {
-      AnatomicRegion original = new AnatomicRegion(SurfacePart.IRIS);
+    @ParameterizedTest(name = "maintains integrity for {0}")
+    @MethodSource("org.weasis.dicom.ref.AnatomicRegionTest#sampleSurfaceParts")
+    void maintains_data_integrity_through_write_read_cycle_for_surface_parts(
+        SurfacePart surfacePart) {
+      var original = new AnatomicRegion(surfacePart);
       original.addModifier(AnatomicModifier.SURFACE);
 
-      Attributes dcm = new Attributes();
+      var dcm = new Attributes();
       AnatomicRegion.write(dcm, original);
-
-      AnatomicRegion parsed = AnatomicRegion.read(dcm);
+      var parsed = AnatomicRegion.read(dcm);
 
       assertNotNull(parsed);
-      assertEquals(original.getRegion(), parsed.getRegion());
+      assertEquals(original.getRegion().getCodeValue(), parsed.getRegion().getCodeValue());
       assertEquals(original.getModifiers(), parsed.getModifiers());
     }
 
     @Test
     void maintains_data_integrity_through_write_read_cycle_for_other_part() {
-      OtherPart other = new OtherPart(TEST_CODE_VALUE, TEST_CODE_MEANING, CodingScheme.SCT, true);
-      AnatomicRegion original =
-          new AnatomicRegion(Category.COMMON, other, Set.of(AnatomicModifier.RIGHT));
+      var other = new OtherPart(CUSTOM_CODE_VALUE, CUSTOM_CODE_MEANING, CodingScheme.SCT, true);
+      var original = new AnatomicRegion(Category.COMMON, other, Set.of(AnatomicModifier.RIGHT));
 
-      Attributes dcm = new Attributes();
+      var dcm = new Attributes();
       AnatomicRegion.write(dcm, original);
-
-      AnatomicRegion parsed = AnatomicRegion.read(dcm);
+      var parsed = AnatomicRegion.read(dcm);
 
       assertNotNull(parsed);
       assertEquals(original.getRegion().getCodeValue(), parsed.getRegion().getCodeValue());
@@ -415,54 +501,55 @@ class AnatomicRegionTest {
   }
 
   @Nested
-  class String_representation_Tests {
+  class String_Representation_Tests {
 
     @Test
     void formats_region_without_modifiers_correctly() {
-      AnatomicRegion region = new AnatomicRegion(BodyPart.ABDOMEN);
+      var region = new AnatomicRegion(BodyPart.ABDOMEN);
 
       assertEquals(BodyPart.ABDOMEN.getCodeMeaning(), region.toString());
     }
 
     @Test
     void formats_region_with_single_modifier_correctly() {
-      AnatomicRegion region = new AnatomicRegion(SurfacePart.IRIS);
+      var region = new AnatomicRegion(SurfacePart.IRIS);
       region.addModifier(AnatomicModifier.LEFT);
 
-      assertEquals(
-          SurfacePart.IRIS.getCodeMeaning() + " (" + AnatomicModifier.LEFT.getCodeMeaning() + ")",
-          region.toString());
+      var expected =
+          SurfacePart.IRIS.getCodeMeaning() + " (" + AnatomicModifier.LEFT.getCodeMeaning() + ")";
+      assertEquals(expected, region.toString());
     }
 
     @Test
     void formats_region_with_multiple_modifiers_correctly() {
-      AnatomicRegion region = new AnatomicRegion(BodyPart.HEAD_AND_NECK);
+      var region = new AnatomicRegion(BodyPart.HEAD_AND_NECK);
       region.addModifier(AnatomicModifier.LEFT);
       region.addModifier(AnatomicModifier.SURFACE);
 
-      String result = region.toString();
+      var result = region.toString();
       assertTrue(result.startsWith(BodyPart.HEAD_AND_NECK.getCodeMeaning()));
       assertTrue(result.contains(AnatomicModifier.LEFT.getCodeMeaning()));
       assertTrue(result.contains(AnatomicModifier.SURFACE.getCodeMeaning()));
+      assertTrue(result.contains("("));
+      assertTrue(result.contains(")"));
     }
 
     @Test
     void handles_empty_modifier_set_in_string_representation() {
-      AnatomicRegion region = new AnatomicRegion(null, BodyPart.HEAD_AND_NECK, new HashSet<>());
+      var region = new AnatomicRegion(null, BodyPart.HEAD_AND_NECK, new HashSet<>());
 
       assertEquals(BodyPart.HEAD_AND_NECK.getCodeMeaning(), region.toString());
     }
   }
 
   @Nested
-  class Edge_cases_and_error_handling_Tests {
+  class Edge_Cases_and_Error_Handling_Tests {
 
     @Test
     void handles_legacy_code_lookup_correctly() {
-      Attributes dcm = new Attributes();
-      dcm.setString(Tag.BodyPartExamined, VR.CS, BodyPart.HEAD_AND_NECK.getLegacyCode());
+      var dcm = createAttributesWithLegacyCode(BodyPart.HEAD_AND_NECK.getLegacyCode());
 
-      AnatomicRegion region = AnatomicRegion.read(dcm);
+      var region = AnatomicRegion.read(dcm);
 
       assertNotNull(region);
       assertEquals(BodyPart.HEAD_AND_NECK, region.getRegion());
@@ -470,54 +557,82 @@ class AnatomicRegionTest {
 
     @Test
     void handles_unknown_legacy_code_gracefully() {
-      Attributes dcm = new Attributes();
-      dcm.setString(Tag.BodyPartExamined, VR.CS, "UNKNOWN-CODE");
+      var dcm = createAttributesWithLegacyCode("UNKNOWN-CODE");
 
       assertNull(AnatomicRegion.read(dcm));
     }
 
-    @Test
-    void handles_laterality_in_pairing_determination() {
-      Attributes dcm = new Attributes();
-      Attributes regionAttr =
-          codeAttributesFor(new OtherPart("X-999", "Custom", CodingScheme.SCT, false));
-      dcm.setString(Tag.ImageLaterality, VR.CS, "L"); // implies paired
+    @ParameterizedTest(name = "handles {0} laterality")
+    @ValueSource(strings = {"L", "R", "B", "U", "", "INVALID"})
+    void handles_various_laterality_values(String laterality) {
+      var dcm = createAttributesWithLaterality(laterality);
+      var regionAttr = createCodeAttributes(createOtherPart(false));
       dcm.newSequence(Tag.AnatomicRegionSequence, 1).add(regionAttr);
 
-      AnatomicRegion region = AnatomicRegion.read(dcm);
+      var region = AnatomicRegion.read(dcm);
 
       assertNotNull(region);
-      assertTrue(region.getRegion().isPaired());
-    }
-
-    @Test
-    void handles_bilateral_modifier_in_pairing_determination() {
-      Attributes dcm = new Attributes();
-      Attributes regionAttr =
-          codeAttributesFor(new OtherPart("X-888", "Custom", CodingScheme.SCT, false));
-      Sequence modSeq = regionAttr.newSequence(Tag.AnatomicRegionModifierSequence, 1);
-      modSeq.add(modifierAttributes(AnatomicModifier.BILATERAL));
-      dcm.newSequence(Tag.AnatomicRegionSequence, 1).add(regionAttr);
-
-      AnatomicRegion region = AnatomicRegion.read(dcm);
-
-      assertNotNull(region);
-      assertTrue(region.getRegion().isPaired());
+      boolean shouldBePaired = StringUtil.hasText(laterality) && !"U".equals(laterality);
+      assertEquals(shouldBePaired, region.getRegion().isPaired());
     }
   }
 
-  // ---------- Test data builders (prefer real data over mocks) ----------
+  // ---------- Test data creation methods (prefer real data over mocks) ----------
 
-  private static Attributes codeAttributesFor(ItemCode code) {
-    Attributes attrs = new Attributes();
+  private static Stream<BodyPart> sampleBodyParts() {
+    return SAMPLE_BODY_PARTS.stream();
+  }
+
+  private static Stream<SurfacePart> sampleSurfaceParts() {
+    return SAMPLE_SURFACE_PARTS.stream();
+  }
+
+  private static Attributes createAttributesWithLegacyCode(String legacyCode) {
+    var dcm = new Attributes();
+    dcm.setString(Tag.BodyPartExamined, VR.CS, legacyCode);
+    return dcm;
+  }
+
+  private static Attributes createAttributesWithLaterality(String laterality) {
+    var dcm = new Attributes();
+    dcm.setString(Tag.FrameLaterality, VR.CS, laterality);
+    return dcm;
+  }
+
+  private static Attributes createCodeAttributes(ItemCode code) {
+    var attrs = new Attributes();
     attrs.setString(Tag.CodeValue, VR.SH, code.getCodeValue());
     attrs.setString(Tag.CodingSchemeDesignator, VR.SH, code.getCodingScheme().getDesignator());
     attrs.setString(Tag.CodeMeaning, VR.LO, code.getCodeMeaning());
     return attrs;
   }
 
-  private static Attributes modifierAttributes(AnatomicModifier modifier) {
-    Attributes attrs = new Attributes();
+  private static Attributes createOtherPartAttributes() {
+    var attrs = new Attributes();
+    attrs.setString(Tag.CodeValue, VR.SH, CUSTOM_CODE_VALUE);
+    attrs.setString(Tag.CodingSchemeDesignator, VR.SH, CodingScheme.SCT.getDesignator());
+    attrs.setString(Tag.CodeMeaning, VR.LO, CUSTOM_CODE_MEANING);
+    attrs.setString(Tag.ContextUID, VR.UI, CUSTOM_CONTEXT_UID);
+    attrs.setString(Tag.ContextIdentifier, VR.SH, CUSTOM_CONTEXT_IDENTIFIER);
+    return attrs;
+  }
+
+  private static OtherPart createOtherPart(boolean paired) {
+    return new OtherPart("X-" + System.nanoTime(), "Custom Test Part", CodingScheme.SCT, paired);
+  }
+
+  private static void addModifiersToRegion(
+      Attributes regionAttr, List<AnatomicModifier> modifiers) {
+    if (modifiers.isEmpty()) {
+      return;
+    }
+
+    var modSeq = regionAttr.newSequence(Tag.AnatomicRegionModifierSequence, modifiers.size());
+    modifiers.forEach(modifier -> modSeq.add(createModifierAttributes(modifier)));
+  }
+
+  private static Attributes createModifierAttributes(AnatomicModifier modifier) {
+    var attrs = new Attributes();
     attrs.setString(Tag.CodeValue, VR.SH, modifier.getCodeValue());
     attrs.setString(Tag.CodingSchemeDesignator, VR.SH, modifier.getCodingScheme().getDesignator());
     attrs.setString(Tag.CodeMeaning, VR.LO, modifier.getCodeMeaning());

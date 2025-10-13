@@ -75,7 +75,7 @@ public class ImagePlaneSelector extends AbstractHPSelector {
 
     double[] floats = attributes.getDoubles(Tag.ImageOrientationPatient);
     if (floats != null && floats.length == 6) {
-      Vector3 vr = new Vector3(floats);
+      Vector3 vr = Vector3.of(floats);
       Vector3 vc = new Vector3(floats[3], floats[4], floats[5]);
       imagePlane = ImageOrientation.getPlan(vr, vc, minCosine);
     } else {

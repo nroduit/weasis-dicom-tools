@@ -13,8 +13,23 @@ import static org.weasis.dicom.ref.CodingScheme.DCM;
 import static org.weasis.dicom.ref.CodingScheme.SCT;
 
 import java.util.Locale;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.weasis.dicom.macro.ItemCode;
 
+/**
+ * Defines anatomical modifiers used in DICOM to specify positional and directional characteristics
+ * of anatomical structures. These modifiers provide additional context to anatomical regions,
+ * indicating spatial relationships, orientations, and locations.
+ *
+ * <p>Each modifier is associated with a standard medical coding scheme (SNOMED CT or DICOM) and
+ * includes both the coded value and human-readable meaning in multiple languages.
+ *
+ * @see AnatomicRegion
+ * @see AnatomicItem
+ */
 public enum AnatomicModifier implements ItemCode {
   RIGHT(SCT, 24028007),
   LEFT(SCT, 7771000),
@@ -63,6 +78,11 @@ public enum AnatomicModifier implements ItemCode {
   INTRA_ARTICULAR(SCT, 131183008),
   MARGINAL(SCT, 112233002);
 
+  private static final Map<String, AnatomicModifier> CODE_LOOKUP =
+      Stream.of(values())
+          .collect(
+              Collectors.toUnmodifiableMap(AnatomicModifier::getCodeValue, Function.identity()));
+
   private final CodingScheme scheme;
   private final String codeValue;
 
@@ -81,6 +101,12 @@ public enum AnatomicModifier implements ItemCode {
     return MesModifier.getString(codeValue);
   }
 
+  /**
+   * Returns the human-readable meaning of this modifier in the specified locale.
+   *
+   * @param locale the desired locale, or {@code null} to use the default locale
+   * @return the localized code meaning
+   */
   public String getCodeMeaning(Locale locale) {
     return MesModifier.getString(codeValue, locale);
   }
@@ -95,7 +121,21 @@ public enum AnatomicModifier implements ItemCode {
     return getCodeMeaning();
   }
 
+  /**
+   * Finds an anatomical modifier by its code value.
+   *
+   * @param code the code value to look up
+   * @return the corresponding {@code AnatomicModifier}, or {@code null} if not found
+   */
+  public static AnatomicModifier fromCode(String code) {
+    return CODE_LOOKUP.get(code);
+  }
+
+  /**
+   * @deprecated Use {@link #fromCode(String)} instead for better performance and clarity.
+   */
+  @Deprecated(since = "5.34.0.3", forRemoval = true)
   public static AnatomicModifier getAnatomicModifierFromCode(String code) {
-    return AnatomicBuilder.getAnatomicModifierFromCode(code);
+    return fromCode(code);
   }
 }

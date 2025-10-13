@@ -11,8 +11,9 @@ package org.weasis.dicom.param;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.Objects;
+import java.util.Optional;
 import org.dcm4che3.data.UID;
 import org.dcm4che3.net.ApplicationEntity;
 import org.dcm4che3.net.Connection;
@@ -23,6 +24,10 @@ import org.dcm4che3.net.SSLManagerFactory;
 import org.dcm4che3.net.pdu.AAssociateRQ;
 import org.dcm4che3.net.pdu.UserIdentityRQ;
 
+/**
+ * Advanced parameters for DICOM operations including connection options, TLS configuration, and
+ * query parameters.
+ */
 public class AdvancedParams {
   public static final String[] IVR_LE_FIRST = {
     UID.ImplicitVRLittleEndian, UID.ExplicitVRLittleEndian, UID.ExplicitVRBigEndian
@@ -36,13 +41,10 @@ public class AdvancedParams {
   public static final String[] IVR_LE_ONLY = {UID.ImplicitVRLittleEndian};
 
   private Object informationModel;
-  private EnumSet<QueryOption> queryOptions = EnumSet.noneOf(QueryOption.class);
-  private String[] tsuidOrder = Arrays.copyOf(IVR_LE_FIRST, IVR_LE_FIRST.length);
+  private final EnumSet<QueryOption> queryOptions = EnumSet.noneOf(QueryOption.class);
+  private String[] tsuidOrder = IVR_LE_FIRST.clone();
 
-  /*
-   * Configure proxy <[user:password@]host:port> specify host and port of the HTTP Proxy to tunnel the DICOM
-   * connection.
-   */
+  /** HTTP Proxy configuration in format: [user:password@]host:port */
   private String proxy;
 
   private UserIdentityRQ identity;
@@ -51,10 +53,6 @@ public class AdvancedParams {
 
   private ConnectOptions connectOptions;
   private TlsOptions tlsOptions;
-
-  public AdvancedParams() {
-    super();
-  }
 
   public Object getInformationModel() {
     return informationModel;
@@ -69,15 +67,18 @@ public class AdvancedParams {
   }
 
   public void setQueryOptions(EnumSet<QueryOption> queryOptions) {
-    this.queryOptions = queryOptions;
+    this.queryOptions.clear();
+    if (queryOptions != null) {
+      this.queryOptions.addAll(queryOptions);
+    }
   }
 
   public String[] getTsuidOrder() {
-    return tsuidOrder;
+    return tsuidOrder.clone();
   }
 
   public void setTsuidOrder(String[] tsuidOrder) {
-    this.tsuidOrder = tsuidOrder;
+    this.tsuidOrder = Objects.requireNonNull(tsuidOrder, "tsuidOrder cannot be null").clone();
   }
 
   public String getProxy() {
@@ -93,7 +94,9 @@ public class AdvancedParams {
   }
 
   /**
-   * @param priority the default value is Priority.NORMAL
+   * Sets the priority for DICOM operations.
+   *
+   * @param priority the priority level (default is Priority.NORMAL)
    * @see org.dcm4che3.net.Priority
    */
   public void setPriority(int priority) {
@@ -124,100 +127,139 @@ public class AdvancedParams {
     this.tlsOptions = tlsOptions;
   }
 
+  /**
+   * Configures the association request and remote connection with the called node parameters.
+   *
+   * @param aAssociateRQ the association request to configure
+   * @param remote the remote connection
+   * @param calledNode the called DICOM node
+   */
   public void configureConnect(AAssociateRQ aAssociateRQ, Connection remote, DicomNode calledNode) {
     aAssociateRQ.setCalledAET(calledNode.getAet());
-    if (identity != null) {
-      aAssociateRQ.setUserIdentityRQ(identity);
-    }
+    Optional.ofNullable(identity).ifPresent(aAssociateRQ::setUserIdentityRQ);
     remote.setHostname(calledNode.getHostname());
     remote.setPort(calledNode.getPort());
   }
 
   /**
-   * Bind the connection with the callingNode
+   * Configures the connection with the calling node parameters.
    *
-   * @param connection
-   * @param callingNode
+   * @param connection the connection to configure
+   * @param callingNode the calling DICOM node
    */
   public void configureBind(Connection connection, DicomNode callingNode) {
-    if (callingNode.getHostname() != null) {
-      connection.setHostname(callingNode.getHostname());
-    }
-    if (callingNode.getPort() != null) {
-      connection.setPort(callingNode.getPort());
-    }
+    Optional.ofNullable(callingNode.getHostname()).ifPresent(connection::setHostname);
+    Optional.ofNullable(callingNode.getPort()).ifPresent(connection::setPort);
   }
 
   /**
-   * Bind the connection and applicationEntity with the callingNode
+   * Configures the application entity and connection with the calling node parameters.
    *
-   * @param applicationEntity
-   * @param connection
-   * @param callingNode
+   * @param applicationEntity the application entity to configure
+   * @param connection the connection to configure
+   * @param callingNode the calling DICOM node
    */
   public void configureBind(
       ApplicationEntity applicationEntity, Connection connection, DicomNode callingNode) {
     applicationEntity.setAETitle(callingNode.getAet());
-    if (callingNode.getHostname() != null) {
-      connection.setHostname(callingNode.getHostname());
-    }
-    if (callingNode.getPort() != null) {
-      connection.setPort(callingNode.getPort());
-    }
+    configureBind(connection, callingNode);
   }
 
+  /**
+   * Configures the connection with the specified connection options.
+   *
+   * @param conn the connection to configure
+   * @throws IOException if configuration fails
+   */
   public void configure(Connection conn) throws IOException {
-    if (connectOptions != null) {
-      conn.setBacklog(connectOptions.getBacklog());
-      conn.setConnectTimeout(connectOptions.getConnectTimeout());
-      conn.setRequestTimeout(connectOptions.getRequestTimeout());
-      conn.setAcceptTimeout(connectOptions.getAcceptTimeout());
-      conn.setReleaseTimeout(connectOptions.getReleaseTimeout());
-      conn.setResponseTimeout(connectOptions.getResponseTimeout());
-      conn.setRetrieveTimeout(connectOptions.getRetrieveTimeout());
-      conn.setIdleTimeout(connectOptions.getIdleTimeout());
-      conn.setSocketCloseDelay(connectOptions.getSocloseDelay());
-      conn.setReceiveBufferSize(connectOptions.getSorcvBuffer());
-      conn.setSendBufferSize(connectOptions.getSosndBuffer());
-      conn.setReceivePDULength(connectOptions.getMaxPdulenRcv());
-      conn.setSendPDULength(connectOptions.getMaxPdulenSnd());
-      conn.setMaxOpsInvoked(connectOptions.getMaxOpsInvoked());
-      conn.setMaxOpsPerformed(connectOptions.getMaxOpsPerformed());
-      conn.setPackPDV(connectOptions.isPackPDV());
-      conn.setTcpNoDelay(connectOptions.isTcpNoDelay());
+    if (connectOptions == null) {
+      return;
+    }
+
+    configureBasicOptions(conn);
+    configureBufferOptions(conn);
+    configurePduOptions(conn);
+    configureOperationOptions(conn);
+  }
+
+  private void configureBasicOptions(Connection conn) {
+    conn.setBacklog(connectOptions.getBacklog());
+    conn.setConnectTimeout(connectOptions.getConnectTimeout());
+    conn.setRequestTimeout(connectOptions.getRequestTimeout());
+    conn.setAcceptTimeout(connectOptions.getAcceptTimeout());
+    conn.setReleaseTimeout(connectOptions.getReleaseTimeout());
+    conn.setResponseTimeout(connectOptions.getResponseTimeout());
+    conn.setRetrieveTimeout(connectOptions.getRetrieveTimeout());
+    conn.setIdleTimeout(connectOptions.getIdleTimeout());
+    conn.setSocketCloseDelay(connectOptions.getSocloseDelay());
+  }
+
+  private void configureBufferOptions(Connection conn) {
+    conn.setReceiveBufferSize(connectOptions.getSorcvBuffer());
+    conn.setSendBufferSize(connectOptions.getSosndBuffer());
+    conn.setPackPDV(connectOptions.isPackPDV());
+    conn.setTcpNoDelay(connectOptions.isTcpNoDelay());
+  }
+
+  private void configurePduOptions(Connection conn) {
+    conn.setReceivePDULength(connectOptions.getMaxPdulenRcv());
+    conn.setSendPDULength(connectOptions.getMaxPdulenSnd());
+  }
+
+  private void configureOperationOptions(Connection conn) {
+    conn.setMaxOpsInvoked(connectOptions.getMaxOpsInvoked());
+    conn.setMaxOpsPerformed(connectOptions.getMaxOpsPerformed());
+  }
+
+  /**
+   * Configures TLS settings for the connection.
+   *
+   * @param conn the local connection to configure
+   * @param remote the remote connection to configure (optional)
+   * @throws IOException if TLS configuration fails
+   */
+  public void configureTLS(Connection conn, Connection remote) throws IOException {
+    if (tlsOptions == null) {
+      return;
+    }
+    configureTlsProtocols(conn);
+    configureDeviceSecurity(conn.getDevice());
+    syncRemoteConnection(conn, remote);
+  }
+
+  private void configureTlsProtocols(Connection conn) {
+    Optional.of(tlsOptions.getCipherSuites())
+        .ifPresent(suites -> conn.setTlsCipherSuites(suites.toArray(String[]::new)));
+
+    Optional.ofNullable(tlsOptions.getTlsProtocols())
+        .ifPresent(protocols -> conn.setTlsProtocols(protocols.toArray(String[]::new)));
+    conn.setTlsNeedClientAuth(tlsOptions.isTlsNeedClientAuth());
+  }
+
+  private void configureDeviceSecurity(Device device) throws IOException {
+    try {
+      device.setKeyManager(
+          SSLManagerFactory.createKeyManager(
+              tlsOptions.getKeystoreType(),
+              tlsOptions.getKeystoreURL(),
+              tlsOptions.getKeystorePass(),
+              tlsOptions.getKeyPass()));
+      device.setTrustManager(
+          SSLManagerFactory.createTrustManager(
+              tlsOptions.getTruststoreType(),
+              tlsOptions.getTruststoreURL(),
+              tlsOptions.getTruststorePass()));
+    } catch (GeneralSecurityException e) {
+      throw new IOException("Failed to configure TLS security", e);
     }
   }
 
-  public void configureTLS(Connection conn, Connection remote) throws IOException {
-    if (tlsOptions != null) {
-      if (tlsOptions.getCipherSuites() != null) {
-        conn.setTlsCipherSuites(tlsOptions.getCipherSuites().toArray(new String[0]));
-      }
-      if (tlsOptions.getTlsProtocols() != null) {
-        conn.setTlsProtocols(tlsOptions.getTlsProtocols().toArray(new String[0]));
-      }
-      conn.setTlsNeedClientAuth(tlsOptions.isTlsNeedClientAuth());
-
-      Device device = conn.getDevice();
-      try {
-        device.setKeyManager(
-            SSLManagerFactory.createKeyManager(
-                tlsOptions.getKeystoreType(),
-                tlsOptions.getKeystoreURL(),
-                tlsOptions.getKeystorePass(),
-                tlsOptions.getKeyPass()));
-        device.setTrustManager(
-            SSLManagerFactory.createTrustManager(
-                tlsOptions.getTruststoreType(),
-                tlsOptions.getTruststoreURL(),
-                tlsOptions.getTruststorePass()));
-        if (remote != null) {
-          remote.setTlsProtocols(conn.getTlsProtocols());
-          remote.setTlsCipherSuites(conn.getTlsCipherSuites());
-        }
-      } catch (GeneralSecurityException e) {
-        throw new IOException(e);
-      }
-    }
+  private void syncRemoteConnection(Connection conn, Connection remote) {
+    Optional.ofNullable(remote)
+        .ifPresent(
+            r -> {
+              r.setTlsProtocols(conn.getTlsProtocols());
+              r.setTlsCipherSuites(conn.getTlsCipherSuites());
+            });
   }
 }

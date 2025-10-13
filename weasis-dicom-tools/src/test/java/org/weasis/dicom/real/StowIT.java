@@ -7,16 +7,14 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
  */
-package org.weasis.dicom;
+package org.weasis.dicom.real;
 
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-import java.io.File;
 import java.io.FileInputStream;
-import java.net.URISyntaxException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
@@ -34,12 +32,7 @@ class StowIT {
   @Test
   void testProcess() {
     List<String> files = new ArrayList<>();
-    try {
-      files.add(
-          new File(Objects.requireNonNull(getClass().getResource("mr.dcm")).toURI()).getPath());
-    } catch (URISyntaxException e) {
-      System.err.println(e.getMessage());
-    }
+    files.add(Path.of("src/test/resources/dicom/mr.dcm").toString());
     String stowService = "http://localhost:8080/dcm4chee-arc/aets/DCM4CHEE/rs/studies";
 
     // Upload files

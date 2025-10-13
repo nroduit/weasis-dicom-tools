@@ -739,9 +739,9 @@ public class DicomImageReader extends ImageReader {
           switch (tsuid) {
             // Only apply for IJG native decoder
             case UID.JPEGBaseline8Bit,
-                    UID.JPEGExtended12Bit,
-                    UID.JPEGSpectralSelectionNonHierarchical68,
-                    UID.JPEGFullProgressionNonHierarchical1012 ->
+                UID.JPEGExtended12Bit,
+                UID.JPEGSpectralSelectionNonHierarchical68,
+                UID.JPEGFullProgressionNonHierarchical1012 ->
                 pmi != PhotometricInterpretation.RGB || isYbrModel.getAsBoolean();
             default -> pmi.name().startsWith("YBR");
           };
@@ -916,24 +916,24 @@ public class DicomImageReader extends ImageReader {
   public static boolean isSupportedSyntax(String uid) {
     return switch (uid) {
       case UID.ImplicitVRLittleEndian,
-              UID.ExplicitVRLittleEndian,
-              UID.ExplicitVRBigEndian,
-              UID.RLELossless,
-              UID.JPEGBaseline8Bit,
-              UID.JPEGExtended12Bit,
-              UID.JPEGSpectralSelectionNonHierarchical68,
-              UID.JPEGFullProgressionNonHierarchical1012,
-              UID.JPEGLossless,
-              UID.JPEGLosslessSV1,
-              UID.JPEGLSLossless,
-              UID.JPEGLSNearLossless,
-              UID.JPEG2000Lossless,
-              UID.JPEG2000,
-              UID.JPEG2000MCLossless,
-              UID.JPEG2000MC,
-              UID.JPEGXL,
-              UID.JPEGXLLossless,
-              UID.JPEGXLJPEGRecompression ->
+          UID.ExplicitVRLittleEndian,
+          UID.ExplicitVRBigEndian,
+          UID.RLELossless,
+          UID.JPEGBaseline8Bit,
+          UID.JPEGExtended12Bit,
+          UID.JPEGSpectralSelectionNonHierarchical68,
+          UID.JPEGFullProgressionNonHierarchical1012,
+          UID.JPEGLossless,
+          UID.JPEGLosslessSV1,
+          UID.JPEGLSLossless,
+          UID.JPEGLSNearLossless,
+          UID.JPEG2000Lossless,
+          UID.JPEG2000,
+          UID.JPEG2000MCLossless,
+          UID.JPEG2000MC,
+          UID.JPEGXL,
+          UID.JPEGXLLossless,
+          UID.JPEGXLJPEGRecompression ->
           true;
       default -> false;
     };

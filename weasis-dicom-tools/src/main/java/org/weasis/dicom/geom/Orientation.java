@@ -15,8 +15,8 @@ import java.awt.Color;
  * Contract for anatomical orientations in medical imaging contexts.
  *
  * <p>This interface defines the common properties that all orientation types must provide,
- * including display names and color coding for visualization. Implementations typically include
- * biped (human) and quadruped (animal) anatomical orientations.
+ * including display names and color coding for visualization. Implementations include biped (human)
+ * and quadruped (animal) anatomical orientations.
  *
  * <p>The color coding follows a standard convention:
  *
@@ -30,7 +30,7 @@ import java.awt.Color;
  *
  * <pre>{@code
  * // Get orientation from direction cosine vector
- * Orientation orientation = getPatientOrientation(vector, threshold, false);
+ * var orientation = getPatientOrientation(vector, threshold, false);
  * String displayName = orientation.getFullName();  // "Left", "Right", etc.
  * Color visualColor = orientation.getColor();      // Color for UI display
  * String code = orientation.name();                // "L", "R", etc.
@@ -41,13 +41,10 @@ import java.awt.Color;
  * @see PatientOrientation.Biped
  * @see PatientOrientation.Quadruped
  */
-public interface Orientation {
+public sealed interface Orientation permits PatientOrientation.Biped, PatientOrientation.Quadruped {
 
   /**
    * Returns the standard code name for this orientation.
-   *
-   * <p>This method returns the enum constant name (e.g., "L", "R", "A", "P") which represents the
-   * standard DICOM orientation codes.
    *
    * @return the orientation code (typically 1-2 characters)
    */
@@ -56,23 +53,12 @@ public interface Orientation {
   /**
    * Returns the full descriptive name for this orientation.
    *
-   * <p>This provides a human-readable description suitable for user interfaces and medical reports
-   * (e.g., "Left", "Right", "Anterior", "Posterior").
-   *
    * @return the full orientation name for display purposes
    */
   String getFullName();
 
   /**
    * Returns the color associated with this orientation for visualization.
-   *
-   * <p>Colors follow anatomical conventions:
-   *
-   * <ul>
-   *   <li>Blue for left/right (lateral) orientations
-   *   <li>Red for anterior/posterior (sagittal) orientations
-   *   <li>Green for head/foot or superior/inferior (longitudinal) orientations
-   * </ul>
    *
    * @return the color for visual representation of this orientation
    */

@@ -12,323 +12,381 @@ package org.weasis.dicom.web;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
+import java.io.OutputStream;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class MultipartReader {
+/**
+ * High-performance multipart stream reader for processing multipart/related HTTP content. Provides
+ * boundary detection, header parsing, and streaming access to individual parts.
+ */
+public final class MultipartReader implements AutoCloseable {
   private static final Logger LOGGER = LoggerFactory.getLogger(MultipartReader.class);
 
-  public static final int HEADER_PART_MAX_SIZE = 16384;
+  /** Maximum size for multipart headers (16KB) */
+  public static final int MAX_HEADER_SIZE = 16_384;
+
+  private static final int DEFAULT_BUFFER_SIZE = 4_096;
+
+  private static final int MIN_BUFFER_SIZE = 256;
+  private static final int MAX_BUFFER_SIZE = 1_048_576; // 1MB
 
   private final InputStream inputStream;
   private final byte[] boundary;
-  private String headerEncoding;
+  private final StreamBuffer buffer;
+  private Charset headerEncoding = StandardCharsets.UTF_8;
   private int currentBoundaryLength;
-  private final byte[] buffer;
-  private final int bufferSize;
-  private int headBuffer = 0;
-  private int tailBuffer = 0;
 
-  /**
-   * @param inputStream the <code>InputStream</code> of a multipart exchange.
-   * @param boundary the mark to delimit the parts of a multipart stream.
-   */
+  /** Creates a multipart reader with default buffer size. */
   public MultipartReader(InputStream inputStream, byte[] boundary) {
-    this(inputStream, boundary, 4096);
+    this(inputStream, boundary, DEFAULT_BUFFER_SIZE);
   }
 
-  /**
-   * @param inputStream the <code>InputStream</code> of a multipart exchange.
-   * @param boundary the mark to delimit the parts of a multipart stream.
-   * @param bufferSize the size of the buffer in bytes. Default is 4096.
-   */
+  /** Creates a multipart reader with specified buffer size. */
   public MultipartReader(InputStream inputStream, byte[] boundary, int bufferSize) {
-    this.inputStream = inputStream;
-    this.bufferSize = bufferSize;
-    this.buffer = new byte[bufferSize];
-    int blength = Multipart.Separator.BOUNDARY.getType().length;
-    this.boundary = new byte[boundary.length + blength];
-    this.currentBoundaryLength = boundary.length + blength;
-    System.arraycopy(Multipart.Separator.BOUNDARY.getType(), 0, this.boundary, 0, blength);
-    System.arraycopy(boundary, 0, this.boundary, blength, boundary.length);
+    this.inputStream = Objects.requireNonNull(inputStream, "Input stream cannot be null");
+    Objects.requireNonNull(boundary, "Boundary cannot be null");
+    validateBufferSize(bufferSize);
+    this.buffer = new StreamBuffer(inputStream, bufferSize);
+    this.boundary = createBoundaryWithPrefix(boundary);
+    this.currentBoundaryLength = this.boundary.length;
   }
 
-  public String getHeaderEncoding() {
+  public Charset getHeaderEncoding() {
     return headerEncoding;
   }
 
   public void setHeaderEncoding(String encoding) {
-    headerEncoding = encoding;
-  }
-
-  public byte readByte() throws IOException {
-    if (headBuffer == tailBuffer) {
-      headBuffer = 0;
-      tailBuffer = inputStream.read(buffer, headBuffer, bufferSize);
-      if (tailBuffer == -1) {
-        throw new MultipartStreamException("No more data is available");
-      }
-    }
-    return buffer[headBuffer++];
-  }
-
-  public boolean readBoundary() throws IOException {
-    headBuffer += currentBoundaryLength;
-
-    byte[] marker = {readByte(), readByte()};
-    boolean nextPart = false;
-    if (compareArrays(marker, Multipart.Separator.STREAM.getType(), 2)) {
-      nextPart = false;
-    } else if (compareArrays(marker, Multipart.Separator.FIELD.getType(), 2)) {
-      nextPart = true;
-    } else {
-      throw new MultipartStreamException("Unexpected bytes after the boundary separator");
-    }
-    return nextPart;
-  }
-
-  public String readHeaders() throws IOException {
-    int k = 0;
-    byte b;
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    int headerSize = 0;
-    byte[] hsep = Multipart.Separator.HEADER.getType();
-    while (k < hsep.length) {
-      b = readByte();
-      headerSize++;
-      if (headerSize > HEADER_PART_MAX_SIZE) {
-        throw new MultipartStreamException(
-            "Header content is larger than "
-                + HEADER_PART_MAX_SIZE
-                + " bytes (max size defined in reader)");
-      }
-      if (b == hsep[k]) {
-        k++;
-      } else {
-        k = 0;
-      }
-      baos.write(b);
-    }
-
-    String headers = null;
-    if (headerEncoding != null) {
-      try {
-        headers = baos.toString(headerEncoding);
-      } catch (UnsupportedEncodingException e) {
-        LOGGER.error("Decoding header", e);
-      }
-    }
-
-    if (headers == null) {
-      headers = baos.toString();
-    }
-    return headers;
-  }
-
-  public boolean skipFirstBoundary() throws IOException {
-    // Special case for the first boundary delimiter => remove CRLF
-    System.arraycopy(boundary, 2, boundary, 0, boundary.length - 2);
-    currentBoundaryLength = boundary.length - 2;
     try {
-      discardDataBeforeDelimiter();
-      return readBoundary();
-    } finally {
-      // Restore the original boundary
-      System.arraycopy(boundary, 0, boundary, 2, boundary.length - 2);
-      currentBoundaryLength = boundary.length;
-      boundary[0] = Multipart.CR;
-      boundary[1] = Multipart.LF;
+      this.headerEncoding = encoding != null ? Charset.forName(encoding) : StandardCharsets.UTF_8;
+    } catch (IllegalArgumentException e) {
+      LOGGER.warn("Invalid encoding '{}', using UTF-8", encoding);
+      this.headerEncoding = StandardCharsets.UTF_8;
     }
   }
 
+  /** Skips the first boundary which has no CRLF prefix. */
+  public boolean skipFirstBoundary() throws IOException {
+    return processBoundary(true);
+  }
+
+  /** Reads the next boundary and determines if more parts follow. */
+  public boolean readBoundary() throws IOException {
+    return processBoundary(false);
+  }
+
+  /** Reads headers for the current part. */
+  public String readHeaders() throws IOException {
+    try (var output = new ByteArrayOutputStream()) {
+      readHeadersToStream(output);
+      return output.toString(headerEncoding);
+    }
+  }
+
+  /** Creates a new input stream for reading the current part's data. */
   public PartInputStream newPartInputStream() {
     return new PartInputStream();
   }
 
-  protected void discardDataBeforeDelimiter() throws IOException {
-    try (InputStream in = newPartInputStream()) {
-      byte[] pBuffer = new byte[1024];
-      while (true) {
-        if (in.read(pBuffer) == -1) {
-          break;
-        }
+  @Override
+  public void close() throws IOException {
+    inputStream.close();
+  }
+
+  private void validateBufferSize(int size) {
+    if (size < MIN_BUFFER_SIZE || size > MAX_BUFFER_SIZE) {
+      throw new IllegalArgumentException(
+          "Buffer size must be between %d and %d bytes"
+              .formatted(MIN_BUFFER_SIZE, MAX_BUFFER_SIZE));
+    }
+  }
+
+  private byte[] createBoundaryWithPrefix(byte[] boundary) {
+    var prefix = MultipartConstants.Separator.BOUNDARY.getBytes();
+    var fullBoundary = new byte[boundary.length + prefix.length];
+    System.arraycopy(prefix, 0, fullBoundary, 0, prefix.length);
+    System.arraycopy(boundary, 0, fullBoundary, prefix.length, boundary.length);
+    return fullBoundary;
+  }
+
+  private boolean processBoundary(boolean isFirst) throws IOException {
+    var originalBoundary = boundary.clone();
+    int originalLength = currentBoundaryLength;
+    try {
+      if (isFirst) {
+        adjustBoundaryForFirst();
+        discardDataUntilBoundary();
+      } else {
+        buffer.skip(currentBoundaryLength);
+      }
+
+      return readBoundaryTerminator();
+    } finally {
+      if (isFirst) {
+        restoreBoundary(originalBoundary, originalLength);
       }
     }
   }
 
-  protected static boolean compareArrays(byte[] a, byte[] b, int count) {
-    for (int i = 0; i < count; i++) {
-      if (a[i] != b[i]) {
-        return false;
-      }
-    }
-    return true;
+  private void adjustBoundaryForFirst() {
+    System.arraycopy(boundary, 2, boundary, 0, boundary.length - 2);
+    currentBoundaryLength -= 2;
   }
 
-  protected int findFirstBoundaryCharacter(int start) {
-    for (int i = start; i < tailBuffer; i++) {
-      if (buffer[i] == boundary[0]) {
-        return i;
-      }
-    }
-    return -1;
+  private void restoreBoundary(byte[] original, int originalLength) {
+    System.arraycopy(original, 0, boundary, 0, original.length);
+    currentBoundaryLength = originalLength;
   }
 
-  protected int findStartingBoundaryPosition() {
-    int start;
-    int b = 0;
-    int end = tailBuffer - currentBoundaryLength;
-    for (start = headBuffer; start <= end && b != currentBoundaryLength; start++) {
-      start = findFirstBoundaryCharacter(start);
-      if (start == -1 || start > end) {
-        return -1;
-      }
-      for (b = 1; b < currentBoundaryLength; b++) {
-        if (buffer[start + b] != boundary[b]) {
-          break;
-        }
-      }
+  private boolean readBoundaryTerminator() throws IOException {
+    byte[] terminator = {buffer.readByte(), buffer.readByte()};
+
+    if (Arrays.equals(terminator, MultipartConstants.Separator.STREAM.getBytes())) {
+      return false; // End of stream
+    } else if (Arrays.equals(terminator, MultipartConstants.Separator.FIELD.getBytes())) {
+      return true; // More parts follow
+    } else {
+      throw new MultipartStreamException(
+          "Invalid boundary terminator: " + Arrays.toString(terminator));
     }
-    if (b == currentBoundaryLength) {
-      return start - 1;
-    }
-    return -1;
   }
 
-  public class PartInputStream extends InputStream implements AutoCloseable {
-    private static final String STREAM_CLOSED_EX = "PartInputStream has been closed";
+  private void readHeadersToStream(ByteArrayOutputStream output) throws IOException {
+    var separator = MultipartConstants.Separator.HEADER.getBytes();
+    int matchCount = 0;
+    int totalBytes = 0;
 
-    private int position;
-    private long total;
-    private int offset;
-    private boolean closed;
+    while (matchCount < separator.length) {
+      byte currentByte = buffer.readByte();
+
+      if (++totalBytes > MAX_HEADER_SIZE) {
+        throw MultipartStreamException.headerSizeExceeded(totalBytes, MAX_HEADER_SIZE);
+      }
+
+      matchCount = (currentByte == separator[matchCount]) ? matchCount + 1 : 0;
+      output.write(currentByte);
+    }
+  }
+
+  private void discardDataUntilBoundary() throws IOException {
+    try (var partStream = newPartInputStream()) {
+      partStream.transferTo(OutputStream.nullOutputStream());
+    }
+  }
+
+  /** Input stream for reading individual multipart sections. */
+  public final class PartInputStream extends InputStream {
+
+    private final BoundaryDetector detector;
+    private boolean closed = false;
 
     PartInputStream() {
-      moveToBoundary();
-    }
-
-    private void moveToBoundary() {
-      position = findStartingBoundaryPosition();
-      if (position == -1) {
-        if (tailBuffer - headBuffer > boundary.length) {
-          offset = boundary.length;
-        } else {
-          offset = tailBuffer - headBuffer;
-        }
-      }
-    }
-
-    private int readInputStream() throws IOException {
-      if (position != -1) {
-        return 0;
-      }
-
-      total += tailBuffer - headBuffer - offset;
-      System.arraycopy(buffer, tailBuffer - offset, buffer, 0, offset);
-
-      headBuffer = 0;
-      tailBuffer = offset;
-
-      while (true) {
-        int readBytes = inputStream.read(buffer, tailBuffer, bufferSize - tailBuffer);
-        if (readBytes == -1) {
-          throw new MultipartStreamException("Unexpect end of stream");
-        }
-
-        tailBuffer += readBytes;
-        moveToBoundary();
-        int k = available();
-        if (k > 0 || position != -1) {
-          return k;
-        }
-      }
-    }
-
-    public long getTotal() {
-      return total;
-    }
-
-    @Override
-    public int read(byte[] b, int off, int len) throws IOException {
-      if (closed) {
-        throw new MultipartStreamException(STREAM_CLOSED_EX);
-      }
-      if (len == 0) {
-        return 0;
-      }
-      int k = available();
-      if (k == 0) {
-        k = readInputStream();
-        if (k == 0) {
-          return -1;
-        }
-      }
-      k = Math.min(k, len);
-      System.arraycopy(buffer, headBuffer, b, off, k);
-      headBuffer += k;
-      total += k;
-      return k;
+      this.detector = new BoundaryDetector();
     }
 
     @Override
     public int read() throws IOException {
-      if (closed) {
-        throw new MultipartStreamException(STREAM_CLOSED_EX);
+      validateNotClosed();
+      return detector.hasReachedBoundary() ? -1 : buffer.readByte() & 0xFF;
+    }
+
+    @Override
+    public int read(byte[] b, int off, int len) throws IOException {
+      validateNotClosed();
+      Objects.checkFromIndexSize(off, len, b.length);
+      if (len == 0) return 0;
+      if (detector.hasReachedBoundary()) return -1;
+
+      int bytesToRead = Math.min(len, detector.getAvailableBytes());
+      if (bytesToRead <= 0) {
+        return read() == -1 ? -1 : 1; // Fallback to single byte read
       }
-      if (available() == 0 && readInputStream() == 0) {
-        return -1;
-      }
-      total++;
-      return buffer[headBuffer++] & 0xFF;
+
+      buffer.readBytes(b, off, bytesToRead);
+      detector.updatePosition(bytesToRead);
+
+      return bytesToRead;
     }
 
     @Override
     public int available() throws IOException {
-      if (position == -1) {
-        return tailBuffer - headBuffer - offset;
-      }
-      return position - headBuffer;
+      validateNotClosed();
+
+      return detector.hasReachedBoundary() ? 0 : detector.getAvailableBytes();
     }
 
     @Override
-    public long skip(long bytes) throws IOException {
-      if (closed) {
-        throw new MultipartStreamException(STREAM_CLOSED_EX);
-      }
-      int k = available();
-      if (k == 0) {
-        k = readInputStream();
-        if (k == 0) {
-          return 0;
-        }
-      }
-      long skipBytes = Math.min(k, bytes);
-      headBuffer += skipBytes;
-      return skipBytes;
+    public long skip(long n) throws IOException {
+      validateNotClosed();
+
+      if (n <= 0 || detector.hasReachedBoundary()) return 0;
+
+      int available = detector.getAvailableBytes();
+      long toSkip = Math.min(n, available);
+      buffer.skip((int) toSkip);
+      detector.updatePosition((int) toSkip);
+      return toSkip;
     }
 
     @Override
     public void close() throws IOException {
-      if (closed) {
-        return;
-      }
+      if (!closed) {
 
-      while (true) {
-        int k = available();
-        if (k == 0) {
-          k = readInputStream();
-          if (k == 0) {
-            break;
-          }
+        // Consume remaining data in this part
+        while (!detector.hasReachedBoundary() && buffer.readByte() != -1) {
+          // Continue reading until boundary
         }
-        skip(k); // NOSONAR no need return value when closing
+        closed = true;
       }
-      closed = true;
     }
 
     public boolean isClosed() {
       return closed;
+    }
+
+    private void validateNotClosed() throws IOException {
+      if (closed) {
+        throw new IOException("PartInputStream is closed");
+      }
+    }
+  }
+
+  /** Detects boundaries in the stream and manages available byte counting. */
+  private class BoundaryDetector {
+    private int boundaryPosition = -1;
+    private boolean boundaryFound = false;
+
+    BoundaryDetector() {
+      updateBoundaryPosition();
+    }
+
+    boolean hasReachedBoundary() {
+      return boundaryFound || (boundaryPosition != -1 && buffer.getPosition() >= boundaryPosition);
+    }
+
+    int getAvailableBytes() {
+      if (boundaryPosition == -1) {
+        return buffer.available() - currentBoundaryLength;
+      }
+      return Math.max(0, boundaryPosition - buffer.getPosition());
+    }
+
+    void updatePosition(int bytesProcessed) {
+      // Recalculate boundary position after reading data
+      updateBoundaryPosition();
+    }
+
+    private void updateBoundaryPosition() {
+      boundaryPosition = buffer.findPattern(boundary);
+      if (boundaryPosition == -1) {
+        // Ensure we don't read past potential boundary bytes at buffer end
+        int safeBytes = Math.max(0, buffer.available() - currentBoundaryLength);
+        boundaryPosition = buffer.getPosition() + safeBytes;
+      }
+    }
+  }
+
+  /** Buffered stream wrapper with pattern matching capabilities. */
+  private static class StreamBuffer {
+    private final InputStream inputStream;
+    private final byte[] buffer;
+    private final int bufferSize;
+    private int position = 0;
+    private int limit = 0;
+
+    StreamBuffer(InputStream inputStream, int bufferSize) {
+      this.inputStream = inputStream;
+      this.bufferSize = bufferSize;
+      this.buffer = new byte[bufferSize];
+    }
+
+    byte readByte() throws IOException {
+      if (position >= limit) {
+        fillBuffer();
+      }
+      return buffer[position++];
+    }
+
+    void readBytes(byte[] dest, int offset, int length) throws IOException {
+      int remaining = length;
+      int destOffset = offset;
+
+      while (remaining > 0) {
+        if (position >= limit) {
+          fillBuffer();
+        }
+
+        int available = Math.min(remaining, limit - position);
+        System.arraycopy(buffer, position, dest, destOffset, available);
+        position += available;
+        destOffset += available;
+        remaining -= available;
+      }
+    }
+
+    void skip(int bytes) throws IOException {
+      int remaining = bytes;
+
+      while (remaining > 0) {
+        if (position >= limit) {
+          fillBuffer();
+        }
+
+        int available = Math.min(remaining, limit - position);
+        position += available;
+        remaining -= available;
+      }
+    }
+
+    int available() {
+      return limit - position;
+    }
+
+    int getPosition() {
+      return position;
+    }
+
+    int findPattern(byte[] pattern) {
+      // Simple pattern matching in current buffer
+      for (int i = position; i <= limit - pattern.length; i++) {
+        if (matchesPattern(i, pattern)) {
+          return i;
+        }
+      }
+      return -1;
+    }
+
+    private boolean matchesPattern(int start, byte[] pattern) {
+      for (int i = 0; i < pattern.length; i++) {
+        if (buffer[start + i] != pattern[i]) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    private void fillBuffer() throws IOException {
+      if (position < limit) {
+        // Compact buffer by moving unused data to beginning
+        int remaining = limit - position;
+        System.arraycopy(buffer, position, buffer, 0, remaining);
+        limit = remaining;
+        position = 0;
+      } else {
+        limit = 0;
+        position = 0;
+      }
+
+      int bytesRead = inputStream.read(buffer, limit, bufferSize - limit);
+      if (bytesRead == -1) {
+        throw MultipartStreamException.unexpectedEndOfStream();
+      }
+
+      limit += bytesRead;
     }
   }
 }

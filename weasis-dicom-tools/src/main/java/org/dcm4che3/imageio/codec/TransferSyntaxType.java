@@ -96,35 +96,35 @@ public enum TransferSyntaxType {
       case UID.JPEGLossless, UID.JPEGLosslessSV1 -> JPEG_LOSSLESS;
       case UID.JPEGLSLossless, UID.JPEGLSNearLossless -> JPEG_LS;
       case UID.JPEG2000Lossless,
-              UID.JPEG2000,
-              UID.JPEG2000MCLossless,
-              UID.JPEG2000MC,
-              UID.HTJ2KLossless,
-              UID.HTJ2KLosslessRPCL,
-              UID.HTJ2K ->
+          UID.JPEG2000,
+          UID.JPEG2000MCLossless,
+          UID.JPEG2000MC,
+          UID.HTJ2KLossless,
+          UID.HTJ2KLosslessRPCL,
+          UID.HTJ2K ->
           JPEG_2000;
       case UID.JPEGXLLossless, UID.JPEGXLJPEGRecompression, UID.JPEGXL -> JPEG_XL;
       case UID.JPIPReferenced,
-              UID.JPIPReferencedDeflate,
-              UID.JPIPHTJ2KReferenced,
-              UID.JPIPHTJ2KReferencedDeflate ->
+          UID.JPIPReferencedDeflate,
+          UID.JPIPHTJ2KReferenced,
+          UID.JPIPHTJ2KReferencedDeflate ->
           JPIP;
       case UID.MPEG2MPML,
-              UID.MPEG2MPMLF,
-              UID.MPEG2MPHL,
-              UID.MPEG2MPHLF,
-              UID.MPEG4HP41,
-              UID.MPEG4HP41F,
-              UID.MPEG4HP41BD,
-              UID.MPEG4HP41BDF,
-              UID.MPEG4HP422D,
-              UID.MPEG4HP422DF,
-              UID.MPEG4HP423D,
-              UID.MPEG4HP423DF,
-              UID.MPEG4HP42STEREO,
-              UID.MPEG4HP42STEREOF,
-              UID.HEVCMP51,
-              UID.HEVCM10P51 ->
+          UID.MPEG2MPMLF,
+          UID.MPEG2MPHL,
+          UID.MPEG2MPHLF,
+          UID.MPEG4HP41,
+          UID.MPEG4HP41F,
+          UID.MPEG4HP41BD,
+          UID.MPEG4HP41BDF,
+          UID.MPEG4HP422D,
+          UID.MPEG4HP422DF,
+          UID.MPEG4HP423D,
+          UID.MPEG4HP423DF,
+          UID.MPEG4HP42STEREO,
+          UID.MPEG4HP42STEREOF,
+          UID.HEVCMP51,
+          UID.HEVCM10P51 ->
           MPEG;
       case UID.RLELossless -> RLE;
       default -> UNKNOWN;
@@ -134,31 +134,31 @@ public enum TransferSyntaxType {
   public static boolean isLossyCompression(String uid) {
     return switch (uid) {
       case UID.JPEGBaseline8Bit,
-              UID.JPEGExtended12Bit,
-              UID.JPEGSpectralSelectionNonHierarchical68,
-              UID.JPEGFullProgressionNonHierarchical1012,
-              UID.JPEGLSNearLossless,
-              UID.JPEG2000,
-              UID.JPEG2000MC,
-              UID.HTJ2K,
-              UID.JPEGXLJPEGRecompression,
-              UID.JPEGXL,
-              UID.MPEG2MPML,
-              UID.MPEG2MPMLF,
-              UID.MPEG2MPHL,
-              UID.MPEG2MPHLF,
-              UID.MPEG4HP41,
-              UID.MPEG4HP41F,
-              UID.MPEG4HP41BD,
-              UID.MPEG4HP41BDF,
-              UID.MPEG4HP422D,
-              UID.MPEG4HP422DF,
-              UID.MPEG4HP423D,
-              UID.MPEG4HP423DF,
-              UID.MPEG4HP42STEREO,
-              UID.MPEG4HP42STEREOF,
-              UID.HEVCMP51,
-              UID.HEVCM10P51 ->
+          UID.JPEGExtended12Bit,
+          UID.JPEGSpectralSelectionNonHierarchical68,
+          UID.JPEGFullProgressionNonHierarchical1012,
+          UID.JPEGLSNearLossless,
+          UID.JPEG2000,
+          UID.JPEG2000MC,
+          UID.HTJ2K,
+          UID.JPEGXLJPEGRecompression,
+          UID.JPEGXL,
+          UID.MPEG2MPML,
+          UID.MPEG2MPMLF,
+          UID.MPEG2MPHL,
+          UID.MPEG2MPHLF,
+          UID.MPEG4HP41,
+          UID.MPEG4HP41F,
+          UID.MPEG4HP41BD,
+          UID.MPEG4HP41BDF,
+          UID.MPEG4HP422D,
+          UID.MPEG4HP422DF,
+          UID.MPEG4HP423D,
+          UID.MPEG4HP423DF,
+          UID.MPEG4HP42STEREO,
+          UID.MPEG4HP42STEREOF,
+          UID.HEVCMP51,
+          UID.HEVCM10P51 ->
           true;
       default -> false;
     };
@@ -167,15 +167,15 @@ public enum TransferSyntaxType {
   public static boolean isYBRCompression(String uid) {
     return switch (uid) {
       case UID.JPEGBaseline8Bit,
-              UID.JPEGExtended12Bit,
-              UID.JPEGSpectralSelectionNonHierarchical68,
-              UID.JPEGFullProgressionNonHierarchical1012,
-              UID.JPEG2000Lossless,
-              UID.JPEG2000,
-              UID.HTJ2KLossless,
-              UID.HTJ2KLosslessRPCL,
-              UID.HTJ2K,
-              UID.JPEGXLJPEGRecompression ->
+          UID.JPEGExtended12Bit,
+          UID.JPEGSpectralSelectionNonHierarchical68,
+          UID.JPEGFullProgressionNonHierarchical1012,
+          UID.JPEG2000Lossless,
+          UID.JPEG2000,
+          UID.HTJ2KLossless,
+          UID.HTJ2KLosslessRPCL,
+          UID.HTJ2K,
+          UID.JPEGXLJPEGRecompression ->
           true;
       default -> false;
     };

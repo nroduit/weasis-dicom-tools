@@ -14,6 +14,10 @@ import static org.weasis.dicom.ref.CodingScheme.FMA;
 import static org.weasis.dicom.ref.CodingScheme.SCT;
 
 import java.util.Locale;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public enum SurfacePart implements AnatomicItem {
   ANTERIOR_TRIANGLE_OF_NECK(SCT, 182329002, 41, 0, 42),
@@ -224,6 +228,10 @@ public enum SurfacePart implements AnatomicItem {
   VAGINAL_INTROITUS(SCT, 18857001, 0, 506, 0),
   VULVAL_VESTIBULE(SCT, 23213005, 0, 516, 0);
 
+  private static final Map<String, SurfacePart> CODE_LOOKUP =
+      Stream.of(values())
+          .collect(Collectors.toUnmodifiableMap(SurfacePart::getCodeValue, Function.identity()));
+
   private final CodingScheme scheme;
   private final String codeValue;
   private final int left;
@@ -248,6 +256,12 @@ public enum SurfacePart implements AnatomicItem {
     return MesSurface.getString(codeValue);
   }
 
+  /**
+   * Returns the human-readable meaning of this body part in the specified locale.
+   *
+   * @param locale the desired locale
+   * @return the localized code meaning
+   */
   public String getCodeMeaning(Locale locale) {
     return MesSurface.getString(codeValue, locale);
   }
@@ -259,12 +273,12 @@ public enum SurfacePart implements AnatomicItem {
 
   @Override
   public String getLegacyCode() {
-    return null;
+    return null; // Surface parts don't have legacy codes
   }
 
   @Override
   public boolean isPaired() {
-    return left != 0;
+    return left > 0 && right > 0;
   }
 
   public int getLeft() {
@@ -284,7 +298,21 @@ public enum SurfacePart implements AnatomicItem {
     return getCodeMeaning();
   }
 
+  /**
+   * Retrieves a SurfacePart by its code value.
+   *
+   * @param code the code value to search for
+   * @return the matching SurfacePart, or null if not found
+   */
+  public static SurfacePart fromCode(String code) {
+    return CODE_LOOKUP.get(code);
+  }
+
+  /**
+   * @deprecated Use {@link #fromCode(String)} instead for better performance and clarity.
+   */
+  @Deprecated(since = "5.34.0.3", forRemoval = true)
   public static SurfacePart getSurfacePartFromCode(String code) {
-    return AnatomicBuilder.getSurfacePartFromCode(code);
+    return fromCode(code);
   }
 }

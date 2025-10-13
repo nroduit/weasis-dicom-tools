@@ -15,8 +15,8 @@ import java.util.Objects;
 /**
  * Utility class for determining image orientation planes from DICOM direction cosines.
  *
- * <p>This class provides methods to analyze Image Orientation Patient (IOP) vectors and determine
- * the corresponding anatomical plane (axial, coronal, sagittal, or oblique).
+ * <p>This class analyzes Image Orientation Patient (IOP) vectors to determine the corresponding
+ * anatomical plane (axial, coronal, sagittal, or oblique).
  *
  * <p>Reference: <a
  * href="https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.7.6.2.html#sect_C.7.6.2.1.1">
@@ -28,15 +28,10 @@ public final class ImageOrientation {
 
   /** Anatomical orientation planes based on DICOM Image Orientation Patient. */
   public enum Plan {
-    /** Unknown or unspecified orientation */
     UNKNOWN("Unknown"),
-    /** Transverse/Axial plane (horizontal cross-sections) */
     TRANSVERSE("Axial"),
-    /** Sagittal plane (left-right divisions) */
     SAGITTAL("Sagittal"),
-    /** Coronal plane (front-back divisions) */
     CORONAL("Coronal"),
-    /** Oblique plane (not aligned with standard anatomical planes) */
     OBLIQUE("Oblique");
 
     private final String displayName;
@@ -45,11 +40,6 @@ public final class ImageOrientation {
       this.displayName = displayName;
     }
 
-    /**
-     * Returns the human-readable name of the anatomical plane.
-     *
-     * @return the display name of the plane
-     */
     @Override
     public String toString() {
       return displayName;
@@ -64,11 +54,11 @@ public final class ImageOrientation {
   }
 
   /**
-   * Determines the anatomical plane from row and column direction cosines using default threshold.
+   * Determines the anatomical plane using default threshold.
    *
-   * @param rowVector the row direction vector (first 3 values of ImageOrientationPatient)
-   * @param columnVector the column direction vector (last 3 values of ImageOrientationPatient)
-   * @return the anatomical plane, or {@link Plan#OBLIQUE} if not aligned with standard planes
+   * @param rowVector the row direction vector
+   * @param columnVector the column direction vector
+   * @return the anatomical plane
    * @throws NullPointerException if either vector is null
    */
   public static Plan getPlan(Vector3 rowVector, Vector3 columnVector) {
@@ -76,12 +66,12 @@ public final class ImageOrientation {
   }
 
   /**
-   * Determines the anatomical plane from row and column direction cosines.
+   * Determines the anatomical plane from direction cosines.
    *
-   * @param rowVector the row direction vector (first 3 values of ImageOrientationPatient)
-   * @param columnVector the column direction vector (last 3 values of ImageOrientationPatient)
-   * @param threshold minimum cosine value to consider a vector aligned with a major axis (0.0-1.0)
-   * @return the anatomical plane, or {@link Plan#OBLIQUE} if not aligned with standard planes
+   * @param rowVector the row direction vector
+   * @param columnVector the column direction vector
+   * @param threshold minimum cosine value to consider aligned (0.0-1.0)
+   * @return the anatomical plane
    * @throws NullPointerException if either vector is null
    * @throws IllegalArgumentException if threshold is not between 0.0 and 1.0
    */
@@ -90,43 +80,35 @@ public final class ImageOrientation {
     Objects.requireNonNull(columnVector, "Column vector cannot be null");
     validateThreshold(threshold);
 
-    Orientation rowAxis = getPatientOrientation(rowVector, threshold, false);
-    Orientation colAxis = getPatientOrientation(columnVector, threshold, false);
+    var rowAxis = getPatientOrientation(rowVector, threshold, false);
+    var colAxis = getPatientOrientation(columnVector, threshold, false);
     return determinePlanFromOrientations(rowAxis, colAxis);
   }
 
   /**
-   * Determines the anatomical plane from row and column orientations.
+   * Determines the anatomical plane from orientations.
    *
    * @param rowOrientation the row axis orientation
    * @param columnOrientation the column axis orientation
-   * @return the anatomical plane, or {@link Plan#OBLIQUE} if orientations are null or don't match
-   *     standard planes
+   * @return the anatomical plane
    */
   public static Plan getPlan(Orientation rowOrientation, Orientation columnOrientation) {
     return determinePlanFromOrientations(rowOrientation, columnOrientation);
   }
 
-  private static void validateThreshold(double threshold) {
-    if (threshold < 0.0 || threshold > 1.0) {
-      throw new IllegalArgumentException(
-          "Threshold must be between 0.0 and 1.0, got: " + threshold);
-    }
-  }
-
   /**
-   * Determines the patient orientation based on a direction cosine vector.
+   * Determines patient orientation from direction cosine vector.
    *
-   * @param vector the direction cosine vector (ImageOrientationPatient)
-   * @param minCosine minimum cosine value to consider a vector aligned with a major axis
-   * @param quadruped true if the patient is a quadruped, false for biped
-   * @return the patient orientation, or null if no dominant axis found
+   * @param vector the direction cosine vector
+   * @param minCosine minimum cosine value for axis alignment
+   * @param quadruped true for quadruped, false for biped
+   * @return the patient orientation, or null if no dominant axis
    */
   public static Orientation getPatientOrientation(
       Vector3 vector, double minCosine, boolean quadruped) {
-    double absX = Math.abs(vector.x);
-    double absY = Math.abs(vector.y);
-    double absZ = Math.abs(vector.z);
+    double absX = Math.abs(vector.x());
+    double absY = Math.abs(vector.y());
+    double absZ = Math.abs(vector.z());
 
     if (isDominantAxis(absX, absY, absZ, minCosine)) {
       return getXAxisOrientation(vector, quadruped);
@@ -140,17 +122,12 @@ public final class ImageOrientation {
     return null;
   }
 
-  private static boolean isDominantAxis(
-      double primary, double secondary1, double secondary2, double threshold) {
-    return primary > threshold && primary > secondary1 && primary > secondary2;
-  }
-
   /**
-   * Determines the X-axis orientation based on a direction cosine vector.
+   * Gets X-axis orientation.
    *
-   * @param vector the direction cosine vector (ImageOrientationPatient)
-   * @param quadruped true if the patient is a quadruped, false for biped
-   * @return the X-axis orientation (Biped or Quadruped)
+   * @param vector the direction cosine vector
+   * @param quadruped true for quadruped, false for biped
+   * @return the X-axis orientation
    */
   public static Orientation getXAxisOrientation(Vector3 vector, boolean quadruped) {
     return quadruped
@@ -159,11 +136,11 @@ public final class ImageOrientation {
   }
 
   /**
-   * Determines the Y-axis orientation based on a direction cosine vector.
+   * Gets Y-axis orientation.
    *
-   * @param vector the direction cosine vector (ImageOrientationPatient)
-   * @param quadruped true if the patient is a quadruped, false for biped
-   * @return the Y-axis orientation (Biped or Quadruped)
+   * @param vector the direction cosine vector
+   * @param quadruped true for quadruped, false for biped
+   * @return the Y-axis orientation
    */
   public static Orientation getYAxisOrientation(Vector3 vector, boolean quadruped) {
     return quadruped
@@ -172,11 +149,11 @@ public final class ImageOrientation {
   }
 
   /**
-   * Determines the Z-axis orientation based on a direction cosine vector.
+   * Gets Z-axis orientation.
    *
-   * @param vector the direction cosine vector (ImageOrientationPatient)
-   * @param quadruped true if the patient is a quadruped, false for biped
-   * @return the Z-axis orientation (Biped or Quadruped)
+   * @param vector the direction cosine vector
+   * @param quadruped true for quadruped, false for biped
+   * @return the Z-axis orientation
    */
   public static Orientation getZAxisOrientation(Vector3 vector, boolean quadruped) {
     return quadruped
@@ -184,32 +161,56 @@ public final class ImageOrientation {
         : PatientOrientation.getBipedZOrientation(vector);
   }
 
+  // Private helper methods
+
+  private static void validateThreshold(double threshold) {
+    if (threshold < 0.0 || threshold > 1.0 || Double.isNaN(threshold)) {
+      throw new IllegalArgumentException(
+          "Threshold must be between 0.0 and 1.0, got: " + threshold);
+    }
+  }
+
+  private static boolean isDominantAxis(
+      double primary, double secondary1, double secondary2, double threshold) {
+    return primary > threshold && primary > secondary1 && primary > secondary2;
+  }
+
   private static Plan determinePlanFromOrientations(Orientation rowAxis, Orientation colAxis) {
     if (rowAxis == null || colAxis == null) {
       return Plan.OBLIQUE;
     }
 
-    Color rowColor = rowAxis.getColor();
-    Color colColor = colAxis.getColor();
+    return switch (getColorPairType(rowAxis.getColor(), colAxis.getColor())) {
+      case BLUE_RED -> Plan.TRANSVERSE;
+      case BLUE_GREEN -> Plan.CORONAL;
+      case RED_GREEN -> Plan.SAGITTAL;
+      case UNKNOWN -> Plan.OBLIQUE;
+    };
+  }
 
-    // Check for transverse plane (blue-red or red-blue combination)
-    if (isColorCombination(rowColor, colColor, PatientOrientation.blue, PatientOrientation.red)) {
-      return Plan.TRANSVERSE;
+  private static ColorPairType getColorPairType(Color rowColor, Color colColor) {
+    if (isColorCombination(rowColor, colColor, PatientOrientation.BLUE, PatientOrientation.RED)) {
+      return ColorPairType.BLUE_RED;
     }
-    // Check for coronal plane (blue-green or green-blue combination)
-    if (isColorCombination(rowColor, colColor, PatientOrientation.blue, PatientOrientation.green)) {
-      return Plan.CORONAL;
+    if (isColorCombination(rowColor, colColor, PatientOrientation.BLUE, PatientOrientation.GREEN)) {
+      return ColorPairType.BLUE_GREEN;
     }
-    // Check for sagittal plane (red-green or green-red combination)
-    if (isColorCombination(rowColor, colColor, PatientOrientation.red, PatientOrientation.green)) {
-      return Plan.SAGITTAL;
+    if (isColorCombination(rowColor, colColor, PatientOrientation.RED, PatientOrientation.GREEN)) {
+      return ColorPairType.RED_GREEN;
     }
-    return Plan.OBLIQUE;
+    return ColorPairType.UNKNOWN;
   }
 
   private static boolean isColorCombination(
       Color rowColor, Color colColor, Color color1, Color color2) {
     return (rowColor.equals(color1) && colColor.equals(color2))
         || (rowColor.equals(color2) && colColor.equals(color1));
+  }
+
+  private enum ColorPairType {
+    BLUE_RED,
+    BLUE_GREEN,
+    RED_GREEN,
+    UNKNOWN
   }
 }

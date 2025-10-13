@@ -178,19 +178,19 @@ public class JPEG {
   public static boolean isSOF(int marker) {
     return switch (marker) {
       case SOF0,
-              SOF1,
-              SOF2,
-              SOF3,
-              SOF5,
-              SOF6,
-              SOF7,
-              SOF9,
-              SOF10,
-              SOF11,
-              SOF13,
-              SOF14,
-              SOF15,
-              SOF55 ->
+          SOF1,
+          SOF2,
+          SOF3,
+          SOF5,
+          SOF6,
+          SOF7,
+          SOF9,
+          SOF10,
+          SOF11,
+          SOF13,
+          SOF14,
+          SOF15,
+          SOF55 ->
           true;
       default -> false;
     };

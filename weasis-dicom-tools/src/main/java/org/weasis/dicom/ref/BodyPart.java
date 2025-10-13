@@ -11,6 +11,33 @@ package org.weasis.dicom.ref;
 
 import static org.weasis.dicom.ref.CodingScheme.SCT;
 
+import java.util.Locale;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+/**
+ * Comprehensive enumeration of anatomical body parts used in DICOM imaging. Each body part is
+ * defined with SNOMED CT coding, legacy DICOM codes, and classification attributes for medical
+ * imaging workflows.
+ *
+ * <p>Body parts are categorized by:
+ *
+ * <ul>
+ *   <li><strong>Paired</strong>: Anatomical structures that naturally occur in pairs (e.g., eyes,
+ *       lungs)
+ *   <li><strong>Common</strong>: Frequently used in general medical imaging
+ *   <li><strong>Endoscopic</strong>: Suitable for endoscopic imaging procedures
+ * </ul>
+ *
+ * <p>This enum provides both modern SNOMED CT codes and legacy DICOM codes for backward
+ * compatibility with older imaging systems.
+ *
+ * @see AnatomicItem
+ * @see AnatomicRegion
+ * @see CodingScheme
+ */
 public enum BodyPart implements AnatomicItem {
   ABDOMEN(SCT, 818981001, "ABDOMEN", false, true, false),
   ABDOMEN_AND_PELVIS(SCT, 818982008, "ABDOMENPELVIS", false, true, false),
@@ -382,6 +409,9 @@ public enum BodyPart implements AnatomicItem {
   WRIST_JOINT(SCT, 74670003, "WRIST", true, true, false),
   ZYGOMA(SCT, 13881006, "ZYGOMA", true, true, false);
 
+  private static final Map<String, BodyPart> CODE_LOOKUP =
+      Stream.of(values())
+          .collect(Collectors.toUnmodifiableMap(BodyPart::getCodeValue, Function.identity()));
   private final CodingScheme scheme;
   private final String codeValue;
   private final String legacyCode;
@@ -414,6 +444,16 @@ public enum BodyPart implements AnatomicItem {
     return MesBody.getString(codeValue);
   }
 
+  /**
+   * Returns the human-readable meaning of this body part in the specified locale.
+   *
+   * @param locale the desired locale
+   * @return the localized code meaning
+   */
+  public String getCodeMeaning(Locale locale) {
+    return MesBody.getString(codeValue, locale);
+  }
+
   @Override
   public CodingScheme getCodingScheme() {
     return scheme;
@@ -429,10 +469,20 @@ public enum BodyPart implements AnatomicItem {
     return paired;
   }
 
+  /**
+   * Indicates whether this body part is commonly used in general medical imaging workflows.
+   *
+   * @return {@code true} if this is a commonly imaged body part
+   */
   public boolean isCommon() {
     return common;
   }
 
+  /**
+   * Indicates whether this body part is suitable for endoscopic imaging procedures.
+   *
+   * @return {@code true} if this body part can be examined endoscopically
+   */
   public boolean isEndoscopic() {
     return endoscopic;
   }
@@ -442,7 +492,21 @@ public enum BodyPart implements AnatomicItem {
     return getCodeMeaning();
   }
 
+  /**
+   * Finds a body part by its SNOMED CT code value.
+   *
+   * @param code the SNOMED CT code value to look up
+   * @return the corresponding {@code BodyPart}, or {@code null} if not found
+   */
+  public static BodyPart fromCode(String code) {
+    return CODE_LOOKUP.get(code);
+  }
+
+  /**
+   * @deprecated Use {@link #fromCode(String)} instead for better performance and clarity.
+   */
+  @Deprecated(since = "5.34.0.3", forRemoval = true)
   public static BodyPart getBodyPartFromCode(String code) {
-    return AnatomicBuilder.getBodyPartFromCode(code);
+    return fromCode(code);
   }
 }

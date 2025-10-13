@@ -9,31 +9,27 @@
  */
 package org.weasis.dicom.web;
 
+import static org.weasis.dicom.web.MultipartConstants.CONTENT_TYPE;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.SequenceInputStream;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Flow;
-import java.util.function.Supplier;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.img.DicomImageReadParam;
@@ -47,288 +43,230 @@ import org.dcm4che3.img.util.Editable;
 import org.dcm4che3.io.DicomOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.weasis.core.util.annotations.Generated;
 import org.weasis.opencv.data.PlanarImage;
 
+/**
+ * DICOM Store Over Web (STOW-RS) client implementation. Provides methods for uploading DICOM data
+ * using multipart/related HTTP requests. Supports file uploads, stream uploads, and metadata-only
+ * uploads.
+ *
+ * @see <a href="http://dicom.nema.org/medical/dicom/current/output/html/part18.html">DICOM
+ *     PS3.18</a>
+ */
 public class DicomStowRS implements AutoCloseable {
+
   private static final Logger LOGGER = LoggerFactory.getLogger(DicomStowRS.class);
 
-  /**
-   * @see <a href="https://tools.ietf.org/html/rfc2387">multipart specifications</a>
-   */
-  protected static final String MULTIPART_BOUNDARY = "mimeTypeBoundary";
+  /** Default multipart boundary string */
+  public static final String DEFAULT_BOUNDARY = "weasisDicomBoundary";
 
-  private static final ByteArrayInputStream emptyInputStream =
-      new ByteArrayInputStream(new byte[] {});
-
-  private final ContentType contentType;
-  private final String requestURL;
-  private final String agentName;
-  private final Map<String, String> headers;
-  private final Multipart.ContentType type = Multipart.ContentType.XML;
-  private final HttpClient client;
+  private final DicomStowConfig config;
+  private final HttpClient httpClient;
   private final ExecutorService executorService;
 
-  /**
-   * @param requestURL the URL of the STOW service
-   * @param contentType the value of the type in the Content-Type HTTP property
-   * @param agentName the value of the User-Agent HTTP property
-   * @param headers some additional header properties.
-   */
+  /** Creates a STOW-RS client with the specified configuration. */
+  public DicomStowRS(DicomStowConfig config) {
+    this.config = Objects.requireNonNull(config, "Configuration cannot be null");
+    this.executorService = createExecutorService();
+    this.httpClient = createHttpClient();
+  }
+
+  /** Legacy constructor for backward compatibility. */
   public DicomStowRS(
       String requestURL, ContentType contentType, String agentName, Map<String, String> headers) {
-    this.contentType = Objects.requireNonNull(contentType);
-    this.requestURL = Objects.requireNonNull(getFinalUrl(requestURL), "requestURL cannot be null");
-    this.headers = headers;
-    this.agentName = agentName;
-    this.executorService = Executors.newFixedThreadPool(5);
-    this.client =
-        HttpClient.newBuilder()
-            .executor(executorService)
-            .followRedirects(HttpClient.Redirect.NORMAL)
-            .version(HttpClient.Version.HTTP_1_1)
-            .connectTimeout(Duration.ofSeconds(10)) // Timeout should be an option
-            .build();
+    this(
+        DicomStowConfig.builder()
+            .requestUrl(requestURL)
+            .contentType(contentType)
+            .userAgent(agentName)
+            .headers(headers)
+            .build());
   }
 
-  private String getFinalUrl(String requestURL) {
-    String url = requestURL.trim();
-    if (url.endsWith("/")) {
-      url = url.substring(0, url.length() - 1);
+  /** Uploads a DICOM file from the specified path. */
+  public void uploadDicom(Path path) throws Exception {
+    Objects.requireNonNull(path, "Path cannot be null");
+    if (!Files.exists(path)) {
+      throw new IllegalArgumentException("File does not exist: " + path);
     }
-    if (!url.endsWith("/studies")) {
-      url += "/studies";
-    }
-    return url;
+
+    uploadPayload(Payload.ofPath(path));
   }
 
-  protected HttpRequest buildConnection(Flow.Publisher<? extends ByteBuffer> multipartSubscriber)
-      throws URISyntaxException {
-    ContentType partType = ContentType.APPLICATION_DICOM;
-    HttpRequest.Builder builder = buidDefaultConnection();
+  /** Uploads DICOM data from an input stream with file meta information. */
+  public void uploadDicom(InputStream inputStream, Attributes fileMetaInfo) throws Exception {
+    Objects.requireNonNull(inputStream, "Input stream cannot be null");
+    Objects.requireNonNull(fileMetaInfo, "File meta information cannot be null");
 
-    HttpRequest request =
-        builder
-            .header(
-                "Content-Type",
-                "multipart/related;type=\"" + partType.type + "\";boundary=" + MULTIPART_BOUNDARY)
-            .POST(HttpRequest.BodyPublishers.fromPublisher(multipartSubscriber))
-            .uri(new URI(requestURL))
-            .build();
-    if (LOGGER.isDebugEnabled()) {
-      LOGGER.debug(
-          "> POST {} {}",
-          request.uri().getRawPath(),
-          request.version().orElse(HttpClient.Version.HTTP_1_1));
-      LOGGER.debug("> Host: {}:{}", request.uri().getHost(), request.uri().getPort());
-      promptHeaders("> ", request.headers());
-      //            multipartBody.prompt();
-    }
-    return request;
+    Payload payload = createStreamPayload(inputStream, fileMetaInfo);
+    uploadPayload(payload);
   }
 
-  private HttpRequest.Builder buidDefaultConnection() {
-    HttpRequest.Builder builder = HttpRequest.newBuilder();
-    if (headers != null && !headers.isEmpty()) {
-      for (Entry<String, String> element : headers.entrySet()) {
-        builder.header(element.getKey(), element.getValue());
-      }
-    }
-    builder.header("Accept", type.toString());
-    builder.header("User-Agent", agentName == null ? "Weasis STOWRS" : agentName);
-    return builder;
+  /** Uploads DICOM metadata as a new dataset. */
+  public void uploadDicom(Attributes metadata, String transferSyntaxUid) throws Exception {
+    Objects.requireNonNull(metadata, "Metadata cannot be null");
+    Objects.requireNonNull(transferSyntaxUid, "Transfer syntax UID cannot be null");
+
+    Payload payload = createMetadataPayload(metadata, transferSyntaxUid);
+    uploadPayload(payload);
   }
 
-  protected HttpRequest buildConnection(
-      MultipartBody multipartBody,
-      Payload firstPlayLoad,
-      Supplier<? extends InputStream> streamSupplier)
-      throws Exception {
-    ContentType partType = ContentType.APPLICATION_DICOM;
-    multipartBody.addPart(partType.type, firstPlayLoad, null);
+  /** Uploads a prepared payload. */
+  public void uploadPayload(Payload payload) throws Exception {
+    Objects.requireNonNull(payload, "Payload cannot be null");
 
-    HttpRequest.Builder builder = buidDefaultConnection();
+    var multipartBody = new MultipartBody(config.getContentType(), DEFAULT_BOUNDARY);
+    multipartBody.addPart(config.getContentType().getType(), payload, null);
 
-    HttpRequest request =
-        builder
-            .header("Content-Type", multipartBody.contentType())
-            .POST(multipartBody.bodyPublisher(streamSupplier))
-            .uri(new URI(requestURL))
-            .build();
-    if (LOGGER.isDebugEnabled()) {
-      LOGGER.debug(
-          "> POST {} {}",
-          request.uri().getRawPath(),
-          request.version().orElse(HttpClient.Version.HTTP_1_1));
-      LOGGER.debug("> Host: {}:{}", request.uri().getHost(), request.uri().getPort());
-      promptHeaders("> ", request.headers());
-      multipartBody.prompt();
-    }
-    return request;
-  }
+    HttpRequest request = buildHttpRequest(multipartBody);
+    HttpResponse<String> response = sendRequest(request);
 
-  <T> HttpResponse<T> send(
-      HttpClient client, HttpRequest request, HttpResponse.BodyHandler<T> bodyHandler)
-      throws Exception {
-    HttpResponse<T> response = client.send(request, bodyHandler);
-    if (LOGGER.isDebugEnabled()) {
-      LOGGER.debug("< {} response code: {}", response.version(), response.statusCode());
-      promptHeaders("< ", response.headers());
-    }
-
-    int statusCode = response.statusCode();
-    if (statusCode >= 400 && statusCode <= 599) {
-      throw new HttpException("HTTP POST error: " + statusCode, statusCode);
-    }
-
-    return response;
-  }
-
-  private static void promptHeaders(String prefix, HttpHeaders headers) {
-    headers.map().forEach((k, v) -> v.forEach(v1 -> LOGGER.debug("{} {}: {}", prefix, k, v1)));
-    LOGGER.debug(prefix);
+    logResponse(response);
   }
 
   @Override
-  public void close() throws Exception {}
+  public void close() throws Exception {
+    if (executorService != null && !executorService.isShutdown()) {
+      executorService.shutdown();
+    }
+  }
 
+  // Getters for backward compatibility
   public ContentType getContentType() {
-    return contentType;
+    return config.getContentType();
   }
 
   public String getRequestURL() {
-    return requestURL;
+    return config.getRequestUrl();
   }
 
   public Map<String, String> getHeaders() {
-    return headers;
+    return config.getHeaders();
   }
 
-  public void uploadDicom(Path path) throws Exception {
-    Payload playload =
-        new Payload() {
-          @Override
-          public long size() {
-            return -1;
-          }
-
-          @Override
-          public InputStream newInputStream() {
-            try {
-              return Files.newInputStream(path);
-            } catch (IOException e) {
-              LOGGER.error("Cannot read {}", path, e);
-            }
-            return emptyInputStream;
-          }
-        };
-    uploadPayload(playload);
-  }
-
-  public void uploadDicom(InputStream in, Attributes fmi) throws Exception {
-    Payload playload =
-        new Payload() {
-          @Override
-          public long size() {
-            return -1;
-          }
-
-          @Override
-          public InputStream newInputStream() {
-            List<InputStream> list = new ArrayList<>();
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            try (DicomOutputStream dos =
-                new DicomOutputStream(out, fmi.getString(Tag.TransferSyntaxUID))) {
-              dos.writeFileMetaInformation(fmi);
-            } catch (IOException e) {
-              LOGGER.error("Cannot write fmi", e);
-              return emptyInputStream;
-            }
-            list.add(new ByteArrayInputStream(out.toByteArray()));
-            list.add(in);
-            return new SequenceInputStream(Collections.enumeration(list));
-          }
-        };
-    uploadPayload(playload);
-  }
-
-  public void uploadDicom(Attributes metadata, String tsuid) throws Exception {
-    Payload playload =
-        new Payload() {
-          @Override
-          public long size() {
-            return -1;
-          }
-
-          @Override
-          public InputStream newInputStream() {
-            Attributes fmi = metadata.createFileMetaInformation(tsuid);
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            try (DicomOutputStream dos = new DicomOutputStream(out, tsuid)) {
-              dos.writeDataset(fmi, metadata);
-            } catch (IOException e) {
-              LOGGER.error("Cannot write DICOM", e);
-              return emptyInputStream;
-            }
-            return new ByteArrayInputStream(out.toByteArray());
-          }
-        };
-    uploadPayload(playload);
-  }
-
-  public void uploadPayload(Payload playload) throws Exception {
-    MultipartBody multipartBody =
-        new MultipartBody(ContentType.APPLICATION_DICOM, MULTIPART_BOUNDARY);
-    HttpRequest request =
-        buildConnection(
-            multipartBody, playload, () -> new SequenceInputStream(multipartBody.enumeration()));
-    send(client, request, HttpResponse.BodyHandlers.ofLines()).body().forEach(LOGGER::info);
-
-    //            MultipartBody.Part part = new MultipartBody.Part(playload,
-    // ContentType.APPLICATION_DICOM.type, null);
-    //
-    //            SubmissionPublisher<ByteBuffer> publisher = new SubmissionPublisher<>();
-    //            publisher.subscribe(multipartBody);
-    //            HttpRequest request = buildConnection(publisher);
-    //            CompletableFuture
-    //                    <HttpResponse<Stream<String>>> responses = client.sendAsync(request,
-    // HttpResponse.BodyHandlers.ofLines());
-    //            publisher.submit(ByteBuffer.wrap(multipartBody.getHeader(part)));
-    //            publisher.submit(part.newByteBuffer());
-    //            publisher.submit(ByteBuffer.wrap(multipartBody.getEnd()));
-    //            publisher.close();
-    //
-    //            HttpResponse<Stream<String>> response = responses.get();
-    //            if (LOGGER.isDebugEnabled()) {
-    //                LOGGER.debug("< {} response code: {}", response.version(),
-    // response.statusCode());
-    //                promptHeaders("< ", response.headers());
-    //            }
-    //            response.body().forEach(LOGGER::info);
-  }
-
-  public static Payload preparePayload(
+  /** Creates a payload for processing compressed DICOM images. */
+  public static Payload createCompressedImagePayload(
       Attributes data,
       AdaptTransferSyntax syntax,
       BytesWithImageDescriptor desc,
       Editable<PlanarImage> editable)
       throws IOException {
-    DicomImageReader reader = new DicomImageReader(Transcoder.dicomImageReaderSpi);
-    reader.setInput(desc);
-    DicomImageReadParam dicomImageReadParam = new DicomImageReadParam();
-    dicomImageReadParam.setReleaseImageAfterProcessing(true);
-    var images = reader.getLazyPlanarImages(dicomImageReadParam, editable);
-    DicomOutputData imgData =
-        new DicomOutputData(images, desc.getImageDescriptor(), syntax.getRequested());
-    if (!syntax.getRequested().equals(imgData.getTsuid())) {
-      syntax.setSuitable(imgData.getTsuid());
-      LOGGER.warn(
-          "Transcoding into {} is not possible, used instead {}",
-          syntax.getRequested(),
-          syntax.getSuitable());
-    }
-    Attributes dataSet = new Attributes(data);
-    dataSet.remove(Tag.PixelData);
+    return new CompressedImagePayload(data, syntax, desc, editable);
+  }
 
+  private ExecutorService createExecutorService() {
+    return Executors.newFixedThreadPool(
+        config.getThreadPoolSize(),
+        r -> {
+          Thread thread = new Thread(r, "DicomStow-" + System.currentTimeMillis());
+          thread.setDaemon(true);
+          return thread;
+        });
+  }
+
+  private HttpClient createHttpClient() {
+    return HttpClient.newBuilder()
+        .executor(executorService)
+        .followRedirects(HttpClient.Redirect.NORMAL)
+        .version(HttpClient.Version.HTTP_1_1)
+        .connectTimeout(config.getConnectTimeout())
+        .build();
+  }
+
+  private HttpRequest buildHttpRequest(MultipartBody multipartBody) throws Exception {
+    HttpRequest.Builder builder =
+        HttpRequest.newBuilder()
+            .uri(URI.create(config.getRequestUrl()))
+            .POST(multipartBody.createBodyPublisher())
+            .header(CONTENT_TYPE, multipartBody.getContentTypeHeader())
+            .header("Accept", MultipartConstants.DicomContentType.XML.getMimeType())
+            .header("User-Agent", config.getUserAgent());
+
+    // Add custom headers
+    config.getHeaders().forEach(builder::header);
+
+    HttpRequest request = builder.build();
+
+    if (LOGGER.isDebugEnabled()) {
+      logRequest(request, multipartBody);
+    }
+
+    return request;
+  }
+
+  HttpResponse<String> sendRequest(HttpRequest request) throws Exception {
+    HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+    int statusCode = response.statusCode();
+    if (statusCode >= 400) {
+      throw HttpException.fromResponse(response);
+    }
+
+    return response;
+  }
+
+  @Generated
+  private void logRequest(HttpRequest request, MultipartBody multipartBody) {
+    URI uri = request.uri();
+    LOGGER.debug(
+        "> POST {} {}", uri.getPath(), request.version().orElse(HttpClient.Version.HTTP_1_1));
+    LOGGER.debug("> Host: {}:{}", uri.getHost(), uri.getPort());
+    logHeaders("> ", request.headers());
+    multipartBody.logDebugInfo();
+  }
+
+  @Generated
+  private void logResponse(HttpResponse<String> response) {
+    if (LOGGER.isDebugEnabled()) {
+      LOGGER.debug("< {} response code: {}", response.version(), response.statusCode());
+      logHeaders("< ", response.headers());
+    }
+
+    // Log response body lines
+    response.body().lines().forEach(LOGGER::info);
+  }
+
+  @Generated
+  private static void logHeaders(String prefix, HttpHeaders headers) {
+    headers
+        .map()
+        .forEach(
+            (name, values) ->
+                values.forEach(value -> LOGGER.debug("{}{}: {}", prefix, name, value)));
+    LOGGER.debug(prefix.trim());
+  }
+
+  private Payload createStreamPayload(InputStream inputStream, Attributes fileMetaInfo) {
+    return new Payload() {
+      @Override
+      public long size() {
+        return -1; // Unknown size for streams
+      }
+
+      @Override
+      public InputStream newInputStream() {
+        try {
+          var metaOutput = new ByteArrayOutputStream();
+          try (var dicomOut =
+              new DicomOutputStream(metaOutput, fileMetaInfo.getString(Tag.TransferSyntaxUID))) {
+            dicomOut.writeFileMetaInformation(fileMetaInfo);
+          }
+
+          List<InputStream> streams = new ArrayList<>();
+          streams.add(new ByteArrayInputStream(metaOutput.toByteArray()));
+          streams.add(inputStream);
+
+          return new SequenceInputStream(Collections.enumeration(streams));
+        } catch (IOException e) {
+          LOGGER.error("Failed to create stream payload", e);
+          return InputStream.nullInputStream();
+        }
+      }
+    };
+  }
+
+  private Payload createMetadataPayload(Attributes metadata, String transferSyntaxUid) {
     return new Payload() {
       @Override
       public long size() {
@@ -337,28 +275,102 @@ public class DicomStowRS implements AutoCloseable {
 
       @Override
       public InputStream newInputStream() {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        try (DicomOutputStream dos = new DicomOutputStream(out, imgData.getTsuid())) {
-          dos.writeFileMetaInformation(dataSet.createFileMetaInformation(imgData.getTsuid()));
-          if (DicomOutputData.isNativeSyntax(imgData.getTsuid())) {
-            imgData.writeRawImageData(dos, dataSet);
-          } else {
-            int[] jpegWriteParams =
-                imgData.adaptTagsToCompressedImage(
-                    dataSet,
-                    imgData.getFirstImage().get(),
-                    desc.getImageDescriptor(),
-                    DicomJpegWriteParam.buildDicomImageWriteParam(imgData.getTsuid()));
-            imgData.writeCompressedImageData(dos, dataSet, jpegWriteParams);
+        try {
+          Attributes fileMetaInfo = metadata.createFileMetaInformation(transferSyntaxUid);
+          var output = new ByteArrayOutputStream();
+
+          try (var dicomOut = new DicomOutputStream(output, transferSyntaxUid)) {
+            dicomOut.writeDataset(fileMetaInfo, metadata);
           }
+
+          return new ByteArrayInputStream(output.toByteArray());
         } catch (IOException e) {
-          LOGGER.error("Cannot write DICOM", e);
-          return new ByteArrayInputStream(new byte[] {});
-        } finally {
-          reader.dispose();
+          LOGGER.error("Failed to create metadata payload", e);
+          return InputStream.nullInputStream();
         }
-        return new ByteArrayInputStream(out.toByteArray());
       }
     };
+  }
+
+  /** Payload for compressed DICOM images. */
+  private record CompressedImagePayload(
+      Attributes data,
+      AdaptTransferSyntax syntax,
+      BytesWithImageDescriptor descriptor,
+      Editable<PlanarImage> editable)
+      implements Payload {
+    private CompressedImagePayload(
+        Attributes data,
+        AdaptTransferSyntax syntax,
+        BytesWithImageDescriptor descriptor,
+        Editable<PlanarImage> editable) {
+      this.data = Objects.requireNonNull(data);
+      this.syntax = Objects.requireNonNull(syntax);
+      this.descriptor = Objects.requireNonNull(descriptor);
+      this.editable = Objects.requireNonNull(editable);
+    }
+
+    @Override
+    public long size() {
+      return -1; // Compressed size is unknown
+    }
+
+    @Override
+    public InputStream newInputStream() {
+      try {
+        return createCompressedStream();
+      } catch (IOException e) {
+        LOGGER.error("Failed to create compressed image stream", e);
+        return InputStream.nullInputStream();
+      }
+    }
+
+    private InputStream createCompressedStream() throws IOException {
+      var reader = new DicomImageReader(Transcoder.dicomImageReaderSpi);
+
+      try {
+        reader.setInput(descriptor);
+
+        var readParam = new DicomImageReadParam();
+        readParam.setReleaseImageAfterProcessing(true);
+
+        var images = reader.getLazyPlanarImages(readParam, editable);
+        var outputData =
+            new DicomOutputData(images, descriptor.getImageDescriptor(), syntax.getRequested());
+
+        if (!syntax.getRequested().equals(outputData.getTsuid())) {
+          syntax.setSuitable(outputData.getTsuid());
+          LOGGER.warn(
+              "Transcoding to {} not possible, using {} instead",
+              syntax.getRequested(),
+              syntax.getSuitable());
+        }
+
+        Attributes dataset = new Attributes(data);
+        dataset.remove(Tag.PixelData);
+
+        var output = new ByteArrayOutputStream();
+        try (var dicomOut = new DicomOutputStream(output, outputData.getTsuid())) {
+          dicomOut.writeFileMetaInformation(
+              dataset.createFileMetaInformation(outputData.getTsuid()));
+
+          if (DicomOutputData.isNativeSyntax(outputData.getTsuid())) {
+            outputData.writeRawImageData(dicomOut, dataset);
+          } else {
+            int[] writeParams =
+                outputData.adaptTagsToCompressedImage(
+                    dataset,
+                    outputData.getFirstImage().get(),
+                    descriptor.getImageDescriptor(),
+                    DicomJpegWriteParam.buildDicomImageWriteParam(outputData.getTsuid()));
+            outputData.writeCompressedImageData(dicomOut, dataset, writeParams);
+          }
+        }
+
+        return new ByteArrayInputStream(output.toByteArray());
+      } finally {
+        reader.dispose();
+      }
+    }
   }
 }

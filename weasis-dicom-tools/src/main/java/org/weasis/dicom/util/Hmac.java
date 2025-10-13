@@ -19,6 +19,11 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.weasis.core.util.StringUtil;
 
+/**
+ * Utility class for HMAC (Hash-based Message Authentication Code) operations using HMAC-SHA256.
+ * Provides methods for key generation, hashing, and hex encoding/decoding for generating consistent
+ * hash values and UUID-like identifiers.
+ */
 public class Hmac {
 
   public static final int KEY_BYTE_LENGTH = 16;

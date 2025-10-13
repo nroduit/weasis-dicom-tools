@@ -17,7 +17,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -27,33 +26,39 @@ import org.dcm4che3.data.Tag;
 import org.dcm4che3.img.util.DateTimeUtils;
 import org.dcm4che3.img.util.DicomObjectUtil;
 
+/**
+ * Represents a DICOM study within a patient, containing multiple series. Provides functionality for
+ * XML serialization, series management, and study comparison.
+ *
+ * <p>A study represents a single imaging procedure or examination performed on a patient, typically
+ * at a specific date and time. Studies contain one or more series of images or other DICOM objects.
+ */
 public class Study implements Xml, Comparable<Study> {
 
   private final String studyInstanceUID;
-  private String studyID = null;
-  private String studyDescription = null;
-  private String studyDate = null;
-  private String studyTime = null;
-  private String accessionNumber = null;
-  private String referringPhysicianName = null;
   private final Map<String, Series> seriesMap;
 
+  private String studyID;
+  private String studyDescription;
+  private String studyDate;
+  private String studyTime;
+  private String accessionNumber;
+  private String referringPhysicianName;
+
+  /**
+   * Creates a study with the specified instance UID.
+   *
+   * @param studyInstanceUID the DICOM Study Instance UID, required
+   * @throws NullPointerException if studyInstanceUID is null
+   */
   public Study(String studyInstanceUID) {
     this.studyInstanceUID =
-        Objects.requireNonNull(studyInstanceUID, "studyInstanceUID cannot be null!");
+        Objects.requireNonNull(studyInstanceUID, "Study Instance UID cannot be null");
     this.seriesMap = new HashMap<>();
   }
 
   public String getStudyInstanceUID() {
     return studyInstanceUID;
-  }
-
-  public String getStudyDescription() {
-    return studyDescription;
-  }
-
-  public String getStudyDate() {
-    return studyDate;
   }
 
   public String getStudyID() {
@@ -64,28 +69,28 @@ public class Study implements Xml, Comparable<Study> {
     this.studyID = studyID;
   }
 
+  public String getStudyDescription() {
+    return studyDescription;
+  }
+
+  public void setStudyDescription(String studyDescription) {
+    this.studyDescription = studyDescription;
+  }
+
+  public String getStudyDate() {
+    return studyDate;
+  }
+
+  public void setStudyDate(String studyDate) {
+    this.studyDate = studyDate;
+  }
+
   public String getStudyTime() {
     return studyTime;
   }
 
   public void setStudyTime(String studyTime) {
     this.studyTime = studyTime;
-  }
-
-  public String getReferringPhysicianName() {
-    return referringPhysicianName;
-  }
-
-  public void setReferringPhysicianName(String referringPhysicianName) {
-    this.referringPhysicianName = referringPhysicianName;
-  }
-
-  public void setStudyDescription(String studyDesc) {
-    this.studyDescription = studyDesc;
-  }
-
-  public void setStudyDate(String studyDate) {
-    this.studyDate = studyDate;
   }
 
   public String getAccessionNumber() {
@@ -96,119 +101,170 @@ public class Study implements Xml, Comparable<Study> {
     this.accessionNumber = accessionNumber;
   }
 
-  public void addSeries(Series s) {
-    if (s != null) {
-      seriesMap.put(s.getSeriesInstanceUID(), s);
+  public String getReferringPhysicianName() {
+    return referringPhysicianName;
+  }
+
+  public void setReferringPhysicianName(String referringPhysicianName) {
+    this.referringPhysicianName = referringPhysicianName;
+  }
+
+  /**
+   * Adds a series to this study.
+   *
+   * @param series the series to add, ignored if null
+   */
+  public void addSeries(Series series) {
+    if (series != null) {
+      seriesMap.put(series.getSeriesInstanceUID(), series);
     }
   }
 
+  /**
+   * Removes and returns a series by UID.
+   *
+   * @param seriesUID the Series Instance UID, required
+   * @return the removed series, or null if not found
+   */
   public Series removeSeries(String seriesUID) {
     return seriesMap.remove(seriesUID);
   }
 
-  public boolean isEmpty() {
-    for (Series s : seriesMap.values()) {
-      if (!s.isEmpty()) {
-        return false;
-      }
-    }
-    return true;
-  }
-
+  /**
+   * Retrieves a series by UID.
+   *
+   * @param seriesUID the Series Instance UID, required
+   * @return the matching series, or null if not found
+   */
   public Series getSeries(String seriesUID) {
     return seriesMap.get(seriesUID);
   }
 
+  /**
+   * Returns all series in this study.
+   *
+   * @return collection of series
+   */
   public Collection<Series> getSeries() {
     return seriesMap.values();
   }
 
+  /**
+   * Returns the entry set of the series map for iteration.
+   *
+   * @return set of map entries containing key-value pairs
+   */
   public Set<Entry<String, Series>> getEntrySet() {
     return seriesMap.entrySet();
   }
 
+  /**
+   * Checks if this study contains any non-empty series.
+   *
+   * @return true if all series are empty or no series exist, false otherwise
+   */
+  public boolean isEmpty() {
+    return seriesMap.values().stream().allMatch(Series::isEmpty);
+  }
+
   @Override
-  public int hashCode() {
-    return 31 + studyInstanceUID.hashCode();
+  public void toXml(Writer writer) throws IOException {
+    writeStudyStart(writer);
+    writeSeriesInOrder(writer);
+    writeStudyEnd(writer);
+  }
+
+  @Override
+  public int compareTo(Study other) {
+    // Primary comparison: study datetime (most recent first)
+    int datetimeComparison = compareStudyDateTimes(this, other);
+    if (datetimeComparison != 0) {
+      return datetimeComparison;
+    }
+
+    // Secondary comparison: study description
+    return compareStudyDescriptions(this.studyDescription, other.studyDescription);
   }
 
   @Override
   public boolean equals(Object obj) {
     if (this == obj) return true;
-    if (obj == null) return false;
-    if (getClass() != obj.getClass()) return false;
-    Study other = (Study) obj;
+    if (obj == null || getClass() != obj.getClass()) return false;
+
+    var other = (Study) obj;
     return studyInstanceUID.equals(other.studyInstanceUID);
   }
 
   @Override
-  public void toXml(Writer result) throws IOException {
-    if (studyInstanceUID != null) {
-      result.append("\n<");
-      result.append(Xml.Level.STUDY.getTagName());
-      result.append(" ");
-      Xml.addXmlAttribute(Tag.StudyInstanceUID, studyInstanceUID, result);
-      Xml.addXmlAttribute(Tag.StudyDescription, studyDescription, result);
-      Xml.addXmlAttribute(Tag.StudyDate, studyDate, result);
-      Xml.addXmlAttribute(Tag.StudyTime, studyTime, result);
-      Xml.addXmlAttribute(Tag.AccessionNumber, accessionNumber, result);
-      Xml.addXmlAttribute(Tag.StudyID, studyID, result);
-      Xml.addXmlAttribute(Tag.ReferringPhysicianName, referringPhysicianName, result);
-      result.append(">");
+  public int hashCode() {
+    return Objects.hash(studyInstanceUID);
+  }
 
-      List<Series> list = new ArrayList<>(seriesMap.values());
-      Collections.sort(list);
-      for (Series s : list) {
-        s.toXml(result);
-      }
+  // Writes the opening study tag with attributes
+  private void writeStudyStart(Writer writer) throws IOException {
+    writer.append("\n<").append(Xml.Level.STUDY.getTagName()).append(" ");
 
-      result.append("\n</");
-      result.append(Xml.Level.STUDY.getTagName());
-      result.append(">");
+    Xml.addXmlAttribute(Tag.StudyInstanceUID, studyInstanceUID, writer);
+    Xml.addXmlAttribute(Tag.StudyDescription, studyDescription, writer);
+    Xml.addXmlAttribute(Tag.StudyDate, studyDate, writer);
+    Xml.addXmlAttribute(Tag.StudyTime, studyTime, writer);
+    Xml.addXmlAttribute(Tag.AccessionNumber, accessionNumber, writer);
+    Xml.addXmlAttribute(Tag.StudyID, studyID, writer);
+    Xml.addXmlAttribute(Tag.ReferringPhysicianName, referringPhysicianName, writer);
+
+    writer.append(">");
+  }
+
+  // Writes all series in sorted order
+  private void writeSeriesInOrder(Writer writer) throws IOException {
+    var sortedSeries = new ArrayList<>(seriesMap.values());
+    Collections.sort(sortedSeries);
+
+    for (Series series : sortedSeries) {
+      series.toXml(writer);
     }
   }
 
-  @Override
-  public int compareTo(Study s) {
-    LocalDateTime date1 =
-        DateTimeUtils.dateTime(
-            DicomObjectUtil.getDicomDate(getStudyDate()),
-            DicomObjectUtil.getDicomTime(getStudyTime()));
-    LocalDateTime date2 =
-        DateTimeUtils.dateTime(
-            DicomObjectUtil.getDicomDate(s.getStudyDate()),
-            DicomObjectUtil.getDicomTime(s.getStudyTime()));
+  // Writes the closing study tag
+  private void writeStudyEnd(Writer writer) throws IOException {
+    writer.append("\n</").append(Xml.Level.STUDY.getTagName()).append(">");
+  }
 
-    int c = -1;
-    if (date1 != null && date2 != null) {
-      // inverse time
-      c = date2.compareTo(date1);
-      if (c != 0) {
-        return c;
-      }
+  // Compares study date/time with null-safe logic (most recent first)
+  private static int compareStudyDateTimes(Study study1, Study study2) {
+    LocalDateTime datetime1 = parseStudyDateTime(study1.studyDate, study1.studyTime);
+    LocalDateTime datetime2 = parseStudyDateTime(study2.studyDate, study2.studyTime);
+
+    if (datetime1 != null && datetime2 != null) {
+      return datetime2.compareTo(datetime1); // Reverse order - most recent first
+    }
+    if (datetime1 == null && datetime2 == null) {
+      return 0; // Both null, continue to description comparison
     }
 
-    if (c == 0 || (date1 == null && date2 == null)) {
-      String d1 = getStudyDescription();
-      String d2 = s.getStudyDescription();
-      if (d1 != null && d2 != null) {
-        c = Collator.getInstance(Locale.getDefault()).compare(d1, d2);
-        if (c != 0) {
-          return c;
-        }
-      }
-      if (d1 == null) {
-        // Add o1 after o2
-        return d2 == null ? 0 : 1;
-      }
-      // Add o2 after o1
-      return -1;
-    } else {
-      if (date1 == null) {
-        // Add o1 after o2
-        return 1;
-      }
-      return -1;
+    // Null datetime sorted after non-null datetime
+    return datetime1 == null ? 1 : -1;
+  }
+
+  // Compares study descriptions with locale-aware collation
+  private static int compareStudyDescriptions(String desc1, String desc2) {
+    if (desc1 != null && desc2 != null) {
+      return Collator.getInstance(Locale.getDefault()).compare(desc1, desc2);
+    }
+    if (desc1 == null && desc2 == null) {
+      return 0; // Both null
+    }
+    // Null descriptions sorted after non-null descriptions
+    return desc1 == null ? 1 : -1;
+  }
+
+  // Parses DICOM date and time into LocalDateTime
+  private static LocalDateTime parseStudyDateTime(String studyDate, String studyTime) {
+    try {
+      return DateTimeUtils.dateTime(
+          DicomObjectUtil.getDicomDate(studyDate), DicomObjectUtil.getDicomTime(studyTime));
+    } catch (Exception e) {
+      return null;
     }
   }
 }

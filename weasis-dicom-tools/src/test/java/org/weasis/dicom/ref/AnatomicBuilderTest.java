@@ -30,8 +30,6 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
-import org.junit.jupiter.api.condition.EnabledForJreRange;
-import org.junit.jupiter.api.condition.JRE;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -112,7 +110,7 @@ class AnatomicBuilderTest {
         boolean expectedIsCommon,
         boolean expectedIsEndoscopic) {
 
-      BodyPart bodyPart = BodyPart.getBodyPartFromCode(codeValue);
+      BodyPart bodyPart = BodyPart.fromCode(codeValue);
 
       assertEquals(expectedBodyPart, bodyPart);
       assertEquals(expectedMeaning, bodyPart.getCodeMeaning());
@@ -140,12 +138,12 @@ class AnatomicBuilderTest {
 
     @Test
     void getBodyPartFromCode_with_null_returns_null() {
-      assertNull(BodyPart.getBodyPartFromCode(null));
+      assertThrows(NullPointerException.class, () -> BodyPart.fromCode(null));
     }
 
     @Test
     void getBodyPartFromCode_with_invalid_code_returns_null() {
-      assertNull(BodyPart.getBodyPartFromCode("invalid_code"));
+      assertNull(BodyPart.fromCode("invalid_code"));
     }
 
     @ParameterizedTest(name = "getBodyPartFromLegacyCode for {1} returns {0}")
@@ -249,8 +247,7 @@ class AnatomicBuilderTest {
     @Test
     void getAnatomicModifierFromCode_with_first_enum_value_returns_correct_modifier() {
       AnatomicModifier firstModifier = AnatomicModifier.RIGHT;
-      AnatomicModifier retrievedModifier =
-          AnatomicModifier.getAnatomicModifierFromCode(firstModifier.getCodeValue());
+      AnatomicModifier retrievedModifier = AnatomicModifier.fromCode(firstModifier.getCodeValue());
 
       assertEquals(firstModifier, retrievedModifier);
     }
@@ -263,7 +260,7 @@ class AnatomicBuilderTest {
         String expectedMeaning,
         CodingScheme expectedScheme) {
 
-      AnatomicModifier modifier = AnatomicModifier.getAnatomicModifierFromCode(codeValue);
+      AnatomicModifier modifier = AnatomicModifier.fromCode(codeValue);
 
       assertNotNull(modifier);
       assertEquals(expectedModifier, modifier);
@@ -281,12 +278,12 @@ class AnatomicBuilderTest {
 
     @Test
     void getAnatomicModifierFromCode_with_null_returns_null() {
-      assertNull(AnatomicModifier.getAnatomicModifierFromCode(null));
+      assertThrows(NullPointerException.class, () -> AnatomicModifier.fromCode(null));
     }
 
     @Test
     void getAnatomicModifierFromCode_with_invalid_code_returns_null() {
-      assertNull(AnatomicModifier.getAnatomicModifierFromCode("invalid_code"));
+      assertNull(AnatomicModifier.fromCode("invalid_code"));
     }
   }
 
@@ -296,8 +293,7 @@ class AnatomicBuilderTest {
     @Test
     void getSurfacePartFromCode_with_first_enum_value_returns_correct_surface_part() {
       SurfacePart firstSurfacePart = SurfacePart.ANTERIOR_TRIANGLE_OF_NECK;
-      SurfacePart retrievedSurfacePart =
-          SurfacePart.getSurfacePartFromCode(firstSurfacePart.getCodeValue());
+      SurfacePart retrievedSurfacePart = SurfacePart.fromCode(firstSurfacePart.getCodeValue());
 
       assertEquals(firstSurfacePart, retrievedSurfacePart);
     }
@@ -315,7 +311,7 @@ class AnatomicBuilderTest {
         int expectedMiddle,
         int expectedRight) {
 
-      SurfacePart surfacePart = SurfacePart.getSurfacePartFromCode(codeValue);
+      SurfacePart surfacePart = SurfacePart.fromCode(codeValue);
 
       assertNotNull(surfacePart);
       assertEquals(expectedSurfacePart, surfacePart);
@@ -354,12 +350,12 @@ class AnatomicBuilderTest {
 
     @Test
     void getSurfacePartFromCode_with_null_returns_null() {
-      assertNull(SurfacePart.getSurfacePartFromCode(null));
+      assertThrows(NullPointerException.class, () -> SurfacePart.fromCode(null));
     }
 
     @Test
     void getSurfacePartFromCode_with_invalid_code_returns_null() {
-      assertNull(SurfacePart.getSurfacePartFromCode("invalid_code"));
+      assertNull(SurfacePart.fromCode("invalid_code"));
     }
   }
 
@@ -388,35 +384,30 @@ class AnatomicBuilderTest {
               CodingScheme.DCM, "DCM", "1.2.840.10008.2.16.4", "DICOM Controlled Terminology"));
     }
 
-    @Test
-    void SCT_and_SRT_have_same_UID() {
-      assertEquals(CodingScheme.SRT.getUid(), CodingScheme.SCT.getUid());
-    }
-
     @ParameterizedTest
-    @ValueSource(strings = {"SCT", "DCM", "ACR", "SRT"})
+    @ValueSource(strings = {"SCT", "DCM", "ACR"})
     void getSchemeFromDesignator_with_valid_designator_returns_correct_scheme(String designator) {
       CodingScheme expectedScheme = CodingScheme.valueOf(designator);
 
-      assertEquals(expectedScheme, CodingScheme.getSchemeFromDesignator(designator));
+      assertEquals(expectedScheme, CodingScheme.fromDesignator(designator).orElse(null));
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"", "invalid", "xyz"})
     void getSchemeFromDesignator_with_invalid_input_returns_null(String invalidInput) {
-      assertNull(CodingScheme.getSchemeFromDesignator(invalidInput));
+      assertNull(CodingScheme.fromDesignator(invalidInput).orElse(null));
     }
 
     @Test
     void getSchemeFromDesignator_with_null_returns_null() {
-      assertNull(CodingScheme.getSchemeFromDesignator(null));
+      assertNull(CodingScheme.fromDesignator(null).orElse(null));
     }
 
     @ParameterizedTest(name = "getSchemeFromUid with UID {1} returns {0}")
     @MethodSource("uidTestData")
     void getSchemeFromUid_with_valid_UID_returns_correct_scheme(
         CodingScheme expectedScheme, String uid) {
-      assertEquals(expectedScheme, CodingScheme.getSchemeFromUid(uid));
+      assertEquals(expectedScheme, CodingScheme.fromUid(uid).orElse(null));
     }
 
     static Stream<Arguments> uidTestData() {
@@ -428,12 +419,12 @@ class AnatomicBuilderTest {
     @ParameterizedTest
     @ValueSource(strings = {"", "invalid", "1.2.3.4.5"})
     void getSchemeFromUid_with_invalid_input_returns_null(String invalidInput) {
-      assertNull(CodingScheme.getSchemeFromUid(invalidInput));
+      assertNull(CodingScheme.fromUid(invalidInput).orElse(null));
     }
 
     @Test
     void getSchemeFromUid_with_null_returns_null() {
-      assertNull(CodingScheme.getSchemeFromUid(null));
+      assertNull(CodingScheme.fromUid(null).orElse(null));
     }
   }
 
@@ -466,7 +457,7 @@ class AnatomicBuilderTest {
     @ParameterizedTest(name = "getCategoryFromContextUID with UID {1} returns {0}")
     @MethodSource("categoryFromContextUidData")
     void getCategoryFromContextUID_returns_expected_category(Category expected, String contextUid) {
-      assertEquals(expected, Category.getCategoryFromContextUID(contextUid));
+      assertEquals(expected, Category.fromContextUID(contextUid).orElse(null));
     }
 
     static Stream<Arguments> categoryFromContextUidData() {
@@ -479,7 +470,7 @@ class AnatomicBuilderTest {
 
     @Test
     void getCategoryFromContextUID_with_unknown_UID_returns_null() {
-      assertNull(Category.getCategoryFromContextUID("9.9.9.9"));
+      assertNull(Category.fromContextUID("9.9.9.9").orElse(null));
     }
 
     @Test
@@ -503,13 +494,13 @@ class AnatomicBuilderTest {
       // COMMON is a filtered subset from BodyPart
       List<AnatomicItem> common = AnatomicBuilder.categoryMap.get(Category.COMMON);
       assertNotNull(common);
-      assertTrue(common.size() > 0);
+      assertFalse(common.isEmpty());
       assertTrue(common.stream().allMatch(i -> ((BodyPart) i).isCommon()));
 
       // ENDOSCOPY is a filtered subset from BodyPart
       List<AnatomicItem> endoscopy = AnatomicBuilder.categoryMap.get(Category.ENDOSCOPY);
       assertNotNull(endoscopy);
-      assertTrue(endoscopy.size() > 0);
+      assertFalse(endoscopy.isEmpty());
       assertTrue(endoscopy.stream().allMatch(i -> ((BodyPart) i).isEndoscopic()));
     }
   }
@@ -530,7 +521,7 @@ class AnatomicBuilderTest {
       assertEquals(title, other.getTitle());
       assertEquals(title, other.toString());
       assertEquals(
-          other, new OtherCategory(context, "DIFF_ID", "Another Title")); // equals by context UID
+          new OtherCategory(context, "DIFF_ID", "Another Title"), other); // equals by context UID
       assertEquals(other.hashCode(), new OtherCategory(context, "X", "Y").hashCode());
     }
 
@@ -556,17 +547,6 @@ class AnatomicBuilderTest {
       assertThrows(NullPointerException.class, () -> new OtherCategory(null, "ID", "T"));
       assertThrows(NullPointerException.class, () -> new OtherCategory("1.2.3", null, "T"));
       assertThrows(NullPointerException.class, () -> new OtherCategory("1.2.3", "ID", null));
-    }
-  }
-
-  @Nested
-  class Version_and_Runtime_Sanity {
-
-    @Test
-    @EnabledForJreRange(min = JRE.JAVA_17)
-    void running_on_supported_JDK() {
-      // Sanity check to ensure tests align with the project's Java version
-      assertTrue(Runtime.version().feature() >= 17);
     }
   }
 }

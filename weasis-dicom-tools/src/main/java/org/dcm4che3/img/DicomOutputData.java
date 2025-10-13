@@ -145,6 +145,10 @@ public class DicomOutputData {
         buf = encodeImageFrame(i, dicomParams);
         if (i == 0) {
           writeDatasetHeader(dos, dataSet, params, buf);
+          PlanarImage image = images.get(i).get();
+          if (image.isReleasedAfterProcessing()) {
+            image.release();
+          }
         }
         writeCompressedFrame(dos, buf);
       }
@@ -483,18 +487,18 @@ public class DicomOutputData {
       case UID.ImplicitVRLittleEndian, UID.ExplicitVRLittleEndian -> UID.ExplicitVRLittleEndian;
       case UID.JPEGBaseline8Bit -> adaptJpegBaseline(type, bitStored);
       case UID.JPEGExtended12Bit,
-              UID.JPEGSpectralSelectionNonHierarchical68,
-              UID.JPEGFullProgressionNonHierarchical1012 ->
+          UID.JPEGSpectralSelectionNonHierarchical68,
+          UID.JPEGFullProgressionNonHierarchical1012 ->
           adaptJpegExtended(type, bitStored, dstTsuid);
       case UID.JPEGLossless,
-              UID.JPEGLosslessSV1,
-              UID.JPEGLSLossless,
-              UID.JPEGLSNearLossless,
-              UID.JPEG2000Lossless,
-              UID.JPEG2000,
-              UID.HTJ2KLossless,
-              UID.HTJ2KLosslessRPCL,
-              UID.HTJ2K ->
+          UID.JPEGLosslessSV1,
+          UID.JPEGLSLossless,
+          UID.JPEGLSNearLossless,
+          UID.JPEG2000Lossless,
+          UID.JPEG2000,
+          UID.HTJ2KLossless,
+          UID.HTJ2KLosslessRPCL,
+          UID.HTJ2K ->
           type <= CvType.CV_16S ? dstTsuid : UID.ExplicitVRLittleEndian;
       case UID.JPEGXLLossless -> type <= CvType.CV_32F ? dstTsuid : UID.ExplicitVRLittleEndian;
       case UID.JPEGXLJPEGRecompression, UID.JPEGXL ->
@@ -528,9 +532,9 @@ public class DicomOutputData {
   public static boolean isAdaptableSyntax(String uid) {
     return switch (uid) {
       case UID.JPEGBaseline8Bit,
-              UID.JPEGExtended12Bit,
-              UID.JPEGSpectralSelectionNonHierarchical68,
-              UID.JPEGFullProgressionNonHierarchical1012 ->
+          UID.JPEGExtended12Bit,
+          UID.JPEGSpectralSelectionNonHierarchical68,
+          UID.JPEGFullProgressionNonHierarchical1012 ->
           true;
       default -> false;
     };
@@ -546,20 +550,20 @@ public class DicomOutputData {
   public static boolean isSupportedSyntax(String uid) {
     return switch (uid) {
       case UID.ImplicitVRLittleEndian,
-              UID.ExplicitVRLittleEndian,
-              UID.JPEGBaseline8Bit,
-              UID.JPEGExtended12Bit,
-              UID.JPEGSpectralSelectionNonHierarchical68,
-              UID.JPEGFullProgressionNonHierarchical1012,
-              UID.JPEGLossless,
-              UID.JPEGLosslessSV1,
-              UID.JPEGLSLossless,
-              UID.JPEGLSNearLossless,
-              UID.JPEG2000Lossless,
-              UID.JPEG2000,
-              UID.JPEGXL,
-              UID.JPEGXLLossless,
-              UID.JPEGXLJPEGRecompression ->
+          UID.ExplicitVRLittleEndian,
+          UID.JPEGBaseline8Bit,
+          UID.JPEGExtended12Bit,
+          UID.JPEGSpectralSelectionNonHierarchical68,
+          UID.JPEGFullProgressionNonHierarchical1012,
+          UID.JPEGLossless,
+          UID.JPEGLosslessSV1,
+          UID.JPEGLSLossless,
+          UID.JPEGLSNearLossless,
+          UID.JPEG2000Lossless,
+          UID.JPEG2000,
+          UID.JPEGXL,
+          UID.JPEGXLLossless,
+          UID.JPEGXLJPEGRecompression ->
           true;
       default -> false;
     };

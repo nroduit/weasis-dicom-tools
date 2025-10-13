@@ -92,7 +92,7 @@ public final class PaletteColorUtils {
    * @deprecated Use the two-step approach with separate lookup table creation for better
    *     performance
    */
-  @Deprecated(since = "4.12", forRemoval = true)
+  @Deprecated(since = "5.34.0.3", forRemoval = true)
   public static PlanarImage getRGBImageFromPaletteColorModel(PlanarImage source, Attributes ds) {
     if (ds == null) {
       return source;

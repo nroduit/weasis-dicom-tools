@@ -9,7 +9,25 @@
  */
 package org.weasis.dicom.param;
 
+/**
+ * A functional interface for monitoring DICOM operation progress.
+ *
+ * <p>Implementations receive notifications about DICOM progress updates including operation status,
+ * completion counts, and error information. Listeners are notified in a thread-safe manner but
+ * should avoid blocking operations to prevent impacting the DICOM operation performance.
+ */
+@FunctionalInterface
 public interface ProgressListener {
 
+  /**
+   * Called when DICOM operation progress is updated.
+   *
+   * <p>This method is invoked whenever there are changes to the operation state, such as completed
+   * sub-operations, errors, or status updates. Implementations should be lightweight and
+   * non-blocking.
+   *
+   * @param progress the current progress information containing operation status, counts, and any
+   *     error details
+   */
   void handleProgression(DicomProgress progress);
 }

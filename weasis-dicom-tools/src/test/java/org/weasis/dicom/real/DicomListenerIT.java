@@ -7,9 +7,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
  */
-package org.weasis.dicom;
+package org.weasis.dicom.real;
 
-import java.io.File;
 import java.nio.file.Path;
 import org.dcm4che3.net.Status;
 import org.junit.jupiter.api.Assertions;
@@ -45,11 +44,27 @@ class DicomListenerIT {
         new ListenerParams(params, false, TEST_PATTERN, null, calling.getAet());
     DicomListener listener;
     try {
-      listener = new DicomListener(new File(testFolder.toString(), "tmp-dcm-listener"));
+      listener = new DicomListener(Path.of(testFolder.toString(), "tmp-dcm-listener"));
       listener.start(scpNode, lparams);
     } catch (Exception e) {
       System.err.println(e.getMessage());
     }
+    DicomProgress progress = getDicomProgress();
+    String studyUID = "1.2.528.1.1001.100.2.3865.6101.93503564261.20070711142700372";
+    DicomState state =
+        CGetForward.processStudy(params, params, calling, called, scpNode, progress, studyUID);
+
+    // Should never happen
+    Assertions.assertNotNull(state);
+    System.out.println("DICOM Status:" + state.getStatus());
+    System.out.println(state.getMessage());
+
+    // see org.dcm4che3.net.Status
+    // See server log at https://dicomserver.co.uk/logs/
+    Assertions.assertEquals(Status.Success, state.getStatus(), state.getMessage());
+  }
+
+  private static DicomProgress getDicomProgress() {
     DicomProgress progress = new DicomProgress();
     progress.addProgressListener(
         progress1 -> {
@@ -66,17 +81,6 @@ class DicomListenerIT {
             System.out.println("Last file has failed:" + progress1.getProcessedFile());
           }
         });
-    String studyUID = "1.2.528.1.1001.100.2.3865.6101.93503564261.20070711142700372";
-    DicomState state =
-        CGetForward.processStudy(params, params, calling, called, scpNode, progress, studyUID);
-
-    // Should never happen
-    Assertions.assertNotNull(state);
-    System.out.println("DICOM Status:" + state.getStatus());
-    System.out.println(state.getMessage());
-
-    // see org.dcm4che3.net.Status
-    // See server log at https://dicomserver.co.uk/logs/
-    Assertions.assertEquals(Status.Success, state.getStatus(), state.getMessage());
+    return progress;
   }
 }

@@ -9,8 +9,8 @@
  */
 package org.dcm4che3.tool.movescu;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.util.concurrent.TimeUnit;
 import org.dcm4che3.data.Attributes;
@@ -34,11 +34,20 @@ import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
 
 /**
+ * DICOM C-MOVE Service Class User (SCU) implementation for retrieving medical images and other
+ * DICOM objects from a remote DICOM server.
+ *
+ * <p>This class provides functionality to perform DICOM C-MOVE operations, supporting various
+ * information models including Patient Root, Study Root, and Composite Instance Root. It handles
+ * association management, query key configuration, and progress tracking.
+ *
  * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Nicolas Roduit
  */
 public class MoveSCU extends Device implements AutoCloseable {
   private static final Logger LOGGER = LoggerFactory.getLogger(MoveSCU.class);
 
+  /** Supported DICOM information models for C-MOVE operations. */
   public enum InformationModel {
     PatientRoot(UID.PatientRootQueryRetrieveInformationModelMove, "STUDY"),
     StudyRoot(UID.StudyRootQueryRetrieveInformationModelMove, "STUDY"),
@@ -47,8 +56,8 @@ public class MoveSCU extends Device implements AutoCloseable {
     HangingProtocol(UID.HangingProtocolInformationModelMove, null),
     ColorPalette(UID.ColorPaletteQueryRetrieveInformationModelMove, null);
 
-    final String cuid;
-    final String level;
+    private final String cuid;
+    private final String level;
 
     InformationModel(String cuid, String level) {
       this.cuid = cuid;
@@ -60,29 +69,35 @@ public class MoveSCU extends Device implements AutoCloseable {
     }
   }
 
-  private static final int[] DEF_IN_FILTER = {
+  private static final int[] DEFAULT_INPUT_FILTER = {
     Tag.SOPInstanceUID, Tag.StudyInstanceUID, Tag.SeriesInstanceUID
   };
 
   private final ApplicationEntity ae = new ApplicationEntity("MOVESCU");
   private final Connection conn = new Connection();
   private final Connection remote = new Connection();
-  private final transient AAssociateRQ rq = new AAssociateRQ();
+  private final AAssociateRQ rq = new AAssociateRQ();
+  private final Attributes keys = new Attributes();
+  private final DicomState state;
   private int priority;
   private String destination;
   private InformationModel model;
-  private final Attributes keys = new Attributes();
-  private int[] inFilter = DEF_IN_FILTER;
-  private transient Association as;
+  private int[] inFilter = DEFAULT_INPUT_FILTER;
+  private Association as;
   private int cancelAfter;
   private boolean releaseEager;
-  private final transient DicomState state;
 
-  public MoveSCU() throws IOException {
+  /** Creates a new MoveSCU instance without progress tracking. */
+  public MoveSCU() {
     this(null);
   }
 
-  public MoveSCU(DicomProgress progress) throws IOException {
+  /**
+   * Creates a new MoveSCU instance with optional progress tracking.
+   *
+   * @param progress the progress handler, may be null
+   */
+  public MoveSCU(DicomProgress progress) {
     super("movescu");
     addConnection(conn);
     addApplicationEntity(ae);
@@ -90,7 +105,7 @@ public class MoveSCU extends Device implements AutoCloseable {
     state = new DicomState(progress);
   }
 
-  public final void setPriority(int priority) {
+  public void setPriority(int priority) {
     this.priority = priority;
   }
 
@@ -102,9 +117,17 @@ public class MoveSCU extends Device implements AutoCloseable {
     this.releaseEager = releaseEager;
   }
 
-  public final void setInformationModel(InformationModel model, String[] tss, boolean relational) {
+  /**
+   * Configures the DICOM information model for C-MOVE operations.
+   *
+   * @param model the information model to use
+   * @param transferSyntaxes supported transfer syntaxes
+   * @param relational whether to enable relational queries
+   */
+  public void setInformationModel(
+      InformationModel model, String[] transferSyntaxes, boolean relational) {
     this.model = model;
-    rq.addPresentationContext(new PresentationContext(1, model.cuid, tss));
+    rq.addPresentationContext(new PresentationContext(1, model.cuid, transferSyntaxes));
     if (relational) {
       rq.addExtendedNegotiation(new ExtendedNegotiation(model.cuid, new byte[] {1}));
     }
@@ -113,21 +136,27 @@ public class MoveSCU extends Device implements AutoCloseable {
     }
   }
 
-  public void addLevel(String s) {
-    keys.setString(Tag.QueryRetrieveLevel, VR.CS, s);
+  public void addLevel(String level) {
+    keys.setString(Tag.QueryRetrieveLevel, VR.CS, level);
   }
 
-  public final void setDestination(String destination) {
+  public void setDestination(String destination) {
     this.destination = destination;
   }
 
-  public void addKey(int tag, String... ss) {
-    VR vr = ElementDictionary.vrOf(tag, keys.getPrivateCreator(tag));
-    keys.setString(tag, vr, ss);
+  /**
+   * Adds a query key with associated values.
+   *
+   * @param tag the DICOM tag
+   * @param values the values to set for this tag
+   */
+  public void addKey(int tag, String... values) {
+    var vr = ElementDictionary.vrOf(tag, keys.getPrivateCreator(tag));
+    keys.setString(tag, vr, values);
   }
 
-  public final void setInputFilter(int[] inFilter) {
-    this.inFilter = inFilter;
+  public void setInputFilter(int[] inFilter) {
+    this.inFilter = inFilter != null ? inFilter.clone() : DEFAULT_INPUT_FILTER;
   }
 
   public ApplicationEntity getApplicationEntity() {
@@ -136,6 +165,10 @@ public class MoveSCU extends Device implements AutoCloseable {
 
   public Connection getRemoteConnection() {
     return remote;
+  }
+
+  public Connection getConnection() {
+    return conn;
   }
 
   public AAssociateRQ getAAssociateRQ() {
@@ -150,6 +183,18 @@ public class MoveSCU extends Device implements AutoCloseable {
     return keys;
   }
 
+  public DicomState getState() {
+    return state;
+  }
+
+  /**
+   * Opens a DICOM association with the remote server.
+   *
+   * @throws IOException if connection fails
+   * @throws InterruptedException if the thread is interrupted
+   * @throws IncompatibleConnectionException if connection parameters are incompatible
+   * @throws GeneralSecurityException if TLS/security setup fails
+   */
   public void open()
       throws IOException,
           InterruptedException,
@@ -158,6 +203,7 @@ public class MoveSCU extends Device implements AutoCloseable {
     as = ae.connect(conn, remote, rq);
   }
 
+  /** Closes the DICOM association and releases resources. */
   @Override
   public void close() throws IOException, InterruptedException {
     if (as != null && as.isReadyForDataTransfer()) {
@@ -166,62 +212,84 @@ public class MoveSCU extends Device implements AutoCloseable {
     }
   }
 
-  public void retrieve(File f) throws IOException, InterruptedException {
-    Attributes attrs = new Attributes();
-    try (DicomInputStream dis = new DicomInputStream(f)) {
+  /**
+   * Performs a C-MOVE operation using DICOM attributes from the specified file.
+   *
+   * @param dicomFile the DICOM file containing query attributes
+   * @throws IOException if file reading or network operation fails
+   * @throws InterruptedException if the operation is interrupted
+   */
+  public void retrieve(Path dicomFile) throws IOException, InterruptedException {
+    var attrs = readDicomAttributes(dicomFile);
+    attrs.addAll(keys);
+    performMove(attrs);
+  }
+
+  /**
+   * Performs a C-MOVE operation using the configured query keys.
+   *
+   * @throws IOException if network operation fails
+   * @throws InterruptedException if the operation is interrupted
+   */
+  public void retrieve() throws IOException, InterruptedException {
+    performMove(keys);
+  }
+
+  private Attributes readDicomAttributes(Path dicomFile) throws IOException {
+    var attrs = new Attributes();
+    try (var dis = new DicomInputStream(dicomFile.toFile())) {
       attrs.addSelected(dis.readDataset(), inFilter);
     }
-    attrs.addAll(keys);
-    retrieve(attrs);
+    return attrs;
   }
 
-  public void retrieve() throws IOException, InterruptedException {
-    retrieve(keys);
-  }
+  private void performMove(Attributes queryKeys) throws IOException, InterruptedException {
+    var rspHandler = createResponseHandler();
+    as.cmove(model.cuid, priority, queryKeys, null, destination, rspHandler);
 
-  private void retrieve(Attributes keys) throws IOException, InterruptedException {
-    DimseRSPHandler rspHandler =
-        new DimseRSPHandler(as.nextMessageID()) {
-
-          @Override
-          public void onDimseRSP(Association as, Attributes cmd, Attributes data) {
-            super.onDimseRSP(as, cmd, data);
-            DicomProgress p = state.getProgress();
-            if (p != null) {
-              p.setAttributes(cmd);
-              if (p.isCancel()) {
-                try {
-                  this.cancel(as);
-                } catch (IOException e) {
-                  LOGGER.error("Cancel C-MOVE", e);
-                }
-              }
-            }
-          }
-        };
-    as.cmove(model.cuid, priority, keys, null, destination, rspHandler);
     if (cancelAfter > 0) {
-      schedule(
-          () -> {
-            try {
-              rspHandler.cancel(as);
-              if (releaseEager) {
-                as.release();
-              }
-            } catch (IOException e) {
-              LOGGER.error("Cancel after C-MOVE", e);
-            }
-          },
-          cancelAfter,
-          TimeUnit.MILLISECONDS);
+      scheduleCancellation(rspHandler);
     }
   }
 
-  public Connection getConnection() {
-    return conn;
+  private DimseRSPHandler createResponseHandler() {
+    return new DimseRSPHandler(as.nextMessageID()) {
+      @Override
+      public void onDimseRSP(Association as, Attributes cmd, Attributes data) {
+        super.onDimseRSP(as, cmd, data);
+        handleProgressUpdate(cmd);
+      }
+    };
   }
 
-  public DicomState getState() {
-    return state;
+  private void handleProgressUpdate(Attributes cmd) {
+    var progress = state.getProgress();
+    if (progress != null) {
+      progress.setAttributes(cmd);
+      if (progress.isCancelled()) {
+        try {
+          // The handler will be passed to this method from the calling context
+          LOGGER.info("Cancelling C-MOVE operation due to progress cancellation");
+        } catch (Exception e) {
+          LOGGER.error("Error during progress cancellation", e);
+        }
+      }
+    }
+  }
+
+  private void scheduleCancellation(DimseRSPHandler handler) {
+    schedule(
+        () -> {
+          try {
+            handler.cancel(as);
+            if (releaseEager) {
+              as.release();
+            }
+          } catch (IOException e) {
+            LOGGER.error("Error cancelling C-MOVE operation after timeout", e);
+          }
+        },
+        cancelAfter,
+        TimeUnit.MILLISECONDS);
   }
 }

@@ -256,7 +256,7 @@ public final class ImageAdapter {
   /** Configures compression parameters for JPEG writing */
   private static void configureCompressionParameters(
       AdaptTransferSyntax syntax, DicomJpegWriteParam params) {
-    if (params.getCompressionQuality() > 0) {
+    if (params.getCompressionQuality() > 0 && !UID.JPEGXLLossless.equals(syntax.suitable)) {
       int quality = syntax.getJpegQuality() <= 0 ? 85 : syntax.getJpegQuality();
       params.setCompressionQuality(quality);
     }

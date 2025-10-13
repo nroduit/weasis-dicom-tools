@@ -10,177 +10,145 @@
 package org.weasis.dicom.web;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.SequenceInputStream;
-import java.io.UncheckedIOException;
 import java.net.http.HttpRequest;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class MultipartBody implements Flow.Subscriber<ByteBuffer> {
+/**
+ * Builder for multipart/related HTTP request bodies. Supports both streaming and buffered
+ * approaches for different payload types.
+ */
+public final class MultipartBody implements Flow.Subscriber<ByteBuffer> {
+
   private static final Logger LOGGER = LoggerFactory.getLogger(MultipartBody.class);
 
-  /**
-   * @see <a href="https://tools.ietf.org/html/rfc2387">multipart specifications</a>
-   */
   private final String boundary;
 
   private final ContentType contentType;
-  private final List<Part> parts = new ArrayList<>();
+  private final List<MultipartPart> parts = new ArrayList<>();
   private final AtomicBoolean closed = new AtomicBoolean(false);
 
   private Flow.Subscription subscription;
 
+  /**
+   * Creates a multipart body with the specified content type and boundary.
+   *
+   * @param contentType the primary content type for the multipart
+   * @param boundary the boundary string (without dashes)
+   */
   public MultipartBody(ContentType contentType, String boundary) {
-    this.contentType = contentType;
-    this.boundary = boundary;
+    this.contentType = Objects.requireNonNull(contentType, "Content type cannot be null");
+    this.boundary = Objects.requireNonNull(boundary, "Boundary cannot be null");
   }
 
-  public HttpRequest.BodyPublisher bodyPublisher(Supplier<? extends InputStream> streamSupplier) {
+  /** Adds a part with byte array payload. */
+  public MultipartBody addPart(String contentType, byte[] data, String location) {
+    Objects.requireNonNull(data, "Data cannot be null");
+    return addPart(contentType, Payload.ofBytes(data), location);
+  }
+
+  /** Adds a part with file payload. */
+  public MultipartBody addPart(String contentType, Path path, String location) {
+    Objects.requireNonNull(path, "Path cannot be null");
+    return addPart(contentType, Payload.ofPath(path), location);
+  }
+
+  /** Adds a part with custom payload. */
+  public MultipartBody addPart(String contentType, Payload payload, String location) {
+    Objects.requireNonNull(contentType, "Content type cannot be null");
+    Objects.requireNonNull(payload, "Payload cannot be null");
+
+    if (closed.get()) {
+      throw new IllegalStateException("MultipartBody is closed");
+    }
+
+    parts.add(new MultipartPart(contentType, location, payload));
+    return this;
+  }
+
+  /** Creates an HTTP body publisher using a stream supplier. */
+  public HttpRequest.BodyPublisher createBodyPublisher(
+      Supplier<? extends InputStream> streamSupplier) {
+    Objects.requireNonNull(streamSupplier, "Stream supplier cannot be null");
     return HttpRequest.BodyPublishers.ofInputStream(streamSupplier);
   }
 
-  public HttpRequest.BodyPublisher bodyPublisher() {
-    return HttpRequest.BodyPublishers.ofInputStream(() -> new SequenceInputStream(enumeration()));
+  /** Creates an HTTP body publisher using internal stream enumeration. */
+  public HttpRequest.BodyPublisher createBodyPublisher() {
+    return HttpRequest.BodyPublishers.ofInputStream(
+        () -> new SequenceInputStream(createStreamEnumeration()));
   }
 
-  byte[] getHeader(Part part) {
-    if (closed.get()) {
-      return null;
-    }
-    return part.header(boundary).getBytes(StandardCharsets.UTF_8);
+  /** Returns the complete Content-Type header value for this multipart body. */
+  public String getContentTypeHeader() {
+    return contentType.toMultipartContentType(boundary);
   }
 
-  InputStream getHeaderStream(Part part) {
-    if (closed.get()) {
-      return null;
-    }
-    return new ByteArrayInputStream(getHeader(part));
-  }
-
-  byte[] getEnd() {
-    if (closed.getAndSet(true)) {
-      return null;
-    }
-    return closeDelimiter().getBytes(StandardCharsets.UTF_8);
-  }
-
-  InputStream getEndStream() {
-    if (closed.getAndSet(true)) {
-      return null;
-    }
-    return new ByteArrayInputStream(closeDelimiter().getBytes(StandardCharsets.UTF_8));
-  }
-
-  public List<Part> getParts() {
-    return parts;
-  }
-
-  Enumeration<? extends InputStream> enumeration() {
-    return new Enumeration<>() {
-      Iterator<Part> iter = parts.iterator();
-      Part part;
-      boolean closed;
-
-      @Override
-      public boolean hasMoreElements() {
-        return !closed;
-      }
-
-      @Override
-      public InputStream nextElement() {
-        InputStream stream;
-        if (part != null) {
-          stream = part.newInputStream();
-          part = null;
-        } else if (iter.hasNext()) {
-          part = iter.next();
-          stream = getHeaderStream(part);
-        } else if (!closed) {
-          stream = getEndStream();
-          closed = true;
-        } else {
-          throw new NoSuchElementException();
-        }
-        return stream;
-      }
-    };
-  }
-
-  String closeDelimiter() {
-    return "\r\n--" + boundary + "--";
-  }
-
+  /** Returns the boundary string. */
   public String getBoundary() {
     return boundary;
   }
 
-  public void addPart(String type, final byte[] b, String location) {
-    addPart(
-        type,
-        new Payload() {
-          @Override
-          public long size() {
-            return b.length;
-          }
-
-          @Override
-          public InputStream newInputStream() {
-            return new ByteArrayInputStream(b);
-          }
-        },
-        location);
+  /** Returns an unmodifiable view of the parts. */
+  public List<MultipartPart> getParts() {
+    return Collections.unmodifiableList(parts);
   }
 
-  public void addPart(String type, final Path path, String location) {
-    addPart(
-        type,
-        new Payload() {
-          @Override
-          public long size() {
-            try {
-              return Files.size(path);
-            } catch (IOException e) {
-              throw new UncheckedIOException(e);
-            }
-          }
-
-          @Override
-          public InputStream newInputStream() {
-            try {
-              return Files.newInputStream(path);
-            } catch (IOException e) {
-              throw new UncheckedIOException(e);
-            }
-          }
-        },
-        location);
+  /** Resets the body for reuse by clearing all parts. */
+  public void reset() {
+    parts.clear();
+    closed.set(false);
   }
 
-  public void addPart(String type, Payload payload, String location) {
-    parts.add(new Part(payload, type, location));
+  /** Logs debug information about all parts. */
+  public void logDebugInfo() {
+    if (LOGGER.isDebugEnabled()) {
+      parts.forEach(part -> part.logDebugInfo(boundary));
+      LOGGER.debug("> --{}--", boundary);
+      LOGGER.debug(">");
+    }
   }
 
-  public String contentType() {
-    return "multipart/related;type=\"" + contentType.type + "\";boundary=" + boundary;
+  /** Creates stream enumeration for all parts and closing delimiter. */
+  private Enumeration<InputStream> createStreamEnumeration() {
+    return new MultipartStreamEnumeration();
   }
 
-  private Part firstPart() {
-    return parts.iterator().next();
+  private String createClosingDelimiter() {
+    return "\r\n--" + boundary + "--";
   }
+
+  private InputStream createPartHeaderStream(MultipartPart part) {
+    if (closed.get()) {
+      return InputStream.nullInputStream();
+    }
+    return new ByteArrayInputStream(part.generateHeader(boundary).getBytes(StandardCharsets.UTF_8));
+  }
+
+  private InputStream createClosingStream() {
+    if (closed.getAndSet(true)) {
+      return InputStream.nullInputStream();
+    }
+
+    return new ByteArrayInputStream(createClosingDelimiter().getBytes(StandardCharsets.UTF_8));
+  }
+
+  // Flow.Subscriber implementation for reactive streams
 
   @Override
   public void onSubscribe(Flow.Subscription subscription) {
@@ -190,75 +158,53 @@ public class MultipartBody implements Flow.Subscriber<ByteBuffer> {
 
   @Override
   public void onNext(ByteBuffer item) {
-    subscription.request(1);
+    if (subscription != null) {
+      subscription.request(1);
+    }
   }
 
   @Override
   public void onError(Throwable throwable) {
-    LOGGER.error("", throwable);
+    LOGGER.error("Error in multipart body flow", throwable);
   }
 
   @Override
   public void onComplete() {
-    LOGGER.info("Flow complete");
+    LOGGER.debug("Multipart body flow completed");
     closed.set(true);
   }
 
-  public void reset() {
-    parts.clear();
-    closed.set(false);
-  }
+  /** Enumeration that provides streams for each part header, data, and final delimiter. */
+  private class MultipartStreamEnumeration implements Enumeration<InputStream> {
+    private final Iterator<MultipartPart> partIterator = parts.iterator();
+    private MultipartPart currentPart;
+    private boolean streamClosed = false;
+    private boolean needsPartData = false;
 
-  static class Part {
-    final String type;
-    final String location;
-    final Payload payload;
-
-    public Part(Payload payload, String type, String location) {
-      this.type = type;
-      this.location = location;
-      this.payload = payload;
+    @Override
+    public boolean hasMoreElements() {
+      return !streamClosed;
     }
 
-    public InputStream newInputStream() {
-      return payload.newInputStream();
-    }
-
-    String header(String boundary) {
-      StringBuilder sb =
-          new StringBuilder(256)
-              .append("\r\n--")
-              .append(boundary)
-              .append("\r\nContent-Type: ")
-              .append(type);
-      if (payload.size() < 0) {
-        sb.append("\r\nContent-Encoding: ").append("gzip, identity");
-      } else {
-        sb.append("\r\nContent-Length: ").append(payload.size());
+    @Override
+    public InputStream nextElement() {
+      if (streamClosed) {
+        throw new NoSuchElementException("No more streams available");
       }
-      if (location != null) {
-        sb.append("\r\nContent-Location: ").append(location);
-      }
-      return sb.append("\r\n\r\n").toString();
-    }
 
-    void prompt(String boundary) {
-      LOGGER.debug("> --" + boundary);
-      LOGGER.debug("> Content-Type: " + type);
-      if (payload.size() < 0) {
-        LOGGER.debug("> Content-Encoding: gzip, identity");
-      } else {
-        LOGGER.debug("> Content-Length: " + payload.size());
+      if (needsPartData) {
+        needsPartData = false;
+        return currentPart.newInputStream();
       }
-      if (location != null) LOGGER.debug("> Content-Location: " + location);
-      LOGGER.debug(">");
-      LOGGER.debug("> [...]");
-    }
-  }
 
-  void prompt() {
-    parts.stream().forEach(p -> p.prompt(boundary));
-    LOGGER.debug("> --" + boundary + "--");
-    LOGGER.debug(">");
+      if (partIterator.hasNext()) {
+        currentPart = partIterator.next();
+        needsPartData = true;
+        return createPartHeaderStream(currentPart);
+      }
+
+      streamClosed = true;
+      return createClosingStream();
+    }
   }
 }

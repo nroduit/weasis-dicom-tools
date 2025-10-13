@@ -238,7 +238,7 @@ class CodeTest {
       CodingScheme unknownScheme = code.getCodingScheme();
       // We can't assert a specific value without knowing the implementation
       // but we can verify it doesn't throw an exception
-      assertDoesNotThrow(() -> code.getCodingScheme());
+      assertDoesNotThrow(code::getCodingScheme);
 
       // Test null coding scheme designator
       code.setCodingSchemeDesignator(null);
@@ -514,22 +514,22 @@ class CodeTest {
       // Test with real DICOM codes
       Attributes anatomyAttrs = new Attributes();
       anatomyAttrs.setString(Tag.CodeValue, VR.SH, "T-04000");
-      anatomyAttrs.setString(Tag.CodingSchemeDesignator, VR.SH, "SRT");
+      anatomyAttrs.setString(Tag.CodingSchemeDesignator, VR.SH, "SCT");
       anatomyAttrs.setString(Tag.CodeMeaning, VR.LO, "Breast");
       Code anatomyCode = new Code(anatomyAttrs);
 
       Attributes procedureAttrs = new Attributes();
       procedureAttrs.setString(Tag.CodeValue, VR.SH, "P1-48000");
-      procedureAttrs.setString(Tag.CodingSchemeDesignator, VR.SH, "SRT");
+      procedureAttrs.setString(Tag.CodingSchemeDesignator, VR.SH, "SCT");
       procedureAttrs.setString(Tag.CodeMeaning, VR.LO, "Mammography");
       Code procedureCode = new Code(procedureAttrs);
 
       assertEquals("T-04000", anatomyCode.getCodeValue());
-      assertEquals("SRT", anatomyCode.getCodingSchemeDesignator());
+      assertEquals("SCT", anatomyCode.getCodingSchemeDesignator());
       assertEquals("Breast", anatomyCode.getCodeMeaning());
 
       assertEquals("P1-48000", procedureCode.getCodeValue());
-      assertEquals("SRT", procedureCode.getCodingSchemeDesignator());
+      assertEquals("SCT", procedureCode.getCodingSchemeDesignator());
       assertEquals("Mammography", procedureCode.getCodeMeaning());
     }
 

@@ -32,16 +32,7 @@ import java.util.Objects;
  * @author Nicolas Roduit
  * @since 1.0
  */
-public final class Vector3 {
-
-  /** X component of the vector */
-  public final double x;
-
-  /** Y component of the vector */
-  public final double y;
-
-  /** Z component of the vector */
-  public final double z;
+public record Vector3(double x, double y, double z) {
 
   /** Zero vector (0, 0, 0) */
   public static final Vector3 ZERO = new Vector3(0.0, 0.0, 0.0);
@@ -55,17 +46,22 @@ public final class Vector3 {
   /** Unit vector along Z axis (0, 0, 1) */
   public static final Vector3 UNIT_Z = new Vector3(0.0, 0.0, 1.0);
 
-  /**
-   * Creates a 3D vector with the specified coordinates.
-   *
-   * @param x the X coordinate
-   * @param y the Y coordinate
-   * @param z the Z coordinate
-   */
-  public Vector3(double x, double y, double z) {
-    this.x = x;
-    this.y = y;
-    this.z = z;
+  private static final double EPSILON = 1e-10;
+
+  public Vector3 {
+    x = normalizeZero(x);
+    y = normalizeZero(y);
+    z = normalizeZero(z);
+  }
+
+  private static double normalizeZero(double value) {
+    // Normalize negative zero to positive zero
+    return value == 0.0 ? 0.0 : value;
+  }
+
+  private static double normalizeZeroWithEpsilon(double value) {
+    // Alternative: Use epsilon-based check for very small values
+    return Math.abs(value) < EPSILON ? 0.0 : value;
   }
 
   /**
@@ -75,11 +71,12 @@ public final class Vector3 {
    * 6 values representing two 3D direction vectors.
    *
    * @param coords array containing at least 3 coordinate values
+   * @return a new Vector3 instance
    * @throws NullPointerException if coords is null
    * @throws IllegalArgumentException if coords has fewer than 3 elements
    */
-  public Vector3(double[] coords) {
-    this(coords, 0);
+  public static Vector3 of(double[] coords) {
+    return of(coords, 0);
   }
 
   /**
@@ -88,23 +85,22 @@ public final class Vector3 {
    * <p>Useful for extracting vectors from DICOM Image Orientation Patient arrays:
    *
    * <ul>
-   *   <li>Row vector: {@code new Vector3(iop, 0)} (elements 0, 1, 2)
-   *   <li>Column vector: {@code new Vector3(iop, 3)} (elements 3, 4, 5)
+   *   <li>Row vector: {@code Vector3.of(iop, 0)} (elements 0, 1, 2)
+   *   <li>Column vector: {@code Vector3.of(iop, 3)} (elements 3, 4, 5)
    * </ul>
    *
    * @param coords array containing coordinate values
    * @param offset starting index in the array (0-based)
+   * @return a new Vector3 instance
    * @throws NullPointerException if coords is null
    * @throws IllegalArgumentException if coords has insufficient elements from offset
    * @throws ArrayIndexOutOfBoundsException if offset is invalid
    */
-  public Vector3(double[] coords, int offset) {
+  public static Vector3 of(double[] coords, int offset) {
     Objects.requireNonNull(coords, "Coordinate array cannot be null");
     validateArrayBounds(coords, offset);
 
-    this.x = coords[offset];
-    this.y = coords[offset + 1];
-    this.z = coords[offset + 2];
+    return new Vector3(coords[offset], coords[offset + 1], coords[offset + 2]);
   }
 
   /**
@@ -113,17 +109,12 @@ public final class Vector3 {
    * @return the Euclidean length of the vector
    */
   public double magnitude() {
-    return Math.sqrt(x * x + y * y + z * z);
+    return Math.sqrt(magnitudeSquared());
   }
 
-  /**
-   * Returns a normalized version of this vector (unit vector in same direction).
-   *
-   * @return a new Vector3 with magnitude 1.0, or zero vector if this vector has zero magnitude
-   */
-  public Vector3 normalize() {
-    double mag = magnitude();
-    return isZero(mag) ? ZERO : new Vector3(x / mag, y / mag, z / mag);
+  /** Returns the squared magnitude to avoid sqrt computation when not needed */
+  public double magnitudeSquared() {
+    return x * x + y * y + z * z;
   }
 
   /**
@@ -139,6 +130,22 @@ public final class Vector3 {
   }
 
   /**
+   * Returns a normalized version of this vector (unit vector in same direction).
+   *
+   * @return a new Vector3 with magnitude 1.0, or zero vector if this vector has zero magnitude
+   */
+  public Vector3 normalize() {
+    double mag = magnitude();
+    if (isZero(mag)) {
+      return ZERO;
+    }
+
+    double invMag = 1.0 / mag;
+    return new Vector3(
+        normalizeZero(x * invMag), normalizeZero(y * invMag), normalizeZero(z * invMag));
+  }
+
+  /**
    * Calculates the cross product with another vector.
    *
    * @param other the other vector
@@ -148,7 +155,9 @@ public final class Vector3 {
   public Vector3 cross(Vector3 other) {
     Objects.requireNonNull(other, "Other vector cannot be null");
     return new Vector3(
-        y * other.z - z * other.y, z * other.x - x * other.z, x * other.y - y * other.x);
+        normalizeZero(y * other.z - z * other.y),
+        normalizeZero(z * other.x - x * other.z),
+        normalizeZero(x * other.y - y * other.x));
   }
 
   /**
@@ -160,7 +169,8 @@ public final class Vector3 {
    */
   public Vector3 add(Vector3 other) {
     Objects.requireNonNull(other, "Other vector cannot be null");
-    return new Vector3(x + other.x, y + other.y, z + other.z);
+    return new Vector3(
+        normalizeZero(x + other.x), normalizeZero(y + other.y), normalizeZero(z + other.z));
   }
 
   /**
@@ -172,7 +182,8 @@ public final class Vector3 {
    */
   public Vector3 subtract(Vector3 other) {
     Objects.requireNonNull(other, "Other vector cannot be null");
-    return new Vector3(x - other.x, y - other.y, z - other.z);
+    return new Vector3(
+        normalizeZero(x - other.x), normalizeZero(y - other.y), normalizeZero(z - other.z));
   }
 
   /**
@@ -182,7 +193,8 @@ public final class Vector3 {
    * @return a new Vector3 scaled by the scalar value
    */
   public Vector3 multiply(double scalar) {
-    return new Vector3(x * scalar, y * scalar, z * scalar);
+    return new Vector3(
+        normalizeZero(x * scalar), normalizeZero(y * scalar), normalizeZero(z * scalar));
   }
 
   /**
@@ -191,7 +203,7 @@ public final class Vector3 {
    * @return a new Vector3 with all components negated
    */
   public Vector3 negate() {
-    return new Vector3(-x, -y, -z);
+    return new Vector3(normalizeZero(-x), normalizeZero(-y), normalizeZero(-z));
   }
 
   /**
@@ -224,24 +236,8 @@ public final class Vector3 {
   }
 
   @Override
-  public boolean equals(Object obj) {
-    if (this == obj) return true;
-    if (obj == null || getClass() != obj.getClass()) return false;
-
-    Vector3 vector3 = (Vector3) obj;
-    return Double.compare(vector3.x, x) == 0
-        && Double.compare(vector3.y, y) == 0
-        && Double.compare(vector3.z, z) == 0;
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(x, y, z);
-  }
-
-  @Override
   public String toString() {
-    return String.format("Vector3(%.6f, %.6f, %.6f)", x, y, z);
+    return "Vector3(%.6f, %.6f, %.6f)".formatted(x, y, z);
   }
 
   private static void validateArrayBounds(double[] coords, int offset) {
@@ -250,12 +246,12 @@ public final class Vector3 {
     }
     if (coords.length < offset + 3) {
       throw new IllegalArgumentException(
-          String.format(
-              "Array must contain at least %d elements, but has %d", offset + 3, coords.length));
+          "Array must contain at least %d elements, but has %d"
+              .formatted(offset + 3, coords.length));
     }
   }
 
   private static boolean isZero(double value) {
-    return Math.abs(value) < 1e-10;
+    return Math.abs(value) < EPSILON;
   }
 }

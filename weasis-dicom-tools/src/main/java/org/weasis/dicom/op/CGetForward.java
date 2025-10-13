@@ -10,19 +10,16 @@
 package org.weasis.dicom.op;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
+import java.io.Serial;
 import java.security.GeneralSecurityException;
-import java.text.MessageFormat;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Properties;
-import java.util.Set;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.ElementDictionary;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
 import org.dcm4che3.data.VR;
-import org.dcm4che3.img.stream.BytesWithImageDescriptor;
 import org.dcm4che3.img.stream.ImageAdapter;
 import org.dcm4che3.img.stream.ImageAdapter.AdaptTransferSyntax;
 import org.dcm4che3.io.DicomInputStream;
@@ -64,6 +61,11 @@ import org.weasis.dicom.util.ServiceUtil;
 import org.weasis.dicom.util.ServiceUtil.ProgressStatus;
 import org.weasis.dicom.util.StoreFromStreamSCU;
 
+/**
+ * DICOM C-GET forward service that retrieves DICOM objects from one node and forwards them to
+ * another destination. This class implements the C-GET SCU functionality while acting as a C-STORE
+ * SCP for forwarding data.
+ */
 public class CGetForward implements AutoCloseable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(CGetForward.class);
@@ -103,8 +105,21 @@ public class CGetForward implements AutoCloseable {
 
   private final BasicCStoreSCP storageSCP =
       new BasicCStoreSCP("*") {
-        class AbortException extends IllegalStateException {
-          private static final long serialVersionUID = -1153741718853819887L;
+
+        private static class Fmi {
+          String tsuid;
+          String cuid;
+          String iuid;
+
+          public Fmi(String tsuid, String cuid, String iuid) {
+            this.tsuid = tsuid;
+            this.cuid = cuid;
+            this.iuid = iuid;
+          }
+        }
+
+        private static class AbortException extends IllegalStateException {
+          @Serial private static final long serialVersionUID = -1153741718853819887L;
 
           public AbortException(String s) {
             super(s);
@@ -120,118 +135,145 @@ public class CGetForward implements AutoCloseable {
             Attributes rsp)
             throws IOException {
 
-          DicomProgress p = streamSCU.getState().getProgress();
-          if (p != null) {
-            if (p.isCancel()) {
-              StreamUtil.safeClose(CGetForward.this);
-              return;
-            }
+          var progress = streamSCU.getState().getProgress();
+          if (progress != null && progress.isCancelled()) {
+            StreamUtil.safeClose(CGetForward.this);
+            return;
           }
 
           try {
-            String cuid = rq.getString(Tag.AffectedSOPClassUID);
-            String iuid = rq.getString(Tag.AffectedSOPInstanceUID);
-            String tsuid = pc.getTransferSyntax();
+            var cuid = rq.getString(Tag.AffectedSOPClassUID);
+            var iuid = rq.getString(Tag.AffectedSOPInstanceUID);
+            var tsuid = pc.getTransferSyntax();
+            Fmi fmi = new Fmi(tsuid, cuid, iuid);
 
-            if (streamSCU.hasAssociation()) {
-              // Handle dynamically new SOPClassUID
-              Set<String> tss = streamSCU.getTransferSyntaxesFor(cuid);
-              if (!tss.contains(tsuid)) {
-                streamSCU.close(true);
-              }
+            ensureStreamSCUReady(cuid, tsuid);
+            var dataWriter = createDataWriter(as, data, fmi);
 
-              // Add Presentation Context for the association
-              streamSCU.addData(cuid, tsuid);
+            streamSCU.cstore(cuid, iuid, priority, dataWriter, tsuid);
 
-              if (!streamSCU.isReadyForDataTransfer()) {
-                // If connection has been closed just reopen
-                streamSCU.open();
-              }
-            } else {
-              streamSCUService.start();
-              // Add Presentation Context for the association
-              streamSCU.addData(cuid, tsuid);
-              streamSCU.open();
-            }
-
-            DicomInputStream in = null;
-            try {
-              if (!streamSCU.isReadyForDataTransfer()) {
-                throw new IllegalStateException("Association not ready for transfer.");
-              }
-              DataWriter dataWriter;
-              AdaptTransferSyntax syntax =
-                  new AdaptTransferSyntax(tsuid, streamSCU.selectTransferSyntax(cuid, tsuid));
-              if ((cstoreParams == null || !cstoreParams.hasDicomEditors())
-                  && syntax.getRequested().equals(tsuid)) {
-                dataWriter = new InputStreamDataWriter(data);
-              } else {
-                AttributeEditorContext context =
-                    new AttributeEditorContext(
-                        syntax.getOriginal(),
-                        DicomNode.buildRemoteDicomNode(as),
-                        streamSCU.getRemoteDicomNode());
-                in = new DicomInputStream(data, tsuid);
-                in.setIncludeBulkData(IncludeBulkData.URI);
-                Attributes attributes = in.readDataset();
-                if (cstoreParams != null && cstoreParams.hasDicomEditors()) {
-                  cstoreParams.getDicomEditors().forEach(e -> e.apply(attributes, context));
-                  iuid = attributes.getString(Tag.SOPInstanceUID);
-                  cuid = attributes.getString(Tag.SOPClassUID);
-                }
-
-                if (context.getAbort() == Abort.FILE_EXCEPTION) {
-                  data.skipAll();
-                  throw new IllegalStateException(context.getAbortMessage());
-                } else if (context.getAbort() == Abort.CONNECTION_EXCEPTION) {
-                  as.abort();
-                  throw new AbortException(
-                      "DICOM associtation abort. " + context.getAbortMessage());
-                }
-
-                BytesWithImageDescriptor desc =
-                    ImageAdapter.imageTranscode(attributes, syntax, context);
-                dataWriter =
-                    ImageAdapter.buildDataWriter(attributes, syntax, context.getEditable(), desc);
-              }
-
-              streamSCU.cstore(cuid, iuid, priority, dataWriter, syntax.getSuitable());
-            } catch (AbortException e) {
-              ServiceUtil.notifyProgession(
-                  streamSCU.getState(),
-                  rq.getString(Tag.AffectedSOPInstanceUID),
-                  rq.getString(Tag.AffectedSOPClassUID),
-                  Status.ProcessingFailure,
-                  ProgressStatus.FAILED,
-                  streamSCU.getNumberOfSuboperations());
-              throw e;
-            } catch (Exception e) {
-              if (e instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
-              }
-              LOGGER.error("Error when forwarding to the final destination", e);
-              ServiceUtil.notifyProgession(
-                  streamSCU.getState(),
-                  rq.getString(Tag.AffectedSOPInstanceUID),
-                  rq.getString(Tag.AffectedSOPClassUID),
-                  Status.ProcessingFailure,
-                  ProgressStatus.FAILED,
-                  streamSCU.getNumberOfSuboperations());
-            } finally {
-              StreamUtil.safeClose(in);
-              // Force to clean if tmp bulk files
-              ServiceUtil.safeClose(in);
-            }
-
+          } catch (AbortException e) {
+            notifyProgressionFailure(rq);
+            throw e;
           } catch (Exception e) {
-            throw new DicomServiceException(Status.ProcessingFailure, e);
+            handleStoreException(e, rq);
           }
+        }
+
+        private void ensureStreamSCUReady(String cuid, String tsuid) throws IOException {
+          if (streamSCU.hasAssociation()) {
+            handleExistingAssociation(cuid, tsuid);
+          } else {
+            initializeNewAssociation(cuid, tsuid);
+          }
+        }
+
+        private void handleExistingAssociation(String cuid, String tsuid) throws IOException {
+          var supportedSyntaxes = streamSCU.getTransferSyntaxesFor(cuid);
+          if (!supportedSyntaxes.contains(tsuid)) {
+            streamSCU.close(true);
+          }
+
+          streamSCU.addData(cuid, tsuid);
+
+          if (!streamSCU.isReadyForDataTransfer()) {
+            streamSCU.open();
+          }
+        }
+
+        private void initializeNewAssociation(String cuid, String tsuid) throws IOException {
+          streamSCUService.start();
+          streamSCU.addData(cuid, tsuid);
+          streamSCU.open();
+        }
+
+        private DataWriter createDataWriter(Association as, PDVInputStream data, Fmi fmi)
+            throws IOException {
+          if (!streamSCU.isReadyForDataTransfer()) {
+            throw new IllegalStateException("Association not ready for transfer.");
+          }
+          var syntax =
+              new AdaptTransferSyntax(
+                  fmi.tsuid, streamSCU.selectTransferSyntax(fmi.cuid, fmi.tsuid));
+
+          if (canUseDirectStream(syntax, fmi.tsuid)) {
+            return new InputStreamDataWriter(data);
+          } else {
+            return createProcessedDataWriter(as, data, syntax, fmi);
+          }
+        }
+
+        private boolean canUseDirectStream(AdaptTransferSyntax syntax, String tsuid) {
+          return (cstoreParams == null || !cstoreParams.hasDicomEditors())
+              && syntax.getRequested().equals(tsuid);
+        }
+
+        private DataWriter createProcessedDataWriter(
+            Association as, PDVInputStream data, AdaptTransferSyntax syntax, Fmi fmi)
+            throws IOException {
+          var context = createAttributeEditorContext(as, syntax);
+
+          try (var dicomInputStream = new DicomInputStream(data, syntax.getOriginal())) {
+            dicomInputStream.setIncludeBulkData(IncludeBulkData.URI);
+            var attributes = dicomInputStream.readDataset();
+
+            if (cstoreParams != null && cstoreParams.hasDicomEditors()) {
+              cstoreParams.getDicomEditors().forEach(editor -> editor.apply(attributes, context));
+              fmi.cuid = attributes.getString(Tag.SOPClassUID);
+              fmi.iuid = attributes.getString(Tag.SOPInstanceUID);
+            }
+
+            handleAbortConditions(context, data, as);
+
+            var desc = ImageAdapter.imageTranscode(attributes, syntax, context);
+            return ImageAdapter.buildDataWriter(attributes, syntax, context.getEditable(), desc);
+          }
+        }
+
+        private AttributeEditorContext createAttributeEditorContext(
+            Association as, AdaptTransferSyntax syntax) {
+          return new AttributeEditorContext(
+              syntax.getOriginal(),
+              DicomNode.buildRemoteDicomNode(as),
+              streamSCU.getRemoteDicomNode());
+        }
+
+        private void handleAbortConditions(
+            AttributeEditorContext context, PDVInputStream data, Association as)
+            throws IOException {
+          var abortType = context.getAbort();
+          if (abortType == Abort.FILE_EXCEPTION) {
+            data.skipAll();
+            throw new IllegalStateException(context.getAbortMessage());
+          } else if (abortType == Abort.CONNECTION_EXCEPTION) {
+            as.abort();
+            throw new AbortException("DICOM association abort. " + context.getAbortMessage());
+          }
+        }
+
+        private void notifyProgressionFailure(Attributes rq) {
+          ServiceUtil.notifyProgression(
+              streamSCU.getState(),
+              rq.getString(Tag.AffectedSOPInstanceUID),
+              rq.getString(Tag.AffectedSOPClassUID),
+              Status.ProcessingFailure,
+              ProgressStatus.FAILED,
+              streamSCU.getNumberOfSuboperations());
+        }
+
+        private void handleStoreException(Exception e, Attributes rq) throws DicomServiceException {
+          if (e instanceof InterruptedException) {
+            Thread.currentThread().interrupt();
+          }
+          LOGGER.error("Error when forwarding to the final destination", e);
+          notifyProgressionFailure(rq);
+          throw new DicomServiceException(Status.ProcessingFailure, e);
         }
       };
 
   public CGetForward(DicomNode callingNode, DicomNode destinationNode, DicomProgress progress)
       throws IOException {
-    this(callingNode, destinationNode, progress, null);
+    this(null, callingNode, destinationNode, progress, null);
   }
 
   public CGetForward(
@@ -244,13 +286,14 @@ public class CGetForward implements AutoCloseable {
   }
 
   /**
-   * @param forwardParams the optional advanced parameters (proxy, authentication, connection and
-   *     TLS) for the final destination
+   * Creates a C-GET forward instance.
+   *
+   * @param forwardParams optional advanced parameters for the final destination
    * @param callingNode the calling DICOM node configuration
    * @param destinationNode the final DICOM node configuration
    * @param progress the progress handler
    * @param cstoreParams the cstore parameters
-   * @throws IOException
+   * @throws IOException if device initialization fails
    */
   public CGetForward(
       AdvancedParams forwardParams,
@@ -295,16 +338,16 @@ public class CGetForward implements AutoCloseable {
   }
 
   private DicomServiceRegistry createServiceRegistry() {
-    DicomServiceRegistry serviceRegistry = new DicomServiceRegistry();
+    var serviceRegistry = new DicomServiceRegistry();
     serviceRegistry.addDicomService(storageSCP);
     return serviceRegistry;
   }
 
-  public final void setPriority(int priority) {
+  public void setPriority(int priority) {
     this.priority = priority;
   }
 
-  public final void setInformationModel(InformationModel model, String[] tss, boolean relational) {
+  public void setInformationModel(InformationModel model, String[] tss, boolean relational) {
     this.model = model;
     rq.addPresentationContext(new PresentationContext(1, model.cuid, tss));
     if (relational) {
@@ -315,13 +358,13 @@ public class CGetForward implements AutoCloseable {
     }
   }
 
-  public void addLevel(String s) {
-    keys.setString(Tag.QueryRetrieveLevel, VR.CS, s);
+  public void addLevel(String level) {
+    keys.setString(Tag.QueryRetrieveLevel, VR.CS, level);
   }
 
-  public void addKey(int tag, String... ss) {
-    VR vr = ElementDictionary.vrOf(tag, keys.getPrivateCreator(tag));
-    keys.setString(tag, vr, ss);
+  public void addKey(int tag, String... values) {
+    var vr = ElementDictionary.vrOf(tag, keys.getPrivateCreator(tag));
+    keys.setString(tag, vr, values);
   }
 
   public void addOfferedStorageSOPClass(String cuid, String... tsuids) {
@@ -354,35 +397,30 @@ public class CGetForward implements AutoCloseable {
   }
 
   private void retrieve(Attributes keys) throws IOException, InterruptedException {
-    DimseRSPHandler rspHandler =
-        new DimseRSPHandler(as.nextMessageID()) {
-
-          @Override
-          public void onDimseRSP(Association as, Attributes cmd, Attributes data) {
-            super.onDimseRSP(as, cmd, data);
-            DicomProgress p = streamSCU.getState().getProgress();
-            if (p != null) {
-              // Set only the initial state
-              if (streamSCU.getNumberOfSuboperations() == 0) {
-                streamSCU.setNumberOfSuboperations(ServiceUtil.getTotalOfSuboperations(cmd));
-              }
-              if (p.isCancel()) {
-                try {
-                  this.cancel(as);
-                } catch (IOException e) {
-                  LOGGER.error("Cancel C-GET", e);
-                }
-              }
-            }
-          }
-        };
-
-    retrieve(keys, rspHandler);
+    var rspHandler = createResponseHandler();
+    as.cget(model.cuid, priority, keys, null, rspHandler);
   }
 
-  private void retrieve(Attributes keys, DimseRSPHandler rspHandler)
-      throws IOException, InterruptedException {
-    as.cget(model.cuid, priority, keys, null, rspHandler);
+  private DimseRSPHandler createResponseHandler() {
+    return new DimseRSPHandler(as.nextMessageID()) {
+      @Override
+      public void onDimseRSP(Association as, Attributes cmd, Attributes data) {
+        super.onDimseRSP(as, cmd, data);
+        var progress = streamSCU.getState().getProgress();
+        if (progress != null) {
+          if (streamSCU.getNumberOfSuboperations() == 0) {
+            streamSCU.setNumberOfSuboperations(ServiceUtil.getTotalOfSuboperations(cmd));
+          }
+          if (progress.isCancelled()) {
+            try {
+              this.cancel(as);
+            } catch (IOException e) {
+              LOGGER.error("Cancel C-GET", e);
+            }
+          }
+        }
+      }
+    };
   }
 
   public Connection getConnection() {
@@ -401,15 +439,7 @@ public class CGetForward implements AutoCloseable {
     return streamSCU.getState();
   }
 
-  /**
-   * @param callingNode the calling DICOM node configuration
-   * @param calledNode the called DICOM node configuration
-   * @param destinationNode the final destination DICOM node configuration
-   * @param progress the progress handler
-   * @param studyUID the study instance UID to retrieve
-   * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error
-   *     message and the progression.
-   */
+  // Static convenience methods for processing studies and series
   public static DicomState processStudy(
       DicomNode callingNode,
       DicomNode calledNode,
@@ -420,19 +450,6 @@ public class CGetForward implements AutoCloseable {
         null, null, callingNode, calledNode, destinationNode, progress, "STUDY", studyUID, null);
   }
 
-  /**
-   * @param getParams the C-GET optional advanced parameters (proxy, authentication, connection and
-   *     TLS)
-   * @param forwardParams the C-Store optional advanced parameters (proxy, authentication,
-   *     connection and TLS)
-   * @param callingNode the calling DICOM node configuration
-   * @param calledNode the called DICOM node configuration
-   * @param destinationNode the final destination DICOM node configuration
-   * @param progress the progress handler
-   * @param studyUID the study instance UID to retrieve
-   * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error
-   *     message and the progression.
-   */
   public static DicomState processStudy(
       AdvancedParams getParams,
       AdvancedParams forwardParams,
@@ -453,20 +470,6 @@ public class CGetForward implements AutoCloseable {
         null);
   }
 
-  /**
-   * @param getParams the C-GET optional advanced parameters (proxy, authentication, connection and
-   *     TLS)
-   * @param forwardParams the C-Store optional advanced parameters (proxy, authentication,
-   *     connection and TLS)
-   * @param callingNode the calling DICOM node configuration
-   * @param calledNode the called DICOM node configuration
-   * @param destinationNode the final destination DICOM node configuration
-   * @param progress the progress handler
-   * @param studyUID the study instance UID to retrieve
-   * @param cstoreParams
-   * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error
-   *     message and the progression.
-   */
   public static DicomState processStudy(
       AdvancedParams getParams,
       AdvancedParams forwardParams,
@@ -488,15 +491,6 @@ public class CGetForward implements AutoCloseable {
         cstoreParams);
   }
 
-  /**
-   * @param callingNode the calling DICOM node configuration
-   * @param calledNode the called DICOM node configuration
-   * @param destinationNode the final destination DICOM node configuration
-   * @param progress the progress handler
-   * @param seriesUID the series instance UID to retrieve
-   * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error
-   *     message and the progression.
-   */
   public static DicomState processSeries(
       DicomNode callingNode,
       DicomNode calledNode,
@@ -507,19 +501,6 @@ public class CGetForward implements AutoCloseable {
         null, null, callingNode, calledNode, destinationNode, progress, "SERIES", seriesUID, null);
   }
 
-  /**
-   * @param getParams the C-GET optional advanced parameters (proxy, authentication, connection and
-   *     TLS)
-   * @param forwardParams the C-Store optional advanced parameters (proxy, authentication,
-   *     connection and TLS)
-   * @param callingNode the calling DICOM node configuration
-   * @param calledNode the called DICOM node configuration
-   * @param destinationNode the final destination DICOM node configuration
-   * @param progress the progress handler
-   * @param seriesUID the series instance UID to retrieve
-   * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error
-   *     message and the progression.
-   */
   public static DicomState processSeries(
       AdvancedParams getParams,
       AdvancedParams forwardParams,
@@ -540,20 +521,6 @@ public class CGetForward implements AutoCloseable {
         null);
   }
 
-  /**
-   * @param getParams the C-GET optional advanced parameters (proxy, authentication, connection and
-   *     TLS)
-   * @param forwardParams the C-Store optional advanced parameters (proxy, authentication,
-   *     connection and TLS)
-   * @param callingNode the calling DICOM node configuration
-   * @param calledNode the called DICOM node configuration
-   * @param destinationNode the final destination DICOM node configuration
-   * @param progress the progress handler
-   * @param seriesUID the series instance UID to retrieve
-   * @param cstoreParams
-   * @return The DicomSate instance which contains the DICOM response, the DICOM status, the error
-   *     message and the progression.
-   */
   public static DicomState processSeries(
       AdvancedParams getParams,
       AdvancedParams forwardParams,
@@ -585,77 +552,22 @@ public class CGetForward implements AutoCloseable {
       String queryRetrieveLevel,
       String queryUID,
       CstoreParams cstoreParams) {
-    if (callingNode == null || calledNode == null || destinationNode == null) {
-      throw new IllegalArgumentException(
-          "callingNode, calledNode or destinationNode cannot be null!");
-    }
-    CGetForward forward = null;
-    AdvancedParams options = getParams == null ? new AdvancedParams() : getParams;
+    validateProcessParameters(callingNode, calledNode, destinationNode);
+    var options = Objects.requireNonNullElse(getParams, new AdvancedParams());
 
-    try {
-      forward =
-          new CGetForward(forwardParams, callingNode, destinationNode, progress, cstoreParams);
-      Connection remote = forward.getRemoteConnection();
-      Connection conn = forward.getConnection();
-      options.configureConnect(forward.getAAssociateRQ(), remote, calledNode);
-      options.configureBind(forward.getApplicationEntity(), conn, callingNode);
-      DeviceOpService service = new DeviceOpService(forward.getDevice());
+    try (var forward =
+        new CGetForward(forwardParams, callingNode, destinationNode, progress, cstoreParams)) {
 
-      // configure
-      options.configure(conn);
-      options.configureTLS(conn, remote);
+      setupForward(forward, options, callingNode, calledNode, queryRetrieveLevel, queryUID);
 
-      forward.setPriority(options.getPriority());
+      forward.getStreamSCUService().start();
+      forward.open();
+      forward.retrieve();
 
-      forward.setInformationModel(
-          getInformationModel(options),
-          options.getTsuidOrder(),
-          options.getQueryOptions().contains(QueryOption.RELATIONAL));
+      return forward.getState();
 
-      configureRelatedSOPClass(forward, null);
-
-      if ("SERIES".equals(queryRetrieveLevel)) {
-        forward.addKey(Tag.QueryRetrieveLevel, "SERIES");
-        forward.addKey(Tag.SeriesInstanceUID, queryUID);
-      } else if ("STUDY".equals(queryRetrieveLevel)) {
-        forward.addKey(Tag.QueryRetrieveLevel, "STUDY");
-        forward.addKey(Tag.StudyInstanceUID, queryUID);
-      } else {
-        throw new IllegalArgumentException(
-            queryRetrieveLevel + " is not supported as query retrieve level!");
-      }
-
-      service.start();
-      try {
-        DicomState dcmState = forward.getState();
-        long t1 = System.currentTimeMillis();
-        forward.open();
-        long t2 = System.currentTimeMillis();
-        forward.retrieve();
-        ServiceUtil.forceGettingAttributes(dcmState, forward);
-        long t3 = System.currentTimeMillis();
-        String timeMsg =
-            MessageFormat.format(
-                "DICOM C-GET connected in {2}ms from {0} to {1}. Get files in {3}ms.",
-                forward.getAAssociateRQ().getCallingAET(),
-                forward.getAAssociateRQ().getCalledAET(),
-                t2 - t1,
-                t3 - t2);
-        return DicomState.buildMessage(dcmState, timeMsg, null);
-      } catch (Exception e) {
-        if (e instanceof InterruptedException) {
-          Thread.currentThread().interrupt();
-        }
-        LOGGER.error("getscu", e);
-        ServiceUtil.forceGettingAttributes(forward.getState(), forward);
-        return DicomState.buildMessage(forward.getState(), null, e);
-      } finally {
-        StreamUtil.safeClose(forward);
-        service.stop();
-        forward.getStreamSCUService().stop();
-      }
     } catch (Exception e) {
-      LOGGER.error("getscu", e);
+      LOGGER.error("DICOM C-GET forward operation failed", e);
       return new DicomState(
           Status.UnableToProcess,
           "DICOM Get failed" + StringUtil.COLON_AND_SPACE + e.getMessage(),
@@ -663,16 +575,75 @@ public class CGetForward implements AutoCloseable {
     }
   }
 
-  private static void configureRelatedSOPClass(CGetForward getSCU, URL url) throws IOException {
+  private static void validateProcessParameters(
+      DicomNode callingNode, DicomNode calledNode, DicomNode destinationNode) {
+    if (callingNode == null || calledNode == null || destinationNode == null) {
+      throw new IllegalArgumentException(
+          "callingNode, calledNode or destinationNode cannot be null!");
+    }
+  }
+
+  private static void setupForward(
+      CGetForward forward,
+      AdvancedParams options,
+      DicomNode callingNode,
+      DicomNode calledNode,
+      String queryRetrieveLevel,
+      String queryUID)
+      throws IOException {
+
+    configureConnection(options, forward, callingNode, calledNode);
+    configureInformationModel(forward, options);
+
+    setQueryAttributes(forward, queryRetrieveLevel, queryUID);
+  }
+
+  private static void configureConnection(
+      AdvancedParams options, CGetForward forward, DicomNode callingNode, DicomNode calledNode)
+      throws IOException {
+    Connection remote = forward.getRemoteConnection();
+    Connection conn = forward.getConnection();
+    options.configureConnect(forward.getAAssociateRQ(), remote, calledNode);
+    options.configureBind(forward.getApplicationEntity(), conn, callingNode);
+
+    // configure
+    options.configure(conn);
+    options.configureTLS(conn, remote);
+  }
+
+  private static void configureInformationModel(CGetForward forward, AdvancedParams options) {
+    forward.setInformationModel(
+        getInformationModel(options),
+        options.getTsuidOrder(),
+        options.getQueryOptions().contains(QueryOption.RELATIONAL));
+
+    configureRelatedSOPClass(forward);
+  }
+
+  private static void setQueryAttributes(
+      CGetForward forward, String queryRetrieveLevel, String queryUID) {
+    forward.addLevel(queryRetrieveLevel);
+
+    switch (queryRetrieveLevel) {
+      case "STUDY":
+        forward.addKey(Tag.StudyInstanceUID, queryUID);
+        break;
+      case "SERIES":
+        forward.addKey(Tag.SeriesInstanceUID, queryUID);
+        break;
+      case "IMAGE":
+        forward.addKey(Tag.SOPInstanceUID, queryUID);
+        break;
+      default:
+        throw new IllegalArgumentException(
+            "Unsupported query retrieve level: " + queryRetrieveLevel);
+    }
+  }
+
+  private static void configureRelatedSOPClass(CGetForward getSCU) {
     Properties p = new Properties();
     try {
-      if (url == null) {
-        p.load(GetSCU.class.getResourceAsStream("store-tcs.properties"));
-      } else {
-        try (InputStream in = url.openStream()) {
-          p.load(in);
-        }
-      }
+      p.load(GetSCU.class.getResourceAsStream("store-tcs.properties"));
       for (Entry<Object, Object> entry : p.entrySet()) {
         configureStorageSOPClass(getSCU, (String) entry.getKey(), (String) entry.getValue());
       }

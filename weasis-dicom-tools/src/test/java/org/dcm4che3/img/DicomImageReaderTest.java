@@ -344,28 +344,28 @@ class DicomImageReaderTest {
 
     @Test
     void range_outside_lut_with_float_conversion_settings() throws IOException {
-        readDicomFile("mono2-CT-16bit.dcm");
-        var descriptor = reader.getImageDescriptor();
-        var rawImage = reader.getRawImage(0, null);
+      readDicomFile("mono2-CT-16bit.dcm");
+      var descriptor = reader.getImageDescriptor();
+      var rawImage = reader.getRawImage(0, null);
 
-        try {
-          var seriesUID = descriptor.getSeriesInstanceUID();
-          if (seriesUID != null) {
-            // Test with series marked for float conversion
-            DicomImageReader.addSeriesToFloatImages(seriesUID, true);
+      try {
+        var seriesUID = descriptor.getSeriesInstanceUID();
+        if (seriesUID != null) {
+          // Test with series marked for float conversion
+          DicomImageReader.addSeriesToFloatImages(seriesUID, true);
 
-            var result = DicomImageReader.rangeOutsideLut(rawImage, descriptor, 0, false);
-            assertNotNull(result);
+          var result = DicomImageReader.rangeOutsideLut(rawImage, descriptor, 0, false);
+          assertNotNull(result);
 
-            DicomImageReader.removeSeriesToFloatImages(seriesUID);
+          DicomImageReader.removeSeriesToFloatImages(seriesUID);
 
-            if (!result.equals(rawImage)) {
-              result.release();
-            }
+          if (!result.equals(rawImage)) {
+            result.release();
           }
-        } finally {
-          rawImage.release();
         }
+      } finally {
+        rawImage.release();
+      }
     }
 
     static Stream<Arguments> modalityTestCases() {

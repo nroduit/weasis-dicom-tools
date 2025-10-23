@@ -602,7 +602,7 @@ public final class LookupTableUtils {
 
   private static Optional<LookupTableCV> createDicomLookupTable(
       byte[] lutData, DicomLutInfo lutInfo) {
-    if (lutInfo.numBits() <= 8) {
+    if (lutInfo.numBits() <= 8 || lutInfo.numEntries() <= MAX_8_BIT_ENTRIES) {
       return Optional.of(new LookupTableCV(lutData, lutInfo.offset()));
     }
     // Convert byte array back to short array for 16-bit LUTs

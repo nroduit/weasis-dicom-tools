@@ -9,12 +9,12 @@ jobs:
     name: Maven Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: master
           path: main
       - name: Set up JDK for compilation
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -28,7 +28,7 @@ jobs:
           echo "LIB_VERSION=${MVN_VERSION}" >> $GITHUB_ENV
         id: project
       - name: Checkout mvn-repo repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: nroduit/mvn-repo
           path: mvn-repo

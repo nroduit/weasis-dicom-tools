@@ -397,8 +397,6 @@ class TranscoderTest {
     assertTrue(spec.isSupport64F());
   }
 
-  // ... existing code ...
-
   @Nested
   @DisplayNameGeneration(ReplaceUnderscores.class)
   class Format_Tests {

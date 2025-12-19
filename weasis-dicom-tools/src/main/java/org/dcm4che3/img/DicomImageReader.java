@@ -11,6 +11,7 @@ package org.dcm4che3.img;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.Raster;
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
@@ -465,7 +466,6 @@ public class DicomImageReader extends ImageReader {
     return applyReleaseImageAfterProcessing(imageCV, param);
   }
 
-  // ... existing code ...
   /** Container for pixel data information extracted from DICOM attributes. */
   private record PixelDataInfo(
       Object pixelData,
@@ -542,7 +542,13 @@ public class DicomImageReader extends ImageReader {
     ImageCV imageCV =
         isRawData
             ? readRawImageData(
-                segmentedStream, dcmFlags, getImageDescriptor(), pixelInfo, positions, lengths)
+                segmentedStream,
+                dcmFlags,
+                getImageDescriptor(),
+                pixelInfo,
+                positions,
+                lengths,
+                tsuid)
             : readCompressedImageData(segmentedStream, dcmFlags, positions, lengths);
 
     return applyReleaseImageAfterProcessing(imageCV, param);
@@ -554,7 +560,8 @@ public class DicomImageReader extends ImageReader {
       ImageDescriptor desc,
       PixelDataInfo pixelInfo,
       MatOfDouble positions,
-      MatOfDouble lengths) {
+      MatOfDouble lengths,
+      String tsuid) {
     int bitsStored = desc.getBitsStored();
     int bits = (bitsStored <= 8 && desc.getBitsAllocated() > 8) ? 9 : bitsStored;
     int streamVR = pixelInfo.pixelDataVR.vr.numEndianBytes();
@@ -571,6 +578,13 @@ public class DicomImageReader extends ImageReader {
             desc.isBanded() ? Imgcodecs.ILV_NONE : Imgcodecs.ILV_SAMPLE,
             streamVR);
 
+    if (UID.DeflatedExplicitVRLittleEndian.equals(tsuid) && pixelInfo.bulkData != null) {
+      return ImageCV.fromMat(
+          Imgcodecs.dicomRawMatRead(
+              geBufferData(pixelInfo.bulkData),
+              dicomParams,
+              desc.getPhotometricInterpretation().name()));
+    }
     return ImageCV.fromMat(
         Imgcodecs.dicomRawFileRead(
             segmentedStream.path().toString(),
@@ -578,6 +592,19 @@ public class DicomImageReader extends ImageReader {
             lengths,
             dicomParams,
             desc.getPhotometricInterpretation().name()));
+  }
+
+  private static Mat geBufferData(BulkData bulkData) {
+    try (BufferedInputStream input = new BufferedInputStream(bulkData.openStream())) {
+      Mat buf = new Mat(1, bulkData.length(), CvType.CV_8UC1);
+      byte[] b = new byte[bulkData.length()];
+      input.read(b, 0, b.length);
+      buf.put(0, 0, b);
+      return buf;
+    } catch (Exception e) {
+      LOG.error("Reading bulk data", e);
+    }
+    return new Mat();
   }
 
   private ImageCV readCompressedImageData(

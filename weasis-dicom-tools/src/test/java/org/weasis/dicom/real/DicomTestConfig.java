@@ -523,8 +523,6 @@ public final class DicomTestConfig {
     }
   }
 
-  // ... existing code continues ...
-
   // Global configuration getters
 
   public static int getTestTimeoutMinutes() {

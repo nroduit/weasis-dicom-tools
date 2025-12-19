@@ -11,6 +11,7 @@ package org.dcm4che3.img;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.Raster;
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
@@ -592,6 +593,11 @@ public class DicomImageReader extends ImageReader {
                 bits,
                 desc.isBanded() ? Imgcodecs.ILV_NONE : Imgcodecs.ILV_SAMPLE,
                 streamVR);
+
+        if (UID.DeflatedExplicitVRLittleEndian.equals(tsuid) && bulkData != null) {
+          return ImageCV.toImageCV(
+              Imgcodecs.dicomRawMatRead(geBufferData(bulkData), dicomparams, pmi.name()));
+        }
         ImageCV imageCV =
             ImageCV.toImageCV(
                 Imgcodecs.dicomRawFileRead(
@@ -607,6 +613,19 @@ public class DicomImageReader extends ImageReader {
       closeMat(positions);
       closeMat(lengths);
     }
+  }
+
+  private static Mat geBufferData(BulkData bulkData) {
+    try (BufferedInputStream input = new BufferedInputStream(bulkData.openStream())) {
+      Mat buf = new Mat(1, bulkData.length(), CvType.CV_8UC1);
+      byte[] b = new byte[bulkData.length()];
+      input.read(b, 0, b.length);
+      buf.put(0, 0, b);
+      return buf;
+    } catch (Exception e) {
+      LOG.error("Reading bulk data", e);
+    }
+    return new Mat();
   }
 
   public static ImageCV applyReleaseImageAfterProcessing(

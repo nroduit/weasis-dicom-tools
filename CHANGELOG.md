@@ -1,5 +1,13 @@
 # Changelog
 
+## [v5.34.1.2](https://github.com/nroduit/weasis-dicom-tools/tree/v5.34.1.2) (2025-12-23)
+
+[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.34.1.1...v5.34.1.2)
+
+**Closed issues:**
+
+- Cannot decode image with Deflated Explicit VR Little Endian \(1.2.840.10008.1.2.1.99\) syntax [\#37](https://github.com/nroduit/weasis-dicom-tools/issues/37)
+
 ## [v5.34.1.1](https://github.com/nroduit/weasis-dicom-tools/tree/v5.34.1.1) (2025-10-05)
 
 [Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.34.1...v5.34.1.1)

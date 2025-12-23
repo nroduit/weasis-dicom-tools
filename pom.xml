@@ -11,7 +11,7 @@
 
   <properties>
     <revision>${dcm4che.version}.2</revision>
-    <changelist>-SNAPSHOT</changelist> <!-- Remove "-SNAPSHOT" for release -->
+    <changelist></changelist> <!-- Remove "-SNAPSHOT" for release -->
     <sha1/>
 
     <dcm4che.version>5.34.1</dcm4che.version>

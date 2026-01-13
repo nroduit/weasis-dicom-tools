@@ -9,23 +9,21 @@
  */
 package org.dcm4che3.tool.storescu;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
+import java.io.Writer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
 import java.text.MessageFormat;
 import java.util.List;
+import java.util.Objects;
 import javax.xml.parsers.ParserConfigurationException;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
-import org.dcm4che3.img.stream.BytesWithImageDescriptor;
 import org.dcm4che3.img.stream.ImageAdapter;
 import org.dcm4che3.img.stream.ImageAdapter.AdaptTransferSyntax;
 import org.dcm4che3.io.DicomInputStream;
@@ -35,7 +33,6 @@ import org.dcm4che3.net.ApplicationEntity;
 import org.dcm4che3.net.Association;
 import org.dcm4che3.net.Connection;
 import org.dcm4che3.net.DataWriter;
-import org.dcm4che3.net.DimseRSP;
 import org.dcm4che3.net.DimseRSPHandler;
 import org.dcm4che3.net.IncompatibleConnectionException;
 import org.dcm4che3.net.InputStreamDataWriter;
@@ -43,7 +40,6 @@ import org.dcm4che3.net.Status;
 import org.dcm4che3.net.pdu.AAssociateRQ;
 import org.dcm4che3.net.pdu.PresentationContext;
 import org.dcm4che3.tool.common.CLIUtils;
-import org.dcm4che3.util.SafeClose;
 import org.dcm4che3.util.StringUtils;
 import org.dcm4che3.util.TagUtils;
 import org.slf4j.Logger;
@@ -59,69 +55,118 @@ import org.weasis.dicom.util.StoreFromStreamSCU;
 import org.xml.sax.SAXException;
 
 /**
+ * DICOM Storage Service Class User (SCU) for sending DICOM objects to remote storage servers.
+ *
+ * <p>This class provides functionality to:
+ *
+ * <ul>
+ *   <li>Scan files and directories for DICOM objects
+ *   <li>Establish associations with remote DICOM nodes
+ *   <li>Send DICOM objects using C-STORE operations
+ *   <li>Handle transfer syntax negotiation and SOP class relationships
+ *   <li>Track progress and handle cancellation
+ *   <li>Apply attribute editing and UID suffix modifications
+ * </ul>
+ *
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @author Michael Backhaus <michael.backhaus@agfa.com>
+ * @author Nicolas Roduit
  */
 public class StoreSCU implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(StoreSCU.class);
+  private static final String DEFAULT_TMP_PREFIX = "storescu-";
 
+  /** Factory interface for creating custom DICOM response handlers. */
+  @FunctionalInterface
   public interface RSPHandlerFactory {
 
-    DimseRSPHandler createDimseRSPHandler(File f);
+    /**
+     * Creates a response handler for the specified file.
+     *
+     * @param file the file being processed
+     * @return the response handler
+     */
+    DimseRSPHandler createDimseRSPHandler(Path file);
   }
 
   private final ApplicationEntity ae;
   private final Connection remote;
   private final AAssociateRQ rq = new AAssociateRQ();
   public final RelatedGeneralSOPClasses relSOPClasses = new RelatedGeneralSOPClasses();
+  private final List<AttributeEditor> dicomEditors;
+  private final DicomState state;
   private Attributes attrs;
   private String uidSuffix;
   private boolean relExtNeg;
   private int priority;
-  private String tmpPrefix = "storescu-";
+  private String tmpPrefix = DEFAULT_TMP_PREFIX;
   private String tmpSuffix;
-  private File tmpDir;
-  private File tmpFile;
+  private Path tmpDir;
+  private Path tmpFile;
   private Association as;
   private long totalSize = 0;
   private int filesScanned;
 
-  private final List<AttributeEditor> dicomEditors;
-  private final DicomState state;
+  private RSPHandlerFactory rspHandlerFactory = this::createDefaultRspHandler;
 
-  private RSPHandlerFactory rspHandlerFactory =
-      file ->
-          new DimseRSPHandler(as.nextMessageID()) {
-
-            @Override
-            public void onDimseRSP(Association as, Attributes cmd, Attributes data) {
-              super.onDimseRSP(as, cmd, data);
-              StoreSCU.this.onCStoreRSP(cmd, file);
-
-              DicomProgress progress = state.getProgress();
-              if (progress != null) {
-                progress.setProcessedFile(file);
-                progress.setAttributes(cmd);
-              }
-            }
-          };
-
-  public StoreSCU(ApplicationEntity ae, DicomProgress progress) throws IOException {
+  /**
+   * Creates a StoreSCU with specified application entity and progress tracking.
+   *
+   * @param ae the application entity
+   * @param progress the progress tracker, may be null
+   */
+  public StoreSCU(ApplicationEntity ae, DicomProgress progress) {
     this(ae, progress, null);
   }
 
-  public StoreSCU(ApplicationEntity ae, DicomProgress progress, List<AttributeEditor> dicomEditors)
-      throws IOException {
+  /**
+   * Creates a StoreSCU with full configuration options.
+   *
+   * @param ae the application entity
+   * @param progress the progress tracker, may be null
+   * @param dicomEditors list of attribute editors to apply, may be null
+   */
+  public StoreSCU(
+      ApplicationEntity ae, DicomProgress progress, List<AttributeEditor> dicomEditors) {
     this.remote = new Connection();
-    this.ae = ae;
-    rq.addPresentationContext(
-        new PresentationContext(1, UID.Verification, UID.ImplicitVRLittleEndian));
+    this.ae = Objects.requireNonNull(ae, "ApplicationEntity cannot be null");
     this.state = new DicomState(progress);
     this.dicomEditors = dicomEditors;
+    try {
+      this.tmpDir = Files.createTempDirectory(DEFAULT_TMP_PREFIX);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
+    initializeAssociationRequest();
   }
 
+  private void initializeAssociationRequest() {
+    rq.addPresentationContext(
+        new PresentationContext(1, UID.Verification, UID.ImplicitVRLittleEndian));
+  }
+
+  private DimseRSPHandler createDefaultRspHandler(Path file) {
+    return new DimseRSPHandler(as.nextMessageID()) {
+      @Override
+      public void onDimseRSP(Association as, Attributes cmd, Attributes data) {
+        super.onDimseRSP(as, cmd, data);
+        StoreSCU.this.onCStoreRSP(cmd, file);
+
+        var progress = state.getProgress();
+        if (progress != null) {
+          progress.setProcessedFile(file);
+          progress.setAttributes(cmd);
+        }
+      }
+    };
+  }
+
+  // Getters and setters
+
   public void setRspHandlerFactory(RSPHandlerFactory rspHandlerFactory) {
-    this.rspHandlerFactory = rspHandlerFactory;
+    this.rspHandlerFactory =
+        rspHandlerFactory != null ? rspHandlerFactory : this::createDefaultRspHandler;
   }
 
   public AAssociateRQ getAAssociateRQ() {
@@ -140,7 +185,7 @@ public class StoreSCU implements AutoCloseable {
     this.attrs = attrs;
   }
 
-  public void setTmpFile(File tmpFile) {
+  public void setTmpFile(Path tmpFile) {
     this.tmpFile = tmpFile;
   }
 
@@ -153,14 +198,17 @@ public class StoreSCU implements AutoCloseable {
   }
 
   public final void setTmpFilePrefix(String prefix) {
-    this.tmpPrefix = prefix;
+    this.tmpPrefix = prefix != null ? prefix : DEFAULT_TMP_PREFIX;
   }
 
   public final void setTmpFileSuffix(String suffix) {
     this.tmpSuffix = suffix;
   }
 
-  public final void setTmpFileDirectory(File tmpDir) {
+  public final void setTmpFileDirectory(Path tmpDir) {
+    if (tmpDir != null && !Files.isDirectory(tmpDir)) {
+      throw new IllegalArgumentException("Not a directory: " + tmpDir);
+    }
     this.tmpDir = tmpDir;
   }
 
@@ -168,195 +216,294 @@ public class StoreSCU implements AutoCloseable {
     relExtNeg = enable;
   }
 
+  /** Scans files with printout enabled. */
   public void scanFiles(List<String> fnames) throws IOException {
-    this.scanFiles(fnames, true);
+    scanFiles(fnames, true);
   }
 
+  /**
+   * Scans the specified files/directories for DICOM objects.
+   *
+   * @param fnames list of file or directory paths to scan
+   * @param printout whether to print progress indicators
+   * @throws IOException if file operations fail
+   */
   public void scanFiles(List<String> fnames, boolean printout) throws IOException {
-    tmpFile = File.createTempFile(tmpPrefix, tmpSuffix, tmpDir);
-    tmpFile.deleteOnExit();
-    try (BufferedWriter fileInfos =
-        new BufferedWriter(new OutputStreamWriter(new FileOutputStream(tmpFile)))) {
+    tmpFile = createTempFile();
+
+    try (var writer = Files.newBufferedWriter(tmpFile, StandardCharsets.UTF_8)) {
       for (String fname : fnames) {
-        scan(new File(fname), fileInfos, printout);
+        scanPath(Paths.get(fname), writer, printout);
       }
     }
   }
 
-  private void scan(File f, BufferedWriter fileInfos, boolean printout) {
-    if (f.isDirectory() && f.canRead()) {
-      String[] fileList = f.list();
-      if (fileList != null) {
-        for (String s : fileList) {
-          scan(new File(f, s), fileInfos, printout);
-        }
-      }
-      return;
-    }
+  private Path createTempFile() throws IOException {
+    return Files.createTempFile(tmpDir, tmpPrefix, tmpSuffix);
+  }
 
-    try (DicomInputStream in = new DicomInputStream(f)) {
+  private void scanPath(Path path, Writer writer, boolean printout) {
+    if (Files.isDirectory(path) && Files.isReadable(path)) {
+      scanDirectory(path, writer, printout);
+    } else {
+      scanFile(path, writer, printout);
+    }
+  }
+
+  private void scanDirectory(Path dir, Writer writer, boolean printout) {
+    try (var stream = Files.newDirectoryStream(dir)) {
+      for (Path entry : stream) {
+        scanPath(entry, writer, printout);
+      }
+    } catch (IOException e) {
+      LOG.error("Failed to scan directory {}", dir, e);
+    }
+  }
+
+  private void scanFile(Path file, Writer writer, boolean printout) {
+    try (var in = new DicomInputStream(Files.newInputStream(file))) {
       in.setIncludeBulkData(IncludeBulkData.NO);
-      Attributes fmi = in.readFileMetaInformation();
+      var fmi = in.readFileMetaInformation();
       long dsPos = in.getPosition();
-      if (fmi == null
-          || !fmi.containsValue(Tag.TransferSyntaxUID)
-          || !fmi.containsValue(Tag.MediaStorageSOPClassUID)
-          || !fmi.containsValue(Tag.MediaStorageSOPInstanceUID)) {
-        Attributes ds = in.readDataset(Tag.SOPInstanceUID + 1);
+      if (isInvalidFileMetaInformation(fmi)) {
+        var ds = in.readDataset(Tag.SOPInstanceUID + 1);
         fmi = ds.createFileMetaInformation(in.getTransferSyntax());
       }
-      boolean b = addFile(fileInfos, f, dsPos, fmi);
-      if (b) filesScanned++;
-      if (printout) {
-        System.out.print(b ? '.' : 'I');
+
+      boolean success = addFile(writer, file, dsPos, fmi);
+      if (success) {
+        filesScanned++;
       }
+      printProgress(printout, success);
+
     } catch (Exception e) {
-      System.out.println();
-      System.out.println("Failed to scan file " + f + ": " + e.getMessage());
-      LOG.error("Failed to scan file {}", f, e);
+      handleScanError(file, e);
     }
   }
 
+  private boolean isInvalidFileMetaInformation(Attributes fmi) {
+    return fmi == null
+        || !fmi.containsValue(Tag.TransferSyntaxUID)
+        || !fmi.containsValue(Tag.MediaStorageSOPClassUID)
+        || !fmi.containsValue(Tag.MediaStorageSOPInstanceUID);
+  }
+
+  private void printProgress(boolean printout, boolean success) {
+    if (printout) {
+      System.out.print(success ? '.' : 'I');
+    }
+  }
+
+  private void handleScanError(Path file, Exception e) {
+    System.out.println();
+    System.out.println("Failed to scan file " + file + ": " + e.getMessage());
+    LOG.error("Failed to scan file {}", file, e);
+  }
+
+  /**
+   * Sends all scanned files to the remote DICOM node.
+   *
+   * @throws IOException if file operations or network communication fails
+   */
   public void sendFiles() throws IOException {
-    BufferedReader fileInfos =
-        new BufferedReader(new InputStreamReader(new FileInputStream(tmpFile)));
-    try {
+    try (var reader = Files.newBufferedReader(tmpFile, StandardCharsets.UTF_8)) {
       String line;
-      while (as.isReadyForDataTransfer() && (line = fileInfos.readLine()) != null) {
-        DicomProgress p = state.getProgress();
-        if (p != null) {
-          if (p.isCancel()) {
-            LOG.info("Aborting C-Store: {}", "cancel by progress");
-            as.abort();
-            break;
-          }
+      while (as.isReadyForDataTransfer() && (line = reader.readLine()) != null) {
+        if (isProgressCancelled()) {
+          LOG.info("Aborting C-Store: cancel by progress");
+          as.abort();
+          break;
         }
-        String[] ss = StringUtils.split(line, '\t');
-        try {
-          send(new File(ss[4]), Long.parseLong(ss[3]), ss[1], ss[0], ss[2]);
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-        } catch (Exception e) {
-          LOG.error("Cannot send file", e);
-        }
+        var fileInfo = StringUtils.split(line, '\t');
+        sendFileFromInfo(fileInfo);
       }
-      try {
-        as.waitForOutstandingRSP();
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        LOG.error("Waiting for RSP", e);
-      }
-    } finally {
-      SafeClose.close(fileInfos);
+
+      waitForOutstandingResponses();
     }
   }
 
-  public boolean addFile(BufferedWriter fileInfos, File f, long endFmi, Attributes fmi)
-      throws IOException {
-    String cuid = fmi.getString(Tag.MediaStorageSOPClassUID);
-    String iuid = fmi.getString(Tag.MediaStorageSOPInstanceUID);
-    String ts = fmi.getString(Tag.TransferSyntaxUID);
+  private boolean isProgressCancelled() {
+    var progress = state.getProgress();
+    return progress != null && progress.isCancelled();
+  }
+
+  private void sendFileFromInfo(String[] fileInfo) {
+    try {
+      var file = Path.of(fileInfo[4]);
+      var dsPos = Long.parseLong(fileInfo[3]);
+      var cuid = fileInfo[1];
+      var iuid = fileInfo[0];
+      var tsuid = fileInfo[2];
+
+      send(file, dsPos, cuid, iuid, tsuid);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      LOG.warn("File send interrupted", e);
+    } catch (Exception e) {
+      LOG.error("Cannot send file", e);
+    }
+  }
+
+  private void waitForOutstandingResponses() {
+    try {
+      as.waitForOutstandingRSP();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      LOG.error("Waiting for RSP interrupted", e);
+    }
+  }
+
+  /** Adds a file to the association request and temporary file list. */
+  public boolean addFile(Writer writer, Path path, long endFmi, Attributes fmi) throws IOException {
+    var cuid = fmi.getString(Tag.MediaStorageSOPClassUID);
+    var iuid = fmi.getString(Tag.MediaStorageSOPInstanceUID);
+    var tsuid = fmi.getString(Tag.TransferSyntaxUID);
     if (cuid == null || iuid == null) {
       return false;
     }
 
-    fileInfos.write(iuid);
-    fileInfos.write('\t');
-    fileInfos.write(cuid);
-    fileInfos.write('\t');
-    fileInfos.write(ts);
-    fileInfos.write('\t');
-    fileInfos.write(Long.toString(endFmi));
-    fileInfos.write('\t');
-    fileInfos.write(f.getPath());
-    fileInfos.newLine();
+    writeFileInfo(writer, path, endFmi, cuid, iuid, tsuid);
+    addPresentationContextsIfNeeded(cuid, tsuid);
 
-    if (rq.containsPresentationContextFor(cuid, ts)) {
-      return true;
-    }
-
-    if (!rq.containsPresentationContextFor(cuid)) {
-      if (relExtNeg) {
-        rq.addCommonExtendedNegotiation(relSOPClasses.getCommonExtendedNegotiation(cuid));
-      }
-      if (!ts.equals(UID.ExplicitVRLittleEndian)) {
-        rq.addPresentationContext(
-            new PresentationContext(
-                rq.getNumberOfPresentationContexts() * 2 + 1, cuid, UID.ExplicitVRLittleEndian));
-      }
-      if (!ts.equals(UID.ImplicitVRLittleEndian)) {
-        rq.addPresentationContext(
-            new PresentationContext(
-                rq.getNumberOfPresentationContexts() * 2 + 1, cuid, UID.ImplicitVRLittleEndian));
-      }
-    }
-    rq.addPresentationContext(
-        new PresentationContext(rq.getNumberOfPresentationContexts() * 2 + 1, cuid, ts));
     return true;
   }
 
+  private void writeFileInfo(
+      Writer writer, Path path, long endFmi, String cuid, String iuid, String tsuid)
+      throws IOException {
+    writer.write(String.join("\t", iuid, cuid, tsuid, Long.toString(endFmi), path.toString()));
+    writer.write('\n');
+  }
+
+  private void addPresentationContextsIfNeeded(String cuid, String tsuid) {
+    if (rq.containsPresentationContextFor(cuid, tsuid)) {
+      return;
+    }
+    if (!rq.containsPresentationContextFor(cuid)) {
+      addRelatedExtendedNegotiation(cuid);
+      addStandardTransferSyntaxes(cuid, tsuid);
+    }
+
+    addPresentationContext(cuid, tsuid);
+  }
+
+  private void addRelatedExtendedNegotiation(String cuid) {
+    if (relExtNeg) {
+      rq.addCommonExtendedNegotiation(relSOPClasses.getCommonExtendedNegotiation(cuid));
+    }
+  }
+
+  private void addStandardTransferSyntaxes(String cuid, String currentTsuid) {
+    if (!currentTsuid.equals(UID.ExplicitVRLittleEndian)) {
+      addPresentationContext(cuid, UID.ExplicitVRLittleEndian);
+    }
+    if (!currentTsuid.equals(UID.ImplicitVRLittleEndian)) {
+      addPresentationContext(cuid, UID.ImplicitVRLittleEndian);
+    }
+  }
+
+  private void addPresentationContext(String cuid, String tsuid) {
+    var pc = new PresentationContext(rq.getNumberOfPresentationContexts() * 2 + 1, cuid, tsuid);
+    rq.addPresentationContext(pc);
+  }
+
+  /** Performs a DICOM echo operation. */
   public Attributes echo() throws IOException, InterruptedException {
-    DimseRSP response = as.cecho();
+    var response = as.cecho();
     response.next();
     return response.getCommand();
   }
 
-  public void send(final File f, long fmiEndPos, String cuid, String iuid, String tsuid)
+  /** Sends a single DICOM file to the remote node. */
+  public void send(final Path path, long fmiEndPos, String cuid, String iuid, String tsuid)
       throws IOException, InterruptedException, ParserConfigurationException, SAXException {
-    AdaptTransferSyntax syntax =
+    var syntax =
         new AdaptTransferSyntax(tsuid, StoreFromStreamSCU.selectTransferSyntax(as, cuid, tsuid));
-    boolean noChange =
-        uidSuffix == null
-            && attrs.isEmpty()
-            && syntax.getRequested().equals(tsuid)
-            && dicomEditors == null;
+    var isNoChange = shouldSkipProcessing(syntax, tsuid);
+
     DataWriter dataWriter = null;
-    InputStream in = null;
     Attributes data = null;
-    try {
-      if (f.getName().endsWith(".xml")) {
-        in = new FileInputStream(f);
+    try (InputStream in = createInputStream(path, fmiEndPos, isNoChange)) {
+      if (path.getFileName().toString().endsWith(".xml")) {
         data = SAXReader.parse(in);
-        noChange = false;
-      } else if (noChange) {
-        in = new FileInputStream(f);
-        in.skip(fmiEndPos);
+        isNoChange = false;
+      } else if (isNoChange) {
         dataWriter = new InputStreamDataWriter(in);
       } else {
-        in = new DicomInputStream(f);
-        ((DicomInputStream) in).setIncludeBulkData(IncludeBulkData.URI);
-        data = ((DicomInputStream) in).readDataset();
+        data = readDicomDataset((DicomInputStream) in);
       }
 
-      if (!noChange) {
-        AttributeEditorContext context =
-            new AttributeEditorContext(
-                syntax.getOriginal(),
-                DicomNode.buildLocalDicomNode(as),
-                DicomNode.buildRemoteDicomNode(as));
-        if (dicomEditors != null && !dicomEditors.isEmpty()) {
-          final Attributes attributes = data;
-          dicomEditors.forEach(e -> e.apply(attributes, context));
-          iuid = data.getString(Tag.SOPInstanceUID);
-          cuid = data.getString(Tag.SOPClassUID);
-        }
-        if (CLIUtils.updateAttributes(data, attrs, uidSuffix)) {
-          iuid = data.getString(Tag.SOPInstanceUID);
-        }
+      if (!isNoChange) {
+        data = processAttributes(data, syntax);
+        var updatedIds = updateInstanceIdentifiers(data);
+        cuid = updatedIds[0];
+        iuid = updatedIds[1];
 
-        BytesWithImageDescriptor desc = ImageAdapter.imageTranscode(data, syntax, context);
-        dataWriter = ImageAdapter.buildDataWriter(data, syntax, context.getEditable(), desc);
+        var desc = ImageAdapter.imageTranscode(data, syntax, createEditorContext(syntax));
+        dataWriter =
+            ImageAdapter.buildDataWriter(
+                data, syntax, createEditorContext(syntax).getEditable(), desc);
       }
+
       as.cstore(
           cuid,
           iuid,
           priority,
           dataWriter,
           syntax.getSuitable(),
-          rspHandlerFactory.createDimseRSPHandler(f));
-    } finally {
-      SafeClose.close(in);
+          rspHandlerFactory.createDimseRSPHandler(path));
     }
+  }
+
+  private boolean shouldSkipProcessing(AdaptTransferSyntax syntax, String tsuid) {
+    return uidSuffix == null
+        && (attrs == null || attrs.isEmpty())
+        && syntax.getRequested().equals(tsuid)
+        && (dicomEditors == null || dicomEditors.isEmpty());
+  }
+
+  private InputStream createInputStream(Path path, long fmiEndPos, boolean isNoChange)
+      throws IOException {
+    InputStream in;
+    if (path.getFileName().toString().endsWith(".xml") || !isNoChange) {
+      in = new DicomInputStream(Files.newInputStream(path));
+      if (!path.getFileName().toString().endsWith(".xml")) {
+        ((DicomInputStream) in).setIncludeBulkData(IncludeBulkData.URI);
+      }
+    } else {
+      in = Files.newInputStream(path);
+      in.skip(fmiEndPos);
+    }
+    return in;
+  }
+
+  private Attributes readDicomDataset(DicomInputStream in) throws IOException {
+    return in.readDataset();
+  }
+
+  private Attributes processAttributes(Attributes data, AdaptTransferSyntax syntax) {
+    var context = createEditorContext(syntax);
+
+    if (dicomEditors != null && !dicomEditors.isEmpty()) {
+      dicomEditors.forEach(editor -> editor.apply(data, context));
+    }
+
+    if (attrs != null && !attrs.isEmpty()) {
+      CLIUtils.updateAttributes(data, attrs, uidSuffix);
+    }
+
+    return data;
+  }
+
+  private AttributeEditorContext createEditorContext(AdaptTransferSyntax syntax) {
+    return new AttributeEditorContext(
+        syntax.getOriginal(),
+        DicomNode.buildLocalDicomNode(as),
+        DicomNode.buildRemoteDicomNode(as));
+  }
+
+  private String[] updateInstanceIdentifiers(Attributes data) {
+    return new String[] {data.getString(Tag.SOPClassUID), data.getString(Tag.SOPInstanceUID)};
   }
 
   @Override
@@ -369,6 +516,7 @@ public class StoreSCU implements AutoCloseable {
     }
   }
 
+  /** Opens the association to the remote DICOM node. */
   public void open()
       throws IOException,
           InterruptedException,
@@ -377,36 +525,64 @@ public class StoreSCU implements AutoCloseable {
     as = ae.connect(remote, rq);
   }
 
-  private void onCStoreRSP(Attributes cmd, File f) {
+  private void onCStoreRSP(Attributes cmd, Path file) {
     int status = cmd.getInt(Tag.Status, -1);
     state.setStatus(status);
-    ProgressStatus ps;
+    var progressStatus = determineProgressStatus(status, file, cmd);
+    updateTotalSize(status, file);
 
-    switch (status) {
-      case Status.Success:
-        totalSize += f.length();
-        ps = ProgressStatus.COMPLETED;
-        break;
-      case Status.CoercionOfDataElements:
-      case Status.ElementsDiscarded:
-      case Status.DataSetDoesNotMatchSOPClassWarning:
-        totalSize += f.length();
-        ps = ProgressStatus.WARNING;
-        System.err.println(
-            MessageFormat.format(
-                "WARNING: Received C-STORE-RSP with Status {0}H for {1}",
-                TagUtils.shortToHexString(status), f));
-        System.err.println(cmd);
-        break;
-      default:
-        ps = ProgressStatus.FAILED;
-        System.err.println(
-            MessageFormat.format(
-                "ERROR: Received C-STORE-RSP with Status {0}H for {1}",
-                TagUtils.shortToHexString(status), f));
-        System.err.println(cmd);
+    ServiceUtil.notifyProgression(state.getProgress(), cmd, progressStatus, filesScanned);
+  }
+
+  private ProgressStatus determineProgressStatus(int status, Path file, Attributes cmd) {
+    return switch (status) {
+      case Status.Success -> ProgressStatus.COMPLETED;
+      case Status.CoercionOfDataElements,
+          Status.ElementsDiscarded,
+          Status.DataSetDoesNotMatchSOPClassWarning -> {
+        logWarning(status, file, cmd);
+        yield ProgressStatus.WARNING;
+      }
+      default -> {
+        logError(status, file, cmd);
+        yield ProgressStatus.FAILED;
+      }
+    };
+  }
+
+  private void updateTotalSize(int status, Path file) {
+    if (status == Status.Success
+        || status == Status.CoercionOfDataElements
+        || status == Status.ElementsDiscarded
+        || status == Status.DataSetDoesNotMatchSOPClassWarning) {
+      try {
+        totalSize += Files.size(file);
+      } catch (IOException e) {
+        LOG.warn("Cannot get file size for {}", file, e);
+      }
     }
-    ServiceUtil.notifyProgession(state.getProgress(), cmd, ps, filesScanned);
+  }
+
+  private void logWarning(int status, Path file, Attributes cmd) {
+    System.err.println(
+        MessageFormat.format(
+            "WARNING: Received C-STORE-RSP with Status {0}H for {1}",
+            TagUtils.shortToHexString(status), file));
+    System.err.println(cmd);
+  }
+
+  private void logError(int status, Path file, Attributes cmd) {
+    System.err.println(
+        MessageFormat.format(
+            "ERROR: Received C-STORE-RSP with Status {0}H for {1}",
+            TagUtils.shortToHexString(status), file));
+    System.err.println(cmd);
+  }
+
+  // Public getters
+
+  public ApplicationEntity getApplicationEntity() {
+    return ae;
   }
 
   public int getFilesScanned() {

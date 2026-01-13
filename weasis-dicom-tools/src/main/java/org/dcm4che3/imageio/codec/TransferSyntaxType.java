@@ -85,117 +85,99 @@ public enum TransferSyntaxType {
   }
 
   public static TransferSyntaxType forUID(String uid) {
-    switch (uid) {
-      case UID.ImplicitVRLittleEndian:
-      case UID.ExplicitVRLittleEndian:
-      case UID.ExplicitVRBigEndian:
-        return NATIVE;
-      case UID.DeflatedExplicitVRLittleEndian:
-        return DEFLATED;
-      case UID.JPEGBaseline8Bit:
-        return JPEG_BASELINE;
-      case UID.JPEGExtended12Bit:
-        return JPEG_EXTENDED;
-      case UID.JPEGSpectralSelectionNonHierarchical68:
-        return JPEG_SPECTRAL;
-      case UID.JPEGFullProgressionNonHierarchical1012:
-        return JPEG_PROGRESSIVE;
-      case UID.JPEGLossless:
-      case UID.JPEGLosslessSV1:
-        return JPEG_LOSSLESS;
-      case UID.JPEGLSLossless:
-      case UID.JPEGLSNearLossless:
-        return JPEG_LS;
-      case UID.JPEG2000Lossless:
-      case UID.JPEG2000:
-      case UID.JPEG2000MCLossless:
-      case UID.JPEG2000MC:
-      case UID.HTJ2KLossless:
-      case UID.HTJ2KLosslessRPCL:
-      case UID.HTJ2K:
-        return JPEG_2000;
-      case UID.JPEGXLLossless:
-      case UID.JPEGXLJPEGRecompression:
-      case UID.JPEGXL:
-        return JPEG_XL;
-      case UID.JPIPReferenced:
-      case UID.JPIPReferencedDeflate:
-      case UID.JPIPHTJ2KReferenced:
-      case UID.JPIPHTJ2KReferencedDeflate:
-        return JPIP;
-      case UID.MPEG2MPML:
-      case UID.MPEG2MPMLF:
-      case UID.MPEG2MPHL:
-      case UID.MPEG2MPHLF:
-      case UID.MPEG4HP41:
-      case UID.MPEG4HP41F:
-      case UID.MPEG4HP41BD:
-      case UID.MPEG4HP41BDF:
-      case UID.MPEG4HP422D:
-      case UID.MPEG4HP422DF:
-      case UID.MPEG4HP423D:
-      case UID.MPEG4HP423DF:
-      case UID.MPEG4HP42STEREO:
-      case UID.MPEG4HP42STEREOF:
-      case UID.HEVCMP51:
-      case UID.HEVCM10P51:
-        return MPEG;
-      case UID.RLELossless:
-        return RLE;
-      default:
-        return UNKNOWN;
-    }
+    return switch (uid) {
+      case UID.ImplicitVRLittleEndian, UID.ExplicitVRLittleEndian, UID.ExplicitVRBigEndian ->
+          NATIVE;
+      case UID.DeflatedExplicitVRLittleEndian -> DEFLATED;
+      case UID.JPEGBaseline8Bit -> JPEG_BASELINE;
+      case UID.JPEGExtended12Bit -> JPEG_EXTENDED;
+      case UID.JPEGSpectralSelectionNonHierarchical68 -> JPEG_SPECTRAL;
+      case UID.JPEGFullProgressionNonHierarchical1012 -> JPEG_PROGRESSIVE;
+      case UID.JPEGLossless, UID.JPEGLosslessSV1 -> JPEG_LOSSLESS;
+      case UID.JPEGLSLossless, UID.JPEGLSNearLossless -> JPEG_LS;
+      case UID.JPEG2000Lossless,
+          UID.JPEG2000,
+          UID.JPEG2000MCLossless,
+          UID.JPEG2000MC,
+          UID.HTJ2KLossless,
+          UID.HTJ2KLosslessRPCL,
+          UID.HTJ2K ->
+          JPEG_2000;
+      case UID.JPEGXLLossless, UID.JPEGXLJPEGRecompression, UID.JPEGXL -> JPEG_XL;
+      case UID.JPIPReferenced,
+          UID.JPIPReferencedDeflate,
+          UID.JPIPHTJ2KReferenced,
+          UID.JPIPHTJ2KReferencedDeflate ->
+          JPIP;
+      case UID.MPEG2MPML,
+          UID.MPEG2MPMLF,
+          UID.MPEG2MPHL,
+          UID.MPEG2MPHLF,
+          UID.MPEG4HP41,
+          UID.MPEG4HP41F,
+          UID.MPEG4HP41BD,
+          UID.MPEG4HP41BDF,
+          UID.MPEG4HP422D,
+          UID.MPEG4HP422DF,
+          UID.MPEG4HP423D,
+          UID.MPEG4HP423DF,
+          UID.MPEG4HP42STEREO,
+          UID.MPEG4HP42STEREOF,
+          UID.HEVCMP51,
+          UID.HEVCM10P51 ->
+          MPEG;
+      case UID.RLELossless -> RLE;
+      default -> UNKNOWN;
+    };
   }
 
   public static boolean isLossyCompression(String uid) {
-    switch (uid) {
-      case UID.JPEGBaseline8Bit:
-      case UID.JPEGExtended12Bit:
-      case UID.JPEGSpectralSelectionNonHierarchical68:
-      case UID.JPEGFullProgressionNonHierarchical1012:
-      case UID.JPEGLSNearLossless:
-      case UID.JPEG2000:
-      case UID.JPEG2000MC:
-      case UID.HTJ2K:
-      case UID.JPEGXLJPEGRecompression:
-      case UID.JPEGXL:
-      case UID.MPEG2MPML:
-      case UID.MPEG2MPMLF:
-      case UID.MPEG2MPHL:
-      case UID.MPEG2MPHLF:
-      case UID.MPEG4HP41:
-      case UID.MPEG4HP41F:
-      case UID.MPEG4HP41BD:
-      case UID.MPEG4HP41BDF:
-      case UID.MPEG4HP422D:
-      case UID.MPEG4HP422DF:
-      case UID.MPEG4HP423D:
-      case UID.MPEG4HP423DF:
-      case UID.MPEG4HP42STEREO:
-      case UID.MPEG4HP42STEREOF:
-      case UID.HEVCMP51:
-      case UID.HEVCM10P51:
-        return true;
-      default:
-        return false;
-    }
+    return switch (uid) {
+      case UID.JPEGBaseline8Bit,
+          UID.JPEGExtended12Bit,
+          UID.JPEGSpectralSelectionNonHierarchical68,
+          UID.JPEGFullProgressionNonHierarchical1012,
+          UID.JPEGLSNearLossless,
+          UID.JPEG2000,
+          UID.JPEG2000MC,
+          UID.HTJ2K,
+          UID.JPEGXLJPEGRecompression,
+          UID.JPEGXL,
+          UID.MPEG2MPML,
+          UID.MPEG2MPMLF,
+          UID.MPEG2MPHL,
+          UID.MPEG2MPHLF,
+          UID.MPEG4HP41,
+          UID.MPEG4HP41F,
+          UID.MPEG4HP41BD,
+          UID.MPEG4HP41BDF,
+          UID.MPEG4HP422D,
+          UID.MPEG4HP422DF,
+          UID.MPEG4HP423D,
+          UID.MPEG4HP423DF,
+          UID.MPEG4HP42STEREO,
+          UID.MPEG4HP42STEREOF,
+          UID.HEVCMP51,
+          UID.HEVCM10P51 ->
+          true;
+      default -> false;
+    };
   }
 
   public static boolean isYBRCompression(String uid) {
-    switch (uid) {
-      case UID.JPEGBaseline8Bit:
-      case UID.JPEGExtended12Bit:
-      case UID.JPEGSpectralSelectionNonHierarchical68:
-      case UID.JPEGFullProgressionNonHierarchical1012:
-      case UID.JPEG2000Lossless:
-      case UID.JPEG2000:
-      case UID.HTJ2KLossless:
-      case UID.HTJ2KLosslessRPCL:
-      case UID.HTJ2K:
-      case UID.JPEGXLJPEGRecompression:
-        return true;
-      default:
-        return false;
-    }
+    return switch (uid) {
+      case UID.JPEGBaseline8Bit,
+          UID.JPEGExtended12Bit,
+          UID.JPEGSpectralSelectionNonHierarchical68,
+          UID.JPEGFullProgressionNonHierarchical1012,
+          UID.JPEG2000Lossless,
+          UID.JPEG2000,
+          UID.HTJ2KLossless,
+          UID.HTJ2KLosslessRPCL,
+          UID.HTJ2K,
+          UID.JPEGXLJPEGRecompression ->
+          true;
+      default -> false;
+    };
   }
 }

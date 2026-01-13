@@ -9,10 +9,12 @@
  */
 package org.dcm4che3.tool.storescp;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
@@ -41,32 +43,35 @@ import org.dcm4che3.tool.common.CLIUtils;
 import org.dcm4che3.util.AttributesFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.weasis.core.util.FileUtil;
 import org.weasis.core.util.StringUtil;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomProgress;
 
 /**
+ * DICOM Storage Service Class Provider (SCP) for receiving and storing DICOM objects. Supports file
+ * path formatting, access control, and progress tracking.
+ *
  * @author Gunter Zeilinger <gunterze@gmail.com>
+ * @author Nicolas Roduit
  */
 public class StoreSCP {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(StoreSCP.class);
 
   private static final String TMP_DIR = "tmp";
+  private static final String REGEX_PATTERN = "\\{(.*?)\\}";
 
   private final Device device = new Device("storescp");
   private final ApplicationEntity ae = new ApplicationEntity("*");
   private final Connection conn = new Connection();
-  private final File storageDir;
+  private final Path storageDir;
   private final List<DicomNode> authorizedCallingNodes;
+  private final DicomProgress progress;
   private AttributesFormat filePathFormat;
   private Pattern regex;
   private volatile int status = Status.Success;
   private int[] receiveDelays;
   private int[] responseDelays;
-
-  private final DicomProgress progress;
 
   private final BasicCStoreSCP cstoreSCP =
       new BasicCStoreSCP("*") {
@@ -79,140 +84,211 @@ public class StoreSCP {
             PDVInputStream data,
             Attributes rsp)
             throws IOException {
-          if (authorizedCallingNodes != null && !authorizedCallingNodes.isEmpty()) {
-            DicomNode sourceNode = DicomNode.buildRemoteDicomNode(as);
-            boolean valid =
-                authorizedCallingNodes.stream()
-                    .anyMatch(
-                        n ->
-                            n.getAet().equals(sourceNode.getAet())
-                                && (!n.isValidateHostname()
-                                    || n.equalsHostname(sourceNode.getHostname())));
-            if (!valid) {
-              rsp.setInt(Tag.Status, VR.US, Status.NotAuthorized);
-              LOGGER.error(
-                  "Refused: not authorized (124H). Source node: {}. SopUID: {}",
-                  sourceNode,
-                  rq.getString(Tag.AffectedSOPInstanceUID));
-              return;
-            }
+          if (!isNodeAuthorized(as, rq, rsp)) {
+            return;
           }
+
           sleep(as, receiveDelays);
           try {
-            rsp.setInt(Tag.Status, VR.US, status);
-
-            String cuid = rq.getString(Tag.AffectedSOPClassUID);
-            String iuid = rq.getString(Tag.AffectedSOPInstanceUID);
-            String tsuid = pc.getTransferSyntax();
-            File file = new File(storageDir, TMP_DIR + File.separator + iuid);
-            try {
-              Attributes fmi = as.createFileMetaInformation(iuid, cuid, tsuid);
-              storeTo(as, fmi, data, file);
-              String filename;
-              if (filePathFormat == null) {
-                filename = iuid;
-              } else {
-                Attributes a = fmi;
-                Matcher regexMatcher = regex.matcher(filePathFormat.toString());
-                while (regexMatcher.find()) {
-                  if (!regexMatcher.group(1).startsWith("0002")) {
-                    a = parse(file);
-                    a.addAll(fmi);
-                    break;
-                  }
-                }
-                filename = filePathFormat.format(a);
-              }
-              File rename = new File(storageDir, filename);
-              renameTo(as, file, rename);
-              if (progress != null) {
-                progress.setProcessedFile(rename);
-                progress.setAttributes(null);
-              }
-            } catch (Exception e) {
-              FileUtil.delete(file);
-              throw new DicomServiceException(Status.ProcessingFailure, e);
-            }
+            storeFile(as, pc, rq, data, rsp);
           } finally {
             sleep(as, responseDelays);
           }
         }
       };
 
-  private void sleep(Association as, int[] delays) {
-    int responseDelay =
-        delays != null ? delays[(as.getNumberOfReceived(Dimse.C_STORE_RQ) - 1) % delays.length] : 0;
-    if (responseDelay > 0) {
-      try {
-        Thread.sleep(responseDelay);
-      } catch (InterruptedException ignore) {
-        Thread.currentThread().interrupt();
-      }
-    }
-  }
-
   /**
+   * Creates a StoreSCP with specified storage directory.
+   *
    * @param storageDir the base path of storage folder
    */
-  public StoreSCP(File storageDir) {
-    this(storageDir, null);
+  public StoreSCP(Path storageDir) {
+    this(storageDir, null, null);
   }
 
   /**
+   * Creates a StoreSCP with specified storage directory and authorized calling nodes.
+   *
    * @param storageDir the base path of storage folder
    * @param authorizedCallingNodes the list of authorized nodes to call store files
-   *     (authorizedCallingNodes allow to check hostname unlike acceptedCallingAETitles)
    */
-  public StoreSCP(File storageDir, List<DicomNode> authorizedCallingNodes) {
+  public StoreSCP(Path storageDir, List<DicomNode> authorizedCallingNodes) {
     this(storageDir, authorizedCallingNodes, null);
   }
 
-  public StoreSCP(
-      File storageDir, List<DicomNode> authorizedCallingNodes, DicomProgress dicomProgress) {
-    this.storageDir = Objects.requireNonNull(storageDir);
+  /**
+   * Creates a StoreSCP with full configuration options.
+   *
+   * @param storageDir the base path of storage folder
+   * @param authorizedCallingNodes the list of authorized nodes to call store files
+   * @param progress the progress tracker for DICOM operations
+   */
+  public StoreSCP(Path storageDir, List<DicomNode> authorizedCallingNodes, DicomProgress progress) {
+    this.storageDir = Objects.requireNonNull(storageDir, "Storage directory cannot be null");
+    this.authorizedCallingNodes = authorizedCallingNodes;
+    this.progress = progress;
+
+    initializeDevice();
+  }
+
+  private void initializeDevice() {
     device.setDimseRQHandler(createServiceRegistry());
     device.addConnection(conn);
     device.addApplicationEntity(ae);
     ae.setAssociationAcceptor(true);
     ae.addConnection(conn);
-    this.authorizedCallingNodes = authorizedCallingNodes;
-    this.progress = dicomProgress;
   }
 
-  private void storeTo(Association as, Attributes fmi, PDVInputStream data, File file)
+  private boolean isNodeAuthorized(Association as, Attributes rq, Attributes rsp) {
+    if (authorizedCallingNodes == null || authorizedCallingNodes.isEmpty()) {
+      return true;
+    }
+
+    var sourceNode = DicomNode.buildRemoteDicomNode(as);
+    boolean valid =
+        authorizedCallingNodes.stream()
+            .anyMatch(
+                n ->
+                    n.getAet().equals(sourceNode.getAet())
+                        && (!n.isValidateHostname() || n.equalsHostname(sourceNode.getHostname())));
+    if (!valid) {
+      rsp.setInt(Tag.Status, VR.US, Status.NotAuthorized);
+      LOGGER.error(
+          "Refused: not authorized (124H). Source node: {}. SopUID: {}",
+          sourceNode,
+          rq.getString(Tag.AffectedSOPInstanceUID));
+    }
+    return valid;
+  }
+
+  private void storeFile(
+      Association as, PresentationContext pc, Attributes rq, PDVInputStream data, Attributes rsp)
       throws IOException {
-    LOGGER.debug("{}: M-WRITE {}", as, file);
-    file.getParentFile().mkdirs();
-    try (DicomOutputStream out = new DicomOutputStream(file)) {
+    rsp.setInt(Tag.Status, VR.US, status);
+
+    String cuid = rq.getString(Tag.AffectedSOPClassUID);
+    String iuid = rq.getString(Tag.AffectedSOPInstanceUID);
+    String tsuid = pc.getTransferSyntax();
+    Path tempFile = createTempFile(iuid);
+    try {
+      Attributes fmi = as.createFileMetaInformation(iuid, cuid, tsuid);
+      writeToTempFile(as, fmi, data, tempFile);
+
+      String filename = determineFilename(tempFile, fmi, iuid);
+      Path finalFile = storageDir.resolve(filename);
+
+      moveToFinalLocation(as, tempFile, finalFile);
+      notifyProgress(finalFile);
+    } catch (Exception e) {
+      cleanupTempFile(tempFile);
+      throw new DicomServiceException(Status.ProcessingFailure, e);
+    }
+  }
+
+  private Path createTempFile(String instanceUid) {
+    return storageDir.resolve(TMP_DIR).resolve(instanceUid);
+  }
+
+  private void writeToTempFile(Association as, Attributes fmi, PDVInputStream data, Path tempFile)
+      throws IOException {
+    LOGGER.debug("{}: M-WRITE {}", as, tempFile);
+    Files.createDirectories(tempFile.getParent());
+
+    try (DicomOutputStream out = new DicomOutputStream(tempFile.toFile())) {
       out.writeFileMetaInformation(fmi);
       data.copyTo(out);
     }
   }
 
-  private static void renameTo(Association as, File from, File dest) throws IOException {
-    LOGGER.info("{}: M-RENAME {} to {}", as, from, dest);
-    FileUtil.prepareToWriteFile(dest);
-    if (!from.renameTo(dest)) throw new IOException("Failed to rename " + from + " to " + dest);
+  private String determineFilename(Path tempFile, Attributes fmi, String instanceUid)
+      throws IOException {
+    if (filePathFormat == null) {
+      return instanceUid;
+    }
+
+    Attributes attributes = fmi;
+    if (needsAttributeParsing()) {
+      attributes = parseAttributes(tempFile);
+      attributes.addAll(fmi);
+    }
+
+    return filePathFormat.format(attributes);
   }
 
-  private static Attributes parse(File file) throws IOException {
-    try (DicomInputStream in = new DicomInputStream(file)) {
+  private boolean needsAttributeParsing() {
+    if (regex == null) {
+      return false;
+    }
+
+    Matcher matcher = regex.matcher(filePathFormat.toString());
+    while (matcher.find()) {
+      if (!matcher.group(1).startsWith("0002")) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private Attributes parseAttributes(Path file) throws IOException {
+    try (DicomInputStream in = new DicomInputStream(file.toFile())) {
       in.setIncludeBulkData(IncludeBulkData.NO);
       return in.readDatasetUntilPixelData();
     }
   }
 
+  private void moveToFinalLocation(Association as, Path source, Path target) throws IOException {
+    LOGGER.info("{}: M-RENAME {} to {}", as, source, target);
+    Files.createDirectories(target.getParent());
+    Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+  }
+
+  private void notifyProgress(Path file) {
+    if (progress != null) {
+      progress.setProcessedFile(file);
+      progress.setAttributes(null);
+    }
+  }
+
+  private void cleanupTempFile(Path tempFile) {
+    try {
+      Files.deleteIfExists(tempFile);
+    } catch (IOException e) {
+      LOGGER.warn("Failed to cleanup temporary file: {}", tempFile, e);
+    }
+  }
+
+  private void sleep(Association as, int[] delays) {
+    if (delays == null) {
+      return;
+    }
+
+    int delayMs = delays[(as.getNumberOfReceived(Dimse.C_STORE_RQ) - 1) % delays.length];
+    if (delayMs > 0) {
+      try {
+        Thread.sleep(delayMs);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        LOGGER.debug("Sleep interrupted", e);
+      }
+    }
+  }
+
   private DicomServiceRegistry createServiceRegistry() {
-    DicomServiceRegistry serviceRegistry = new DicomServiceRegistry();
+    var serviceRegistry = new DicomServiceRegistry();
     serviceRegistry.addDicomService(new BasicCEchoSCP());
     serviceRegistry.addDicomService(cstoreSCP);
     return serviceRegistry;
   }
 
+  /**
+   * Sets the storage file path format pattern.
+   *
+   * @param pattern the format pattern for file paths
+   */
   public void setStorageFilePathFormat(String pattern) {
     if (StringUtil.hasText(pattern)) {
       this.filePathFormat = new AttributesFormat(pattern);
-      this.regex = Pattern.compile("\\{(.*?)\\}");
+      this.regex = Pattern.compile(REGEX_PATTERN);
     } else {
       this.filePathFormat = null;
       this.regex = null;
@@ -224,31 +300,46 @@ public class StoreSCP {
   }
 
   public void setReceiveDelays(int[] receiveDelays) {
-    this.receiveDelays = receiveDelays;
+    this.receiveDelays = receiveDelays != null ? receiveDelays.clone() : null;
   }
 
   public void setResponseDelays(int[] responseDelays) {
-    this.responseDelays = responseDelays;
+    this.responseDelays = responseDelays != null ? responseDelays.clone() : null;
   }
 
+  /**
+   * Loads default transfer capabilities from a properties file.
+   *
+   * @param transferCapabilityFile the URL to the transfer capability file, or null for default
+   */
   public void loadDefaultTransferCapability(URL transferCapabilityFile) {
-    Properties p = new Properties();
+    var properties = new Properties();
 
     try {
-      if (transferCapabilityFile != null) {
-        try (InputStream in = transferCapabilityFile.openStream()) {
-          p.load(in);
-        }
-      } else {
-        p.load(this.getClass().getResourceAsStream("sop-classes.properties"));
-      }
+      loadProperties(properties, transferCapabilityFile);
+      configureTransferCapabilities(properties);
     } catch (IOException e) {
       LOGGER.error("Cannot read sop-classes", e);
     }
+  }
 
-    for (String cuid : p.stringPropertyNames()) {
-      String ts = p.getProperty(cuid);
-      TransferCapability tc =
+  private void loadProperties(Properties properties, URL transferCapabilityFile)
+      throws IOException {
+    if (transferCapabilityFile != null) {
+      try (InputStream in = transferCapabilityFile.openStream()) {
+        properties.load(in);
+      }
+    } else {
+      try (InputStream in = getClass().getResourceAsStream("sop-classes.properties")) {
+        properties.load(in);
+      }
+    }
+  }
+
+  private void configureTransferCapabilities(Properties properties) {
+    for (String cuid : properties.stringPropertyNames()) {
+      String ts = properties.getProperty(cuid);
+      var tc =
           new TransferCapability(
               null, CLIUtils.toUID(cuid), TransferCapability.Role.SCP, CLIUtils.toUIDs(ts));
       ae.addTransferCapability(tc);
@@ -267,7 +358,7 @@ public class StoreSCP {
     return device;
   }
 
-  public File getStorageDir() {
+  public Path getStorageDir() {
     return storageDir;
   }
 

@@ -17,46 +17,47 @@ import java.security.SecureRandom;
 import java.util.Objects;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.weasis.core.util.StringUtil;
 
+/**
+ * Utility class for HMAC (Hash-based Message Authentication Code) operations using HMAC-SHA256.
+ * Provides methods for key generation, hashing, and hex encoding/decoding for generating consistent
+ * hash values and UUID-like identifiers.
+ */
 public class Hmac {
-  private static final Logger LOGGER = LoggerFactory.getLogger(Hmac.class);
 
   public static final int KEY_BYTE_LENGTH = 16;
-  private static final char[] LOOKUP_TABLE_LOWER =
-      new char[] {
-        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65,
-        0x66
-      };
   private static final String HMAC_SHA256 = "HmacSHA256";
+  private static final int EXPECTED_HEX_KEY_LENGTH = 32;
+  private static final String HEX_DIGITS = "0123456789abcdef";
 
-  private Mac mac;
+  // Pre-computed lookup table for hex conversion (more efficient than array access)
+  private static final char[] HEX_LOOKUP = HEX_DIGITS.toCharArray();
+
+  private final Mac mac;
 
   public Hmac() {
-    initHMAC(generateRandomKey());
+    this(generateRandomKey());
   }
 
   public Hmac(byte[] hmacKey) {
-    initHMAC(hmacKey);
+    this.mac = initHMAC(Objects.requireNonNull(hmacKey, "HMAC key cannot be null"));
   }
 
-  private void initHMAC(byte[] keyValue) {
+  private static Mac initHMAC(byte[] keyValue) {
     try {
       SecretKeySpec key = new SecretKeySpec(keyValue, HMAC_SHA256);
-      this.mac = Mac.getInstance(HMAC_SHA256);
-      this.mac.init(key);
+      Mac mac = Mac.getInstance(HMAC_SHA256);
+      mac.init(key);
+      return mac;
     } catch (NoSuchAlgorithmException e) {
-      LOGGER.error("Invalid algorithm for the HMAC", e);
+      throw new IllegalStateException("HMAC algorithm not available", e);
     } catch (InvalidKeyException e) {
-      LOGGER.error("Invalid key for the HMAC init", e);
+      throw new IllegalArgumentException("Invalid HMAC key", e);
     }
   }
 
-  /*
-   * Generate a random secret key of 32bytes
-   * */
+  /** Generate a random secret key of 16 bytes (128 bits) */
   public static byte[] generateRandomKey() {
     SecureRandom random = new SecureRandom();
     byte[] bytes = new byte[KEY_BYTE_LENGTH];
@@ -64,18 +65,26 @@ public class Hmac {
     return bytes;
   }
 
+  /** Convert byte array to lowercase hexadecimal string */
   public static String byteToHex(byte[] byteArray) {
-    final char[] buffer = new char[byteArray.length * 2];
+    Objects.requireNonNull(byteArray, "Byte array cannot be null");
+    final char[] hexChars = new char[byteArray.length * 2];
     for (int i = 0; i < byteArray.length; i++) {
-      // extract the upper 4 bit and look up char (0-A)
-      buffer[i << 1] = LOOKUP_TABLE_LOWER[(byteArray[i] >> 4) & 0xF];
-      // extract the lower 4 bit and look up char (0-A)
-      buffer[(i << 1) + 1] = LOOKUP_TABLE_LOWER[(byteArray[i] & 0xF)];
+      int byteValue = byteArray[i] & 0xFF;
+      // Extract the upper 4 bits and lower 4 bits
+      hexChars[i * 2] = HEX_LOOKUP[byteValue >>> 4];
+      hexChars[i * 2 + 1] = HEX_LOOKUP[byteValue & 0x0F];
     }
-    return new String(buffer);
+    return new String(hexChars);
   }
 
+  /** Format hex key for display (UUID-like format) */
   public static String showHexKey(String key) {
+    Objects.requireNonNull(key, "Key cannot be null");
+    if (key.length() != EXPECTED_HEX_KEY_LENGTH) {
+      throw new IllegalArgumentException(
+          "Key must be exactly " + EXPECTED_HEX_KEY_LENGTH + " characters long");
+    }
     return String.format(
         "%s-%s-%s-%s-%s",
         key.substring(0, 8),
@@ -85,63 +94,57 @@ public class Hmac {
         key.substring(20));
   }
 
+  /** Convert hexadecimal string to byte array */
   public static byte[] hexToByte(String hexString) {
-    int start;
-    if (Objects.requireNonNull(hexString).length() > 2
-        && hexString.charAt(0) == '0'
-        && hexString.charAt(1) == 'x') {
-      start = 2;
-    } else {
-      start = 0;
+    Objects.requireNonNull(hexString, "Hex string cannot be null");
+
+    // Remove optional 0x prefix
+    String cleanHex = hexString.startsWith("0x") ? hexString.substring(2) : hexString;
+
+    // Remove dashes (for UUID-like format)
+    cleanHex = cleanHex.replace("-", "");
+
+    if (cleanHex.isEmpty()) {
+      return new byte[0];
     }
 
-    int len = hexString.length();
-    boolean isOddLength = len % 2 != 0;
-    if (isOddLength) {
-      start--;
+    // Handle odd length by padding with leading zero
+    if (cleanHex.length() % 2 != 0) {
+      cleanHex = "0" + cleanHex;
     }
 
-    byte[] data = new byte[(len - start) / 2];
-    int first4Bits;
-    int second4Bits;
-    for (int i = start; i < len; i += 2) {
-      if (i == start && isOddLength) {
-        first4Bits = 0;
-      } else {
-        first4Bits = Character.digit(hexString.charAt(i), 16);
+    byte[] result = new byte[cleanHex.length() / 2];
+    for (int i = 0; i < result.length; i++) {
+      int index = i * 2;
+      try {
+        result[i] = (byte) Integer.parseInt(cleanHex.substring(index, index + 2), 16);
+      } catch (NumberFormatException e) {
+        throw new IllegalArgumentException(
+            "Invalid hex character at position " + index + " in: " + hexString, e);
       }
-      second4Bits = Character.digit(hexString.charAt(i + 1), 16);
-
-      if (first4Bits == -1 || second4Bits == -1) {
-        if (i == start && isOddLength) {
-          throw new IllegalArgumentException(
-              "'" + hexString.charAt(i + 1) + "' at index " + (i + 1) + " is not hex formatted");
-        } else {
-          throw new IllegalArgumentException(
-              "'"
-                  + hexString.charAt(i)
-                  + hexString.charAt(i + 1)
-                  + "' at index "
-                  + i
-                  + " is not hex formatted");
-        }
-      }
-
-      data[(i - start) / 2] = (byte) ((first4Bits << 4) + second4Bits);
     }
-    return data;
+    return result;
   }
 
+  /** Validate if the given hex key is valid (32 hex characters, with or without dashes) */
   public static boolean validateKey(String hexKey) {
+    if (hexKey == null) {
+      return false;
+    }
     String cleanHexKey = hexKey.replace("-", "");
-    if (cleanHexKey.length() == 32) {
+    if (cleanHexKey.length() != EXPECTED_HEX_KEY_LENGTH) {
+      return false;
+    }
+
+    try {
       hexToByte(cleanHexKey);
       return true;
+    } catch (IllegalArgumentException e) {
+      return false;
     }
-    return false;
   }
 
-  // returns value in [scaleMin..scaleMax)
+  /** Scale hash value to specified range [scaleMin, scaleMax) */
   public double scaleHash(String value, int scaledMin, int scaledMax) {
     final byte[] hash = new byte[6];
     final double max = 0x1000000000000L;
@@ -152,24 +155,35 @@ public class Hmac {
     return (int) (fraction * scale) + (double) scaledMin;
   }
 
+  /** Generate a UUID-like identifier from input UID using HMAC hash */
   public String uidHash(String inputUID) {
     if (!StringUtil.hasText(inputUID)) {
       return null;
     }
+    byte[] hash = byteHash(inputUID);
     byte[] uuid = new byte[16];
-    System.arraycopy(byteHash(inputUID), 0, uuid, 0, 16);
-    // https://en.wikipedia.org/wiki/Universally_unique_identifier
-    // GUID type 4
-    // Version -> 4
-    uuid[6] &= 0x0F;
-    uuid[6] |= 0x40;
-    // Variant 1 -> 10b
-    uuid[8] &= 0x3F;
-    uuid[8] |= 0x80;
+    System.arraycopy(hash, 0, uuid, 0, Math.min(16, hash.length));
+
+    // Format as UUID version 4 (random)
+    // Set version bits (4 bits starting at bit 48)
+    uuid[6] = (byte) ((uuid[6] & 0x0F) | 0x40);
+
+    // Set variant bits (2 bits starting at bit 64)
+    uuid[8] = (byte) ((uuid[8] & 0x3F) | 0x80);
     return "2.25." + new BigInteger(1, uuid);
   }
 
+  /** Compute HMAC hash of the input value */
   public byte[] byteHash(String value) {
-    return mac.doFinal(value.getBytes(StandardCharsets.US_ASCII));
+    Objects.requireNonNull(value, "Value cannot be null");
+
+    synchronized (mac) {
+      return mac.doFinal(value.getBytes(StandardCharsets.UTF_8));
+    }
+  }
+
+  /** Compute HMAC hash and return as hex string */
+  public String hexHash(String value) {
+    return byteToHex(byteHash(value));
   }
 }

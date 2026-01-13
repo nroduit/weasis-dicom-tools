@@ -11,16 +11,32 @@ package org.weasis.dicom.param;
 
 import org.dcm4che3.net.Connection;
 
-public class ConnectOptions {
-  /* Maximum number of operations this AE may perform asynchronously, unlimited is 0 and not asynchronously is 1 */
+/**
+ * Configuration options for DICOM connections, encapsulating socket, PDU, timeout, and operational
+ * settings for DICOM network communication.
+ *
+ * <p>All timeout values are specified in milliseconds, where zero indicates no timeout. Buffer
+ * sizes and PDU lengths are specified in bytes.
+ */
+public final class ConnectOptions {
+
+  // Operation settings
   private int maxOpsInvoked = Connection.SYNCHRONOUS_MODE;
   private int maxOpsPerformed = Connection.SYNCHRONOUS_MODE;
 
+  // PDU settings
   private int maxPdulenRcv = Connection.DEF_MAX_PDU_LENGTH;
   private int maxPdulenSnd = Connection.DEF_MAX_PDU_LENGTH;
 
   private boolean packPDV = true;
+  // Connection settings
   private int backlog = Connection.DEF_BACKLOG;
+  private boolean tcpNoDelay = true;
+  private int sosndBuffer = Connection.DEF_BUFFERSIZE;
+  private int sorcvBuffer = Connection.DEF_BUFFERSIZE;
+  private int socloseDelay = Connection.DEF_SOCKETDELAY;
+
+  // Timeout settings (all in milliseconds)
   private int connectTimeout = Connection.NO_TIMEOUT;
   private int requestTimeout = Connection.NO_TIMEOUT;
   private int acceptTimeout = Connection.NO_TIMEOUT;
@@ -28,15 +44,19 @@ public class ConnectOptions {
   private int responseTimeout = Connection.NO_TIMEOUT;
   private int retrieveTimeout = Connection.NO_TIMEOUT;
   private int idleTimeout = Connection.NO_TIMEOUT;
-  private int socloseDelay = Connection.DEF_SOCKETDELAY;
-  private int sosndBuffer = Connection.DEF_BUFFERSIZE;
-  private int sorcvBuffer = Connection.DEF_BUFFERSIZE;
-  private boolean tcpNoDelay = true;
 
+  /** Creates connection options with default values from dcm4che3 Connection constants. */
   public ConnectOptions() {
-    super();
+    // Default initialization is handled by field declarations
   }
 
+  // Operation settings
+
+  /**
+   * Gets the maximum number of operations this AE may invoke asynchronously.
+   *
+   * @return max operations invoked (0 = unlimited, 1 = synchronous)
+   */
   public int getMaxOpsInvoked() {
     return maxOpsInvoked;
   }
@@ -45,6 +65,11 @@ public class ConnectOptions {
     this.maxOpsInvoked = maxOpsInvoked;
   }
 
+  /**
+   * Gets the maximum number of operations this AE may perform asynchronously.
+   *
+   * @return max operations performed (0 = unlimited, 1 = synchronous)
+   */
   public int getMaxOpsPerformed() {
     return maxOpsPerformed;
   }
@@ -53,6 +78,13 @@ public class ConnectOptions {
     this.maxOpsPerformed = maxOpsPerformed;
   }
 
+  // PDU settings
+
+  /**
+   * Gets the maximum PDU length for receiving data.
+   *
+   * @return max receive PDU length in bytes
+   */
   public int getMaxPdulenRcv() {
     return maxPdulenRcv;
   }
@@ -61,6 +93,11 @@ public class ConnectOptions {
     this.maxPdulenRcv = maxPdulenRcv;
   }
 
+  /**
+   * Gets the maximum PDU length for sending data.
+   *
+   * @return max send PDU length in bytes
+   */
   public int getMaxPdulenSnd() {
     return maxPdulenSnd;
   }
@@ -69,6 +106,11 @@ public class ConnectOptions {
     this.maxPdulenSnd = maxPdulenSnd;
   }
 
+  /**
+   * Checks if PDV (Presentation Data Value) packing is enabled.
+   *
+   * @return true if PDV packing is enabled
+   */
   public boolean isPackPDV() {
     return packPDV;
   }
@@ -77,84 +119,14 @@ public class ConnectOptions {
     this.packPDV = packPDV;
   }
 
-  public int getConnectTimeout() {
-    return connectTimeout;
+  // Connection settings
+
+  public int getBacklog() {
+    return backlog;
   }
 
-  public void setConnectTimeout(int connectTimeout) {
-    this.connectTimeout = connectTimeout;
-  }
-
-  public int getRequestTimeout() {
-    return requestTimeout;
-  }
-
-  public void setRequestTimeout(int requestTimeout) {
-    this.requestTimeout = requestTimeout;
-  }
-
-  public int getAcceptTimeout() {
-    return acceptTimeout;
-  }
-
-  public void setAcceptTimeout(int acceptTimeout) {
-    this.acceptTimeout = acceptTimeout;
-  }
-
-  public int getReleaseTimeout() {
-    return releaseTimeout;
-  }
-
-  public void setReleaseTimeout(int releaseTimeout) {
-    this.releaseTimeout = releaseTimeout;
-  }
-
-  public int getResponseTimeout() {
-    return responseTimeout;
-  }
-
-  public void setResponseTimeout(int responseTimeout) {
-    this.responseTimeout = responseTimeout;
-  }
-
-  public int getRetrieveTimeout() {
-    return retrieveTimeout;
-  }
-
-  public void setRetrieveTimeout(int retrieveTimeout) {
-    this.retrieveTimeout = retrieveTimeout;
-  }
-
-  public int getIdleTimeout() {
-    return idleTimeout;
-  }
-
-  public void setIdleTimeout(int idleTimeout) {
-    this.idleTimeout = idleTimeout;
-  }
-
-  public int getSocloseDelay() {
-    return socloseDelay;
-  }
-
-  public void setSocloseDelay(int socloseDelay) {
-    this.socloseDelay = socloseDelay;
-  }
-
-  public int getSosndBuffer() {
-    return sosndBuffer;
-  }
-
-  public void setSosndBuffer(int sosndBuffer) {
-    this.sosndBuffer = sosndBuffer;
-  }
-
-  public int getSorcvBuffer() {
-    return sorcvBuffer;
-  }
-
-  public void setSorcvBuffer(int sorcvBuffer) {
-    this.sorcvBuffer = sorcvBuffer;
+  public void setBacklog(int backlog) {
+    this.backlog = backlog;
   }
 
   public boolean isTcpNoDelay() {
@@ -165,11 +137,130 @@ public class ConnectOptions {
     this.tcpNoDelay = tcpNoDelay;
   }
 
-  public int getBacklog() {
-    return backlog;
+  /**
+   * Gets the socket send buffer size.
+   *
+   * @return send buffer size in bytes
+   */
+  public int getSosndBuffer() {
+    return sosndBuffer;
   }
 
-  public void setBacklog(int backlog) {
-    this.backlog = backlog;
+  public void setSosndBuffer(int sosndBuffer) {
+    this.sosndBuffer = sosndBuffer;
+  }
+
+  /**
+   * Gets the socket receive buffer size.
+   *
+   * @return receive buffer size in bytes
+   */
+  public int getSorcvBuffer() {
+    return sorcvBuffer;
+  }
+
+  public void setSorcvBuffer(int sorcvBuffer) {
+    this.sorcvBuffer = sorcvBuffer;
+  }
+
+  public int getSocloseDelay() {
+    return socloseDelay;
+  }
+
+  public void setSocloseDelay(int socloseDelay) {
+    this.socloseDelay = socloseDelay;
+  }
+
+  // Timeout settings
+
+  /**
+   * Gets the connection timeout.
+   *
+   * @return timeout in milliseconds (0 = no timeout)
+   */
+  public int getConnectTimeout() {
+    return connectTimeout;
+  }
+
+  public void setConnectTimeout(int connectTimeout) {
+    this.connectTimeout = connectTimeout;
+  }
+
+  /**
+   * Gets the request timeout.
+   *
+   * @return timeout in milliseconds (0 = no timeout)
+   */
+  public int getRequestTimeout() {
+    return requestTimeout;
+  }
+
+  public void setRequestTimeout(int requestTimeout) {
+    this.requestTimeout = requestTimeout;
+  }
+
+  /**
+   * Gets the accept timeout.
+   *
+   * @return timeout in milliseconds (0 = no timeout)
+   */
+  public int getAcceptTimeout() {
+    return acceptTimeout;
+  }
+
+  public void setAcceptTimeout(int acceptTimeout) {
+    this.acceptTimeout = acceptTimeout;
+  }
+
+  /**
+   * Gets the release timeout.
+   *
+   * @return timeout in milliseconds (0 = no timeout)
+   */
+  public int getReleaseTimeout() {
+    return releaseTimeout;
+  }
+
+  public void setReleaseTimeout(int releaseTimeout) {
+    this.releaseTimeout = releaseTimeout;
+  }
+
+  /**
+   * Gets the response timeout.
+   *
+   * @return timeout in milliseconds (0 = no timeout)
+   */
+  public int getResponseTimeout() {
+    return responseTimeout;
+  }
+
+  public void setResponseTimeout(int responseTimeout) {
+    this.responseTimeout = responseTimeout;
+  }
+
+  /**
+   * Gets the retrieve timeout.
+   *
+   * @return timeout in milliseconds (0 = no timeout)
+   */
+  public int getRetrieveTimeout() {
+    return retrieveTimeout;
+  }
+
+  public void setRetrieveTimeout(int retrieveTimeout) {
+    this.retrieveTimeout = retrieveTimeout;
+  }
+
+  /**
+   * Gets the idle timeout.
+   *
+   * @return timeout in milliseconds (0 = no timeout)
+   */
+  public int getIdleTimeout() {
+    return idleTimeout;
+  }
+
+  public void setIdleTimeout(int idleTimeout) {
+    this.idleTimeout = idleTimeout;
   }
 }

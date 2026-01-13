@@ -11,11 +11,30 @@ package org.weasis.dicom.macro;
 
 import org.weasis.dicom.ref.CodingScheme;
 
+/**
+ * Represents a code item in DICOM, which includes a code value, its meaning, and the coding scheme
+ * that defines it.
+ */
 public interface ItemCode {
 
+  /**
+   * Returns the code value as defined in the coding scheme.
+   *
+   * @return the code value, may be null
+   */
   String getCodeValue();
 
+  /**
+   * Returns the human-readable meaning of the code.
+   *
+   * @return the code meaning, may be null
+   */
   String getCodeMeaning();
 
+  /**
+   * Returns the coding scheme that defines this code.
+   *
+   * @return the coding scheme, may be null
+   */
   CodingScheme getCodingScheme();
 }

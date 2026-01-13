@@ -9,13 +9,18 @@
  */
 package org.weasis.dicom.web;
 
-public class InvokeImageDisplay {
-  // Non IID request parameters
+/**
+ * Constants for IHE Radiology Technical Framework Supplement – Invoke Image Display (IID). Defines
+ * HTTP request parameter names and well-known values for patient-based and study-based queries.
+ */
+public final class InvokeImageDisplay {
+
+  // Non-IID request parameters for extended functionality
   public static final String SERIES_UID = "seriesUID";
   public static final String OBJECT_UID = "objectUID";
+  public static final String KEYWORDS = "containsInDescription";
 
-  /* IHE Radiology Technical Framework Supplement – Invoke Image Display (IID) */
-  // HTTP Request Parameters – Patient-based
+  // IHE IID HTTP Request Parameters – Patient-based queries
   public static final String REQUEST_TYPE = "requestType";
   public static final String PATIENT_ID = "patientID";
   public static final String PATIENT_NAME = "patientName";
@@ -27,17 +32,19 @@ public class InvokeImageDisplay {
   public static final String VIEWER_TYPE = "viewerType";
   public static final String DIAGNOSTIC_QUALITY = "diagnosticQuality";
   public static final String KEY_IMAGES_ONLY = "keyImagesOnly";
-  // Additional patient-based parameters (not IID profile)
-  public static final String KEYWORDS = "containsInDescription";
 
-  // HTTP Request Parameters – Study-based
+  // IHE IID HTTP Request Parameters – Study-based queries
   public static final String STUDY_UID = "studyUID";
   public static final String ACCESSION_NUMBER = "accessionNumber";
 
-  // Well-Known Values for Viewer Type Parameter
+  // Well-known values for request parameters
   public static final String IHE_BIR = "IHE_BIR";
   public static final String PATIENT_LEVEL = "PATIENT";
   public static final String STUDY_LEVEL = "STUDY";
+
+  // Diagnostic quality values
+  public static final String DIAGNOSTIC = "DIAGNOSTIC";
+  public static final String REFERENCE = "REFERENCE";
 
   private InvokeImageDisplay() {}
 }

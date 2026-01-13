@@ -9,7 +9,9 @@
  */
 package org.weasis.dicom.util;
 
-import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -20,13 +22,19 @@ import org.dcm4che3.data.VR;
 import org.dcm4che3.io.DicomInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.weasis.core.util.FileUtil;
+import org.weasis.core.util.StreamUtil;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
 
-public class ServiceUtil {
+/**
+ * Utility class providing common DICOM service operations including thread management, progress
+ * notification, and resource cleanup.
+ */
+public final class ServiceUtil {
   private static final Logger LOGGER = LoggerFactory.getLogger(ServiceUtil.class);
+  private static final int MIN_REMAINING_OPERATIONS = 1;
 
+  /** Progress status enumeration for DICOM operations */
   public enum ProgressStatus {
     FAILED,
     WARNING,
@@ -35,103 +43,168 @@ public class ServiceUtil {
 
   private ServiceUtil() {}
 
-  public static final ThreadFactory getThreadFactory(String name) {
-    return r -> {
-      Thread t = Executors.defaultThreadFactory().newThread(r);
-      t.setName(name + "-" + t.getName());
-      return t;
+  /**
+   * Creates a custom ThreadFactory that prefixes thread names with the given name.
+   *
+   * @param name the prefix for thread names
+   * @return a new ThreadFactory instance
+   * @throws NullPointerException if name is null
+   */
+  public static ThreadFactory getThreadFactory(String name) {
+    Objects.requireNonNull(name, "Thread factory name cannot be null");
+    return runnable -> {
+      var thread = Executors.defaultThreadFactory().newThread(runnable);
+      thread.setName(name + "-" + thread.getName());
+      return thread;
     };
   }
 
+  /** Safely shuts down an ExecutorService, handling any exceptions */
   public static void shutdownService(ExecutorService executorService) {
     if (executorService != null) {
       try {
         executorService.shutdown();
       } catch (Exception e) {
-        LOGGER.error("ExecutorService shutdown", e);
+        LOGGER.error("ExecutorService shutdown failed", e);
       }
     }
   }
 
+  /** Forces closing of resources when progress is available */
   public static void forceGettingAttributes(DicomState dcmState, AutoCloseable closeable) {
-    DicomProgress p = dcmState.getProgress();
-    if (p != null) {
-      FileUtil.safeClose(closeable);
+    var progress = dcmState.getProgress();
+    if (progress != null) {
+      StreamUtil.safeClose(closeable);
     }
   }
 
-  public static void safeClose(DicomInputStream in) {
-    if (in != null) {
-      for (File file : in.getBulkDataFiles()) {
-        FileUtil.delete(file);
-      }
+  /** Safely closes DicomInputStream and cleans up bulk data files */
+  public static void safeClose(DicomInputStream inputStream) {
+    if (inputStream != null) {
+      inputStream.getBulkDataFiles().forEach(file -> deleteBulkDataFile(file.toPath()));
     }
   }
 
-  public static void notifyProgession(
+  /**
+   * Notifies progress with DICOM state and operation details.
+   *
+   * @param state the DICOM state containing progress information
+   * @param instanceUID the affected SOP instance UID
+   * @param classUID the affected SOP class UID
+   * @param status the operation status code
+   * @param progressStatus the progress status
+   * @param numberOfSuboperations total number of sub-operations
+   */
+  public static void notifyProgression(
       DicomState state,
-      String iuid,
-      String cuid,
+      String instanceUID,
+      String classUID,
       int status,
-      ProgressStatus ps,
+      ProgressStatus progressStatus,
       int numberOfSuboperations) {
     state.setStatus(status);
-    DicomProgress p = state.getProgress();
-    if (p != null) {
-      Attributes cmd = Optional.ofNullable(p.getAttributes()).orElseGet(Attributes::new);
-      cmd.setInt(Tag.Status, VR.US, status);
-      cmd.setString(Tag.AffectedSOPInstanceUID, VR.UI, iuid);
-      cmd.setString(Tag.AffectedSOPClassUID, VR.UI, cuid);
-      notifyProgession(p, cmd, ps, numberOfSuboperations);
-      p.setAttributes(cmd);
+    var progress = state.getProgress();
+    if (progress == null) {
+      return;
+    }
+
+    var attributes = Optional.ofNullable(progress.getAttributes()).orElseGet(Attributes::new);
+    setStatusAttributes(attributes, instanceUID, classUID, status);
+    notifyProgression(progress, attributes, progressStatus, numberOfSuboperations);
+    progress.setAttributes(attributes);
+  }
+
+  /**
+   * Updates progress attributes based on the current operation status.
+   *
+   * @param progress the DICOM progress tracker
+   * @param attributes the command attributes to update
+   * @param progressStatus the current operation status
+   * @param numberOfSuboperations total number of sub-operations
+   */
+  public static void notifyProgression(
+      DicomProgress progress,
+      Attributes attributes,
+      ProgressStatus progressStatus,
+      int numberOfSuboperations) {
+
+    if (progress == null || attributes == null) {
+      return;
+    }
+
+    var operationCounts = calculateOperationCounts(progress, numberOfSuboperations);
+    var updatedCounts = updateCountsForStatus(operationCounts, progressStatus);
+    setOperationCountAttributes(attributes, updatedCounts);
+  }
+
+  /**
+   * Calculates the total number of sub-operations from command attributes.
+   *
+   * @param attributes the command attributes
+   * @return total number of sub-operations, or 0 if attributes is null
+   */
+  public static int getTotalOfSuboperations(Attributes attributes) {
+    if (attributes == null) {
+      return 0;
+    }
+    return attributes.getInt(Tag.NumberOfCompletedSuboperations, 0)
+        + attributes.getInt(Tag.NumberOfFailedSuboperations, 0)
+        + attributes.getInt(Tag.NumberOfWarningSuboperations, 0)
+        + attributes.getInt(Tag.NumberOfRemainingSuboperations, 0);
+  }
+
+  private static void deleteBulkDataFile(Path filePath) {
+    try {
+      Files.deleteIfExists(filePath);
+    } catch (Exception e) {
+      LOGGER.warn("Failed to delete bulk data file: {}", filePath, e);
     }
   }
 
-  public static void notifyProgession(
-      DicomProgress p, Attributes cmd, ProgressStatus ps, int numberOfSuboperations) {
-    if (p != null && cmd != null) {
-      int c;
-      int f;
-      int r;
-      int w;
-      if (p.getAttributes() == null) {
-        c = 0;
-        f = 0;
-        w = 0;
-        r = numberOfSuboperations;
-      } else {
-        c = p.getNumberOfCompletedSuboperations();
-        f = p.getNumberOfFailedSuboperations();
-        w = p.getNumberOfWarningSuboperations();
-        r = numberOfSuboperations - (c + f + w);
-      }
-
-      if (r < 1) {
-        r = 1;
-      }
-
-      if (ps == ProgressStatus.COMPLETED) {
-        c++;
-      } else if (ps == ProgressStatus.FAILED) {
-        f++;
-      } else if (ps == ProgressStatus.WARNING) {
-        w++;
-      }
-      cmd.setInt(Tag.NumberOfCompletedSuboperations, VR.US, c);
-      cmd.setInt(Tag.NumberOfFailedSuboperations, VR.US, f);
-      cmd.setInt(Tag.NumberOfWarningSuboperations, VR.US, w);
-      cmd.setInt(Tag.NumberOfRemainingSuboperations, VR.US, r - 1);
-    }
+  private static void setStatusAttributes(
+      Attributes attributes, String instanceUID, String classUID, int status) {
+    attributes.setInt(Tag.Status, VR.US, status);
+    attributes.setString(Tag.AffectedSOPInstanceUID, VR.UI, instanceUID);
+    attributes.setString(Tag.AffectedSOPClassUID, VR.UI, classUID);
   }
 
-  public static int getTotalOfSuboperations(Attributes cmd) {
-    if (cmd != null) {
-      int c = cmd.getInt(Tag.NumberOfCompletedSuboperations, 0);
-      int f = cmd.getInt(Tag.NumberOfFailedSuboperations, 0);
-      int w = cmd.getInt(Tag.NumberOfWarningSuboperations, 0);
-      int r = cmd.getInt(Tag.NumberOfRemainingSuboperations, 0);
-      return r + c + f + w;
+  private static OperationCounts calculateOperationCounts(
+      DicomProgress progress, int numberOfSuboperations) {
+    if (progress.getAttributes() == null) {
+      return new OperationCounts(0, 0, 0, numberOfSuboperations);
     }
-    return 0;
+
+    int completed = progress.getNumberOfCompletedSuboperations();
+    int failed = progress.getNumberOfFailedSuboperations();
+    int warning = progress.getNumberOfWarningSuboperations();
+    int remaining = numberOfSuboperations - (completed + failed + warning);
+
+    return new OperationCounts(
+        completed, failed, warning, Math.max(remaining, MIN_REMAINING_OPERATIONS));
   }
+
+  private static OperationCounts updateCountsForStatus(
+      OperationCounts counts, ProgressStatus status) {
+    return switch (status) {
+      case COMPLETED ->
+          new OperationCounts(
+              counts.completed + 1, counts.failed, counts.warning, counts.remaining);
+      case FAILED ->
+          new OperationCounts(
+              counts.completed, counts.failed + 1, counts.warning, counts.remaining);
+      case WARNING ->
+          new OperationCounts(
+              counts.completed, counts.failed, counts.warning + 1, counts.remaining);
+    };
+  }
+
+  private static void setOperationCountAttributes(Attributes attributes, OperationCounts counts) {
+    attributes.setInt(Tag.NumberOfCompletedSuboperations, VR.US, counts.completed);
+    attributes.setInt(Tag.NumberOfFailedSuboperations, VR.US, counts.failed);
+    attributes.setInt(Tag.NumberOfWarningSuboperations, VR.US, counts.warning);
+    attributes.setInt(Tag.NumberOfRemainingSuboperations, VR.US, counts.remaining - 1);
+  }
+
+  /** Record to encapsulate operation counts for cleaner parameter passing */
+  private record OperationCounts(int completed, int failed, int warning, int remaining) {}
 }

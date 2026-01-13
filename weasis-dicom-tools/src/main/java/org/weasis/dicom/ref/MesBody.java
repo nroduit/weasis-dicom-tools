@@ -9,21 +9,42 @@
  */
 package org.weasis.dicom.ref;
 
-import java.util.MissingResourceException;
-import java.util.ResourceBundle;
+import java.util.Locale;
 
-public class MesBody {
-  private static final String BUNDLE_NAME = "org.weasis.dicom.ref.body"; // NON-NLS
+/**
+ * Resource bundle accessor for anatomical body part terminology. Provides localized human-readable
+ * names for medical body part codes used in DICOM imaging and anatomical classification systems.
+ *
+ * @see BodyPart
+ * @see AnatomicRegion
+ */
+public final class MesBody {
 
-  private static final ResourceBundle RESOURCE_BUNDLE = ResourceBundle.getBundle(BUNDLE_NAME);
+  private static final AbstractResourceBundle BUNDLE =
+      new AbstractResourceBundle("org.weasis.dicom.ref.body") {};
 
-  private MesBody() {}
+  private MesBody() {
+    // Utility class - prevent instantiation
+  }
 
+  /**
+   * Gets the localized string for a body part code using the default locale.
+   *
+   * @param key the body part code value
+   * @return the localized body part name
+   */
   public static String getString(String key) {
-    try {
-      return RESOURCE_BUNDLE.getString(key);
-    } catch (MissingResourceException e) {
-      return '!' + key + '!';
-    }
+    return BUNDLE.getString(key);
+  }
+
+  /**
+   * Gets the localized string for a body part code using the specified locale.
+   *
+   * @param key the body part code value
+   * @param locale the desired locale, or null to use default locale
+   * @return the localized body part name
+   */
+  public static String getString(String key, Locale locale) {
+    return BUNDLE.getString(key, locale);
   }
 }

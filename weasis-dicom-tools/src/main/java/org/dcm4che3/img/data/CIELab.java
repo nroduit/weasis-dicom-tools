@@ -11,157 +11,224 @@ package org.dcm4che3.img.data;
 
 import java.awt.Color;
 import java.util.Objects;
+import org.weasis.core.util.MathUtil;
 
 /**
+ * Utility class for converting between CIE L*a*b* color space and RGB color space, specifically
+ * handling DICOM encoded L*a*b* values using the D65 white point standard.
+ *
+ * <p>This class provides methods to convert between:
+ *
+ * <ul>
+ *   <li>DICOM encoded L*a*b* values to RGB color space
+ *   <li>RGB color space to DICOM encoded L*a*b* values
+ * </ul>
+ *
  * @author Nicolas Roduit
+ * @see <a
+ *     href="http://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.10.7.html#sect_C.10.7.1.1">DICOM
+ *     L*a*b* Encoding</a>
  */
-public class CIELab {
-  // Initialize white points of D65 light point (CIELab standard white point)
+public final class CIELab {
+
+  // D65 white point constants (CIE L*a*b* standard illuminant)
   private static final double D65_WHITE_POINT_X = 0.950456;
   private static final double D65_WHITE_POINT_Y = 1.0;
   private static final double D65_WHITE_POINT_Z = 1.088754;
 
-  private CIELab() {}
+  // L*a*b* transformation constants
+  private static final double LAB_THRESHOLD = 8.85645167903563082e-3;
+  private static final double LAB_INVERSE_THRESHOLD = 0.206896551724137931;
+  private static final double LAB_ALPHA = 841.0 / 108.0;
+  private static final double LAB_BETA = 4.0 / 29.0;
+  private static final double LAB_INVERSE_ALPHA = 108.0 / 841.0;
 
-  private static double[] dicomLab2rgb(double l, double a, double b) {
-    // lab to xyz
-    double cl = (l + 16) / 116;
-    double ca = cl + a / 500;
-    double cb = cl - b / 200;
-    double x = D65_WHITE_POINT_X * labfInv(ca);
-    double y = D65_WHITE_POINT_Y * labfInv(cl);
-    double z = D65_WHITE_POINT_Z * labfInv(cb);
+  // sRGB gamma correction constants
+  private static final double GAMMA_THRESHOLD = 0.0031306684425005883;
+  private static final double GAMMA_INVERSE_THRESHOLD = 0.0404482362771076;
+  private static final double GAMMA_LINEAR_COEFFICIENT = 12.92;
+  private static final double GAMMA_POWER_COEFFICIENT = 1.055;
+  private static final double GAMMA_POWER_OFFSET = 0.055;
+  private static final double GAMMA_EXPONENT = 1.0 / 2.4;
+  private static final double GAMMA_INVERSE_EXPONENT = 2.4;
 
-    // xyz to rgb
-    double r = 3.2406 * x - 1.5372 * y - 0.4986 * z;
-    double g = -0.9689 * x + 1.8758 * y + 0.0415 * z;
-    double bl = 0.0557 * x - 0.2040 * y + 1.0570 * z;
+  // sRGB to XYZ transformation matrix (D65 illuminant)
+  private static final double[][] RGB_TO_XYZ_MATRIX = {
+    {0.4123955889674142161, 0.3575834307637148171, 0.1804926473817015735},
+    {0.2125862307855955516, 0.7151703037034108499, 0.07220049864333622685},
+    {0.01929721549174694484, 0.1191838645808485318, 0.9504971251315797660}
+  };
 
-    double min;
-    if (r <= g) {
-      min = Math.min(r, bl);
-    } else {
-      min = Math.min(g, bl);
-    }
+  // XYZ to sRGB transformation matrix (inverse of RGB_TO_XYZ_MATRIX)
+  private static final double[][] XYZ_TO_RGB_MATRIX = {
+    {3.2406, -1.5372, -0.4986},
+    {-0.9689, 1.8758, 0.0415},
+    {0.0557, -0.2040, 1.0570}
+  };
 
-    if (min < 0) {
-      r -= min;
-      g -= min;
-      bl -= min;
-    }
+  // DICOM encoding constants
+  private static final double DICOM_L_SCALE = 65535.0 / 100.0;
+  private static final double DICOM_AB_SCALE = 65535.0 / 255.0;
+  private static final double DICOM_AB_OFFSET = 128.0;
+  private static final double RGB_MAX_VALUE = 255.0;
 
-    /* Transform from RGB to R'G'B' */
-    return new double[] {gammaCorrection(r), gammaCorrection(g), gammaCorrection(bl)};
-  }
+  // RGB color bounds
+  private static final int RGB_MIN = 0;
+  private static final int RGB_MAX = 255;
+  private static final int DICOM_MAX = 65535;
 
-  private static double[] rgb2DicomLab(double r, double g, double b) {
-    // rgb to xyz
-    r = invGammaCorrection(r);
-    g = invGammaCorrection(g);
-    b = invGammaCorrection(b);
-    double x = 0.4123955889674142161 * r + 0.3575834307637148171 * g + 0.1804926473817015735 * b;
-    double y = 0.2125862307855955516 * r + 0.7151703037034108499 * g + 0.07220049864333622685 * b;
-    double z = 0.01929721549174694484 * r + 0.1191838645808485318 * g + 0.9504971251315797660 * b;
-
-    // xyz to lab
-    x /= D65_WHITE_POINT_X;
-    y /= D65_WHITE_POINT_Y;
-    z /= D65_WHITE_POINT_Z;
-    x = labf(x);
-    y = labf(y);
-    z = labf(z);
-    double cl = 116 * y - 16;
-    double ca = 500 * (x - y);
-    double cb = 200 * (y - z);
-
-    return new double[] {cl, ca, cb};
-  }
-
-  private static double labf(double n) {
-    if (n >= 8.85645167903563082e-3) {
-      return (Math.pow(n, 0.333333333333333));
-    } else {
-      return ((841.0 / 108.0) * n + (4.0 / 29.0));
-    }
-  }
-
-  private static double labfInv(double n) {
-    if (n >= 0.206896551724137931) {
-      return n * n * n;
-    } else {
-      return (108.0 / 841.0) * (n - (4.0 / 29.0));
-    }
-  }
-
-  private static double gammaCorrection(double n) {
-    if (n <= 0.0031306684425005883) {
-      return 12.92 * n;
-    } else {
-      return (1.055 * Math.pow(n, 0.416666666666666667) - 0.055);
-    }
-  }
-
-  private static double invGammaCorrection(double n) {
-    if (n <= 0.0404482362771076) {
-      return (n / 12.92);
-    } else {
-      return Math.pow((n + 0.055) / 1.055, 2.4);
-    }
+  private CIELab() {
+    // Utility class - prevent instantiation
   }
 
   /**
-   * This method converts integer <a
-   * href="http://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.10.7.html#sect_C.10.7.1.1">DICOM
-   * encoded L*a*b* values</a> to RGB values.
+   * Converts DICOM encoded L*a*b* values to RGB color space.
    *
-   * @param lab integer array of 3 DICOM encoded L*a*b* values
-   * @return int array of 3 RGB components
+   * @param lab integer array of 3 DICOM encoded L*a*b* values, must not be null and length 3
+   * @return RGB values as int array [r, g, b] in range [0, 255], or empty array if input is invalid
+   * @see <a
+   *     href="http://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.10.7.html#sect_C.10.7.1.1">DICOM
+   *     L*a*b* Encoding</a>
    */
   public static int[] dicomLab2rgb(int[] lab) {
     if (lab == null || lab.length != 3) {
       return new int[0];
     }
-    // Dicom lab to lab
-    double l = ((lab[0] * 100.0) / 65535.0);
-    double a = ((lab[1] * 255.0) / 65535.0) - 128;
-    double b = ((lab[2] * 255.0) / 65535.0) - 128;
-    double[] rgb = dicomLab2rgb(l, a, b);
+    // Convert DICOM encoding to normalized L*a*b* values
+    double l = lab[0] * 100.0 / 65535.0;
+    double a = lab[1] * 255.0 / 65535.0 - DICOM_AB_OFFSET;
+    double b = lab[2] * 255.0 / 65535.0 - DICOM_AB_OFFSET;
+
+    double[] rgb = labToRgb(l, a, b);
     return new int[] {
-      (int) Math.round(rgb[0] * 255), (int) Math.round(rgb[1] * 255), (int) Math.round(rgb[2] * 255)
+      (int) Math.round(MathUtil.clamp(rgb[0], 0.0, 1.0) * RGB_MAX_VALUE),
+      (int) Math.round(MathUtil.clamp(rgb[1], 0.0, 1.0) * RGB_MAX_VALUE),
+      (int) Math.round(MathUtil.clamp(rgb[2], 0.0, 1.0) * RGB_MAX_VALUE)
     };
   }
 
   /**
-   * Converts rgb values to DICOM encoded L*a*b* values with D65 light point (CIELab standard white
-   * point)
+   * Converts RGB color to DICOM encoded L*a*b* values.
    *
-   * @param c a color
-   * @return integer <a
+   * @param color RGB color, must not be null
+   * @return DICOM encoded L*a*b* values as int array [l, a, b]
+   * @throws NullPointerException if color is null
+   * @see <a
    *     href="http://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.10.7.html#sect_C.10.7.1.1">DICOM
-   *     encoded L*a*b* values</a>
+   *     L*a*b* Encoding</a>
    */
-  public static int[] rgbToDicomLab(Color c) {
-    return rgbToDicomLab(Objects.requireNonNull(c).getRed(), c.getGreen(), c.getBlue());
+  public static int[] rgbToDicomLab(Color color) {
+    Objects.requireNonNull(color, "Color cannot be null");
+    return rgbToDicomLab(color.getRed(), color.getGreen(), color.getBlue());
   }
 
   /**
-   * Converts rgb values to DICOM encoded L*a*b* values with D65 light point (CIELab standard white
-   * point)
+   * Converts RGB values to DICOM encoded L*a*b* values.
    *
-   * @param r red (0 to 255)
-   * @param g green (0 to 255)
-   * @param b blue (0 to 255)
-   * @return integer <a
+   * @param r red component (0-255)
+   * @param g green component (0-255)
+   * @param b blue component (0-255)
+   * @return DICOM encoded L*a*b* values as int array [l, a, b]
+   * @see <a
    *     href="http://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.10.7.html#sect_C.10.7.1.1">DICOM
-   *     encoded L*a*b* values</a>
+   *     L*a*b* Encoding</a>
    */
   public static int[] rgbToDicomLab(int r, int g, int b) {
-    double[] lab = rgb2DicomLab(r / 255.0, g / 255.0, b / 255.0);
-    // lab to Dicom lab
+    double[] lab = rgbToLab(r / RGB_MAX_VALUE, g / RGB_MAX_VALUE, b / RGB_MAX_VALUE);
+
     return new int[] {
-      (int) Math.round(lab[0] * 65535.0 / 100.0),
-      (int) Math.round((lab[1] + 128) * 65535.0 / 255.0),
-      (int) Math.round((lab[2] + 128) * 65535.0 / 255.0)
+      MathUtil.clamp((int) Math.round(lab[0] * DICOM_L_SCALE), RGB_MIN, DICOM_MAX),
+      MathUtil.clamp(
+          (int) Math.round((lab[1] + DICOM_AB_OFFSET) * DICOM_AB_SCALE), RGB_MIN, DICOM_MAX),
+      MathUtil.clamp(
+          (int) Math.round((lab[2] + DICOM_AB_OFFSET) * DICOM_AB_SCALE), RGB_MIN, DICOM_MAX)
     };
+  }
+
+  private static double[] labToRgb(double l, double a, double b) {
+    double[] xyz = labToXyz(l, a, b);
+    return xyzToRgb(xyz);
+  }
+
+  private static double[] rgbToLab(double r, double g, double b) {
+    double[] xyz = rgbToXyz(new double[] {r, g, b});
+    return xyzToLab(xyz);
+  }
+
+  private static double[] labToXyz(double l, double a, double b) {
+    double fy = (l + 16.0) / 116.0;
+    double fx = fy + a / 500.0;
+    double fz = fy - b / 200.0;
+
+    return new double[] {
+      D65_WHITE_POINT_X * labfInverse(fx),
+      D65_WHITE_POINT_Y * labfInverse(fy),
+      D65_WHITE_POINT_Z * labfInverse(fz)
+    };
+  }
+
+  private static double[] xyzToLab(double[] xyz) {
+    // Normalize by D65 white point
+    double x = labf(xyz[0] / D65_WHITE_POINT_X);
+    double y = labf(xyz[1] / D65_WHITE_POINT_Y);
+    double z = labf(xyz[2] / D65_WHITE_POINT_Z);
+
+    return new double[] {
+      116.0 * y - 16.0, // L*
+      500.0 * (x - y), // a*
+      200.0 * (y - z) // b*
+    };
+  }
+
+  private static double[] xyzToRgb(double[] xyz) {
+    double[] rgb = matrixMultiply(XYZ_TO_RGB_MATRIX, xyz);
+
+    // Handle out-of-gamut colors by shifting minimum to zero
+    double min = Math.min(Math.min(rgb[0], rgb[1]), rgb[2]);
+    if (min < 0) {
+      rgb[0] -= min;
+      rgb[1] -= min;
+      rgb[2] -= min;
+    }
+
+    // Apply gamma correction
+    return new double[] {gammaCorrection(rgb[0]), gammaCorrection(rgb[1]), gammaCorrection(rgb[2])};
+  }
+
+  private static double[] rgbToXyz(double[] rgb) {
+    // Apply inverse gamma correction
+    double[] linearRgb = {
+      inverseGammaCorrection(rgb[0]), inverseGammaCorrection(rgb[1]), inverseGammaCorrection(rgb[2])
+    };
+
+    return matrixMultiply(RGB_TO_XYZ_MATRIX, linearRgb);
+  }
+
+  private static double[] matrixMultiply(double[][] matrix, double[] vector) {
+    return new double[] {
+      matrix[0][0] * vector[0] + matrix[0][1] * vector[1] + matrix[0][2] * vector[2],
+      matrix[1][0] * vector[0] + matrix[1][1] * vector[1] + matrix[1][2] * vector[2],
+      matrix[2][0] * vector[0] + matrix[2][1] * vector[1] + matrix[2][2] * vector[2]
+    };
+  }
+
+  private static double labf(double t) {
+    return t > LAB_THRESHOLD ? Math.pow(t, 1.0 / 3.0) : LAB_ALPHA * t + LAB_BETA;
+  }
+
+  private static double labfInverse(double t) {
+    return t > LAB_INVERSE_THRESHOLD ? t * t * t : LAB_INVERSE_ALPHA * (t - LAB_BETA);
+  }
+
+  private static double gammaCorrection(double value) {
+    return value <= GAMMA_THRESHOLD
+        ? GAMMA_LINEAR_COEFFICIENT * value
+        : GAMMA_POWER_COEFFICIENT * Math.pow(value, GAMMA_EXPONENT) - GAMMA_POWER_OFFSET;
+  }
+
+  private static double inverseGammaCorrection(double value) {
+    return value <= GAMMA_INVERSE_THRESHOLD
+        ? value / GAMMA_LINEAR_COEFFICIENT
+        : Math.pow((value + GAMMA_POWER_OFFSET) / GAMMA_POWER_COEFFICIENT, GAMMA_INVERSE_EXPONENT);
   }
 }

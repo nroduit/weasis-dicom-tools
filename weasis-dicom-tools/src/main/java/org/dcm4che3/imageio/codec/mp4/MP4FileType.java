@@ -16,9 +16,9 @@ import java.nio.ByteBuffer;
  * @since Jan 2020
  */
 public class MP4FileType {
-  public static final int qt = 0x71742020;
-  public static final int isom = 0x69736f6d;
-  public static final MP4FileType ISOM_QT = new MP4FileType(isom, 0, isom, qt);
+  public static final int QT = 0x71742020;
+  public static final int ISOM = 0x69736f6d;
+  public static final MP4FileType ISOM_QT = new MP4FileType(ISOM, 0, ISOM, QT);
 
   private final int[] brands;
 
@@ -55,7 +55,7 @@ public class MP4FileType {
     sb.append((char) ((brand >>> 24) & 0xFF));
     sb.append((char) ((brand >>> 16) & 0xFF));
     sb.append((char) ((brand >>> 8) & 0xFF));
-    sb.append((char) ((brand >>> 0) & 0xFF));
+    sb.append((char) ((brand) & 0xFF));
   }
 
   public int size() {
@@ -72,7 +72,7 @@ public class MP4FileType {
 
   public int[] compatibleBrands() {
     int[] compatibleBrands = new int[brands.length - 2];
-    System.arraycopy(brands, 2, brands, 0, compatibleBrands.length);
+    System.arraycopy(brands, 2, compatibleBrands, 0, compatibleBrands.length);
     return compatibleBrands;
   }
 }

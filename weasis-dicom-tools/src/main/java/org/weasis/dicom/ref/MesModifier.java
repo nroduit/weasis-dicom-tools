@@ -9,21 +9,43 @@
  */
 package org.weasis.dicom.ref;
 
-import java.util.MissingResourceException;
-import java.util.ResourceBundle;
+import java.util.Locale;
 
-public class MesModifier {
-  private static final String BUNDLE_NAME = "org.weasis.dicom.ref.modifier"; // NON-NLS
+/**
+ * Resource bundle accessor for anatomical modifier terminology. Provides localized human-readable
+ * names for anatomical modifier codes used to specify positional and directional characteristics of
+ * anatomical structures.
+ *
+ * @see AnatomicModifier
+ * @see AnatomicRegion
+ */
+public final class MesModifier {
 
-  private static final ResourceBundle RESOURCE_BUNDLE = ResourceBundle.getBundle(BUNDLE_NAME);
+  private static final AbstractResourceBundle BUNDLE =
+      new AbstractResourceBundle("org.weasis.dicom.ref.modifier") {};
 
-  private MesModifier() {}
+  private MesModifier() {
+    // Utility class - prevent instantiation
+  }
 
+  /**
+   * Gets the localized string for an anatomical modifier code using the default locale.
+   *
+   * @param key the anatomical modifier code value
+   * @return the localized modifier name
+   */
   public static String getString(String key) {
-    try {
-      return RESOURCE_BUNDLE.getString(key);
-    } catch (MissingResourceException e) {
-      return '!' + key + '!';
-    }
+    return BUNDLE.getString(key);
+  }
+
+  /**
+   * Gets the localized string for an anatomical modifier code using the specified locale.
+   *
+   * @param key the anatomical modifier code value
+   * @param locale the desired locale, or null to use default locale
+   * @return the localized modifier name
+   */
+  public static String getString(String key, Locale locale) {
+    return BUNDLE.getString(key, locale);
   }
 }

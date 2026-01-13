@@ -9,9 +9,12 @@
  */
 package org.weasis.dicom.mf;
 
+import static org.weasis.dicom.mf.ArcParameters.TAG_DELIMITER;
+
 import java.io.IOException;
 import java.io.Writer;
-import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.dcm4che3.data.ElementDictionary;
 import org.dcm4che3.util.TagUtils;
 import org.slf4j.Logger;
@@ -19,78 +22,115 @@ import org.slf4j.LoggerFactory;
 import org.weasis.core.util.EscapeChars;
 import org.weasis.core.util.StringUtil;
 
+/**
+ * Interface for XML serialization of DICOM-related objects. Provides utility methods for adding XML
+ * attributes and defines hierarchical levels for DICOM data structures.
+ */
 public interface Xml {
   Logger LOGGER = LoggerFactory.getLogger(Xml.class);
 
+  /** Hierarchical levels in DICOM data structure, from patient down to frame level. */
   enum Level {
-    PATIENT("Patient"), // $NON-NLS-1$
-    STUDY("Study"), // $NON-NLS-1$
-    SERIES("Series"), // $NON-NLS-1$
-    INSTANCE("Instance"), // $NON-NLS-1$
-    FRAME("Frame"); // $NON-NLS-1$
+    PATIENT("Patient"),
+    STUDY("Study"),
+    SERIES("Series"),
+    INSTANCE("Instance"),
+    FRAME("Frame");
 
-    private final String tag;
+    private final String tagName;
 
-    Level(String tag) {
-      this.tag = tag;
+    Level(String tagName) {
+      this.tagName = tagName;
     }
 
     public String getTagName() {
-      return tag;
+      return tagName;
     }
 
     @Override
     public String toString() {
-      return tag;
+      return tagName;
     }
   }
 
-  void toXml(Writer result) throws IOException;
+  /**
+   * Converts this object to its XML representation.
+   *
+   * @param writer the writer to output XML content
+   * @throws IOException if an I/O error occurs during writing
+   */
+  void toXml(Writer writer) throws IOException;
 
-  static void addXmlAttribute(int tagID, String value, Writer result) throws IOException {
-    if (StringUtil.hasText(value)) {
-      String key = ElementDictionary.getStandardElementDictionary().keywordOf(tagID);
-      if (key == null) {
-        LOGGER.error("Cannot find keyword of tagID {}", TagUtils.toString(tagID));
-      } else {
-        result.append(key);
-        result.append("=\"");
-        result.append(EscapeChars.forXML(value));
-        result.append("\" ");
-      }
+  /**
+   * Adds an XML attribute using a DICOM tag ID and value.
+   *
+   * @param tagID the DICOM tag ID
+   * @param value the attribute value
+   * @param writer the writer to output the attribute
+   * @throws IOException if an I/O error occurs during writing
+   */
+  static void addXmlAttribute(int tagID, String value, Writer writer) throws IOException {
+    writeAttribute(getTagKeyword(tagID), value, writer);
+  }
+
+  /**
+   * Adds an XML attribute with the specified tag name and string value.
+   *
+   * @param tagName the attribute name
+   * @param value the attribute value
+   * @param writer the writer to output the attribute
+   * @throws IOException if an I/O error occurs during writing
+   */
+  static void addXmlAttribute(String tagName, String value, Writer writer) throws IOException {
+    writeAttribute(tagName, value, writer);
+  }
+
+  /**
+   * Adds an XML attribute with the specified tag name and boolean value.
+   *
+   * @param tagName the attribute name
+   * @param value the attribute value
+   * @param writer the writer to output the attribute
+   * @throws IOException if an I/O error occurs during writing
+   */
+  static void addXmlAttribute(String tagName, Boolean value, Writer writer) throws IOException {
+    if (value != null) {
+      writeAttribute(tagName, value.toString(), writer);
     }
   }
 
-  static void addXmlAttribute(String tag, String value, Writer result) throws IOException {
-    if (StringUtil.hasText(tag) && StringUtil.hasText(value)) {
-      result.append(tag);
-      result.append("=\"");
-      result.append(EscapeChars.forXML(value));
-      result.append("\" ");
+  /**
+   * Adds an XML attribute with the specified tag name and array of integer values. Values are
+   * joined with commas.
+   *
+   * @param tagName the attribute name
+   * @param values the array of integer values
+   * @param writer the writer to output the attribute
+   * @throws IOException if an I/O error occurs during writing
+   */
+  static void addXmlAttribute(String tagName, int[] values, Writer writer) throws IOException {
+    if (!StringUtil.hasText(tagName) || values == null || values.length == 0) {
+      return;
     }
+    String joinedValue =
+        IntStream.of(values).mapToObj(String::valueOf).collect(Collectors.joining(TAG_DELIMITER));
+
+    writer.append(tagName).append("=\"").append(joinedValue).append("\" ");
   }
 
-  static void addXmlAttribute(String tag, Boolean value, Writer result) throws IOException {
-    if (tag != null && value != null) {
-      result.append(tag);
-      result.append("=\"");
-      result.append(value.toString());
-      result.append("\" ");
+  // Gets the DICOM tag keyword, with error logging
+  private static String getTagKeyword(int tagID) {
+    String keyword = ElementDictionary.getStandardElementDictionary().keywordOf(tagID);
+    if (keyword == null) {
+      LOGGER.error("Cannot find keyword for DICOM tag ID {}", TagUtils.toString(tagID));
     }
+    return keyword;
   }
 
-  static void addXmlAttribute(String tag, List<String> value, Writer result) throws IOException {
-    if (tag != null && value != null) {
-      result.append(tag);
-      result.append("=\"");
-      int size = value.size();
-      for (int i = 0; i < size - 1; i++) {
-        result.append(EscapeChars.forXML(value.get(i))).append(",");
-      }
-      if (size > 0) {
-        result.append(EscapeChars.forXML(value.get(size - 1)));
-      }
-      result.append("\" ");
+  // Writes an XML attribute with XML escaping
+  private static void writeAttribute(String name, String value, Writer writer) throws IOException {
+    if (StringUtil.hasText(name) && StringUtil.hasText(value)) {
+      writer.append(name).append("=\"").append(EscapeChars.forXML(value)).append("\" ");
     }
   }
 }

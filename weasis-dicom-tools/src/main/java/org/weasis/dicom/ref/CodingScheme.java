@@ -9,10 +9,32 @@
  */
 package org.weasis.dicom.ref;
 
-import java.util.Arrays;
-import java.util.Objects;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.weasis.core.util.StringUtil;
 
+/**
+ * Comprehensive enumeration of standard medical and healthcare coding schemes used in DICOM. Each
+ * coding scheme is identified by a unique designator, UID, and descriptive name, following
+ * international healthcare informatics standards.
+ *
+ * <p>This enum provides lookup capabilities for both designators (short identifiers) and UIDs
+ * (universal identifiers) used in various healthcare contexts including:
+ *
+ * <ul>
+ *   <li>Medical terminology (SNOMED CT, ICD, LOINC)
+ *   <li>Anatomical classification systems (FMA, RadLex)
+ *   <li>DICOM-specific terminologies (DCM)
+ *   <li>Regional and specialized vocabularies
+ * </ul>
+ *
+ * @see <a
+ *     href="https://dicom.nema.org/medical/dicom/current/output/chtml/part16/chapter_8.html">DICOM
+ *     PS3.16 - Coding Schemes</a>
+ */
 public enum CodingScheme {
   ACR("ACR", "2.16.840.1.113883.6.76", "ACR Index"),
   ASTM_SIGPURPOSE("ASTM-sigpurpose", "1.2.840.10065.1.12", "ASTM E 2084"),
@@ -67,12 +89,21 @@ public enum CodingScheme {
   SDM("99SDM", "2.16.840.1.113883.6.53", "SDM"),
   SNM3("SNM3", "2.16.840.1.113883.6.51", "SNOMED V3"),
   SCT("SCT", "2.16.840.1.113883.6.96", "SNOMED CT"),
-  SRT("SRT", "2.16.840.1.113883.6.96", "SNOMED CT"),
+  // SRT("SRT", "2.16.840.1.113883.6.96", "SNOMED CT"), // Legacy designation
   UBERON("UBERON", "1.2.840.10008.2.16.6", "UBERON"),
   UCUM("UCUM", "2.16.840.1.113883.6.8", "UCUM"),
   UMLS("UMLS", "2.16.840.1.113883.6.86", "UMLS"),
   UNS("UNS", "1.2.840.10008.2.16.17", "UNS"),
+  UNKNOWN("UNKNOWN", "1.2.840.10008.2.999.999", "Unknown Coding Scheme"),
   UPC("UPC", "2.16.840.1.113883.6.55", "UPC");
+
+  private static final Map<String, CodingScheme> DESIGNATOR_LOOKUP =
+      Stream.of(values())
+          .collect(Collectors.toUnmodifiableMap(CodingScheme::getDesignator, Function.identity()));
+
+  private static final Map<String, CodingScheme> UID_LOOKUP =
+      Stream.of(values())
+          .collect(Collectors.toUnmodifiableMap(CodingScheme::getUid, Function.identity()));
 
   private final String designator;
   private final String uid;
@@ -84,14 +115,29 @@ public enum CodingScheme {
     this.codeName = codeName;
   }
 
+  /**
+   * Returns the coding scheme designator (short identifier).
+   *
+   * @return the designator string
+   */
   public String getDesignator() {
     return designator;
   }
 
+  /**
+   * Returns the unique identifier (OID) for this coding scheme.
+   *
+   * @return the UID string
+   */
   public String getUid() {
     return uid;
   }
 
+  /**
+   * Returns the human-readable name of this coding scheme.
+   *
+   * @return the descriptive name
+   */
   public String getCodeName() {
     return codeName;
   }
@@ -101,23 +147,45 @@ public enum CodingScheme {
     return designator;
   }
 
-  public static CodingScheme getSchemeFromDesignator(String designator) {
-    if (!StringUtil.hasText(designator)) {
-      return null;
+  /**
+   * Finds a coding scheme by its designator.
+   *
+   * @param designator the coding scheme designator to look up
+   * @return an Optional containing the matching coding scheme, or empty if not found
+   */
+  public static Optional<CodingScheme> fromDesignator(String designator) {
+    if (StringUtil.hasText(designator)) {
+      return Optional.ofNullable(DESIGNATOR_LOOKUP.get(designator));
     }
-    return Arrays.stream(CodingScheme.values())
-        .filter(c -> Objects.equals(c.designator, designator))
-        .findFirst()
-        .orElse(null);
+    return Optional.empty();
   }
 
-  public static CodingScheme getSchemeFromUid(String uid) {
-    if (!StringUtil.hasText(uid)) {
-      return null;
+  /**
+   * Finds a coding scheme by its unique identifier.
+   *
+   * @param uid the UID to look up
+   * @return an Optional containing the matching coding scheme, or empty if not found
+   */
+  public static Optional<CodingScheme> fromUid(String uid) {
+    if (StringUtil.hasText(uid)) {
+      return Optional.ofNullable(UID_LOOKUP.get(uid));
     }
-    return Arrays.stream(CodingScheme.values())
-        .filter(c -> Objects.equals(c.uid, uid))
-        .findFirst()
-        .orElse(null);
+    return Optional.empty();
+  }
+
+  /**
+   * @deprecated Use {@link #fromDesignator(String)} instead for better null safety.
+   */
+  @Deprecated(since = "5.34.0.3", forRemoval = true)
+  public static CodingScheme getSchemeFromDesignator(String designator) {
+    return fromDesignator(designator).orElse(null);
+  }
+
+  /**
+   * @deprecated Use {@link #fromUid(String)} instead for better null safety.
+   */
+  @Deprecated(since = "5.34.0.3", forRemoval = true)
+  public static CodingScheme getSchemeFromUid(String uid) {
+    return fromUid(uid).orElse(null);
   }
 }

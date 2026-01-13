@@ -11,70 +11,245 @@ package org.dcm4che3.img;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import org.dcm4che3.img.op.MaskArea;
+import org.weasis.core.util.StringUtil;
 
 /**
+ * Configuration parameters for DICOM image transcoding operations.
+ *
+ * <p>This class encapsulates all the settings required for transcoding DICOM images from one
+ * transfer syntax to another, including compression parameters, reading settings, and optional
+ * image masking capabilities.
+ *
+ * <p>Key features:
+ *
+ * <ul>
+ *   <li>Automatic configuration based on target transfer syntax
+ *   <li>Support for both native and compressed transfer syntaxes
+ *   <li>Station-specific image masking capabilities
+ *   <li>File Meta Information (FMI) output control
+ *   <li>Integration with DICOM reading and writing parameters
+ * </ul>
+ *
  * @author Nicolas Roduit
+ * @see DicomImageReadParam
+ * @see DicomJpegWriteParam
+ * @see MaskArea
  */
 public class DicomTranscodeParam {
+
+  private static final String WILDCARD_MASK_KEY = "*";
+
   private final DicomImageReadParam readParam;
   private final DicomJpegWriteParam writeJpegParam;
   private final String outputTsuid;
   private final Map<String, MaskArea> maskMap;
+
   private boolean outputFmi;
 
+  /**
+   * Creates transcoding parameters for the specified target transfer syntax. Uses default DICOM
+   * image reading parameters.
+   *
+   * @param dstTsuid the target transfer syntax UID
+   * @throws IllegalArgumentException if dstTsuid is null or empty
+   */
   public DicomTranscodeParam(String dstTsuid) {
     this(null, dstTsuid);
   }
 
+  /**
+   * Creates transcoding parameters with custom reading parameters and target transfer syntax.
+   *
+   * @param readParam the DICOM image reading parameters, or null for defaults
+   * @param dstTsuid the target transfer syntax UID
+   * @throws IllegalArgumentException if dstTsuid is null or empty
+   */
   public DicomTranscodeParam(DicomImageReadParam readParam, String dstTsuid) {
-    this.readParam = readParam == null ? new DicomImageReadParam() : readParam;
-    this.outputTsuid = dstTsuid;
+    this.outputTsuid = validateTransferSyntax(dstTsuid);
+    this.readParam = readParam != null ? readParam : new DicomImageReadParam();
     this.maskMap = new HashMap<>();
-    if (DicomOutputData.isNativeSyntax(dstTsuid)) {
-      this.writeJpegParam = null;
-    } else {
-      this.writeJpegParam = DicomJpegWriteParam.buildDicomImageWriteParam(dstTsuid);
-    }
+    this.writeJpegParam =
+        DicomOutputData.isNativeSyntax(dstTsuid)
+            ? null
+            : DicomJpegWriteParam.buildDicomImageWriteParam(dstTsuid);
+    this.outputFmi = false;
   }
 
+  private static String validateTransferSyntax(String tsuid) {
+    if (!StringUtil.hasText(tsuid)) {
+      throw new IllegalArgumentException("Transfer syntax UID cannot be null or empty");
+    }
+    return tsuid;
+  }
+
+  /**
+   * Gets the DICOM image reading parameters.
+   *
+   * @return the reading parameters used for DICOM image processing
+   */
   public DicomImageReadParam getReadParam() {
     return readParam;
   }
 
+  /**
+   * Gets the JPEG writing parameters for compressed transfer syntaxes.
+   *
+   * @return the JPEG writing parameters, or null if the target is a native transfer syntax
+   */
   public DicomJpegWriteParam getWriteJpegParam() {
     return writeJpegParam;
   }
 
+  /**
+   * Checks if File Meta Information should be included in the output.
+   *
+   * @return true if FMI should be output, false otherwise
+   */
   public boolean isOutputFmi() {
     return outputFmi;
   }
 
+  /**
+   * Configures whether to include File Meta Information in the output.
+   *
+   * <p>When enabled, the output DICOM file will include the File Meta Information header as
+   * specified in DICOM Part 10. This is typically required for standalone DICOM files but may be
+   * omitted for streaming or embedded scenarios.
+   *
+   * @param outputFmi true to include FMI in output, false to omit it
+   */
   public void setOutputFmi(boolean outputFmi) {
     this.outputFmi = outputFmi;
   }
 
+  /**
+   * Gets the target transfer syntax UID.
+   *
+   * @return the transfer syntax UID for transcoded output
+   */
   public String getOutputTsuid() {
     return outputTsuid;
   }
 
+  /**
+   * Adds multiple image masks from the provided map. Existing masks with the same keys will be
+   * overwritten.
+   *
+   * @param maskMap the map of station names to mask areas to add
+   * @throws NullPointerException if maskMap is null
+   */
   public void addMaskMap(Map<? extends String, ? extends MaskArea> maskMap) {
+    Objects.requireNonNull(maskMap, "Mask map cannot be null");
     this.maskMap.putAll(maskMap);
   }
 
+  /**
+   * Gets the image mask for the specified station or the default wildcard mask.
+   *
+   * <p>The lookup follows this priority:
+   *
+   * <ol>
+   *   <li>Exact match for the provided key
+   *   <li>Wildcard mask (*) if exact match not found
+   *   <li>null if neither exists
+   * </ol>
+   *
+   * @param key the station name or identifier to look up
+   * @return the mask area for the key, wildcard mask, or null if not found
+   */
   public MaskArea getMask(String key) {
-    MaskArea mask = maskMap.get(key);
-    if (mask == null) {
-      mask = maskMap.get("*");
-    }
-    return mask;
+    var exactKey = Objects.requireNonNullElse(key, WILDCARD_MASK_KEY);
+    return Optional.ofNullable(maskMap.get(exactKey)).orElse(maskMap.get(WILDCARD_MASK_KEY));
   }
 
+  /**
+   * Adds or updates an image mask for the specified station.
+   *
+   * @param stationName the station name or identifier (null for wildcard)
+   * @param maskArea the mask area to apply, or null to remove the mask
+   */
   public void addMask(String stationName, MaskArea maskArea) {
-    this.maskMap.put(stationName, maskArea);
+    var key = Objects.requireNonNullElse(stationName, WILDCARD_MASK_KEY);
+    if (maskArea != null) {
+      maskMap.put(key, maskArea);
+    } else {
+      maskMap.remove(key);
+    }
   }
 
+  /**
+   * Gets a copy of the current mask map.
+   *
+   * @return a new map containing all current masks
+   */
   public Map<String, MaskArea> getMaskMap() {
-    return maskMap;
+    return Map.copyOf(maskMap);
+  }
+
+  /**
+   * @return true if JPEG parameters are available (compressed syntax), false for native syntax
+   */
+  public boolean isCompressionEnabled() {
+    return writeJpegParam != null;
+  }
+
+  /**
+   * @return true if at least one mask is configured, false otherwise
+   */
+  public boolean hasMasks() {
+    return !maskMap.isEmpty();
+  }
+
+  /** Removes all configured masks. */
+  public void clearMasks() {
+    maskMap.clear();
+  }
+
+  /**
+   * Removes the mask for the specified station.
+   *
+   * @param stationName the station name, or null for wildcard mask
+   * @return true if a mask was removed, false if no mask existed
+   */
+  public boolean removeMask(String stationName) {
+    var key = Objects.requireNonNullElse(stationName, WILDCARD_MASK_KEY);
+    return maskMap.remove(key) != null;
+  }
+
+  /**
+   * @return true if a specific or wildcard mask exists, false otherwise
+   */
+  public boolean hasMask(String stationName) {
+    return getMask(stationName) != null;
+  }
+
+  /**
+   * Creates a copy of this transcoding parameter configuration.
+   *
+   * @return a new DicomTranscodeParam instance with the same settings
+   */
+  public DicomTranscodeParam copy() {
+    var copy = new DicomTranscodeParam(readParam, outputTsuid);
+    copy.outputFmi = this.outputFmi;
+    copy.maskMap.putAll(this.maskMap);
+    return copy;
+  }
+
+  @Override
+  public String toString() {
+    return "DicomTranscodeParam{"
+        + "outputTsuid='"
+        + outputTsuid
+        + '\''
+        + ", compression="
+        + (writeJpegParam != null ? "enabled" : "disabled")
+        + ", outputFmi="
+        + outputFmi
+        + ", masks="
+        + maskMap.size()
+        + '}';
   }
 }

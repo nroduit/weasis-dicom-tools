@@ -9,62 +9,170 @@
  */
 package org.dcm4che3.img;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
 import org.dcm4che3.img.Transcoder.Format;
 import org.weasis.core.util.LangUtil;
 
 /**
+ * Configuration parameters for DICOM image transcoding operations.
+ *
+ * <p>This class encapsulates the settings required for transcoding DICOM images to various output
+ * formats, including compression quality settings and pixel data processing options.
+ *
+ * <p>Key features:
+ *
+ * <ul>
+ *   <li>Configurable output format (JPEG, PNG, TIFF, etc.)
+ *   <li>JPEG compression quality control (1-100)
+ *   <li>Raw pixel data preservation for >8-bit images
+ *   <li>Integration with DICOM image reading parameters
+ * </ul>
+ *
+ * <p>Usage example:
+ *
+ * <pre>{@code
+ * var param = new ImageTranscodeParam(Format.JPEG);
+ * param.setJpegCompressionQuality(85);
+ * param.setPreserveRawImage(false); // Apply windowing/leveling
+ * }</pre>
+ *
  * @author Nicolas Roduit
+ * @see DicomImageReadParam
+ * @see Transcoder.Format
  */
-public class ImageTranscodeParam {
+public final class ImageTranscodeParam {
+
+  private static final int MIN_JPEG_QUALITY = 1;
+  private static final int MAX_JPEG_QUALITY = 100;
+  private static final Format DEFAULT_FORMAT = Format.JPEG;
   private final DicomImageReadParam readParam;
   private final Format format;
 
   private Integer jpegCompressionQuality;
   private Boolean preserveRawImage;
 
+  /**
+   * Creates transcoding parameters with the specified output format. Uses default DICOM image
+   * reading parameters.
+   *
+   * @param format the target output format, or null for JPEG default
+   */
   public ImageTranscodeParam(Format format) {
     this(null, format);
   }
 
+  /**
+   * Creates transcoding parameters with custom reading parameters and output format.
+   *
+   * @param readParam the DICOM image reading parameters, or null for defaults
+   * @param format the target output format, or null for JPEG default
+   */
   public ImageTranscodeParam(DicomImageReadParam readParam, Format format) {
-    this.readParam = readParam == null ? new DicomImageReadParam() : readParam;
-    this.format = format == null ? Format.JPEG : format;
-    this.preserveRawImage = null;
-    this.jpegCompressionQuality = null;
+    this.readParam = Objects.requireNonNullElseGet(readParam, DicomImageReadParam::new);
+    this.format = Objects.requireNonNullElse(format, DEFAULT_FORMAT);
   }
 
+  /**
+   * Gets the DICOM image reading parameters.
+   *
+   * @return the reading parameters used for DICOM image processing
+   */
   public DicomImageReadParam getReadParam() {
     return readParam;
   }
 
+  /**
+   * Gets the configured JPEG compression quality.
+   *
+   * @return an OptionalInt containing the quality level (1-100), or empty if not set
+   */
   public OptionalInt getJpegCompressionQuality() {
-    return LangUtil.getOptionalInteger(jpegCompressionQuality);
+    return LangUtil.toOptional(jpegCompressionQuality);
   }
 
   /**
-   * @param jpegCompressionQuality between 1 to 100 (100 is the best lossy quality).
+   * Sets the JPEG compression quality level. Higher values produce better quality but larger file
+   * sizes. Only applicable when the output format is JPEG.
+   *
+   * @param jpegCompressionQuality quality level between 1 and 100 (100 is best quality)
+   * @throws IllegalArgumentException if quality is outside the valid range [1-100]
    */
   public void setJpegCompressionQuality(int jpegCompressionQuality) {
+    if (jpegCompressionQuality < MIN_JPEG_QUALITY || jpegCompressionQuality > MAX_JPEG_QUALITY) {
+      throw new IllegalArgumentException(
+          "JPEG quality must be between %d and %d, got: %d"
+              .formatted(MIN_JPEG_QUALITY, MAX_JPEG_QUALITY, jpegCompressionQuality));
+    }
     this.jpegCompressionQuality = jpegCompressionQuality;
   }
 
+  /**
+   * Checks if raw image data preservation is configured.
+   *
+   * @return an Optional containing the preservation setting, or empty if not explicitly set
+   */
   public Optional<Boolean> isPreserveRawImage() {
     return Optional.ofNullable(preserveRawImage);
   }
 
   /**
-   * It preserves the raw data when the pixel depth is more than 8 bit. The default value applies
-   * the W/L and is FALSE, the output image will be always a 8-bit per sample image.
+   * Configures whether to preserve raw pixel data for images with >8 bits per sample.
    *
-   * @param preserveRawImage
+   * <p>When enabled (true):
+   *
+   * <ul>
+   *   <li>Raw pixel values are preserved without windowing/leveling
+   *   <li>Output maintains original bit depth when format supports it
+   *   <li>Useful for diagnostic applications requiring full precision
+   * </ul>
+   *
+   * <p>When disabled (false, default):
+   *
+   * <ul>
+   *   <li>Window/Level (W/L) transformations are applied
+   *   <li>Output is typically 8-bit per sample for display purposes
+   *   <li>Suitable for general viewing and web applications
+   * </ul>
+   *
+   * @param preserveRawImage true to preserve raw data, false to apply W/L transformations, null to
+   *     use system defaults
    */
   public void setPreserveRawImage(Boolean preserveRawImage) {
     this.preserveRawImage = preserveRawImage;
   }
 
+  /**
+   * Gets the configured output format.
+   *
+   * @return the target output format for transcoded images
+   */
   public Format getFormat() {
     return format;
+  }
+
+  /**
+   * Creates a copy of this transcoding parameter configuration.
+   *
+   * @return a new ImageTranscodeParam instance with the same settings
+   */
+  public ImageTranscodeParam copy() {
+    var copy = new ImageTranscodeParam(readParam, format);
+    copy.jpegCompressionQuality = this.jpegCompressionQuality;
+    copy.preserveRawImage = this.preserveRawImage;
+    return copy;
+  }
+
+  @Override
+  public String toString() {
+    return "ImageTranscodeParam{"
+        + "format="
+        + format
+        + ", jpegQuality="
+        + (jpegCompressionQuality != null ? jpegCompressionQuality : "default")
+        + ", preserveRaw="
+        + (preserveRawImage != null ? preserveRawImage : "default")
+        + '}';
   }
 }

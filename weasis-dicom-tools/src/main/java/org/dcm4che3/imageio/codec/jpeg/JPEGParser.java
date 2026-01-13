@@ -88,7 +88,7 @@ public class JPEGParser implements XPEGParser {
 
     int samples = params.samplesPerPixel();
     attrs.setInt(Tag.SamplesPerPixel, VR.US, samples);
-    if (samples == 3) {
+    if (samples == 3 || samples == 4) {
       attrs.setString(
           Tag.PhotometricInterpretation, VR.CS, params.colorPhotometricInterpretation());
       attrs.setInt(Tag.PlanarConfiguration, VR.US, 0);
@@ -203,7 +203,7 @@ public class JPEGParser implements XPEGParser {
     String transferSyntaxUID() throws XPEGParserException;
   }
 
-  private class JPEGParams implements Params {
+  class JPEGParams implements Params {
 
     final int sof;
     final ByteBuffer sofParams;
@@ -236,13 +236,16 @@ public class JPEGParser implements XPEGParser {
         }
         positionAfterAPP = channel.position();
       }
+
       while (!JPEG.isSOF(segment.marker)) {
+        checkPosition(channel);
         skip(channel, segment.contentSize);
         segment = nextSegment(channel);
       }
       sof = segment.marker;
       channel.read(sofParams = ByteBuffer.allocate(segment.contentSize));
       while ((segment = nextSegment(channel)).marker != JPEG.SOS) {
+        checkPosition(channel);
         skip(channel, segment.contentSize);
       }
       channel.read(sosParams = ByteBuffer.allocate(segment.contentSize));
@@ -303,23 +306,63 @@ public class JPEGParser implements XPEGParser {
 
     @Override
     public String transferSyntaxUID() throws XPEGParserException {
-      switch (sof) {
-        case JPEG.SOF0:
-          return UID.JPEGBaseline8Bit;
-        case JPEG.SOF1:
-          return UID.JPEGExtended12Bit;
-        case JPEG.SOF2:
-          return UID.JPEGFullProgressionNonHierarchical1012;
-        case JPEG.SOF3:
-          return sosParams.get(3) == 1 ? UID.JPEGLosslessSV1 : UID.JPEGLossless;
-        case JPEG.SOF55:
-          return sosParams.get(3) == 0 ? UID.JPEGLSLossless : UID.JPEGLSNearLossless;
+      // Validate SOF marker exists
+      if (sof <= 0) {
+        throw new XPEGParserException("Invalid or missing SOF marker");
       }
-      throw new XPEGParserException(String.format("JPEG SOF%d not supported", sof & 0xf));
+
+      return switch (sof) {
+        case JPEG.SOF0 -> UID.JPEGBaseline8Bit;
+        case JPEG.SOF1 -> UID.JPEGExtended12Bit;
+        case JPEG.SOF2 -> UID.JPEGFullProgressionNonHierarchical1012;
+        case JPEG.SOF3 -> determineJPEGLosslessUID();
+        case JPEG.SOF55 -> determineJPEGLSUID();
+        default ->
+            throw new XPEGParserException(
+                String.format(
+                    "JPEG SOF%d (0x%02X) is not supported or recognized", sof & 0x0F, sof));
+      };
+    }
+
+    private String determineJPEGLosslessUID() throws XPEGParserException {
+      if (sosParams == null || sosParams.capacity() < 4) {
+        throw new XPEGParserException(
+            "SOS parameters required for JPEG Lossless (SOF3) but not available");
+      }
+
+      try {
+        int predictor = sosParams.get(3);
+        return predictor == 1 ? UID.JPEGLosslessSV1 : UID.JPEGLossless;
+      } catch (IndexOutOfBoundsException e) {
+        throw new XPEGParserException(
+            "Invalid SOS parameters for JPEG Lossless: predictor value not accessible", e);
+      }
+    }
+
+    private String determineJPEGLSUID() throws XPEGParserException {
+      if (sosParams == null || sosParams.capacity() < 4) {
+        throw new XPEGParserException(
+            "SOS parameters required for JPEG-LS (SOF55) but not available");
+      }
+
+      try {
+        int nearLossless = sosParams.get(3);
+        return nearLossless == 0 ? UID.JPEGLSLossless : UID.JPEGLSNearLossless;
+      } catch (IndexOutOfBoundsException e) {
+        throw new XPEGParserException(
+            "Invalid SOS parameters for JPEG-LS: near-lossless value not accessible", e);
+      }
     }
   }
 
-  private class JPEG2000Params implements Params {
+  private static void checkPosition(SeekableByteChannel channel) throws IOException {
+    if (channel.position() >= channel.size()) {
+      throw new XPEGParserException(
+          "Reached end of stream without finding SOT marker in JPEG stream");
+    }
+  }
+
+  class JPEG2000Params implements Params {
 
     final ByteBuffer sizParams;
     final ByteBuffer codParams;
@@ -331,6 +374,7 @@ public class JPEGParser implements XPEGParser {
       boolean tlm = false;
       Segment segment;
       do {
+        checkPosition(channel);
         segment = nextSegment(channel);
         switch (segment.marker) {
           case JPEG.SIZ:
@@ -382,6 +426,9 @@ public class JPEGParser implements XPEGParser {
 
     @Override
     public String colorPhotometricInterpretation() {
+      if (samplesPerPixel() < 3) {
+        return "MONOCHROME2";
+      }
       return codParams.get(4) == 0
           ? "RGB" // Multiple component transformation
           : lossyImageCompression() ? "YBR_ICT" : "YBR_RCT";
@@ -453,29 +500,22 @@ public class JPEGParser implements XPEGParser {
     }
 
     private String toTransformation(int i) {
-      switch (i) {
-        case 0:
-          return "9-7";
-        case 1:
-          return "5-3";
-      }
-      return Integer.toString(i);
+      return switch (i) {
+        case 0 -> "9-7";
+        case 1 -> "5-3";
+        default -> Integer.toString(i);
+      };
     }
 
     private String toProgressionOrder(int i) {
-      switch (i) {
-        case 0:
-          return "LRCP";
-        case 1:
-          return "RLCP";
-        case 2:
-          return "RPCL";
-        case 3:
-          return "PCRL";
-        case 4:
-          return "CPRL";
-      }
-      return Integer.toString(i);
+      return switch (i) {
+        case 0 -> "LRCP";
+        case 1 -> "RLCP";
+        case 2 -> "RPCL";
+        case 3 -> "PCRL";
+        case 4 -> "CPRL";
+        default -> Integer.toString(i);
+      };
     }
 
     private String toBinaryString(int i) {

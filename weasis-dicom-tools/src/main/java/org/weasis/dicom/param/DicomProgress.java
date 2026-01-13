@@ -9,120 +9,171 @@
  */
 package org.weasis.dicom.param;
 
-import java.io.File;
-import java.util.ArrayList;
+import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.net.Status;
 
+/** Thread-safe progress tracking for DICOM operations with cancellation support. */
 public class DicomProgress implements CancelListener {
 
-  private final List<ProgressListener> listenerList;
-  private Attributes attributes;
-  private volatile boolean cancel;
-  private File processedFile;
-  private volatile boolean lastFailed = false;
+  private final List<ProgressListener> listeners = new CopyOnWriteArrayList<>();
+  private volatile Attributes attributes;
+  private volatile boolean cancelled;
+  private volatile Path processedFile;
+  private volatile boolean lastFailed;
 
-  public DicomProgress() {
-    this.cancel = false;
-    this.listenerList = new ArrayList<>();
-  }
-
+  /**
+   * Gets the current DICOM attributes associated with this progress.
+   *
+   * @return the attributes or null if none set
+   */
   public Attributes getAttributes() {
     return attributes;
   }
 
+  /**
+   * Sets the DICOM attributes and notifies all listeners.
+   *
+   * @param attributes the new attributes to set
+   */
   public void setAttributes(Attributes attributes) {
-    synchronized (this) {
-      int failed = getNumberOfFailedSuboperations();
-      failed = Math.max(failed, 0);
-      this.attributes = attributes;
-      lastFailed = failed < getNumberOfFailedSuboperations();
-    }
+    var previousFailed = getFailedCount();
+    this.attributes = attributes;
+    this.lastFailed = previousFailed >= 0 && previousFailed < getFailedCount();
 
-    fireProgress();
+    notifyListeners();
   }
 
+  /**
+   * Checks if the last operation failed.
+   *
+   * @return true if the last operation resulted in failure
+   */
   public boolean isLastFailed() {
     return lastFailed;
   }
 
-  public synchronized File getProcessedFile() {
+  /**
+   * Gets the currently processed file.
+   *
+   * @return the processed file path or null if none set
+   */
+  public Path getProcessedFile() {
     return processedFile;
   }
 
-  public synchronized void setProcessedFile(File processedFile) {
+  /**
+   * Sets the currently processed file.
+   *
+   * @param processedFile the file being processed
+   */
+  public void setProcessedFile(Path processedFile) {
     this.processedFile = processedFile;
   }
 
+  /**
+   * Adds a progress listener.
+   *
+   * @param listener the listener to add (null values are ignored)
+   */
   public void addProgressListener(ProgressListener listener) {
-    if (listener != null && !listenerList.contains(listener)) {
-      listenerList.add(listener);
+    if (listener != null && !listeners.contains(listener)) {
+      listeners.add(listener);
     }
   }
 
+  /**
+   * Removes a progress listener.
+   *
+   * @param listener the listener to remove
+   */
   public void removeProgressListener(ProgressListener listener) {
-    if (listener != null) {
-      listenerList.remove(listener);
-    }
-  }
-
-  private void fireProgress() {
-    for (ProgressListener progressListener : listenerList) {
-      progressListener.handleProgression(this);
-    }
+    listeners.remove(listener);
   }
 
   @Override
   public void cancel() {
-    this.cancel = true;
+    this.cancelled = true;
   }
 
-  public boolean isCancel() {
-    return cancel;
+  /**
+   * Checks if the operation has been cancelled.
+   *
+   * @return true if cancelled
+   */
+  public boolean isCancelled() {
+    return cancelled;
   }
 
-  private int getIntTag(int tag) {
-    Attributes dcm = attributes;
-    if (dcm == null) {
-      return -1;
-    }
-    return dcm.getInt(tag, -1);
-  }
-
+  /**
+   * Gets the current operation status.
+   *
+   * @return the status code (Cancel if cancelled, Pending if no attributes, or actual status)
+   */
   public int getStatus() {
-    if (isCancel()) {
+    if (cancelled) {
       return Status.Cancel;
     }
-    Attributes dcm = attributes;
-    if (dcm == null) {
-      return Status.Pending;
-    }
-    return dcm.getInt(Tag.Status, Status.Pending);
+    return attributes != null ? attributes.getInt(Tag.Status, Status.Pending) : Status.Pending;
   }
 
+  /**
+   * Gets the error comment from the current attributes.
+   *
+   * @return the error comment or null if none available
+   */
   public String getErrorComment() {
-    Attributes dcm = attributes;
-    if (dcm == null) {
-      return null;
-    }
-    return dcm.getString(Tag.ErrorComment);
+    return attributes != null ? attributes.getString(Tag.ErrorComment) : null;
   }
 
+  /**
+   * Gets the number of remaining sub-operations.
+   *
+   * @return the count or -1 if not available
+   */
   public int getNumberOfRemainingSuboperations() {
-    return getIntTag(Tag.NumberOfRemainingSuboperations);
+    return getTagValue(Tag.NumberOfRemainingSuboperations);
   }
 
+  /**
+   * Gets the number of completed sub-operations.
+   *
+   * @return the count or -1 if not available
+   */
   public int getNumberOfCompletedSuboperations() {
-    return getIntTag(Tag.NumberOfCompletedSuboperations);
+    return getTagValue(Tag.NumberOfCompletedSuboperations);
   }
 
+  /**
+   * Gets the number of failed sub-operations.
+   *
+   * @return the count or -1 if not available
+   */
   public int getNumberOfFailedSuboperations() {
-    return getIntTag(Tag.NumberOfFailedSuboperations);
+    return getTagValue(Tag.NumberOfFailedSuboperations);
   }
 
+  /**
+   * Gets the number of warning sub-operations.
+   *
+   * @return the count or -1 if not available
+   */
   public int getNumberOfWarningSuboperations() {
-    return getIntTag(Tag.NumberOfWarningSuboperations);
+    return getTagValue(Tag.NumberOfWarningSuboperations);
+  }
+
+  private void notifyListeners() {
+    listeners.forEach(listener -> listener.handleProgression(this));
+  }
+
+  private int getTagValue(int tag) {
+    return attributes != null ? attributes.getInt(tag, -1) : -1;
+  }
+
+  private int getFailedCount() {
+    return getTagValue(Tag.NumberOfFailedSuboperations);
   }
 }

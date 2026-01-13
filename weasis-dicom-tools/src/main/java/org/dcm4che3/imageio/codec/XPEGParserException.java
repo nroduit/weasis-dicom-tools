@@ -10,13 +10,19 @@
 package org.dcm4che3.imageio.codec;
 
 import java.io.IOException;
+import org.weasis.core.util.annotations.Generated;
 
 /**
  * @author Gunter Zeilinger <gunterze@gmail.com>
  * @since Jun 2019
  */
+@Generated
 public class XPEGParserException extends IOException {
   public XPEGParserException(String message) {
     super(message);
+  }
+
+  public XPEGParserException(String message, Throwable cause) {
+    super(message, cause);
   }
 }

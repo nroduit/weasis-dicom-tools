@@ -21,18 +21,28 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.util.StringUtil;
 
+/**
+ * Implementation of XML manifest generation for DICOM archive queries. Supports both legacy version
+ * 1.0 and modern version 2.5 manifest formats.
+ */
 public class ArcQuery implements XmlManifest {
   private static final Logger LOGGER = LoggerFactory.getLogger(ArcQuery.class);
 
+  private static final String VERSION_1 = "1";
+  private static final String XML_DECLARATION = "<?xml version=\"1.0\" encoding=\"%s\" ?>";
+  private static final String LEGACY_SCHEMA =
+      "xmlns=\"http://www.weasis.org/xsd\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"";
   private final List<QueryResult> queryList;
-  protected final String manifestUID;
+  private final String manifestUID;
 
+  /** Creates an archive query with the specified result list and a generated UUID. */
   public ArcQuery(List<QueryResult> resultList) {
     this(resultList, null);
   }
 
+  /** Creates an archive query with the specified result list and manifest UID. */
   public ArcQuery(List<QueryResult> resultList, String manifestUID) {
-    this.queryList = Objects.requireNonNull(resultList);
+    this.queryList = Objects.requireNonNull(resultList, "Result list cannot be null");
     this.manifestUID = StringUtil.hasText(manifestUID) ? manifestUID : UUID.randomUUID().toString();
   }
 
@@ -41,148 +51,179 @@ public class ArcQuery implements XmlManifest {
   }
 
   @Override
-  public String getCharsetEncoding() {
-    return "UTF-8";
+  public String xmlManifest(String version) {
+    try (var manifest = new StringWriter()) {
+      writeManifest(manifest, version);
+      return manifest.toString();
+    } catch (IOException e) {
+      LOGGER.error("Cannot write manifest", e);
+      return null;
+    }
   }
 
   @Override
-  public String xmlManifest(String version) {
-    try {
-      Writer manifest = new StringWriter();
-      writeManifest(manifest, version);
-      return manifest.toString();
-    } catch (Exception e) {
-      LOGGER.error("Cann write manifest", e);
+  public void writeManifest(Writer writer, String version) throws IOException {
+    writeXmlHeader(writer);
+
+    if (isLegacyVersion(version)) {
+      writeLegacyManifest(writer);
+    } else {
+      writeModernManifest(writer);
     }
-    return null;
   }
 
-  public void writeManifest(Writer manifest, String version) throws IOException {
-    writeHeader(manifest);
-    if (version != null && "1".equals(version.trim())) {
-      writeWadoQuery(manifest);
+  public void writeXmlHeader(Writer writer) throws IOException {
+    writer.append(String.format(XML_DECLARATION, getCharsetEncoding()));
+  }
+
+  private boolean isLegacyVersion(String version) {
+    return version != null && VERSION_1.equals(version.trim());
+  }
+
+  private void writeLegacyManifest(Writer writer) throws IOException {
+    for (QueryResult archive : queryList) {
+      if (hasContent(archive)) {
+        writeLegacyQuery(writer, archive);
+        break; // Legacy format accepts only one element
+      }
+    }
+  }
+
+  private void writeModernManifest(Writer writer) throws IOException {
+    writeManifestRoot(writer);
+    writeArchiveQueries(writer);
+    writeDocumentEnd(writer);
+  }
+
+  public void writeManifestRoot(Writer writer) throws IOException {
+    writer.append("\n<").append(ArcParameters.TAG_DOCUMENT_ROOT).append(" ");
+
+    Xml.addXmlAttribute(ArcParameters.MANIFEST_UID, manifestUID, writer);
+    writer.append(ArcParameters.SCHEMA).append(">");
+  }
+
+  public void writeDocumentEnd(Writer writer) throws IOException {
+    writer.append("\n</").append(ArcParameters.TAG_DOCUMENT_ROOT).append(">\n");
+  }
+
+  public void writeArchiveQueries(Writer writer) throws IOException {
+    for (QueryResult archive : queryList) {
+      if (hasContent(archive)) {
+        writeArchiveQuery(writer, archive);
+      }
+    }
+  }
+
+  public void writeArchiveQuery(Writer writer, QueryResult archive) throws IOException {
+    WadoParameters wadoParams = archive.getWadoParameters();
+
+    writeQueryStart(writer, ArcParameters.TAG_ARC_QUERY);
+    writeQueryAttributes(writer, wadoParams, false);
+    writeQueryContent(writer, archive, wadoParams);
+    writeQueryEnd(writer, ArcParameters.TAG_ARC_QUERY);
+  }
+
+  private void writeLegacyQuery(Writer writer, QueryResult archive) throws IOException {
+    WadoParameters wadoParams = archive.getWadoParameters();
+
+    writeLegacyQueryStart(writer);
+    writeQueryAttributes(writer, wadoParams, true);
+    writeQueryContent(writer, archive, wadoParams);
+    writeLegacyQueryEnd(writer);
+  }
+
+  private void writeLegacyQueryStart(Writer writer) throws IOException {
+    writer
+        .append("\n<")
+        .append(WadoParameters.TAG_WADO_QUERY)
+        .append(" ")
+        .append(LEGACY_SCHEMA)
+        .append(" ");
+  }
+
+  private void writeLegacyQueryEnd(Writer writer) throws IOException {
+    writer.append("\n</").append(WadoParameters.TAG_WADO_QUERY).append(">\n");
+  }
+
+  public void writeQueryStart(Writer writer, String tagName) throws IOException {
+    writer.append("\n<").append(tagName).append(" ");
+  }
+
+  public void writeQueryEnd(Writer writer, String tagName) throws IOException {
+    writer.append("\n</").append(tagName).append(">");
+  }
+
+  public void writeQueryAttributes(Writer writer, WadoParameters wadoParams, boolean isLegacy)
+      throws IOException {
+    if (isLegacy) {
+      Xml.addXmlAttribute(WadoParameters.WADO_URL, wadoParams.getBaseURL(), writer);
+    } else {
+      Xml.addXmlAttribute(ArcParameters.ARCHIVE_ID, wadoParams.getArchiveID(), writer);
+      Xml.addXmlAttribute(ArcParameters.BASE_URL, wadoParams.getBaseURL(), writer);
+    }
+
+    Xml.addXmlAttribute(ArcParameters.WEB_LOGIN, wadoParams.getWebLogin(), writer);
+    Xml.addXmlAttribute(
+        WadoParameters.WADO_ONLY_SOP_UID, wadoParams.isRequireOnlySOPInstanceUID(), writer);
+    Xml.addXmlAttribute(
+        ArcParameters.ADDITIONAL_PARAMETERS, wadoParams.getAdditionalParameters(), writer);
+    Xml.addXmlAttribute(
+        ArcParameters.OVERRIDE_TAGS, wadoParams.getOverrideDicomTagIDList(), writer);
+
+    writer.append(">");
+  }
+
+  public void writeQueryContent(Writer writer, QueryResult archive, WadoParameters wadoParams)
+      throws IOException {
+    writeHttpTags(writer, wadoParams.getHttpTaglist());
+    writeViewerMessage(writer, archive.getViewerMessage());
+    writePatients(writer, new ArrayList<>(archive.getPatients().values()));
+  }
+
+  public static boolean hasContent(QueryResult archive) {
+    return !archive.getPatients().isEmpty() || archive.getViewerMessage() != null;
+  }
+
+  private static void writePatients(Writer writer, List<Patient> patientList) throws IOException {
+    if (patientList.isEmpty()) {
       return;
     }
-    writeArcQueries(manifest);
-    writeEndOfDocument(manifest);
-  }
 
-  public void writeHeader(Writer mf) throws IOException {
-    mf.append("<?xml version=\"1.0\" encoding=\"");
-    mf.append(getCharsetEncoding());
-    mf.append("\" ?>");
-  }
+    Collections.sort(patientList);
 
-  public void writeEndOfDocument(Writer mf) throws IOException {
-    mf.append("\n</");
-    mf.append(ArcParameters.TAG_DOCUMENT_ROOT);
-    mf.append(">\n"); // Requires end of line
-  }
-
-  public void writeArcQueries(Writer mf) throws IOException {
-    mf.append("\n<");
-    mf.append(ArcParameters.TAG_DOCUMENT_ROOT);
-    mf.append(" ");
-    Xml.addXmlAttribute(ArcParameters.MANIFEST_UID, manifestUID, mf);
-    mf.append(ArcParameters.SCHEMA);
-    mf.append(">");
-
-    for (QueryResult archive : queryList) {
-      if (archive.getPatients().isEmpty() && archive.getViewerMessage() == null) {
-        continue;
-      }
-      WadoParameters wadoParameters = archive.getWadoParameters();
-      mf.append("\n<");
-      mf.append(ArcParameters.TAG_ARC_QUERY);
-      mf.append(" ");
-
-      Xml.addXmlAttribute(ArcParameters.ARCHIVE_ID, wadoParameters.getArchiveID(), mf);
-      Xml.addXmlAttribute(ArcParameters.BASE_URL, wadoParameters.getBaseURL(), mf);
-      Xml.addXmlAttribute(ArcParameters.WEB_LOGIN, wadoParameters.getWebLogin(), mf);
-      Xml.addXmlAttribute(
-          WadoParameters.WADO_ONLY_SOP_UID, wadoParameters.isRequireOnlySOPInstanceUID(), mf);
-      Xml.addXmlAttribute(
-          ArcParameters.ADDITIONNAL_PARAMETERS, wadoParameters.getAdditionnalParameters(), mf);
-      Xml.addXmlAttribute(
-          ArcParameters.OVERRIDE_TAGS, wadoParameters.getOverrideDicomTagsList(), mf);
-      mf.append(">");
-
-      buildHttpTags(mf, wadoParameters.getHttpTaglist());
-      buildViewerMessage(mf, archive.getViewerMessage());
-      buildPatient(mf, new ArrayList<>(archive.getPatients().values()));
-
-      mf.append("\n</");
-      mf.append(ArcParameters.TAG_ARC_QUERY);
-      mf.append(">");
+    for (Patient patient : patientList) {
+      patient.toXml(writer);
     }
   }
 
-  private void writeWadoQuery(Writer mf) throws IOException {
-    for (QueryResult archive : queryList) {
-      if (archive.getPatients().isEmpty() && archive.getViewerMessage() == null) {
-        continue;
-      }
-      WadoParameters wadoParameters = archive.getWadoParameters();
-      mf.append("\n<");
-      mf.append(WadoParameters.TAG_WADO_QUERY);
-      mf.append(
-          " xmlns=\"http://www.weasis.org/xsd\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" ");
+  public static void writeHttpTags(Writer writer, List<HttpTag> httpTags) throws IOException {
+    if (httpTags == null || httpTags.isEmpty()) {
+      return;
+    }
 
-      Xml.addXmlAttribute(WadoParameters.WADO_URL, wadoParameters.getBaseURL(), mf);
-      Xml.addXmlAttribute(ArcParameters.WEB_LOGIN, wadoParameters.getWebLogin(), mf);
-      Xml.addXmlAttribute(
-          WadoParameters.WADO_ONLY_SOP_UID, wadoParameters.isRequireOnlySOPInstanceUID(), mf);
-      Xml.addXmlAttribute(
-          ArcParameters.ADDITIONNAL_PARAMETERS, wadoParameters.getAdditionnalParameters(), mf);
-      Xml.addXmlAttribute(
-          ArcParameters.OVERRIDE_TAGS, wadoParameters.getOverrideDicomTagsList(), mf);
-      mf.append(">");
-
-      buildHttpTags(mf, wadoParameters.getHttpTaglist());
-      buildViewerMessage(mf, archive.getViewerMessage());
-      buildPatient(mf, new ArrayList<>(archive.getPatients().values()));
-
-      mf.append("\n</");
-      mf.append(WadoParameters.TAG_WADO_QUERY);
-      mf.append(">\n"); // Requires end of line
-
-      break; // accept only one element
+    for (HttpTag tag : httpTags) {
+      writer
+          .append("\n<")
+          .append(ArcParameters.TAG_HTTP_TAG)
+          .append(" key=\"")
+          .append(tag.getKey())
+          .append("\" value=\"")
+          .append(tag.getValue())
+          .append("\" />");
     }
   }
 
-  public static void buildPatient(Writer mf, List<Patient> patientList) throws IOException {
-    if (patientList != null) {
-      Collections.sort(patientList);
-
-      for (Patient patient : patientList) {
-        patient.toXml(mf);
-      }
+  public static void writeViewerMessage(Writer writer, ViewerMessage message) throws IOException {
+    if (message == null) {
+      return;
     }
-  }
 
-  public static void buildHttpTags(Writer mf, List<HttpTag> list) throws IOException {
-    if (list != null) {
-      for (HttpTag tag : list) {
-        mf.append("\n<");
-        mf.append(ArcParameters.TAG_HTTP_TAG);
-        mf.append(" key=\"");
-        mf.append(tag.getKey());
-        mf.append("\" value=\"");
-        mf.append(tag.getValue());
-        mf.append("\" />");
-      }
-    }
-  }
+    writer.append("\n<").append(ViewerMessage.TAG_DOCUMENT_MSG).append(" ");
 
-  public static void buildViewerMessage(Writer mf, ViewerMessage message) throws IOException {
-    if (message != null) {
-      mf.append("\n<");
-      mf.append(ViewerMessage.TAG_DOCUMENT_MSG);
-      mf.append(" ");
-      Xml.addXmlAttribute(ViewerMessage.MSG_ATTRIBUTE_TITLE, message.getTitle(), mf);
-      Xml.addXmlAttribute(ViewerMessage.MSG_ATTRIBUTE_DESC, message.getMessage(), mf);
-      Xml.addXmlAttribute(ViewerMessage.MSG_ATTRIBUTE_LEVEL, message.getLevel().name(), mf);
-      mf.append("/>");
-    }
+    Xml.addXmlAttribute(ViewerMessage.MSG_ATTRIBUTE_TITLE, message.title(), writer);
+    Xml.addXmlAttribute(ViewerMessage.MSG_ATTRIBUTE_DESC, message.message(), writer);
+    Xml.addXmlAttribute(ViewerMessage.MSG_ATTRIBUTE_LEVEL, message.level().name(), writer);
+
+    writer.append("/>");
   }
 }

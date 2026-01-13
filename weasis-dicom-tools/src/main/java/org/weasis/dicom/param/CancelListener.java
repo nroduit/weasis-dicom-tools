@@ -9,7 +9,21 @@
  */
 package org.weasis.dicom.param;
 
+/**
+ * Functional interface for handling cancellation events in DICOM operations.
+ *
+ * <p>This interface provides a callback mechanism for cancelling long-running DICOM operations such
+ * as file transfers, queries, or retrievals. Implementations should handle cancellation gracefully
+ * and ensure proper resource cleanup.
+ */
+@FunctionalInterface
 public interface CancelListener {
 
+  /**
+   * Initiates cancellation of the associated operation.
+   *
+   * <p>This method should be called when the operation needs to be canceled. Implementations must
+   * be thread-safe as this method may be called from different threads concurrently.
+   */
   void cancel();
 }

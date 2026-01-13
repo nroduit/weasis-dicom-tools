@@ -10,152 +10,206 @@
 package org.weasis.dicom.web;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import org.weasis.core.util.StringUtil;
 
-public class HeaderFieldValues {
+/**
+ * Parser for HTTP header field values supporting RFC 2616 syntax. Handles comma-separated values
+ * with parameters, quoted strings, and escaping.
+ */
+public final class HeaderFieldValues {
 
-  private int start = 0;
-  private int end = 0;
-  private int position = 0;
-  private char[] chars = null;
-  private List<HashMap<String, String>> values;
+  private final List<Map<String, String>> parsedValues;
 
-  public HeaderFieldValues(String respContentType) {
-    values = parse(respContentType);
+  /**
+   * Creates a parser for the given header field value string.
+   *
+   * @param headerFieldValue the header field value to parse
+   * @throws NullPointerException if headerFieldValue is null
+   */
+  public HeaderFieldValues(String headerFieldValue) {
+    Objects.requireNonNull(headerFieldValue, "Header field value cannot be null");
+    this.parsedValues = parseHeaderFieldValue(headerFieldValue);
   }
 
-  protected boolean hasCharacter() {
-    return position < chars.length;
+  /**
+   * Returns all parsed parameter maps.
+   *
+   * @return unmodifiable list of parameter maps
+   */
+  public List<Map<String, String>> getValues() {
+    return Collections.unmodifiableList(parsedValues);
   }
 
-  protected String parseValue() {
-    start = position;
-    end = position;
-
-    char c;
-    while (hasCharacter()) {
-      c = chars[position];
-      if (c == '=' || c == ';') {
-        break;
-      }
-      end++;
-      position++;
-    }
-    return getValue(false);
+  /**
+   * Checks if any parameter map contains the specified key.
+   *
+   * @param key the parameter name to search for
+   * @return true if the key is found in any parameter map
+   */
+  public boolean hasKey(String key) {
+    return parsedValues.stream().anyMatch(map -> map.containsKey(key));
   }
 
-  protected String parseQuotedValue() {
-    start = position;
-    end = position;
-
-    boolean quoted = false;
-    boolean charEscaped = false;
-    char c;
-    while (hasCharacter()) {
-      c = chars[position];
-      if (!quoted && c == ';') {
-        break;
-      }
-      if (!charEscaped && c == '"') {
-        quoted = !quoted;
-      }
-      charEscaped = (!charEscaped && c == '\\');
-      end++;
-      position++;
-    }
-    return getValue(true);
+  /**
+   * Returns the first non-empty value for the specified key.
+   *
+   * @param key the parameter name to search for
+   * @return the first non-empty value, or null if not found
+   */
+  public String getValue(String key) {
+    return parsedValues.stream()
+        .map(map -> map.get(key))
+        .filter(StringUtil::hasText)
+        .findFirst()
+        .orElse(null);
   }
 
-  private String getValue(boolean quoted) {
-    // Remove leading white spaces
-    while ((start < end) && (Character.isWhitespace(chars[start]))) {
-      start++;
-    }
-    // Remove trailing white spaces
-    while ((end > start) && (Character.isWhitespace(chars[end - 1]))) {
-      end--;
-    }
-    // Remove quotation marks if exists
-    if (quoted && ((end - start) >= 2) && (chars[start] == '"') && (chars[end - 1] == '"')) {
-      start++;
-      end--;
-    }
-    String result = null;
-    if (end > start) {
-      result = new String(chars, start, end - start);
-    }
-    return result;
+  /**
+   * Returns all non-empty values for the specified key.
+   *
+   * @param key the parameter name to search for
+   * @return list of all non-empty values for the key
+   */
+  public List<String> getValues(String key) {
+    return parsedValues.stream()
+        .map(map -> map.get(key))
+        .filter(StringUtil::hasText)
+        .collect(Collectors.toList());
   }
 
-  protected List<HashMap<String, String>> parse(String content) {
-    List<HashMap<String, String>> hvals = new ArrayList<>();
-    if (StringUtil.hasText(content)) {
-      // Split except inside double quotes
-      String[] elements = content.split(",(?=(?:[^\"]*\"[^\"]*\")*+[^\"]*$)");
+  /** Parses the header field value string into parameter maps. */
+  private List<Map<String, String>> parseHeaderFieldValue(String content) {
+    if (!StringUtil.hasText(content)) {
+      return new ArrayList<>();
+    }
+
+    var parser = new FieldValueParser(content);
+    return parser.parseAll();
+  }
+
+  /** Internal parser for handling the actual parsing logic. */
+  private static class FieldValueParser {
+    private char[] chars;
+    private int position;
+    private int start;
+    private int end;
+
+    FieldValueParser(String content) {
+      this.chars = content.toCharArray();
+      this.position = 0;
+    }
+
+    List<Map<String, String>> parseAll() {
+      List<Map<String, String>> results = new ArrayList<>();
+
+      // Split on commas outside of quotes
+      String[] elements = splitPreservingQuotes();
+
       for (String element : elements) {
-        HashMap<String, String> params = new HashMap<>();
-        hvals.add(params);
-
-        this.chars = element.toCharArray();
-        this.position = 0;
-
-        while (hasCharacter()) {
-          String name = parseValue();
-          String value = null;
-          if (hasCharacter() && (chars[position] == '=')) {
-            position++;
-            value = parseQuotedValue();
-          }
-          if (hasCharacter() && (chars[position] == ';')) {
-            position++;
-          }
-
-          if (StringUtil.hasText(name)) {
-            params.put(name.toLowerCase(), value);
-          }
+        Map<String, String> params = parseElement(element);
+        if (!params.isEmpty()) {
+          results.add(params);
         }
       }
+
+      return results;
     }
-    return hvals;
-  }
 
-  public List<HashMap<String, String>> getValues() {
-    return values;
-  }
+    private String[] splitPreservingQuotes() {
+      return new String(chars).split(",(?=(?:[^\"]*\"[^\"]*\")*+[^\"]*$)");
+    }
 
-  public void setValues(List<HashMap<String, String>> values) {
-    this.values = values;
-  }
+    private Map<String, String> parseElement(String element) {
+      Map<String, String> params = new HashMap<>();
+      this.chars = element.toCharArray();
+      this.position = 0;
 
-  public boolean hasKey(String key) {
-    for (HashMap<String, String> map : values) {
-      if (map.containsKey(key)) {
-        return true;
+      while (hasMoreCharacters()) {
+        String name = parseValue();
+        String value = null;
+
+        if (hasMoreCharacters() && chars[position] == '=') {
+          position++;
+          value = parseQuotedValue();
+        }
+
+        skipSeparator();
+
+        if (StringUtil.hasText(name)) {
+          params.put(name.toLowerCase(), value);
+        }
+      }
+
+      return params;
+    }
+
+    private boolean hasMoreCharacters() {
+      return position < chars.length;
+    }
+
+    private String parseValue() {
+      start = position;
+      end = position;
+
+      while (hasMoreCharacters()) {
+        char c = chars[position];
+        if (c == '=' || c == ';') {
+          break;
+        }
+        end++;
+        position++;
+      }
+      return extractValue(false);
+    }
+
+    private String parseQuotedValue() {
+      start = position;
+      end = position;
+
+      boolean quoted = false;
+      boolean escaped = false;
+
+      while (hasMoreCharacters()) {
+        char c = chars[position];
+        if (!quoted && c == ';') {
+          break;
+        }
+        if (!escaped && c == '"') {
+          quoted = !quoted;
+        }
+        escaped = (!escaped && c == '\\');
+        end++;
+        position++;
+      }
+      return extractValue(true);
+    }
+
+    private String extractValue(boolean quoted) {
+      // Remove leading and trailing whitespace
+      while ((start < end) && Character.isWhitespace(chars[start])) {
+        start++;
+      }
+      while ((end > start) && Character.isWhitespace(chars[end - 1])) {
+        end--;
+      }
+      // Remove surrounding quotes if present
+      if (quoted && (end - start) >= 2 && chars[start] == '"' && chars[end - 1] == '"') {
+        start++;
+        end--;
+      }
+      return end > start ? new String(chars, start, end - start) : null;
+    }
+
+    private void skipSeparator() {
+      if (hasMoreCharacters() && chars[position] == ';') {
+        position++;
       }
     }
-    return false;
-  }
-
-  public String getValue(String key) {
-    for (HashMap<String, String> map : values) {
-      String val = map.get(key);
-      if (StringUtil.hasText(val)) {
-        return val;
-      }
-    }
-    return null;
-  }
-
-  public List<String> getValues(String key) {
-    List<String> list = new ArrayList<>();
-    for (HashMap<String, String> map : values) {
-      String val = map.get(key);
-      if (StringUtil.hasText(val)) {
-        list.add(val);
-      }
-    }
-    return list;
   }
 }

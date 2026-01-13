@@ -11,36 +11,47 @@ package org.weasis.dicom.param;
 
 import java.net.URL;
 
+/**
+ * Configuration parameters for DICOM listeners with storage pattern support.
+ *
+ * <p>Extends {@link AbstractListenerParams} to provide file storage pattern configuration for
+ * received DICOM objects. The storage pattern allows customization of how received objects are
+ * organized in the file system using DICOM attributes.
+ */
 public class ListenerParams extends AbstractListenerParams {
 
   private final String storagePattern;
 
-  /** {@inheritDoc} */
+  /**
+   * Creates listener parameters with AET binding configuration only.
+   *
+   * @param bindCallingAet when true, only requests with matching called AETitle are accepted
+   */
   public ListenerParams(boolean bindCallingAet) {
     this(null, bindCallingAet, null, null);
   }
 
-  /** {@inheritDoc} */
+  /**
+   * Creates listener parameters with advanced parameters and AET binding.
+   *
+   * @param params optional advanced parameters (proxy, authentication, connection and TLS)
+   * @param bindCallingAet when true, only requests with matching called AETitle are accepted
+   */
   public ListenerParams(AdvancedParams params, boolean bindCallingAet) {
     this(params, bindCallingAet, null, null);
   }
 
   /**
+   * Creates listener parameters with full configuration options including storage pattern.
+   *
    * @param params optional advanced parameters (proxy, authentication, connection and TLS)
-   * @param bindCallingAet when true it will set the AET of the listener DICOM node. Only requests
-   *     with matching called AETitle will be accepted. If false all the called AETs will be
-   *     accepted.
-   * @param storagePattern file path of stored objects, '{ggggeeee}' will be replaced by the
-   *     attribute value, e.g.: '{00100020}/{0020000D}/{0020000E}/{00 080018}.dcm' will store
-   *     received objects using the SOP Instance UID (0008,0018) as file name and '.dcm' as file
-   *     name extension into sub-directories structured according its Patient ID (0010,0020), Study
-   *     Instance UID (0020,000D} and Series Instance UID (0020,000E). At default, received objects
-   *     are stored to the storage directory with the SOP Instance UID (0008,0018) as file name
-   *     without extension.
-   * @param transferCapabilityFile an URL for getting a file containing the transfer capabilities
-   *     (sopClasses, roles, transferSyntaxes)
-   * @param acceptedCallingAETitles the list of the accepted calling AETitles. Null will accepted
-   *     all the AETitles.
+   * @param bindCallingAet when true, only requests with matching called AETitle are accepted
+   * @param storagePattern file path pattern for stored objects using DICOM tag placeholders (e.g.,
+   *     '{00100020}/{0020000D}/{0020000E}/{00080018}.dcm' creates subdirectories by Patient ID,
+   *     Study UID, and Series UID with SOP Instance UID as filename). If null, uses SOP Instance
+   *     UID without extension.
+   * @param transferCapabilityFile URL for transfer capabilities configuration file
+   * @param acceptedCallingAETitles accepted calling AE titles (null accepts all)
    */
   public ListenerParams(
       AdvancedParams params,
@@ -52,6 +63,11 @@ public class ListenerParams extends AbstractListenerParams {
     this.storagePattern = storagePattern;
   }
 
+  /**
+   * Gets the storage pattern for organizing received DICOM objects.
+   *
+   * @return the storage pattern or null if using default SOP Instance UID naming
+   */
   public String getStoragePattern() {
     return storagePattern;
   }

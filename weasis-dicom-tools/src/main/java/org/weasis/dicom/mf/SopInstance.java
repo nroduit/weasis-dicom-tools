@@ -17,8 +17,14 @@ import java.util.Objects;
 import org.dcm4che3.data.Tag;
 import org.weasis.core.util.StringUtil;
 
+/**
+ * Represents a DICOM SOP (Service-Object Pair) Instance within a series. Provides functionality for
+ * XML serialization, comparison, and map operations. Supports both single-frame and multi-frame
+ * DICOM instances.
+ */
 public class SopInstance implements Xml, Comparable<SopInstance> {
 
+  private static final String KEY_SEPARATOR = "?";
   private final String sopInstanceUID;
   private final String sopClassUID;
   private final Integer instanceNumber;
@@ -27,31 +33,24 @@ public class SopInstance implements Xml, Comparable<SopInstance> {
   private String directDownloadFile;
   private Object graphicModel;
 
+  /** Creates a SOP instance with the specified UID and instance number. */
   public SopInstance(String sopInstanceUID, Integer instanceNumber) {
     this(sopInstanceUID, null, instanceNumber);
   }
 
   /**
-   * Create a new SopInstance. The sopInstanceUID can be the same for a multi-frame.
+   * Creates a SOP instance with full DICOM identification. The sopInstanceUID can be the same for
+   * multi-frame instances.
    *
-   * @param sopInstanceUID the DICOM SOP Instance UID (it cannot be null).
-   * @param sopClassUID the DICOM SOP Class UID (it can be null).
-   * @param instanceNumber the DICOM Instance Number (it can be null). The frame position for a
-   *     multi-frame.
+   * @param sopInstanceUID the DICOM SOP Instance UID, required
+   * @param sopClassUID the DICOM SOP Class UID, may be null
+   * @param instanceNumber the DICOM Instance Number or frame position, may be null
+   * @throws NullPointerException if sopInstanceUID is null
    */
   public SopInstance(String sopInstanceUID, String sopClassUID, Integer instanceNumber) {
-    this.sopInstanceUID = Objects.requireNonNull(sopInstanceUID, "sopInstanceIUID is null");
+    this.sopInstanceUID = Objects.requireNonNull(sopInstanceUID, "SOP Instance UID cannot be null");
     this.sopClassUID = sopClassUID;
     this.instanceNumber = instanceNumber;
-  }
-
-  public String getTransferSyntaxUID() {
-    return transferSyntaxUID;
-  }
-
-  public void setTransferSyntaxUID(String transferSyntaxUID) {
-    this.transferSyntaxUID =
-        StringUtil.hasText(transferSyntaxUID) ? transferSyntaxUID.trim() : null;
   }
 
   public String getSopInstanceUID() {
@@ -67,7 +66,24 @@ public class SopInstance implements Xml, Comparable<SopInstance> {
   }
 
   public String getStringInstanceNumber() {
-    return instanceNumber == null ? null : String.valueOf(instanceNumber);
+    return instanceNumber != null ? instanceNumber.toString() : null;
+  }
+
+  public String getTransferSyntaxUID() {
+    return transferSyntaxUID;
+  }
+
+  public void setTransferSyntaxUID(String transferSyntaxUID) {
+    this.transferSyntaxUID =
+        StringUtil.hasText(transferSyntaxUID) ? transferSyntaxUID.trim() : null;
+  }
+
+  public String getImageComments() {
+    return imageComments;
+  }
+
+  public void setImageComments(String imageComments) {
+    this.imageComments = imageComments;
   }
 
   public String getDirectDownloadFile() {
@@ -86,124 +102,132 @@ public class SopInstance implements Xml, Comparable<SopInstance> {
     this.graphicModel = graphicModel;
   }
 
-  public String getImageComments() {
-    return imageComments;
-  }
+  @Override
+  public void toXml(Writer writer) throws IOException {
+    writer.append("\n<").append(Xml.Level.INSTANCE.getTagName()).append(" ");
 
-  public void setImageComments(String imageComments) {
-    this.imageComments = imageComments;
+    Xml.addXmlAttribute(Tag.SOPInstanceUID, sopInstanceUID, writer);
+    Xml.addXmlAttribute(Tag.SOPClassUID, sopClassUID, writer);
+    Xml.addXmlAttribute(Tag.TransferSyntaxUID, transferSyntaxUID, writer);
+    Xml.addXmlAttribute(Tag.ImageComments, imageComments, writer);
+    Xml.addXmlAttribute(Tag.InstanceNumber, getStringInstanceNumber(), writer);
+    Xml.addXmlAttribute("DirectDownloadFile", directDownloadFile, writer);
+
+    writer.append("/>");
   }
 
   @Override
-  public int hashCode() {
-    final int prime = 31;
-    int result = 1;
-    result = prime * result + ((instanceNumber == null) ? 0 : instanceNumber.hashCode());
-    result = prime * result + sopInstanceUID.hashCode();
-    return result;
+  public int compareTo(SopInstance other) {
+    // Compare instance numbers first (null values sorted last)
+    int instanceComparison = compareInstanceNumbers(this.instanceNumber, other.instanceNumber);
+    if (instanceComparison != 0) {
+      return instanceComparison;
+    }
+
+    // Compare SOP Instance UIDs with length normalization
+    return compareNormalizedUIDs(this.sopInstanceUID, other.sopInstanceUID);
   }
 
   @Override
   public boolean equals(Object obj) {
     if (this == obj) return true;
-    if (obj == null) return false;
-    if (getClass() != obj.getClass()) return false;
-    SopInstance other = (SopInstance) obj;
-    if (instanceNumber == null) {
-      if (other.instanceNumber != null) return false;
-    } else if (!instanceNumber.equals(other.instanceNumber)) return false;
-    return sopInstanceUID.equals(other.sopInstanceUID);
+    if (obj == null || getClass() != obj.getClass()) return false;
+
+    var other = (SopInstance) obj;
+    return Objects.equals(instanceNumber, other.instanceNumber)
+        && sopInstanceUID.equals(other.sopInstanceUID);
   }
 
   @Override
-  public void toXml(Writer result) throws IOException {
-    result.append("\n<");
-    result.append(Xml.Level.INSTANCE.getTagName());
-    result.append(" ");
-    Xml.addXmlAttribute(Tag.SOPInstanceUID, sopInstanceUID, result);
-    Xml.addXmlAttribute(Tag.SOPClassUID, sopClassUID, result);
-    // File DICOM Transfer Syntax UID (0002,0010)
-    Xml.addXmlAttribute(Tag.TransferSyntaxUID, transferSyntaxUID, result);
-    Xml.addXmlAttribute(Tag.ImageComments, imageComments, result);
-    Xml.addXmlAttribute(Tag.InstanceNumber, getStringInstanceNumber(), result);
-    Xml.addXmlAttribute("DirectDownloadFile", directDownloadFile, result);
-    result.append("/>");
+  public int hashCode() {
+    return Objects.hash(sopInstanceUID, instanceNumber);
   }
 
-  @Override
-  public int compareTo(SopInstance o) {
-    // Step 1: Compare Instance Numbers
-    Integer num1 = getInstanceNumber();
-    Integer num2 = o.getInstanceNumber();
-
-    if (num1 != null && num2 != null) {
-      int cmp = num1.compareTo(num2);
-      if (cmp != 0) {
-        return cmp;
-      }
-    } else if (num1 == null && num2 != null) {
-      return 1; // Null instance number is placed after
-    } else if (num1 != null) {
-      return -1; // Non-null instance number is placed before
-    }
-
-    // Step 2: Compare SOP Instance UIDs
-    return compareSopInstanceUID(getSopInstanceUID(), o.getSopInstanceUID());
-  }
-
-  private static int compareSopInstanceUID(String s1, String s2) {
-    int length1 = s1.length();
-    int length2 = s2.length();
-    if (length1 < length2) {
-      char[] c = new char[length2 - length1];
-      return adaptSopInstanceUID(s1, c).compareTo(s2);
-    } else if (length1 > length2) {
-      char[] c = new char[length1 - length2];
-      return s1.compareTo(adaptSopInstanceUID(s2, c));
-    }
-    return s1.compareTo(s2);
-  }
-
-  private static String adaptSopInstanceUID(String s, char[] c) {
-    Arrays.fill(c, '0');
-    int index = s.lastIndexOf('.') + 1;
-    return s.substring(0, index) + String.valueOf(c) + s.substring(index);
-  }
-
-  public static void addSopInstance(Map<String, SopInstance> sopInstanceMap, SopInstance s) {
-    if (s != null && sopInstanceMap != null) {
-      StringBuilder key = new StringBuilder(s.getSopInstanceUID());
-      if (s.getInstanceNumber() != null) {
-        key.append("?");
-        key.append(s.getInstanceNumber());
-      }
-      sopInstanceMap.put(key.toString(), s);
+  /**
+   * Adds a SOP instance to the specified map using a composite key. Key format: "sopInstanceUID" or
+   * "sopInstanceUID?instanceNumber"
+   *
+   * @param sopInstanceMap the map to add to, ignored if null
+   * @param sopInstance the instance to add, ignored if null
+   */
+  public static void addSopInstance(
+      Map<String, SopInstance> sopInstanceMap, SopInstance sopInstance) {
+    if (sopInstance != null && sopInstanceMap != null) {
+      String key = buildMapKey(sopInstance.getSopInstanceUID(), sopInstance.getInstanceNumber());
+      sopInstanceMap.put(key, sopInstance);
     }
   }
 
-  public static SopInstance removeSopInstance(
-      Map<String, SopInstance> sopInstanceMap, String sopUID, Integer instanceNumber) {
-    if (sopUID == null || sopInstanceMap == null) {
-      return null;
-    }
-    StringBuilder key = new StringBuilder(sopUID);
-    if (instanceNumber != null) {
-      key.append("?");
-      key.append(instanceNumber);
-    }
-    return sopInstanceMap.remove(key.toString());
-  }
-
+  /**
+   * Retrieves a SOP instance from the map using UID and optional instance number.
+   *
+   * @param sopInstanceMap the map to search, returns null if null
+   * @param sopUID the SOP Instance UID, required
+   * @param instanceNumber the instance number, may be null
+   * @return the matching SOP instance, or null if not found
+   */
   public static SopInstance getSopInstance(
       Map<String, SopInstance> sopInstanceMap, String sopUID, Integer instanceNumber) {
     if (sopUID == null || sopInstanceMap == null) {
       return null;
     }
-    StringBuilder key = new StringBuilder(sopUID);
-    if (instanceNumber != null) {
-      key.append("?");
-      key.append(instanceNumber);
+    return sopInstanceMap.get(buildMapKey(sopUID, instanceNumber));
+  }
+
+  /**
+   * Removes and returns a SOP instance from the map.
+   *
+   * @param sopInstanceMap the map to remove from, returns null if null
+   * @param sopUID the SOP Instance UID, required
+   * @param instanceNumber the instance number, may be null
+   * @return the removed SOP instance, or null if not found
+   */
+  public static SopInstance removeSopInstance(
+      Map<String, SopInstance> sopInstanceMap, String sopUID, Integer instanceNumber) {
+    if (sopUID == null || sopInstanceMap == null) {
+      return null;
     }
-    return sopInstanceMap.get(key.toString());
+    return sopInstanceMap.remove(buildMapKey(sopUID, instanceNumber));
+  }
+
+  // Compares instance numbers with null-safe logic
+  private static int compareInstanceNumbers(Integer num1, Integer num2) {
+    if (num1 != null && num2 != null) {
+      return num1.compareTo(num2);
+    }
+    if (num1 == null && num2 != null) {
+      return 1; // Null values sorted last
+    }
+    if (num1 != null) {
+      return -1; // Non-null values sorted first
+    }
+    return 0; // Both null
+  }
+
+  // Compares UIDs with length normalization for proper sorting
+  private static int compareNormalizedUIDs(String uid1, String uid2) {
+    int length1 = uid1.length();
+    int length2 = uid2.length();
+
+    if (length1 < length2) {
+      return normalizeUID(uid1, length2 - length1).compareTo(uid2);
+    } else if (length1 > length2) {
+      return uid1.compareTo(normalizeUID(uid2, length1 - length2));
+    }
+    return uid1.compareTo(uid2);
+  }
+
+  // Normalizes UID by padding the numeric suffix with zeros
+  private static String normalizeUID(String uid, int paddingLength) {
+    char[] padding = new char[paddingLength];
+    Arrays.fill(padding, '0');
+
+    int lastDotIndex = uid.lastIndexOf('.') + 1;
+    return uid.substring(0, lastDotIndex) + new String(padding) + uid.substring(lastDotIndex);
+  }
+
+  // Builds composite key for map operations
+  private static String buildMapKey(String sopUID, Integer instanceNumber) {
+    return instanceNumber != null ? sopUID + KEY_SEPARATOR + instanceNumber : sopUID;
   }
 }

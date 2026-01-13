@@ -1,0 +1,575 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<NativeDicomModel xml:space="preserve"><DicomAttribute keyword="SOPClassUID" tag="00080016" vr="UI"><Value number="1">1.2.840.10008.5.1.4.38.1</Value></DicomAttribute>
+  <DicomAttribute keyword="SOPInstanceUID" tag="00080018" vr="UI"><Value number="1">1.2.840.113986.2.664566.21121125.85669.969</Value></DicomAttribute>
+  <DicomAttribute keyword="HangingProtocolName" tag="00720002" vr="SH"><Value number="1">NeurosurgeryPlan</Value></DicomAttribute>
+  <DicomAttribute keyword="HangingProtocolDescription" tag="00720004" vr="LO"><Value number="1">Neurosurgery planning, requiring MR and CT of head</Value></DicomAttribute>
+  <DicomAttribute keyword="HangingProtocolLevel" tag="00720006" vr="CS"><Value number="1">SITE</Value></DicomAttribute>
+  <DicomAttribute keyword="HangingProtocolCreator" tag="00720008" vr="LO"><Value number="1">Smith^Joseph</Value></DicomAttribute>
+  <DicomAttribute keyword="HangingProtocolCreationDateTime" tag="0072000A" vr="DT"><Value number="1">20020101104200</Value></DicomAttribute>
+  <DicomAttribute keyword="HangingProtocolDefinitionSequence" tag="0072000C" vr="SQ"><Item number="1"><DicomAttribute keyword="Modality" tag="00080060" vr="CS"><Value number="1">MR</Value></DicomAttribute><DicomAttribute
+    keyword="ProcedureCodeSequence" tag="00081032" vr="SQ"><Item number="1"><DicomAttribute keyword="CodeValue" tag="00080100" vr="SH"><Value number="1">98765</Value></DicomAttribute><DicomAttribute
+    keyword="CodingSchemeDesignator" tag="00080102" vr="SH"><Value number="1">99Local</Value></DicomAttribute><DicomAttribute
+    keyword="CodingSchemeVersion" tag="00080103" vr="SH"><Value number="1">1.5</Value></DicomAttribute><DicomAttribute
+    keyword="CodeMeaning" tag="00080104" vr="LO"><Value number="1">NeuroSurgery Plan Local5</Value></DicomAttribute></Item></DicomAttribute><DicomAttribute
+    keyword="AnatomicRegionSequence" tag="00082218" vr="SQ"><Item number="1"><DicomAttribute keyword="CodeValue" tag="00080100" vr="SH"><Value number="1">T-D1100</Value></DicomAttribute><DicomAttribute
+    keyword="CodingSchemeDesignator" tag="00080102" vr="SH"><Value number="1">SNM3</Value></DicomAttribute><DicomAttribute
+    keyword="CodeMeaning" tag="00080104" vr="LO"><Value number="1">Head</Value></DicomAttribute></Item></DicomAttribute><DicomAttribute
+    keyword="Laterality" tag="00200060" vr="CS"/><DicomAttribute
+    keyword="ReasonForRequestedProcedureCodeSequence" tag="0040100A" vr="SQ"><Item number="1"><DicomAttribute keyword="CodeValue" tag="00080100" vr="SH"><Value number="1">I67.1</Value></DicomAttribute><DicomAttribute
+    keyword="CodingSchemeDesignator" tag="00080102" vr="SH"><Value number="1">I10</Value></DicomAttribute><DicomAttribute
+    keyword="CodeMeaning" tag="00080104" vr="LO"><Value number="1">Cerebral aneurysm</Value></DicomAttribute></Item></DicomAttribute></Item>
+    <Item number="2"><DicomAttribute keyword="Modality" tag="00080060" vr="CS"><Value number="1">CT</Value></DicomAttribute>
+      <DicomAttribute keyword="ProcedureCodeSequence" tag="00081032" vr="SQ"><Item number="1"><DicomAttribute keyword="CodeValue" tag="00080100" vr="SH"><Value number="1">98765</Value></DicomAttribute><DicomAttribute
+        keyword="CodingSchemeDesignator" tag="00080102" vr="SH"><Value number="1">99Local</Value></DicomAttribute><DicomAttribute
+        keyword="CodingSchemeVersion" tag="00080103" vr="SH"><Value number="1">1.5</Value></DicomAttribute><DicomAttribute
+        keyword="CodeMeaning" tag="00080104" vr="LO"><Value number="1">NeuroSurgery Plan Local5</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="AnatomicRegionSequence" tag="00082218" vr="SQ"><Item number="1"><DicomAttribute keyword="CodeValue" tag="00080100" vr="SH"><Value number="1">T-D1100</Value></DicomAttribute><DicomAttribute
+        keyword="CodingSchemeDesignator" tag="00080102" vr="SH"><Value number="1">SNM3</Value></DicomAttribute><DicomAttribute
+        keyword="CodeMeaning" tag="00080104" vr="LO"><Value number="1">Head</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="Laterality" tag="00200060" vr="CS"/>
+      <DicomAttribute keyword="ReasonForRequestedProcedureCodeSequence" tag="0040100A" vr="SQ"><Item number="1"><DicomAttribute keyword="CodeValue" tag="00080100" vr="SH"><Value number="1">I67.1</Value></DicomAttribute><DicomAttribute
+        keyword="CodingSchemeDesignator" tag="00080102" vr="SH"><Value number="1">I10</Value></DicomAttribute><DicomAttribute
+        keyword="CodeMeaning" tag="00080104" vr="LO"><Value number="1">Cerebral aneurysm</Value></DicomAttribute></Item></DicomAttribute></Item></DicomAttribute>
+  <DicomAttribute keyword="HangingProtocolUserIdentificationCodeSequence" tag="0072000E" vr="SQ"/>
+  <DicomAttribute keyword="HangingProtocolUserGroupName" tag="00720010" vr="LO"><Value number="1">ABC Hospital</Value></DicomAttribute>
+  <DicomAttribute keyword="NumberOfPriorsReferenced" tag="00720014" vr="US"><Value number="1">1</Value></DicomAttribute>
+  <DicomAttribute keyword="ImageSetsSequence" tag="00720020" vr="SQ"><Item number="1"><DicomAttribute keyword="ImageSetSelectorSequence" tag="00720022" vr="SQ"><Item number="1"><DicomAttribute keyword="ImageSetSelectorUsageFlag" tag="00720024" vr="CS"><Value number="1">NO_MATCH</Value></DicomAttribute><DicomAttribute
+    keyword="SelectorAttribute" tag="00720026" vr="AT"><Value number="1">00180015</Value></DicomAttribute><DicomAttribute
+    keyword="SelectorValueNumber" tag="00720028" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+    keyword="SelectorAttributeVR" tag="00720050" vr="CS"><Value number="1">CS</Value></DicomAttribute><DicomAttribute
+    keyword="SelectorCSValue" tag="00720062" vr="CS"><Value number="1">HEAD</Value></DicomAttribute></Item><Item
+    number="2"><DicomAttribute keyword="ImageSetSelectorUsageFlag" tag="00720024" vr="CS"><Value number="1">NO_MATCH</Value></DicomAttribute>
+    <DicomAttribute keyword="SelectorAttribute" tag="00720026" vr="AT"><Value number="1">00080060</Value></DicomAttribute>
+    <DicomAttribute keyword="SelectorValueNumber" tag="00720028" vr="US"><Value number="1">1</Value></DicomAttribute>
+    <DicomAttribute keyword="SelectorAttributeVR" tag="00720050" vr="CS"><Value number="1">CS</Value></DicomAttribute>
+    <DicomAttribute keyword="SelectorCSValue" tag="00720062" vr="CS"><Value number="1">MR</Value></DicomAttribute></Item></DicomAttribute><DicomAttribute
+    keyword="TimeBasedImageSetsSequence" tag="00720030" vr="SQ"><Item number="1"><DicomAttribute keyword="ImageSetNumber" tag="00720032" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+    keyword="ImageSetSelectorCategory" tag="00720034" vr="CS"><Value number="1">RELATIVE_TIME</Value></DicomAttribute><DicomAttribute
+    keyword="RelativeTime" tag="00720038" vr="US"><Value number="1">0</Value>
+    <Value number="2">0</Value></DicomAttribute><DicomAttribute keyword="RelativeTimeUnits"
+    tag="0072003A" vr="CS"><Value number="1">MINUTES</Value></DicomAttribute><DicomAttribute
+    keyword="ImageSetLabel" tag="00720040" vr="LO"><Value number="1">Current MR Head</Value></DicomAttribute></Item></DicomAttribute></Item>
+    <Item number="2"><DicomAttribute keyword="ImageSetSelectorSequence" tag="00720022" vr="SQ"><Item number="1"><DicomAttribute keyword="ImageSetSelectorUsageFlag" tag="00720024" vr="CS"><Value number="1">NO_MATCH</Value></DicomAttribute><DicomAttribute
+      keyword="SelectorAttribute" tag="00720026" vr="AT"><Value number="1">00180015</Value></DicomAttribute><DicomAttribute
+      keyword="SelectorValueNumber" tag="00720028" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+      keyword="SelectorAttributeVR" tag="00720050" vr="CS"><Value number="1">CS</Value></DicomAttribute><DicomAttribute
+      keyword="SelectorCSValue" tag="00720062" vr="CS"><Value number="1">HEAD</Value></DicomAttribute></Item><Item
+      number="2"><DicomAttribute keyword="ImageSetSelectorUsageFlag" tag="00720024" vr="CS"><Value number="1">NO_MATCH</Value></DicomAttribute>
+      <DicomAttribute keyword="SelectorAttribute" tag="00720026" vr="AT"><Value number="1">00080060</Value></DicomAttribute>
+      <DicomAttribute keyword="SelectorValueNumber" tag="00720028" vr="US"><Value number="1">1</Value></DicomAttribute>
+      <DicomAttribute keyword="SelectorAttributeVR" tag="00720050" vr="CS"><Value number="1">CS</Value></DicomAttribute>
+      <DicomAttribute keyword="SelectorCSValue" tag="00720062" vr="CS"><Value number="1">CT</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="TimeBasedImageSetsSequence" tag="00720030" vr="SQ"><Item number="1"><DicomAttribute keyword="ImageSetNumber" tag="00720032" vr="US"><Value number="1">2</Value></DicomAttribute><DicomAttribute
+        keyword="ImageSetSelectorCategory" tag="00720034" vr="CS"><Value number="1">RELATIVE_TIME</Value></DicomAttribute><DicomAttribute
+        keyword="RelativeTime" tag="00720038" vr="US"><Value number="1">0</Value>
+        <Value number="2">0</Value></DicomAttribute><DicomAttribute keyword="RelativeTimeUnits"
+        tag="0072003A" vr="CS"><Value number="1">MINUTES</Value></DicomAttribute><DicomAttribute
+        keyword="ImageSetLabel" tag="00720040" vr="LO"><Value number="1">Current CT Head</Value></DicomAttribute></Item>
+        <Item number="2"><DicomAttribute keyword="ImageSetNumber" tag="00720032" vr="US"><Value number="1">3</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageSetSelectorCategory" tag="00720034" vr="CS"><Value number="1">ABSTRACT_PRIOR</Value></DicomAttribute>
+          <DicomAttribute keyword="AbstractPriorValue" tag="0072003C" vr="SS"><Value number="1">1</Value>
+            <Value number="2">1</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageSetLabel" tag="00720040" vr="LO"><Value number="1">Prior CT Head</Value></DicomAttribute></Item></DicomAttribute></Item></DicomAttribute>
+  <DicomAttribute keyword="NumberOfScreens" tag="00720100" vr="US"><Value number="1">2</Value></DicomAttribute>
+  <DicomAttribute keyword="NominalScreenDefinitionSequence" tag="00720102" vr="SQ"><Item number="1"><DicomAttribute keyword="NumberOfVerticalPixels" tag="00720104" vr="US"><Value number="1">1024</Value></DicomAttribute><DicomAttribute
+    keyword="NumberOfHorizontalPixels" tag="00720106" vr="US"><Value number="1">1024</Value></DicomAttribute><DicomAttribute
+    keyword="DisplayEnvironmentSpatialPosition" tag="00720108" vr="FD"><Value number="1">0</Value>
+    <Value number="2">0.28</Value>
+    <Value number="3">0.33</Value>
+    <Value number="4">0</Value></DicomAttribute><DicomAttribute keyword="ScreenMinimumColorBitDepth"
+    tag="0072010C" vr="US"><Value number="1">8</Value></DicomAttribute><DicomAttribute
+    keyword="ApplicationMaximumRepaintTime" tag="0072010E" vr="US"><Value number="1">70</Value></DicomAttribute></Item>
+    <Item number="2"><DicomAttribute keyword="NumberOfVerticalPixels" tag="00720104" vr="US"><Value number="1">2560</Value></DicomAttribute>
+      <DicomAttribute keyword="NumberOfHorizontalPixels" tag="00720106" vr="US"><Value number="1">2048</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplayEnvironmentSpatialPosition" tag="00720108" vr="FD"><Value number="1">0.33</Value>
+        <Value number="2">1</Value>
+        <Value number="3">1</Value>
+        <Value number="4">0</Value></DicomAttribute>
+      <DicomAttribute keyword="ScreenMinimumGrayscaleBitDepth" tag="0072010A" vr="US"><Value number="1">8</Value></DicomAttribute>
+      <DicomAttribute keyword="ApplicationMaximumRepaintTime" tag="0072010E" vr="US"><Value number="1">10</Value></DicomAttribute></Item></DicomAttribute>
+  <DicomAttribute keyword="DisplaySetsSequence" tag="00720200" vr="SQ"><Item number="1"><DicomAttribute keyword="ImageSetNumber" tag="00720032" vr="US"><Value number="1">2</Value></DicomAttribute><DicomAttribute
+    keyword="DisplaySetNumber" tag="00720202" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+    keyword="DisplaySetPresentationGroup" tag="00720204" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+    keyword="DisplaySetPresentationGroupDescription" tag="00720206" vr="LO"><Value number="1">Current CT only</Value></DicomAttribute><DicomAttribute
+    keyword="ImageBoxesSequence" tag="00720300" vr="SQ"><Item number="1"><DicomAttribute keyword="DisplayEnvironmentSpatialPosition" tag="00720108" vr="FD"><Value number="1">0</Value><Value
+    number="2">0.2</Value><Value number="3">0.166666667</Value><Value number="4">0</Value></DicomAttribute><DicomAttribute
+    keyword="ImageBoxNumber" tag="00720302" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+    keyword="ImageBoxLayoutType" tag="00720304" vr="CS"><Value number="1">STACK</Value></DicomAttribute></Item></DicomAttribute><DicomAttribute
+    keyword="FilterOperationsSequence" tag="00720400" vr="SQ"><Item number="1"><DicomAttribute keyword="SelectorAttributeVR" tag="00720050" vr="CS"><Value number="1">CS</Value></DicomAttribute><DicomAttribute
+    keyword="SelectorCSValue" tag="00720062" vr="CS"><Value number="1">TRANSVERSE</Value></DicomAttribute><DicomAttribute
+    keyword="FilterByCategory" tag="00720402" vr="CS"><Value number="1">IMAGE_PLANE</Value></DicomAttribute><DicomAttribute
+    keyword="FilterByOperator" tag="00720406" vr="CS"><Value number="1">MEMBER_OF</Value></DicomAttribute></Item></DicomAttribute><DicomAttribute
+    keyword="ReformattingOperationType" tag="00720510" vr="CS"><Value number="1">MPR</Value></DicomAttribute><DicomAttribute
+    keyword="ReformattingThickness" tag="00720512" vr="FD"><Value number="1">5</Value></DicomAttribute><DicomAttribute
+    keyword="ReformattingInterval" tag="00720514" vr="FD"><Value number="1">5</Value></DicomAttribute><DicomAttribute
+    keyword="ReformattingOperationInitialViewDirection" tag="00720516" vr="CS"><Value number="1">CORONAL</Value></DicomAttribute><DicomAttribute
+    keyword="SortingOperationsSequence" tag="00720600" vr="SQ"><Item number="1"><DicomAttribute keyword="SortByCategory" tag="00720602" vr="CS"><Value number="1">ALONG_AXIS</Value></DicomAttribute><DicomAttribute
+    keyword="SortingDirection" tag="00720604" vr="CS"><Value number="1">INCREASING</Value></DicomAttribute></Item></DicomAttribute><DicomAttribute
+    keyword="DisplaySetPatientOrientation" tag="00720700" vr="CS"><Value number="1">L</Value>
+    <Value number="2">F</Value></DicomAttribute><DicomAttribute keyword="VOIType" tag="00720702"
+    vr="CS"><Value number="1">BRAIN</Value></DicomAttribute></Item>
+    <Item number="2"><DicomAttribute keyword="ImageSetNumber" tag="00720032" vr="US"><Value number="1">2</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetNumber" tag="00720202" vr="US"><Value number="1">2</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPresentationGroup" tag="00720204" vr="US"><Value number="1">1</Value></DicomAttribute>
+      <DicomAttribute keyword="ImageBoxesSequence" tag="00720300" vr="SQ"><Item number="1"><DicomAttribute keyword="DisplayEnvironmentSpatialPosition" tag="00720108" vr="FD"><Value number="1">0</Value><Value
+        number="2">0.4</Value><Value number="3">0.166666667</Value><Value number="4">0.2</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxNumber" tag="00720302" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLayoutType" tag="00720304" vr="CS"><Value number="1">STACK</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="FilterOperationsSequence" tag="00720400" vr="SQ"><Item number="1"><DicomAttribute keyword="SelectorAttributeVR" tag="00720050" vr="CS"><Value number="1">CS</Value></DicomAttribute><DicomAttribute
+        keyword="SelectorCSValue" tag="00720062" vr="CS"><Value number="1">TRANSVERSE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByCategory" tag="00720402" vr="CS"><Value number="1">IMAGE_PLANE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByOperator" tag="00720406" vr="CS"><Value number="1">MEMBER_OF</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="ReformattingOperationType" tag="00720510" vr="CS"><Value number="1">MPR</Value></DicomAttribute>
+      <DicomAttribute keyword="ReformattingThickness" tag="00720512" vr="FD"><Value number="1">5</Value></DicomAttribute>
+      <DicomAttribute keyword="ReformattingInterval" tag="00720514" vr="FD"><Value number="1">5</Value></DicomAttribute>
+      <DicomAttribute keyword="ReformattingOperationInitialViewDirection" tag="00720516" vr="CS"><Value number="1">SAGITAL</Value></DicomAttribute>
+      <DicomAttribute keyword="SortingOperationsSequence" tag="00720600" vr="SQ"><Item number="1"><DicomAttribute keyword="SortByCategory" tag="00720602" vr="CS"><Value number="1">ALONG_AXIS</Value></DicomAttribute><DicomAttribute
+        keyword="SortingDirection" tag="00720604" vr="CS"><Value number="1">INCREASING</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPatientOrientation" tag="00720700" vr="CS"><Value number="1">P</Value>
+        <Value number="2">F</Value></DicomAttribute>
+      <DicomAttribute keyword="VOIType" tag="00720702" vr="CS"><Value number="1">BRAIN</Value></DicomAttribute></Item>
+    <Item number="3"><DicomAttribute keyword="ImageSetNumber" tag="00720032" vr="US"><Value number="1">2</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetNumber" tag="00720202" vr="US"><Value number="1">3</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPresentationGroup" tag="00720204" vr="US"><Value number="1">1</Value></DicomAttribute>
+      <DicomAttribute keyword="ImageBoxesSequence" tag="00720300" vr="SQ"><Item number="1"><DicomAttribute keyword="DisplayEnvironmentSpatialPosition" tag="00720108" vr="FD"><Value number="1">0.166666667</Value><Value
+        number="2">0.4</Value><Value number="3">0.333333333</Value><Value number="4">0.2</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxNumber" tag="00720302" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLayoutType" tag="00720304" vr="CS"><Value number="1">STACK</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="FilterOperationsSequence" tag="00720400" vr="SQ"><Item number="1"><DicomAttribute keyword="SelectorAttributeVR" tag="00720050" vr="CS"><Value number="1">CS</Value></DicomAttribute><DicomAttribute
+        keyword="SelectorCSValue" tag="00720062" vr="CS"><Value number="1">TRANSVERSE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByCategory" tag="00720402" vr="CS"><Value number="1">IMAGE_PLANE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByOperator" tag="00720406" vr="CS"><Value number="1">MEMBER_OF</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="SortingOperationsSequence" tag="00720600" vr="SQ"><Item number="1"><DicomAttribute keyword="SortByCategory" tag="00720602" vr="CS"><Value number="1">ALONG_AXIS</Value></DicomAttribute><DicomAttribute
+        keyword="SortingDirection" tag="00720604" vr="CS"><Value number="1">INCREASING</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPatientOrientation" tag="00720700" vr="CS"><Value number="1">L</Value>
+        <Value number="2">P</Value></DicomAttribute>
+      <DicomAttribute keyword="VOIType" tag="00720702" vr="CS"><Value number="1">BRAIN</Value></DicomAttribute>
+      <DicomAttribute keyword="ShowGraphicAnnotationFlag" tag="00720712" vr="CS"><Value number="1">YES</Value></DicomAttribute></Item>
+    <Item number="4"><DicomAttribute keyword="ImageSetNumber" tag="00720032" vr="US"><Value number="1">2</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetNumber" tag="00720202" vr="US"><Value number="1">4</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPresentationGroup" tag="00720204" vr="US"><Value number="1">1</Value></DicomAttribute>
+      <DicomAttribute keyword="ImageBoxesSequence" tag="00720300" vr="SQ"><Item number="1"><DicomAttribute keyword="DisplayEnvironmentSpatialPosition" tag="00720108" vr="FD"><Value number="1">0.166666667</Value><Value
+        number="2">0.2</Value><Value number="3">0.333333333</Value><Value number="4">0</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxNumber" tag="00720302" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLayoutType" tag="00720304" vr="CS"><Value number="1">PROCESSED</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="FilterOperationsSequence" tag="00720400" vr="SQ"><Item number="1"><DicomAttribute keyword="SelectorAttribute" tag="00720026" vr="AT"><Value number="1">00080008</Value></DicomAttribute><DicomAttribute
+        keyword="SelectorValueNumber" tag="00720028" vr="US"><Value number="1">3</Value></DicomAttribute><DicomAttribute
+        keyword="SelectorAttributeVR" tag="00720050" vr="CS"><Value number="1">CS</Value></DicomAttribute><DicomAttribute
+        keyword="SelectorCSValue" tag="00720062" vr="CS"><Value number="1">LOCALIZER</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByOperator" tag="00720406" vr="CS"><Value number="1">NOT_MEMBER_OF</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="ReformattingOperationType" tag="00720510" vr="CS"><Value number="1">3D_RENDERING</Value></DicomAttribute>
+      <DicomAttribute keyword="ReformattingOperationInitialViewDirection" tag="00720516" vr="CS"><Value number="1">CORONAL</Value></DicomAttribute>
+      <DicomAttribute keyword="ThreeDRenderingType" tag="00720520" vr="CS"><Value number="1">VOLUME</Value></DicomAttribute>
+      <DicomAttribute keyword="SortingOperationsSequence" tag="00720600" vr="SQ"/>
+      <DicomAttribute keyword="DisplaySetPatientOrientation" tag="00720700" vr="CS"><Value number="1">X</Value>
+        <Value number="2">F</Value></DicomAttribute>
+      <DicomAttribute keyword="ShowGraphicAnnotationFlag" tag="00720712" vr="CS"><Value number="1">NO</Value></DicomAttribute></Item>
+    <Item number="5"><DicomAttribute keyword="ImageSetNumber" tag="00720032" vr="US"><Value number="1">2</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetNumber" tag="00720202" vr="US"><Value number="1">5</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPresentationGroup" tag="00720204" vr="US"><Value number="1">1</Value></DicomAttribute>
+      <DicomAttribute keyword="ImageBoxesSequence" tag="00720300" vr="SQ"><Item number="1"><DicomAttribute keyword="DisplayEnvironmentSpatialPosition" tag="00720108" vr="FD"><Value number="1">0.333333333</Value><Value
+        number="2">1</Value><Value number="3">1</Value><Value number="4">0</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxNumber" tag="00720302" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLayoutType" tag="00720304" vr="CS"><Value number="1">TILED</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxTileHorizontalDimension" tag="00720306" vr="US"><Value number="1">3</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxTileVerticalDimension" tag="00720308" vr="US"><Value number="1">4</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxScrollDirection" tag="00720310" vr="CS"><Value number="1">VERTICAL</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxSmallScrollType" tag="00720312" vr="CS"><Value number="1">ROW_COLUMN</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxSmallScrollAmount" tag="00720314" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLargeScrollType" tag="00720316" vr="CS"><Value number="1">PAGE</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLargeScrollAmount" tag="00720318" vr="US"><Value number="1">1</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="FilterOperationsSequence" tag="00720400" vr="SQ"><Item number="1"><DicomAttribute keyword="SelectorAttributeVR" tag="00720050" vr="CS"><Value number="1">CS</Value></DicomAttribute><DicomAttribute
+        keyword="SelectorCSValue" tag="00720062" vr="CS"><Value number="1">TRANSVERSE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByCategory" tag="00720402" vr="CS"><Value number="1">IMAGE_PLANE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByOperator" tag="00720406" vr="CS"><Value number="1">MEMBER_OF</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="SortingOperationsSequence" tag="00720600" vr="SQ"><Item number="1"><DicomAttribute keyword="SortByCategory" tag="00720602" vr="CS"><Value number="1">ALONG_AXIS</Value></DicomAttribute><DicomAttribute
+        keyword="SortingDirection" tag="00720604" vr="CS"><Value number="1">INCREASING</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPatientOrientation" tag="00720700" vr="CS"><Value number="1">L</Value>
+        <Value number="2">P</Value></DicomAttribute>
+      <DicomAttribute keyword="VOIType" tag="00720702" vr="CS"><Value number="1">BRAIN</Value></DicomAttribute>
+      <DicomAttribute keyword="ShowGraphicAnnotationFlag" tag="00720712" vr="CS"><Value number="1">YES</Value></DicomAttribute></Item>
+    <Item number="6"><DicomAttribute keyword="ImageSetNumber" tag="00720032" vr="US"><Value number="1">1</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetNumber" tag="00720202" vr="US"><Value number="1">6</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPresentationGroup" tag="00720204" vr="US"><Value number="1">2</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPresentationGroupDescription" tag="00720206" vr="LO"><Value number="1">MR only</Value></DicomAttribute>
+      <DicomAttribute keyword="ImageBoxesSequence" tag="00720300" vr="SQ"><Item number="1"><DicomAttribute keyword="DisplayEnvironmentSpatialPosition" tag="00720108" vr="FD"><Value number="1">0</Value><Value
+        number="2">0.2</Value><Value number="3">0.166666667</Value><Value number="4">0</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxNumber" tag="00720302" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLayoutType" tag="00720304" vr="CS"><Value number="1">STACK</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="FilterOperationsSequence" tag="00720400" vr="SQ"><Item number="1"><DicomAttribute keyword="SelectorAttributeVR" tag="00720050" vr="CS"><Value number="1">CS</Value></DicomAttribute><DicomAttribute
+        keyword="SelectorCSValue" tag="00720062" vr="CS"><Value number="1">TRANSVERSE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByCategory" tag="00720402" vr="CS"><Value number="1">IMAGE_PLANE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByOperator" tag="00720406" vr="CS"><Value number="1">MEMBER_OF</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="ReformattingOperationType" tag="00720510" vr="CS"><Value number="1">MPR</Value></DicomAttribute>
+      <DicomAttribute keyword="ReformattingThickness" tag="00720512" vr="FD"><Value number="1">5</Value></DicomAttribute>
+      <DicomAttribute keyword="ReformattingInterval" tag="00720514" vr="FD"><Value number="1">5</Value></DicomAttribute>
+      <DicomAttribute keyword="ReformattingOperationInitialViewDirection" tag="00720516" vr="CS"><Value number="1">CORONAL</Value></DicomAttribute>
+      <DicomAttribute keyword="SortingOperationsSequence" tag="00720600" vr="SQ"><Item number="1"><DicomAttribute keyword="SortByCategory" tag="00720602" vr="CS"><Value number="1">ALONG_AXIS</Value></DicomAttribute><DicomAttribute
+        keyword="SortingDirection" tag="00720604" vr="CS"><Value number="1">INCREASING</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPatientOrientation" tag="00720700" vr="CS"><Value number="1">L</Value>
+        <Value number="2">F</Value></DicomAttribute></Item>
+    <Item number="7"><DicomAttribute keyword="ImageSetNumber" tag="00720032" vr="US"><Value number="1">1</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetNumber" tag="00720202" vr="US"><Value number="1">7</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPresentationGroup" tag="00720204" vr="US"><Value number="1">2</Value></DicomAttribute>
+      <DicomAttribute keyword="ImageBoxesSequence" tag="00720300" vr="SQ"><Item number="1"><DicomAttribute keyword="DisplayEnvironmentSpatialPosition" tag="00720108" vr="FD"><Value number="1">0</Value><Value
+        number="2">0.4</Value><Value number="3">0.166666667</Value><Value number="4">0.2</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxNumber" tag="00720302" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLayoutType" tag="00720304" vr="CS"><Value number="1">STACK</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="FilterOperationsSequence" tag="00720400" vr="SQ"><Item number="1"><DicomAttribute keyword="SelectorAttributeVR" tag="00720050" vr="CS"><Value number="1">CS</Value></DicomAttribute><DicomAttribute
+        keyword="SelectorCSValue" tag="00720062" vr="CS"><Value number="1">TRANSVERSE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByCategory" tag="00720402" vr="CS"><Value number="1">IMAGE_PLANE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByOperator" tag="00720406" vr="CS"><Value number="1">MEMBER_OF</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="ReformattingOperationType" tag="00720510" vr="CS"><Value number="1">MPR</Value></DicomAttribute>
+      <DicomAttribute keyword="ReformattingThickness" tag="00720512" vr="FD"><Value number="1">5</Value></DicomAttribute>
+      <DicomAttribute keyword="ReformattingInterval" tag="00720514" vr="FD"><Value number="1">5</Value></DicomAttribute>
+      <DicomAttribute keyword="ReformattingOperationInitialViewDirection" tag="00720516" vr="CS"><Value number="1">SAGITAL</Value></DicomAttribute>
+      <DicomAttribute keyword="SortingOperationsSequence" tag="00720600" vr="SQ"><Item number="1"><DicomAttribute keyword="SortByCategory" tag="00720602" vr="CS"><Value number="1">ALONG_AXIS</Value></DicomAttribute><DicomAttribute
+        keyword="SortingDirection" tag="00720604" vr="CS"><Value number="1">INCREASING</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPatientOrientation" tag="00720700" vr="CS"><Value number="1">P</Value>
+        <Value number="2">F</Value></DicomAttribute></Item>
+    <Item number="8"><DicomAttribute keyword="ImageSetNumber" tag="00720032" vr="US"><Value number="1">1</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetNumber" tag="00720202" vr="US"><Value number="1">8</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPresentationGroup" tag="00720204" vr="US"><Value number="1">2</Value></DicomAttribute>
+      <DicomAttribute keyword="ImageBoxesSequence" tag="00720300" vr="SQ"><Item number="1"><DicomAttribute keyword="DisplayEnvironmentSpatialPosition" tag="00720108" vr="FD"><Value number="1">0.166666667</Value><Value
+        number="2">0.4</Value><Value number="3">0.333333333</Value><Value number="4">0.2</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxNumber" tag="00720302" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLayoutType" tag="00720304" vr="CS"><Value number="1">STACK</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="FilterOperationsSequence" tag="00720400" vr="SQ"><Item number="1"><DicomAttribute keyword="SelectorAttributeVR" tag="00720050" vr="CS"><Value number="1">CS</Value></DicomAttribute><DicomAttribute
+        keyword="SelectorCSValue" tag="00720062" vr="CS"><Value number="1">TRANSVERSE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByCategory" tag="00720402" vr="CS"><Value number="1">IMAGE_PLANE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByOperator" tag="00720406" vr="CS"><Value number="1">MEMBER_OF</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="SortingOperationsSequence" tag="00720600" vr="SQ"><Item number="1"><DicomAttribute keyword="SortByCategory" tag="00720602" vr="CS"><Value number="1">ALONG_AXIS</Value></DicomAttribute><DicomAttribute
+        keyword="SortingDirection" tag="00720604" vr="CS"><Value number="1">INCREASING</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPatientOrientation" tag="00720700" vr="CS"><Value number="1">L</Value>
+        <Value number="2">P</Value></DicomAttribute></Item>
+    <Item number="9"><DicomAttribute keyword="ImageSetNumber" tag="00720032" vr="US"><Value number="1">1</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetNumber" tag="00720202" vr="US"><Value number="1">9</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPresentationGroup" tag="00720204" vr="US"><Value number="1">2</Value></DicomAttribute>
+      <DicomAttribute keyword="ImageBoxesSequence" tag="00720300" vr="SQ"><Item number="1"><DicomAttribute keyword="DisplayEnvironmentSpatialPosition" tag="00720108" vr="FD"><Value number="1">0.166666667</Value><Value
+        number="2">0.2</Value><Value number="3">0.333333333</Value><Value number="4">0</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxNumber" tag="00720302" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLayoutType" tag="00720304" vr="CS"><Value number="1">PROCESSED</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="FilterOperationsSequence" tag="00720400" vr="SQ"/>
+      <DicomAttribute keyword="ReformattingOperationType" tag="00720510" vr="CS"><Value number="1">3D_RENDERING</Value></DicomAttribute>
+      <DicomAttribute keyword="ReformattingOperationInitialViewDirection" tag="00720516" vr="CS"><Value number="1">CORONAL</Value></DicomAttribute>
+      <DicomAttribute keyword="ThreeDRenderingType" tag="00720520" vr="CS"><Value number="1">VOLUME</Value></DicomAttribute>
+      <DicomAttribute keyword="SortingOperationsSequence" tag="00720600" vr="SQ"/>
+      <DicomAttribute keyword="DisplaySetPatientOrientation" tag="00720700" vr="CS"><Value number="1">X</Value>
+        <Value number="2">F</Value></DicomAttribute></Item>
+    <Item number="10"><DicomAttribute keyword="ImageSetNumber" tag="00720032" vr="US"><Value number="1">1</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetNumber" tag="00720202" vr="US"><Value number="1">10</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPresentationGroup" tag="00720204" vr="US"><Value number="1">2</Value></DicomAttribute>
+      <DicomAttribute keyword="ImageBoxesSequence" tag="00720300" vr="SQ"><Item number="1"><DicomAttribute keyword="DisplayEnvironmentSpatialPosition" tag="00720108" vr="FD"><Value number="1">0.333333333</Value><Value
+        number="2">1</Value><Value number="3">1</Value><Value number="4">0</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxNumber" tag="00720302" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLayoutType" tag="00720304" vr="CS"><Value number="1">TILED</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxTileHorizontalDimension" tag="00720306" vr="US"><Value number="1">3</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxTileVerticalDimension" tag="00720308" vr="US"><Value number="1">4</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxScrollDirection" tag="00720310" vr="CS"><Value number="1">VERTICAL</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxSmallScrollType" tag="00720312" vr="CS"><Value number="1">ROW_COLUMN</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxSmallScrollAmount" tag="00720314" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLargeScrollType" tag="00720316" vr="CS"><Value number="1">PAGE</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLargeScrollAmount" tag="00720318" vr="US"><Value number="1">1</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="FilterOperationsSequence" tag="00720400" vr="SQ"><Item number="1"><DicomAttribute keyword="SelectorAttributeVR" tag="00720050" vr="CS"><Value number="1">CS</Value></DicomAttribute><DicomAttribute
+        keyword="SelectorCSValue" tag="00720062" vr="CS"><Value number="1">TRANSVERSE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByCategory" tag="00720402" vr="CS"><Value number="1">IMAGE_PLANE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByOperator" tag="00720406" vr="CS"><Value number="1">MEMBER_OF</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="SortingOperationsSequence" tag="00720600" vr="SQ"><Item number="1"><DicomAttribute keyword="SortByCategory" tag="00720602" vr="CS"><Value number="1">ALONG_AXIS</Value></DicomAttribute><DicomAttribute
+        keyword="SortingDirection" tag="00720604" vr="CS"><Value number="1">INCREASING</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPatientOrientation" tag="00720700" vr="CS"><Value number="1">L</Value>
+        <Value number="2">P</Value></DicomAttribute></Item>
+    <Item number="11"><DicomAttribute keyword="ImageSetNumber" tag="00720032" vr="US"><Value number="1">1</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetNumber" tag="00720202" vr="US"><Value number="1">11</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPresentationGroup" tag="00720204" vr="US"><Value number="1">3</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPresentationGroupDescription" tag="00720206" vr="LO"><Value number="1">MR &amp; CT combined</Value></DicomAttribute>
+      <DicomAttribute keyword="ImageBoxesSequence" tag="00720300" vr="SQ"><Item number="1"><DicomAttribute keyword="DisplayEnvironmentSpatialPosition" tag="00720108" vr="FD"><Value number="1">0</Value><Value
+        number="2">0.2</Value><Value number="3">0.166666667</Value><Value number="4">0</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxNumber" tag="00720302" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLayoutType" tag="00720304" vr="CS"><Value number="1">STACK</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="FilterOperationsSequence" tag="00720400" vr="SQ"><Item number="1"><DicomAttribute keyword="SelectorAttributeVR" tag="00720050" vr="CS"><Value number="1">CS</Value></DicomAttribute><DicomAttribute
+        keyword="SelectorCSValue" tag="00720062" vr="CS"><Value number="1">TRANSVERSE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByCategory" tag="00720402" vr="CS"><Value number="1">IMAGE_PLANE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByOperator" tag="00720406" vr="CS"><Value number="1">MEMBER_OF</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="ReformattingOperationType" tag="00720510" vr="CS"><Value number="1">MPR</Value></DicomAttribute>
+      <DicomAttribute keyword="ReformattingThickness" tag="00720512" vr="FD"><Value number="1">5</Value></DicomAttribute>
+      <DicomAttribute keyword="ReformattingInterval" tag="00720514" vr="FD"><Value number="1">5</Value></DicomAttribute>
+      <DicomAttribute keyword="ReformattingOperationInitialViewDirection" tag="00720516" vr="CS"><Value number="1">CORONAL</Value></DicomAttribute>
+      <DicomAttribute keyword="SortingOperationsSequence" tag="00720600" vr="SQ"><Item number="1"><DicomAttribute keyword="SortByCategory" tag="00720602" vr="CS"><Value number="1">ALONG_AXIS</Value></DicomAttribute><DicomAttribute
+        keyword="SortingDirection" tag="00720604" vr="CS"><Value number="1">INCREASING</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPatientOrientation" tag="00720700" vr="CS"><Value number="1">L</Value>
+        <Value number="2">F</Value></DicomAttribute>
+      <DicomAttribute keyword="ShowGraphicAnnotationFlag" tag="00720712" vr="CS"><Value number="1">NO</Value></DicomAttribute></Item>
+    <Item number="12"><DicomAttribute keyword="ImageSetNumber" tag="00720032" vr="US"><Value number="1">2</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetNumber" tag="00720202" vr="US"><Value number="1">12</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPresentationGroup" tag="00720204" vr="US"><Value number="1">3</Value></DicomAttribute>
+      <DicomAttribute keyword="ImageBoxesSequence" tag="00720300" vr="SQ"><Item number="1"><DicomAttribute keyword="DisplayEnvironmentSpatialPosition" tag="00720108" vr="FD"><Value number="1">0</Value><Value
+        number="2">0.4</Value><Value number="3">0.166666667</Value><Value number="4">0.2</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxNumber" tag="00720302" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLayoutType" tag="00720304" vr="CS"><Value number="1">STACK</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="FilterOperationsSequence" tag="00720400" vr="SQ"><Item number="1"><DicomAttribute keyword="SelectorAttributeVR" tag="00720050" vr="CS"><Value number="1">CS</Value></DicomAttribute><DicomAttribute
+        keyword="SelectorCSValue" tag="00720062" vr="CS"><Value number="1">TRANSVERSE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByCategory" tag="00720402" vr="CS"><Value number="1">IMAGE_PLANE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByOperator" tag="00720406" vr="CS"><Value number="1">MEMBER_OF</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="ReformattingOperationType" tag="00720510" vr="CS"><Value number="1">MPR</Value></DicomAttribute>
+      <DicomAttribute keyword="ReformattingThickness" tag="00720512" vr="FD"><Value number="1">5</Value></DicomAttribute>
+      <DicomAttribute keyword="ReformattingInterval" tag="00720514" vr="FD"><Value number="1">5</Value></DicomAttribute>
+      <DicomAttribute keyword="ReformattingOperationInitialViewDirection" tag="00720516" vr="CS"><Value number="1">CORONAL</Value></DicomAttribute>
+      <DicomAttribute keyword="SortingOperationsSequence" tag="00720600" vr="SQ"><Item number="1"><DicomAttribute keyword="SortByCategory" tag="00720602" vr="CS"><Value number="1">ALONG_AXIS</Value></DicomAttribute><DicomAttribute
+        keyword="SortingDirection" tag="00720604" vr="CS"><Value number="1">INCREASING</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPatientOrientation" tag="00720700" vr="CS"><Value number="1">L</Value>
+        <Value number="2">F</Value></DicomAttribute>
+      <DicomAttribute keyword="VOIType" tag="00720702" vr="CS"><Value number="1">BRAIN</Value></DicomAttribute>
+      <DicomAttribute keyword="ShowGraphicAnnotationFlag" tag="00720712" vr="CS"><Value number="1">NO</Value></DicomAttribute></Item>
+    <Item number="13"><DicomAttribute keyword="ImageSetNumber" tag="00720032" vr="US"><Value number="1">2</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetNumber" tag="00720202" vr="US"><Value number="1">13</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPresentationGroup" tag="00720204" vr="US"><Value number="1">3</Value></DicomAttribute>
+      <DicomAttribute keyword="ImageBoxesSequence" tag="00720300" vr="SQ"><Item number="1"><DicomAttribute keyword="DisplayEnvironmentSpatialPosition" tag="00720108" vr="FD"><Value number="1">0.166666667</Value><Value
+        number="2">0.4</Value><Value number="3">0.333333333</Value><Value number="4">0.2</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxNumber" tag="00720302" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLayoutType" tag="00720304" vr="CS"><Value number="1">STACK</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="FilterOperationsSequence" tag="00720400" vr="SQ"><Item number="1"><DicomAttribute keyword="SelectorAttributeVR" tag="00720050" vr="CS"><Value number="1">CS</Value></DicomAttribute><DicomAttribute
+        keyword="SelectorCSValue" tag="00720062" vr="CS"><Value number="1">TRANSVERSE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByCategory" tag="00720402" vr="CS"><Value number="1">IMAGE_PLANE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByOperator" tag="00720406" vr="CS"><Value number="1">MEMBER_OF</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="SortingOperationsSequence" tag="00720600" vr="SQ"><Item number="1"><DicomAttribute keyword="SortByCategory" tag="00720602" vr="CS"><Value number="1">ALONG_AXIS</Value></DicomAttribute><DicomAttribute
+        keyword="SortingDirection" tag="00720604" vr="CS"><Value number="1">INCREASING</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPatientOrientation" tag="00720700" vr="CS"><Value number="1">L</Value>
+        <Value number="2">P</Value></DicomAttribute>
+      <DicomAttribute keyword="VOIType" tag="00720702" vr="CS"><Value number="1">BRAIN</Value></DicomAttribute>
+      <DicomAttribute keyword="ShowGraphicAnnotationFlag" tag="00720712" vr="CS"><Value number="1">YES</Value></DicomAttribute></Item>
+    <Item number="14"><DicomAttribute keyword="ImageSetNumber" tag="00720032" vr="US"><Value number="1">1</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetNumber" tag="00720202" vr="US"><Value number="1">14</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPresentationGroup" tag="00720204" vr="US"><Value number="1">3</Value></DicomAttribute>
+      <DicomAttribute keyword="ImageBoxesSequence" tag="00720300" vr="SQ"><Item number="1"><DicomAttribute keyword="DisplayEnvironmentSpatialPosition" tag="00720108" vr="FD"><Value number="1">0.166666667</Value><Value
+        number="2">0.2</Value><Value number="3">0.333333333</Value><Value number="4">0</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxNumber" tag="00720302" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLayoutType" tag="00720304" vr="CS"><Value number="1">STACK</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="FilterOperationsSequence" tag="00720400" vr="SQ"><Item number="1"><DicomAttribute keyword="SelectorAttributeVR" tag="00720050" vr="CS"><Value number="1">CS</Value></DicomAttribute><DicomAttribute
+        keyword="SelectorCSValue" tag="00720062" vr="CS"><Value number="1">TRANSVERSE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByCategory" tag="00720402" vr="CS"><Value number="1">IMAGE_PLANE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByOperator" tag="00720406" vr="CS"><Value number="1">MEMBER_OF</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="SortingOperationsSequence" tag="00720600" vr="SQ"><Item number="1"><DicomAttribute keyword="SortByCategory" tag="00720602" vr="CS"><Value number="1">ALONG_AXIS</Value></DicomAttribute><DicomAttribute
+        keyword="SortingDirection" tag="00720604" vr="CS"><Value number="1">INCREASING</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPatientOrientation" tag="00720700" vr="CS"><Value number="1">L</Value>
+        <Value number="2">P</Value></DicomAttribute>
+      <DicomAttribute keyword="ShowGraphicAnnotationFlag" tag="00720712" vr="CS"><Value number="1">NO</Value></DicomAttribute></Item>
+    <Item number="15"><DicomAttribute keyword="ImageSetNumber" tag="00720032" vr="US"><Value number="1">2</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetNumber" tag="00720202" vr="US"><Value number="1">15</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPresentationGroup" tag="00720204" vr="US"><Value number="1">3</Value></DicomAttribute>
+      <DicomAttribute keyword="ImageBoxesSequence" tag="00720300" vr="SQ"><Item number="1"><DicomAttribute keyword="DisplayEnvironmentSpatialPosition" tag="00720108" vr="FD"><Value number="1">0.333333333</Value><Value
+        number="2">1</Value><Value number="3">1</Value><Value number="4">0.75</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxNumber" tag="00720302" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLayoutType" tag="00720304" vr="CS"><Value number="1">TILED</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxTileHorizontalDimension" tag="00720306" vr="US"><Value number="1">3</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxTileVerticalDimension" tag="00720308" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxScrollDirection" tag="00720310" vr="CS"><Value number="1">HORIZONTAL</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxSmallScrollType" tag="00720312" vr="CS"><Value number="1">IMAGE</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxSmallScrollAmount" tag="00720314" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLargeScrollType" tag="00720316" vr="CS"><Value number="1">ROW_COLUMN</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLargeScrollAmount" tag="00720318" vr="US"><Value number="1">1</Value></DicomAttribute></Item>
+        <Item number="2"><DicomAttribute keyword="DisplayEnvironmentSpatialPosition" tag="00720108" vr="FD"><Value number="1">0.333333333</Value><Value
+          number="2">0.5</Value><Value number="3">1</Value><Value number="4">0.25</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxNumber" tag="00720302" vr="US"><Value number="1">2</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxLayoutType" tag="00720304" vr="CS"><Value number="1">TILED</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxTileHorizontalDimension" tag="00720306" vr="US"><Value number="1">3</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxTileVerticalDimension" tag="00720308" vr="US"><Value number="1">1</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxScrollDirection" tag="00720310" vr="CS"><Value number="1">HORIZONTAL</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxSmallScrollType" tag="00720312" vr="CS"><Value number="1">IMAGE</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxSmallScrollAmount" tag="00720314" vr="US"><Value number="1">1</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxLargeScrollType" tag="00720316" vr="CS"><Value number="1">ROW_COLUMN</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxLargeScrollAmount" tag="00720318" vr="US"><Value number="1">1</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="FilterOperationsSequence" tag="00720400" vr="SQ"><Item number="1"><DicomAttribute keyword="SelectorAttributeVR" tag="00720050" vr="CS"><Value number="1">CS</Value></DicomAttribute><DicomAttribute
+        keyword="SelectorCSValue" tag="00720062" vr="CS"><Value number="1">TRANSVERSE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByCategory" tag="00720402" vr="CS"><Value number="1">IMAGE_PLANE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByOperator" tag="00720406" vr="CS"><Value number="1">MEMBER_OF</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="SortingOperationsSequence" tag="00720600" vr="SQ"><Item number="1"><DicomAttribute keyword="SortByCategory" tag="00720602" vr="CS"><Value number="1">ALONG_AXIS</Value></DicomAttribute><DicomAttribute
+        keyword="SortingDirection" tag="00720604" vr="CS"><Value number="1">INCREASING</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPatientOrientation" tag="00720700" vr="CS"><Value number="1">L</Value>
+        <Value number="2">P</Value></DicomAttribute>
+      <DicomAttribute keyword="VOIType" tag="00720702" vr="CS"><Value number="1">BRAIN</Value></DicomAttribute>
+      <DicomAttribute keyword="ShowGraphicAnnotationFlag" tag="00720712" vr="CS"><Value number="1">YES</Value></DicomAttribute></Item>
+    <Item number="16"><DicomAttribute keyword="ImageSetNumber" tag="00720032" vr="US"><Value number="1">1</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetNumber" tag="00720202" vr="US"><Value number="1">16</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPresentationGroup" tag="00720204" vr="US"><Value number="1">3</Value></DicomAttribute>
+      <DicomAttribute keyword="ImageBoxesSequence" tag="00720300" vr="SQ"><Item number="1"><DicomAttribute keyword="DisplayEnvironmentSpatialPosition" tag="00720108" vr="FD"><Value number="1">0.333333333</Value><Value
+        number="2">0.75</Value><Value number="3">1</Value><Value number="4">0.5</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxNumber" tag="00720302" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLayoutType" tag="00720304" vr="CS"><Value number="1">TILED</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxTileHorizontalDimension" tag="00720306" vr="US"><Value number="1">3</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxTileVerticalDimension" tag="00720308" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxScrollDirection" tag="00720310" vr="CS"><Value number="1">HORIZONTAL</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxSmallScrollType" tag="00720312" vr="CS"><Value number="1">IMAGE</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxSmallScrollAmount" tag="00720314" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLargeScrollType" tag="00720316" vr="CS"><Value number="1">ROW_COLUMN</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLargeScrollAmount" tag="00720318" vr="US"><Value number="1">1</Value></DicomAttribute></Item>
+        <Item number="2"><DicomAttribute keyword="DisplayEnvironmentSpatialPosition" tag="00720108" vr="FD"><Value number="1">0.333333333</Value><Value
+          number="2">0.25</Value><Value number="3">1</Value><Value number="4">0</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxNumber" tag="00720302" vr="US"><Value number="1">2</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxLayoutType" tag="00720304" vr="CS"><Value number="1">TILED</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxTileHorizontalDimension" tag="00720306" vr="US"><Value number="1">3</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxTileVerticalDimension" tag="00720308" vr="US"><Value number="1">1</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxScrollDirection" tag="00720310" vr="CS"><Value number="1">HORIZONTAL</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxSmallScrollType" tag="00720312" vr="CS"><Value number="1">IMAGE</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxSmallScrollAmount" tag="00720314" vr="US"><Value number="1">1</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxLargeScrollType" tag="00720316" vr="CS"><Value number="1">ROW_COLUMN</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxLargeScrollAmount" tag="00720318" vr="US"><Value number="1">1</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="FilterOperationsSequence" tag="00720400" vr="SQ"><Item number="1"><DicomAttribute keyword="SelectorAttributeVR" tag="00720050" vr="CS"><Value number="1">CS</Value></DicomAttribute><DicomAttribute
+        keyword="SelectorCSValue" tag="00720062" vr="CS"><Value number="1">TRANSVERSE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByCategory" tag="00720402" vr="CS"><Value number="1">IMAGE_PLANE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByOperator" tag="00720406" vr="CS"><Value number="1">MEMBER_OF</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="SortingOperationsSequence" tag="00720600" vr="SQ"><Item number="1"><DicomAttribute keyword="SortByCategory" tag="00720602" vr="CS"><Value number="1">ALONG_AXIS</Value></DicomAttribute><DicomAttribute
+        keyword="SortingDirection" tag="00720604" vr="CS"><Value number="1">INCREASING</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPatientOrientation" tag="00720700" vr="CS"><Value number="1">L</Value>
+        <Value number="2">P</Value></DicomAttribute>
+      <DicomAttribute keyword="ShowGraphicAnnotationFlag" tag="00720712" vr="CS"><Value number="1">NO</Value></DicomAttribute></Item>
+    <Item number="17"><DicomAttribute keyword="ImageSetNumber" tag="00720032" vr="US"><Value number="1">3</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetNumber" tag="00720202" vr="US"><Value number="1">17</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPresentationGroup" tag="00720204" vr="US"><Value number="1">4</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPresentationGroupDescription" tag="00720206" vr="LO"><Value number="1">CT old &amp; CT new combined</Value></DicomAttribute>
+      <DicomAttribute keyword="ImageBoxesSequence" tag="00720300" vr="SQ"><Item number="1"><DicomAttribute keyword="DisplayEnvironmentSpatialPosition" tag="00720108" vr="FD"><Value number="1">0</Value><Value
+        number="2">0.2</Value><Value number="3">0.166666667</Value><Value number="4">0</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxNumber" tag="00720302" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLayoutType" tag="00720304" vr="CS"><Value number="1">STACK</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="FilterOperationsSequence" tag="00720400" vr="SQ"><Item number="1"><DicomAttribute keyword="SelectorAttributeVR" tag="00720050" vr="CS"><Value number="1">CS</Value></DicomAttribute><DicomAttribute
+        keyword="SelectorCSValue" tag="00720062" vr="CS"><Value number="1">TRANSVERSE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByCategory" tag="00720402" vr="CS"><Value number="1">IMAGE_PLANE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByOperator" tag="00720406" vr="CS"><Value number="1">MEMBER_OF</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="ReformattingOperationType" tag="00720510" vr="CS"><Value number="1">MPR</Value></DicomAttribute>
+      <DicomAttribute keyword="ReformattingThickness" tag="00720512" vr="FD"><Value number="1">5</Value></DicomAttribute>
+      <DicomAttribute keyword="ReformattingInterval" tag="00720514" vr="FD"><Value number="1">5</Value></DicomAttribute>
+      <DicomAttribute keyword="ReformattingOperationInitialViewDirection" tag="00720516" vr="CS"><Value number="1">CORONAL</Value></DicomAttribute>
+      <DicomAttribute keyword="SortingOperationsSequence" tag="00720600" vr="SQ"><Item number="1"><DicomAttribute keyword="SortByCategory" tag="00720602" vr="CS"><Value number="1">ALONG_AXIS</Value></DicomAttribute><DicomAttribute
+        keyword="SortingDirection" tag="00720604" vr="CS"><Value number="1">INCREASING</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPatientOrientation" tag="00720700" vr="CS"><Value number="1">L</Value>
+        <Value number="2">F</Value></DicomAttribute>
+      <DicomAttribute keyword="VOIType" tag="00720702" vr="CS"><Value number="1">BRAIN</Value></DicomAttribute></Item>
+    <Item number="18"><DicomAttribute keyword="ImageSetNumber" tag="00720032" vr="US"><Value number="1">2</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetNumber" tag="00720202" vr="US"><Value number="1">18</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPresentationGroup" tag="00720204" vr="US"><Value number="1">4</Value></DicomAttribute>
+      <DicomAttribute keyword="ImageBoxesSequence" tag="00720300" vr="SQ"><Item number="1"><DicomAttribute keyword="DisplayEnvironmentSpatialPosition" tag="00720108" vr="FD"><Value number="1">0</Value><Value
+        number="2">0.4</Value><Value number="3">0.166666667</Value><Value number="4">0.2</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxNumber" tag="00720302" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLayoutType" tag="00720304" vr="CS"><Value number="1">STACK</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="FilterOperationsSequence" tag="00720400" vr="SQ"><Item number="1"><DicomAttribute keyword="SelectorAttributeVR" tag="00720050" vr="CS"><Value number="1">CS</Value></DicomAttribute><DicomAttribute
+        keyword="SelectorCSValue" tag="00720062" vr="CS"><Value number="1">TRANSVERSE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByCategory" tag="00720402" vr="CS"><Value number="1">IMAGE_PLANE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByOperator" tag="00720406" vr="CS"><Value number="1">MEMBER_OF</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="ReformattingOperationType" tag="00720510" vr="CS"><Value number="1">MPR</Value></DicomAttribute>
+      <DicomAttribute keyword="ReformattingThickness" tag="00720512" vr="FD"><Value number="1">5</Value></DicomAttribute>
+      <DicomAttribute keyword="ReformattingInterval" tag="00720514" vr="FD"><Value number="1">5</Value></DicomAttribute>
+      <DicomAttribute keyword="ReformattingOperationInitialViewDirection" tag="00720516" vr="CS"><Value number="1">CORONAL</Value></DicomAttribute>
+      <DicomAttribute keyword="SortingOperationsSequence" tag="00720600" vr="SQ"><Item number="1"><DicomAttribute keyword="SortByCategory" tag="00720602" vr="CS"><Value number="1">ALONG_AXIS</Value></DicomAttribute><DicomAttribute
+        keyword="SortingDirection" tag="00720604" vr="CS"><Value number="1">INCREASING</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPatientOrientation" tag="00720700" vr="CS"><Value number="1">L</Value>
+        <Value number="2">F</Value></DicomAttribute>
+      <DicomAttribute keyword="VOIType" tag="00720702" vr="CS"><Value number="1">BRAIN</Value></DicomAttribute></Item>
+    <Item number="19"><DicomAttribute keyword="ImageSetNumber" tag="00720032" vr="US"><Value number="1">2</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetNumber" tag="00720202" vr="US"><Value number="1">19</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPresentationGroup" tag="00720204" vr="US"><Value number="1">4</Value></DicomAttribute>
+      <DicomAttribute keyword="ImageBoxesSequence" tag="00720300" vr="SQ"><Item number="1"><DicomAttribute keyword="DisplayEnvironmentSpatialPosition" tag="00720108" vr="FD"><Value number="1">0.166666667</Value><Value
+        number="2">0.4</Value><Value number="3">0.333333333</Value><Value number="4">0.2</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxNumber" tag="00720302" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLayoutType" tag="00720304" vr="CS"><Value number="1">STACK</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="FilterOperationsSequence" tag="00720400" vr="SQ"><Item number="1"><DicomAttribute keyword="SelectorAttributeVR" tag="00720050" vr="CS"><Value number="1">CS</Value></DicomAttribute><DicomAttribute
+        keyword="SelectorCSValue" tag="00720062" vr="CS"><Value number="1">TRANSVERSE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByCategory" tag="00720402" vr="CS"><Value number="1">IMAGE_PLANE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByOperator" tag="00720406" vr="CS"><Value number="1">MEMBER_OF</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="SortingOperationsSequence" tag="00720600" vr="SQ"><Item number="1"><DicomAttribute keyword="SortByCategory" tag="00720602" vr="CS"><Value number="1">ALONG_AXIS</Value></DicomAttribute><DicomAttribute
+        keyword="SortingDirection" tag="00720604" vr="CS"><Value number="1">INCREASING</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPatientOrientation" tag="00720700" vr="CS"><Value number="1">L</Value>
+        <Value number="2">P</Value></DicomAttribute>
+      <DicomAttribute keyword="VOIType" tag="00720702" vr="CS"><Value number="1">BRAIN</Value></DicomAttribute>
+      <DicomAttribute keyword="ShowGraphicAnnotationFlag" tag="00720712" vr="CS"><Value number="1">YES</Value></DicomAttribute></Item>
+    <Item number="20"><DicomAttribute keyword="ImageSetNumber" tag="00720032" vr="US"><Value number="1">3</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetNumber" tag="00720202" vr="US"><Value number="1">20</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPresentationGroup" tag="00720204" vr="US"><Value number="1">4</Value></DicomAttribute>
+      <DicomAttribute keyword="ImageBoxesSequence" tag="00720300" vr="SQ"><Item number="1"><DicomAttribute keyword="DisplayEnvironmentSpatialPosition" tag="00720108" vr="FD"><Value number="1">0.166666667</Value><Value
+        number="2">0.2</Value><Value number="3">0.333333333</Value><Value number="4">0</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxNumber" tag="00720302" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLayoutType" tag="00720304" vr="CS"><Value number="1">STACK</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="FilterOperationsSequence" tag="00720400" vr="SQ"><Item number="1"><DicomAttribute keyword="SelectorAttributeVR" tag="00720050" vr="CS"><Value number="1">CS</Value></DicomAttribute><DicomAttribute
+        keyword="SelectorCSValue" tag="00720062" vr="CS"><Value number="1">TRANSVERSE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByCategory" tag="00720402" vr="CS"><Value number="1">IMAGE_PLANE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByOperator" tag="00720406" vr="CS"><Value number="1">MEMBER_OF</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="SortingOperationsSequence" tag="00720600" vr="SQ"><Item number="1"><DicomAttribute keyword="SortByCategory" tag="00720602" vr="CS"><Value number="1">ALONG_AXIS</Value></DicomAttribute><DicomAttribute
+        keyword="SortingDirection" tag="00720604" vr="CS"><Value number="1">INCREASING</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPatientOrientation" tag="00720700" vr="CS"><Value number="1">L</Value>
+        <Value number="2">P</Value></DicomAttribute>
+      <DicomAttribute keyword="VOIType" tag="00720702" vr="CS"><Value number="1">BRAIN</Value></DicomAttribute>
+      <DicomAttribute keyword="ShowGraphicAnnotationFlag" tag="00720712" vr="CS"><Value number="1">YES</Value></DicomAttribute></Item>
+    <Item number="21"><DicomAttribute keyword="ImageSetNumber" tag="00720032" vr="US"><Value number="1">2</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetNumber" tag="00720202" vr="US"><Value number="1">21</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPresentationGroup" tag="00720204" vr="US"><Value number="1">4</Value></DicomAttribute>
+      <DicomAttribute keyword="ImageBoxesSequence" tag="00720300" vr="SQ"><Item number="1"><DicomAttribute keyword="DisplayEnvironmentSpatialPosition" tag="00720108" vr="FD"><Value number="1">0.333333333</Value><Value
+        number="2">1</Value><Value number="3">1</Value><Value number="4">0.75</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxNumber" tag="00720302" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLayoutType" tag="00720304" vr="CS"><Value number="1">TILED</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxTileHorizontalDimension" tag="00720306" vr="US"><Value number="1">3</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxTileVerticalDimension" tag="00720308" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxScrollDirection" tag="00720310" vr="CS"><Value number="1">HORIZONTAL</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxSmallScrollType" tag="00720312" vr="CS"><Value number="1">IMAGE</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxSmallScrollAmount" tag="00720314" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLargeScrollType" tag="00720316" vr="CS"><Value number="1">ROW_COLUMN</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLargeScrollAmount" tag="00720318" vr="US"><Value number="1">1</Value></DicomAttribute></Item>
+        <Item number="2"><DicomAttribute keyword="DisplayEnvironmentSpatialPosition" tag="00720108" vr="FD"><Value number="1">0.333333333</Value><Value
+          number="2">0.5</Value><Value number="3">1</Value><Value number="4">0.25</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxNumber" tag="00720302" vr="US"><Value number="1">2</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxLayoutType" tag="00720304" vr="CS"><Value number="1">TILED</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxTileHorizontalDimension" tag="00720306" vr="US"><Value number="1">3</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxTileVerticalDimension" tag="00720308" vr="US"><Value number="1">1</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxScrollDirection" tag="00720310" vr="CS"><Value number="1">HORIZONTAL</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxSmallScrollType" tag="00720312" vr="CS"><Value number="1">IMAGE</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxSmallScrollAmount" tag="00720314" vr="US"><Value number="1">1</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxLargeScrollType" tag="00720316" vr="CS"><Value number="1">ROW_COLUMN</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxLargeScrollAmount" tag="00720318" vr="US"><Value number="1">1</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="FilterOperationsSequence" tag="00720400" vr="SQ"><Item number="1"><DicomAttribute keyword="SelectorAttributeVR" tag="00720050" vr="CS"><Value number="1">CS</Value></DicomAttribute><DicomAttribute
+        keyword="SelectorCSValue" tag="00720062" vr="CS"><Value number="1">TRANSVERSE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByCategory" tag="00720402" vr="CS"><Value number="1">IMAGE_PLANE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByOperator" tag="00720406" vr="CS"><Value number="1">MEMBER_OF</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="SortingOperationsSequence" tag="00720600" vr="SQ"><Item number="1"><DicomAttribute keyword="SortByCategory" tag="00720602" vr="CS"><Value number="1">ALONG_AXIS</Value></DicomAttribute><DicomAttribute
+        keyword="SortingDirection" tag="00720604" vr="CS"><Value number="1">INCREASING</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPatientOrientation" tag="00720700" vr="CS"><Value number="1">L</Value>
+        <Value number="2">P</Value></DicomAttribute>
+      <DicomAttribute keyword="VOIType" tag="00720702" vr="CS"><Value number="1">BRAIN</Value></DicomAttribute>
+      <DicomAttribute keyword="ShowGraphicAnnotationFlag" tag="00720712" vr="CS"><Value number="1">YES</Value></DicomAttribute></Item>
+    <Item number="22"><DicomAttribute keyword="ImageSetNumber" tag="00720032" vr="US"><Value number="1">3</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetNumber" tag="00720202" vr="US"><Value number="1">22</Value></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPresentationGroup" tag="00720204" vr="US"><Value number="1">4</Value></DicomAttribute>
+      <DicomAttribute keyword="ImageBoxesSequence" tag="00720300" vr="SQ"><Item number="1"><DicomAttribute keyword="DisplayEnvironmentSpatialPosition" tag="00720108" vr="FD"><Value number="1">0.333333333</Value><Value
+        number="2">0.75</Value><Value number="3">1</Value><Value number="4">0.5</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxNumber" tag="00720302" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLayoutType" tag="00720304" vr="CS"><Value number="1">TILED</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxTileHorizontalDimension" tag="00720306" vr="US"><Value number="1">3</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxTileVerticalDimension" tag="00720308" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxScrollDirection" tag="00720310" vr="CS"><Value number="1">HORIZONTAL</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxSmallScrollType" tag="00720312" vr="CS"><Value number="1">IMAGE</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxSmallScrollAmount" tag="00720314" vr="US"><Value number="1">1</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLargeScrollType" tag="00720316" vr="CS"><Value number="1">ROW_COLUMN</Value></DicomAttribute><DicomAttribute
+        keyword="ImageBoxLargeScrollAmount" tag="00720318" vr="US"><Value number="1">1</Value></DicomAttribute></Item>
+        <Item number="2"><DicomAttribute keyword="DisplayEnvironmentSpatialPosition" tag="00720108" vr="FD"><Value number="1">0.333333333</Value><Value
+          number="2">0.25</Value><Value number="3">1</Value><Value number="4">0</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxNumber" tag="00720302" vr="US"><Value number="1">2</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxLayoutType" tag="00720304" vr="CS"><Value number="1">TILED</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxTileHorizontalDimension" tag="00720306" vr="US"><Value number="1">3</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxTileVerticalDimension" tag="00720308" vr="US"><Value number="1">1</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxScrollDirection" tag="00720310" vr="CS"><Value number="1">HORIZONTAL</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxSmallScrollType" tag="00720312" vr="CS"><Value number="1">IMAGE</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxSmallScrollAmount" tag="00720314" vr="US"><Value number="1">1</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxLargeScrollType" tag="00720316" vr="CS"><Value number="1">ROW_COLUMN</Value></DicomAttribute>
+          <DicomAttribute keyword="ImageBoxLargeScrollAmount" tag="00720318" vr="US"><Value number="1">1</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="FilterOperationsSequence" tag="00720400" vr="SQ"><Item number="1"><DicomAttribute keyword="SelectorAttributeVR" tag="00720050" vr="CS"><Value number="1">CS</Value></DicomAttribute><DicomAttribute
+        keyword="SelectorCSValue" tag="00720062" vr="CS"><Value number="1">TRANSVERSE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByCategory" tag="00720402" vr="CS"><Value number="1">IMAGE_PLANE</Value></DicomAttribute><DicomAttribute
+        keyword="FilterByOperator" tag="00720406" vr="CS"><Value number="1">MEMBER_OF</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="SortingOperationsSequence" tag="00720600" vr="SQ"><Item number="1"><DicomAttribute keyword="SortByCategory" tag="00720602" vr="CS"><Value number="1">ALONG_AXIS</Value></DicomAttribute><DicomAttribute
+        keyword="SortingDirection" tag="00720604" vr="CS"><Value number="1">INCREASING</Value></DicomAttribute></Item></DicomAttribute>
+      <DicomAttribute keyword="DisplaySetPatientOrientation" tag="00720700" vr="CS"><Value number="1">L</Value>
+        <Value number="2">P</Value></DicomAttribute>
+      <DicomAttribute keyword="VOIType" tag="00720702" vr="CS"><Value number="1">BRAIN</Value></DicomAttribute>
+      <DicomAttribute keyword="ShowGraphicAnnotationFlag" tag="00720712" vr="CS"><Value number="1">YES</Value></DicomAttribute></Item></DicomAttribute>
+  <DicomAttribute keyword="PartialDataDisplayHandling" tag="00720208" vr="CS"><Value number="1">MAINTAIN_LAYOUT</Value></DicomAttribute>
+  <DicomAttribute keyword="SynchronizedScrollingSequence" tag="00720210" vr="SQ"><Item number="1"><DicomAttribute keyword="DisplaySetScrollingGroup" tag="00720212" vr="US"><Value number="1">15</Value><Value
+    number="2">16</Value></DicomAttribute></Item>
+    <Item number="2"><DicomAttribute keyword="DisplaySetScrollingGroup" tag="00720212" vr="US"><Value number="1">21</Value><Value
+      number="2">22</Value></DicomAttribute></Item></DicomAttribute>
+  <DicomAttribute keyword="NavigationIndicatorSequence" tag="00720214" vr="SQ"/></NativeDicomModel>

@@ -58,7 +58,6 @@ import org.opencv.core.MatOfDouble;
 import org.opencv.core.MatOfInt;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
-import org.opencv.osgi.OpenCVNativeLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.util.Pair;
@@ -67,6 +66,7 @@ import org.weasis.core.util.StringUtil;
 import org.weasis.opencv.data.ImageCV;
 import org.weasis.opencv.data.LookupTableCV;
 import org.weasis.opencv.data.PlanarImage;
+import org.weasis.opencv.natives.NativeLibrary;
 import org.weasis.opencv.op.ImageConversion;
 import org.weasis.opencv.op.ImageTransformer;
 
@@ -127,7 +127,7 @@ public class DicomImageReader extends ImageReader {
   private DicomFileInputStream dis;
 
   static {
-    new OpenCVNativeLoader().init();
+    NativeLibrary.loadLibraryFromLibraryName();
   }
 
   public DicomImageReader(ImageReaderSpi originatingProvider) {

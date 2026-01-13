@@ -194,7 +194,7 @@ class MP4ParserTest {
     @Test
     @DisplayName("Should throw exception for unsupported HEVC level")
     void testGetTransferSyntaxUID_UnsupportedHEVCLevel() throws IOException {
-      setupHEVCMP4(1, 60, 1920, 1080, 25000); // Unsupported level
+      setupHEVCMP4(1, 155, 1920, 1080, 25000); // Unsupported level
 
       MP4Parser parser = new MP4Parser(mockChannel);
 

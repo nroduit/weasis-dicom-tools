@@ -211,18 +211,12 @@ public class PresetWindowLevel {
 
   private static InputStream openPresetFile() throws URISyntaxException, IOException {
     var pathString = System.getProperty("dicom.presets.path");
-    var path = StringUtil.hasText(pathString) ? Paths.get(pathString) : getPresetPath();
-
-    return path != null && Files.isReadable(path) ? Files.newInputStream(path) : null;
-  }
-
-  private static Path getPresetPath() throws URISyntaxException {
-    var resource = PresetWindowLevel.class.getResource("presets.xml");
-    if (resource == null) {
-      LOGGER.warn("Presets XML file not found in classpath");
-      return null;
+    if (!StringUtil.hasText(pathString)) {
+      return  PresetWindowLevel.class.getResourceAsStream("presets.xml");
     }
-    return Paths.get(resource.toURI());
+
+    var path =  Paths.get(pathString);
+    return Files.isReadable(path) ? Files.newInputStream(path) : null;
   }
 
   public static XMLInputFactory createSecureXMLFactory() {

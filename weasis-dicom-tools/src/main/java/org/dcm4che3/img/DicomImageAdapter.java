@@ -330,6 +330,9 @@ public class DicomImageAdapter {
     Optional<Integer> paddingLimit = desc.getPixelPaddingRangeLimit();
     int bitsOutputLut = calculateOutputBits(mLUTSeq, slope, intercept);
     boolean outputSigned = calculateOutputSigned(mLUTSeq, slope, intercept, isSigned);
+    if(bitsOutputLut <= 0 || bitsOutputLut > 32) {
+      return null;
+    }
 
     return new LutParameters(
         intercept,

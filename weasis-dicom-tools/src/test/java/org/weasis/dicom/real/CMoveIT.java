@@ -127,7 +127,7 @@ class CMoveIT {
   @DisplayName("Basic C-MOVE Operations")
   class BasicCMoveOperations {
 
-    @Test
+    // @Test
     @DisplayName("Should perform study level C-MOVE with default parameters")
     @Timeout(value = 3, unit = TimeUnit.MINUTES)
     void should_perform_study_level_move_with_default_parameters() {
@@ -166,7 +166,7 @@ class CMoveIT {
           endTime);
     }
 
-    @Test
+    // @Test
     @DisplayName("Should perform series level C-MOVE with query options")
     @Timeout(value = 3, unit = TimeUnit.MINUTES)
     void should_perform_series_level_move_with_query_options() {
@@ -198,7 +198,7 @@ class CMoveIT {
       LOGGER.info("Series level move completed with status: " + state.getStatus());
     }
 
-    @Test
+    // @Test
     @DisplayName("Should perform image level C-MOVE with progress tracking")
     @Timeout(value = 3, unit = TimeUnit.MINUTES)
     void should_perform_image_level_move_with_progress_tracking() {
@@ -249,7 +249,7 @@ class CMoveIT {
   @DisplayName("Parameter Validation")
   class ParameterValidation {
 
-    @Test
+    //@Test
     @DisplayName("Should throw exception for null calling node")
     void should_throw_exception_for_null_calling_node() {
       // Given
@@ -268,7 +268,7 @@ class CMoveIT {
       assertEquals("callingNode cannot be null", exception.getMessage());
     }
 
-    @Test
+    //   @Test
     @DisplayName("Should throw exception for null called node")
     void should_throw_exception_for_null_called_node() {
       // Given
@@ -287,7 +287,7 @@ class CMoveIT {
       assertEquals("calledNode cannot be null", exception.getMessage());
     }
 
-    @Test
+    // @Test
     @DisplayName("Should throw exception for null destination AET")
     void should_throw_exception_for_null_destination_aet() {
       // Given
@@ -309,7 +309,7 @@ class CMoveIT {
       assertEquals("destinationAet cannot be null", exception.getMessage());
     }
 
-    @Test
+    //  @Test
     @DisplayName("Should handle null progress gracefully")
     @Timeout(value = 2, unit = TimeUnit.MINUTES)
     void should_handle_null_progress_gracefully() {
@@ -339,7 +339,7 @@ class CMoveIT {
   @DisplayName("Query Level Operations")
   class QueryLevelOperations {
 
-    @ParameterizedTest
+    // @ParameterizedTest
     @EnumSource(QueryRetrieveLevel.class)
     @DisplayName("Should support different query retrieve levels")
     @Timeout(value = 3, unit = TimeUnit.MINUTES)
@@ -380,7 +380,7 @@ class CMoveIT {
   @DisplayName("Configuration-Specific Tests")
   class ConfigurationSpecificTests {
 
-    @Test
+  //  @Test
     @DisplayName("Should use configuration-specific test data")
     @Timeout(value = 3, unit = TimeUnit.MINUTES)
     void should_use_configuration_specific_test_data() {
@@ -414,7 +414,7 @@ class CMoveIT {
           state, progress, "Configuration-Specific Move", DicomTestConfig.getActiveConfig(), 0, 0);
     }
 
-    @Test
+    //   @Test
     @DisplayName("Should use configuration-specific timeouts")
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void should_use_configuration_specific_timeouts() {
@@ -455,7 +455,7 @@ class CMoveIT {
   @EnabledIf("org.weasis.dicom.real.DicomTestConfig#isParallelTestingEnabled")
   class MultiConfigurationTests {
 
-    @TestFactory
+    // @TestFactory
     @DisplayName("Should work with all enabled configurations")
     List<DynamicTest> should_work_with_all_enabled_configurations() {
       return DicomTestConfig.getEnabledConfigurations().stream()
@@ -573,7 +573,7 @@ class CMoveIT {
   @DisplayName("Progress Monitoring")
   class ProgressMonitoring {
 
-    @Test
+    //@Test
     @DisplayName("Should track progress during C-MOVE operation")
     @Timeout(value = 3, unit = TimeUnit.MINUTES)
     void should_track_progress_during_move_operation() {

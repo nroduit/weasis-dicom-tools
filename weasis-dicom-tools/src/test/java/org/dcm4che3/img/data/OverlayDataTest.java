@@ -32,9 +32,9 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
-import org.opencv.osgi.OpenCVNativeLoader;
 import org.weasis.opencv.data.ImageCV;
 import org.weasis.opencv.data.PlanarImage;
+import org.weasis.opencv.natives.NativeLibrary;
 
 @DisplayName("OverlayData Tests")
 @DisplayNameGeneration(ReplaceUnderscores.class)
@@ -45,8 +45,7 @@ class OverlayDataTest {
 
   @BeforeAll
   static void load_native_lib() {
-    var loader = new OpenCVNativeLoader();
-    loader.init();
+    NativeLibrary.loadLibraryFromLibraryName();
   }
 
   @Nested

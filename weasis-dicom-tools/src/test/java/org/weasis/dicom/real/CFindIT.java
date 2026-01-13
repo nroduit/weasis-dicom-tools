@@ -270,11 +270,7 @@ class CFindIT {
 
     static boolean isTlsConfigurationAvailable() {
       return DicomTestConfig.getAvailableConfigurations().stream()
-          .anyMatch(
-              config -> {
-                var serverConfig = DicomTestConfig.getServerConfig(config);
-                return serverConfig.tlsEnabled() && serverConfig.enabled();
-              });
+          .anyMatch(DicomTestConfig::isTlsConfigurationAvailable);
     }
 
     private void testWithSpecificConfiguration(String configName) {

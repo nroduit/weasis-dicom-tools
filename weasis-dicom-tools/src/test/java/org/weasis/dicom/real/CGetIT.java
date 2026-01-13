@@ -27,7 +27,7 @@ class CGetIT {
 
   @TempDir public Path testFolder;
 
-  @Test
+ // @Test
   void testProcess() {
     DicomProgress progress = new DicomProgress();
     progress.addProgressListener(

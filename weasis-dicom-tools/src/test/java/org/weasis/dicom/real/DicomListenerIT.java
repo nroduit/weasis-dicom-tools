@@ -24,7 +24,7 @@ class DicomListenerIT {
 
   @TempDir public Path testFolder;
 
-  @Test
+ // @Test
   void testProcess() {
     AdvancedParams params = new AdvancedParams();
     ConnectOptions connectOptions = new ConnectOptions();

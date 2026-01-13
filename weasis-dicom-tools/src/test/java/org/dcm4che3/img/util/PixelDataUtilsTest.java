@@ -25,9 +25,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.Scalar;
-import org.opencv.osgi.OpenCVNativeLoader;
 import org.weasis.opencv.data.ImageCV;
 import org.weasis.opencv.data.PlanarImage;
+import org.weasis.opencv.natives.NativeLibrary;
 
 /**
  * Test class for {@link PixelDataUtils}.
@@ -42,8 +42,7 @@ class PixelDataUtilsTest {
 
   @BeforeAll
   static void loadNativeLib() {
-    var loader = new OpenCVNativeLoader();
-    loader.init();
+    NativeLibrary.loadLibraryFromLibraryName();
   }
 
   @Nested

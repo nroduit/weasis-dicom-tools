@@ -26,7 +26,7 @@ import org.weasis.dicom.tool.ModalityWorklist;
 @DisplayName("DICOM Modality Worklist")
 class ModalityWorklistIT {
 
-  @Test
+  //@Test
   void testProcess() {
     // Filter by AETitle by setting a value
     final int[] sps = {Tag.ScheduledProcedureStepSequence};

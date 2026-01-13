@@ -683,8 +683,8 @@ class LookupTableUtilsTest {
   }
 
   private void create16BitLutAttributes() {
-    lutAttributes.setInt(Tag.LUTDescriptor, VR.US, STANDARD_8BIT_ENTRIES, 0, 16);
-    lutAttributes.setBytes(Tag.LUTData, VR.OW, create16BitLutData(STANDARD_8BIT_ENTRIES));
+    lutAttributes.setInt(Tag.LUTDescriptor, VR.US, STANDARD_12BIT_MAX, 0, 16);
+    lutAttributes.setBytes(Tag.LUTData, VR.OW, create16BitLutData(STANDARD_12BIT_MAX));
   }
 
   private void create8BitLutWith16BitAllocation() {

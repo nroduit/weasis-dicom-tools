@@ -22,10 +22,10 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
-import org.opencv.osgi.OpenCVNativeLoader;
 import org.weasis.opencv.data.ImageCV;
 import org.weasis.opencv.data.LookupTableCV;
 import org.weasis.opencv.data.PlanarImage;
+import org.weasis.opencv.natives.NativeLibrary;
 
 /**
  * Test class for {@link PaletteColorUtils}.
@@ -44,8 +44,7 @@ class PaletteColorUtilsTest {
 
   @BeforeAll
   static void initialize_opencv() {
-    var loader = new OpenCVNativeLoader();
-    loader.init();
+    NativeLibrary.loadLibraryFromLibraryName();
   }
 
   @BeforeEach

@@ -221,6 +221,11 @@ public final class DicomTestConfig {
     }
   }
 
+  public static boolean isTlsConfigurationAvailable(String configName) {
+    var serverConfig = DicomTestConfig.getServerConfig(configName);
+    return serverConfig.tlsEnabled() && serverConfig.enabled();
+  }
+
   /**
    * Gets all available configuration names.
    *
@@ -334,6 +339,10 @@ public final class DicomTestConfig {
    */
   public static ServerConfig getActiveServerConfig() {
     return getServerConfig(getActiveConfig());
+  }
+
+  public static boolean isActiveConfigurationAvailable() {
+    return getActiveServerConfig().enabled;
   }
 
   /**
@@ -671,7 +680,7 @@ public final class DicomTestConfig {
 
     for (String configName : getAvailableConfigurations()) {
       try {
-        ServerConfig config = getServerConfig(configName);
+        DicomTestConfig.ServerConfig config = getServerConfig(configName);
         System.out.printf("%-20s %s%n", configName, config.toString());
         if (!config.description().isEmpty()) {
           System.out.printf("%-20s %s%n", "", config.description());

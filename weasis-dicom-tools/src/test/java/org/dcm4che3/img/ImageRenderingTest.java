@@ -37,10 +37,10 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.Scalar;
-import org.opencv.osgi.OpenCVNativeLoader;
 import org.weasis.core.util.StringUtil;
 import org.weasis.opencv.data.ImageCV;
 import org.weasis.opencv.data.PlanarImage;
+import org.weasis.opencv.natives.NativeLibrary;
 import org.weasis.opencv.op.ImageAnalyzer;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -55,7 +55,7 @@ class ImageRenderingTest {
 
   @BeforeAll
   static void load_native_lib() {
-    new OpenCVNativeLoader().init();
+    NativeLibrary.loadLibraryFromLibraryName();
   }
 
   @BeforeAll

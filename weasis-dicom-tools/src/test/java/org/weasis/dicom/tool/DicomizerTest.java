@@ -33,7 +33,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.opencv.osgi.OpenCVNativeLoader;
+import org.weasis.opencv.natives.NativeLibrary;
 
 @DisplayNameGeneration(ReplaceUnderscores.class)
 class DicomizerTest {
@@ -45,8 +45,7 @@ class DicomizerTest {
 
   @BeforeAll
   static void loadNativeLib() {
-    OpenCVNativeLoader loader = new OpenCVNativeLoader();
-    loader.init();
+    NativeLibrary.loadLibraryFromLibraryName();
   }
 
   @Nested

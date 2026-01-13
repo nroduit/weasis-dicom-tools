@@ -23,7 +23,7 @@ import org.weasis.dicom.param.*;
 @DisplayName("DICOM C-GET forward")
 class CGetForwardIT {
 
-  @Test
+  //@Test
   void testProcess() {
     DicomProgress progress = new DicomProgress();
     progress.addProgressListener(

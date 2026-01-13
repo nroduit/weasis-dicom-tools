@@ -45,17 +45,15 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.opencv.core.CvType;
-import org.opencv.osgi.OpenCVNativeLoader;
 import org.weasis.opencv.data.ImageCV;
+import org.weasis.opencv.natives.NativeLibrary;
 import org.weasis.opencv.op.ImageIOHandler;
 
 class JPEGParserTest {
 
   @BeforeAll
   static void loadNativeLib() {
-    // Load the native OpenCV library for integration tests
-    OpenCVNativeLoader loader = new OpenCVNativeLoader();
-    loader.init();
+    NativeLibrary.loadLibraryFromLibraryName();
   }
 
   // ============ UNIT TESTS ============

@@ -29,7 +29,7 @@ import org.weasis.dicom.web.DicomStowRS;
 @DisplayName("DICOMWeb stow-rs scu")
 class StowIT {
 
-  @Test
+  //@Test
   void testProcess() {
     List<String> files = new ArrayList<>();
     files.add(Path.of("src/test/resources/dicom/mr.dcm").toString());

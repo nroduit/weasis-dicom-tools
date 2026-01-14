@@ -19,6 +19,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.dcm4che3.net.Device;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -390,11 +391,12 @@ class DeviceOpServiceTest {
   }
 
   private ExecutorService getExecutorField() throws Exception {
-    return getFieldValue("executor", ExecutorService.class);
+    return (ExecutorService) getFieldValue("executor", AtomicReference.class).get();
   }
 
   private ScheduledExecutorService getScheduledExecutorField() throws Exception {
-    return getFieldValue("scheduledExecutor", ScheduledExecutorService.class);
+    return (ScheduledExecutorService)
+        getFieldValue("scheduledExecutor", AtomicReference.class).get();
   }
 
   @SuppressWarnings("unchecked")

@@ -12,6 +12,7 @@ package org.weasis.dicom.param;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicReference;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.net.Status;
@@ -20,9 +21,9 @@ import org.dcm4che3.net.Status;
 public class DicomProgress implements CancelListener {
 
   private final List<ProgressListener> listeners = new CopyOnWriteArrayList<>();
-  private volatile Attributes attributes;
+  private final AtomicReference<Attributes> attributes = new AtomicReference<>();
+  private final AtomicReference<Path> processedFile = new AtomicReference<>();
   private volatile boolean cancelled;
-  private volatile Path processedFile;
   private volatile boolean lastFailed;
 
   /**
@@ -31,7 +32,7 @@ public class DicomProgress implements CancelListener {
    * @return the attributes or null if none set
    */
   public Attributes getAttributes() {
-    return attributes;
+    return attributes.get();
   }
 
   /**
@@ -41,7 +42,7 @@ public class DicomProgress implements CancelListener {
    */
   public void setAttributes(Attributes attributes) {
     var previousFailed = getFailedCount();
-    this.attributes = attributes;
+    this.attributes.set(attributes);
     this.lastFailed = previousFailed >= 0 && previousFailed < getFailedCount();
 
     notifyListeners();
@@ -62,7 +63,7 @@ public class DicomProgress implements CancelListener {
    * @return the processed file path or null if none set
    */
   public Path getProcessedFile() {
-    return processedFile;
+    return processedFile.get();
   }
 
   /**
@@ -71,7 +72,7 @@ public class DicomProgress implements CancelListener {
    * @param processedFile the file being processed
    */
   public void setProcessedFile(Path processedFile) {
-    this.processedFile = processedFile;
+    this.processedFile.set(processedFile);
   }
 
   /**
@@ -117,7 +118,8 @@ public class DicomProgress implements CancelListener {
     if (cancelled) {
       return Status.Cancel;
     }
-    return attributes != null ? attributes.getInt(Tag.Status, Status.Pending) : Status.Pending;
+    Attributes dcm = attributes.get();
+    return dcm != null ? dcm.getInt(Tag.Status, Status.Pending) : Status.Pending;
   }
 
   /**
@@ -126,7 +128,8 @@ public class DicomProgress implements CancelListener {
    * @return the error comment or null if none available
    */
   public String getErrorComment() {
-    return attributes != null ? attributes.getString(Tag.ErrorComment) : null;
+    Attributes dcm = attributes.get();
+    return dcm != null ? dcm.getString(Tag.ErrorComment) : null;
   }
 
   /**
@@ -170,7 +173,8 @@ public class DicomProgress implements CancelListener {
   }
 
   private int getTagValue(int tag) {
-    return attributes != null ? attributes.getInt(tag, -1) : -1;
+    Attributes dcm = attributes.get();
+    return dcm != null ? dcm.getInt(tag, -1) : -1;
   }
 
   private int getFailedCount() {

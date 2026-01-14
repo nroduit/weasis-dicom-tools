@@ -50,9 +50,9 @@ public class HPNavigationGroup extends Module {
       }
     }
     refDisplaySets = new ArrayList<>(group.length);
-    for (int j = 0; j < group.length; j++) {
+    for (int i : group) {
       try {
-        refDisplaySets.add(displaySets.get(group[j] - 1));
+        refDisplaySets.add(displaySets.get(i - 1));
       } catch (IndexOutOfBoundsException e) {
         throw new IllegalArgumentException(
             "Reference Display Set does not exists: "
@@ -66,16 +66,8 @@ public class HPNavigationGroup extends Module {
   }
 
   public final void setNavigationDisplaySet(HPDisplaySet displaySet) {
-    if (displaySet == null) {
-      dcmItems.remove(Tag.NavigationDisplaySet);
-    } else {
-      int dsn = displaySet.getDisplaySetNumber();
-      if (dsn == 0) {
-        throw new IllegalArgumentException("Missing Display Set Number");
-      }
-      dcmItems.setInt(Tag.NavigationDisplaySet, VR.US, dsn);
-    }
     this.navDisplaySet = displaySet;
+    updateDisplaySetNumber();
   }
 
   public List<HPDisplaySet> getReferenceDisplaySets() {
@@ -102,8 +94,8 @@ public class HPNavigationGroup extends Module {
     return true;
   }
 
-  public void updateAttributes() {
-    if (navDisplaySet != null) {
+  public void updateDisplaySetNumber() {
+    if (navDisplaySet == null) {
       dcmItems.remove(Tag.NavigationDisplaySet);
     } else {
       Integer val = navDisplaySet.getDisplaySetNumber();
@@ -111,6 +103,11 @@ public class HPNavigationGroup extends Module {
         dcmItems.setInt(Tag.NavigationDisplaySet, VR.US, val);
       }
     }
+    updateReferenceDisplaySets();
+  }
+
+  public void updateAttributes() {
+    updateDisplaySetNumber();
     updateReferenceDisplaySets();
   }
 

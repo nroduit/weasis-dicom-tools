@@ -14,6 +14,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.dcm4che3.net.Device;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,8 +30,9 @@ public class DeviceOpService {
 
   private static final long SHUTDOWN_TIMEOUT_SECONDS = 30L;
   protected final Device device;
-  protected volatile ExecutorService executor;
-  protected volatile ScheduledExecutorService scheduledExecutor;
+  private final AtomicReference<ExecutorService> executor = new AtomicReference<>();
+  private final AtomicReference<ScheduledExecutorService> scheduledExecutor =
+      new AtomicReference<>();
 
   /**
    * Creates a device operation service for the specified device.
@@ -47,7 +49,8 @@ public class DeviceOpService {
   }
 
   public boolean isRunning() {
-    return executor != null && !executor.isShutdown();
+    ExecutorService exec = executor.get();
+    return exec != null && !exec.isShutdown();
   }
 
   public synchronized void start() {
@@ -74,21 +77,21 @@ public class DeviceOpService {
 
   private void createExecutorServices() {
     var deviceName = device.getDeviceName();
-    executor =
-        Executors.newSingleThreadExecutor(ServiceUtil.getThreadFactory(deviceName + "-executor"));
-    scheduledExecutor =
+    executor.set(
+        Executors.newSingleThreadExecutor(ServiceUtil.getThreadFactory(deviceName + "-executor")));
+    scheduledExecutor.set(
         Executors.newSingleThreadScheduledExecutor(
-            ServiceUtil.getThreadFactory(deviceName + "-scheduled"));
+            ServiceUtil.getThreadFactory(deviceName + "-scheduled")));
   }
 
   private void configureDevice() {
-    device.setExecutor(executor);
-    device.setScheduledExecutor(scheduledExecutor);
+    device.setExecutor(executor.get());
+    device.setScheduledExecutor(scheduledExecutor.get());
   }
 
   private void shutdownExecutorServices() {
-    shutdownExecutor(scheduledExecutor, "Scheduled executor");
-    shutdownExecutor(executor, "Main executor");
+    shutdownExecutor(scheduledExecutor.get(), "Scheduled executor");
+    shutdownExecutor(executor.get(), "Main executor");
   }
 
   private void shutdownExecutor(ExecutorService executor, String executorType) {
@@ -112,7 +115,7 @@ public class DeviceOpService {
   }
 
   private void clearExecutorReferences() {
-    executor = null;
-    scheduledExecutor = null;
+    executor.set(null);
+    scheduledExecutor.set(null);
   }
 }

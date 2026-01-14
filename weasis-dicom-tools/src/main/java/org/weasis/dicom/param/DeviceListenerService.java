@@ -16,6 +16,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.dcm4che3.net.Device;
 
 /**
@@ -27,8 +28,9 @@ public class DeviceListenerService {
   private static final int SHUTDOWN_TIMEOUT_SECONDS = 10;
 
   private final Device device;
-  private volatile ExecutorService executor;
-  private volatile ScheduledExecutorService scheduledExecutor;
+  private final AtomicReference<ExecutorService> executor = new AtomicReference<>();
+  private final AtomicReference<ScheduledExecutorService> scheduledExecutor =
+      new AtomicReference<>();
 
   /**
    * Creates a new device listener service.
@@ -55,7 +57,8 @@ public class DeviceListenerService {
    * @return true if the service is running, false otherwise
    */
   public boolean isRunning() {
-    return executor != null && !executor.isShutdown();
+    ExecutorService exec = executor.get();
+    return exec != null && !exec.isShutdown();
   }
 
   /**
@@ -91,13 +94,13 @@ public class DeviceListenerService {
   }
 
   private void initializeExecutors() {
-    executor = Executors.newCachedThreadPool();
-    scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
+    executor.set(Executors.newCachedThreadPool());
+    scheduledExecutor.set(Executors.newSingleThreadScheduledExecutor());
   }
 
   private void configureDevice() {
-    device.setExecutor(executor);
-    device.setScheduledExecutor(scheduledExecutor);
+    device.setExecutor(executor.get());
+    device.setScheduledExecutor(scheduledExecutor.get());
   }
 
   private void unbindDeviceConnections() {
@@ -110,8 +113,8 @@ public class DeviceListenerService {
   }
 
   private void shutdownExecutors() {
-    shutdownExecutor(scheduledExecutor);
-    shutdownExecutor(executor);
+    shutdownExecutor(scheduledExecutor.get());
+    shutdownExecutor(executor.get());
   }
 
   private void shutdownExecutor(ExecutorService executorService) {
@@ -129,7 +132,7 @@ public class DeviceListenerService {
   }
 
   private void clearExecutorReferences() {
-    executor = null;
-    scheduledExecutor = null;
+    executor.set(null);
+    scheduledExecutor.set(null);
   }
 }

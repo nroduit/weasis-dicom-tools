@@ -523,7 +523,7 @@ public final class Dicomizer {
     }
   }
 
-  private record PixelDataContext(
+  private record PixelDataContext( // NOSONAR only internal use
       byte[] prefix, long codeStreamSize) {} // NOSONAR only internal use
 
   // Legacy method overloads for backward compatibility

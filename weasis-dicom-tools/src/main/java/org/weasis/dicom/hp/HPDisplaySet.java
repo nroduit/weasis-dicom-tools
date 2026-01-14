@@ -184,6 +184,14 @@ public class HPDisplaySet extends Module {
     dcmItems.setInt(Tag.DisplaySetNumber, VR.US, displaySetNumber);
   }
 
+  public void setDisplaySetLabel(String label) {
+    dcmItems.setString(Tag.DisplaySetLabel, VR.LO, label);
+  }
+
+  public String getDisplaySetLabel() {
+    return dcmItems.getString(Tag.DisplaySetLabel);
+  }
+
   public Integer getDisplaySetPresentationGroup() {
     return DicomUtils.getIntegerFromDicomElement(dcmItems, Tag.DisplaySetPresentationGroup, null);
   }

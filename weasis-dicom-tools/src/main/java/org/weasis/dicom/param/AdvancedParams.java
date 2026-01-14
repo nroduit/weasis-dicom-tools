@@ -228,27 +228,27 @@ public class AdvancedParams {
   }
 
   private void configureTlsProtocols(Connection conn) {
-    Optional.of(tlsOptions.getCipherSuites())
+    Optional.of(tlsOptions.cipherSuites())
         .ifPresent(suites -> conn.setTlsCipherSuites(suites.toArray(String[]::new)));
 
-    Optional.ofNullable(tlsOptions.getTlsProtocols())
+    Optional.ofNullable(tlsOptions.tlsProtocols())
         .ifPresent(protocols -> conn.setTlsProtocols(protocols.toArray(String[]::new)));
-    conn.setTlsNeedClientAuth(tlsOptions.isTlsNeedClientAuth());
+    conn.setTlsNeedClientAuth(tlsOptions.tlsNeedClientAuth());
   }
 
   private void configureDeviceSecurity(Device device) throws IOException {
     try {
       device.setKeyManager(
           SSLManagerFactory.createKeyManager(
-              tlsOptions.getKeystoreType(),
-              tlsOptions.getKeystoreURL(),
-              tlsOptions.getKeystorePass(),
-              tlsOptions.getKeyPass()));
+              tlsOptions.keystoreType(),
+              tlsOptions.keystoreURL(),
+              tlsOptions.keystorePass(),
+              tlsOptions.keyPass()));
       device.setTrustManager(
           SSLManagerFactory.createTrustManager(
-              tlsOptions.getTruststoreType(),
-              tlsOptions.getTruststoreURL(),
-              tlsOptions.getTruststorePass()));
+              tlsOptions.truststoreType(),
+              tlsOptions.truststoreURL(),
+              tlsOptions.truststorePass()));
     } catch (GeneralSecurityException e) {
       throw new IOException("Failed to configure TLS security", e);
     }

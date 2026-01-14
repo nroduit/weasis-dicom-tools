@@ -106,7 +106,10 @@ public class HPNavigationGroup extends Module {
     if (navDisplaySet != null) {
       dcmItems.remove(Tag.NavigationDisplaySet);
     } else {
-      dcmItems.setInt(Tag.NavigationDisplaySet, VR.US, navDisplaySet.getDisplaySetNumber());
+      Integer val = navDisplaySet.getDisplaySetNumber();
+      if (val != null) {
+        dcmItems.setInt(Tag.NavigationDisplaySet, VR.US, val);
+      }
     }
     updateReferenceDisplaySets();
   }

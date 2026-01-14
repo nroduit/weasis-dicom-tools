@@ -74,7 +74,6 @@ public final class CIELab {
 
   // RGB color bounds
   private static final int RGB_MIN = 0;
-  private static final int RGB_MAX = 255;
   private static final int DICOM_MAX = 65535;
 
   private CIELab() {

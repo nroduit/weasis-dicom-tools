@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 import org.dcm4che3.img.DicomMetaData;
 import org.dcm4che3.io.DicomInputStream;
 import org.slf4j.Logger;
@@ -35,7 +36,7 @@ public class DicomFileInputStream extends DicomInputStream implements ImageReade
   private static final Logger LOGGER = LoggerFactory.getLogger(DicomFileInputStream.class);
 
   private final Path path;
-  private volatile DicomMetaData metadata;
+  private final AtomicReference<DicomMetaData> metadata = new AtomicReference<>();
 
   /**
    * Constructs a new DICOM file input stream from the specified file path.
@@ -78,13 +79,13 @@ public class DicomFileInputStream extends DicomInputStream implements ImageReade
    * @throws IOException if an I/O error occurs while reading the metadata
    */
   public DicomMetaData getMetadata() throws IOException {
-    var result = metadata;
+    DicomMetaData result = metadata.get();
     if (result == null) {
       synchronized (this) {
-        result = metadata;
+        result = metadata.get();
         if (result == null) {
           result = new DicomMetaData(this);
-          metadata = result;
+          metadata.set(result);
         }
       }
     }

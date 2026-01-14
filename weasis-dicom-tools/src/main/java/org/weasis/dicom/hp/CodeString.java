@@ -44,7 +44,7 @@ public class CodeString {
   public static final String COLOR = "COLOR";
 
   public static final String MPR = "MPR";
-  public static final String _3D_RENDERING = "3D_RENDERING";
+  public static final String RENDERING_3D = "3D_RENDERING";
   public static final String SLAB = "SLAB";
 
   public static final String SAGITTAL = "SAGITTAL";

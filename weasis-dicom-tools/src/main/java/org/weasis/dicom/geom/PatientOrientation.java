@@ -46,24 +46,7 @@ public final class PatientOrientation {
   /** Color for longitudinal orientations (head/foot, cranial/caudal) */
   public static final Color GREEN = new Color(897355);
 
-  // Deprecated color constants for backward compatibility
-  /**
-   * @deprecated Use {@link #BLUE} instead
-   */
-  @Deprecated(since = "5.34.0.3", forRemoval = true)
-  public static final Color blue = BLUE;
-
-  /**
-   * @deprecated Use {@link #RED} instead
-   */
-  @Deprecated(since = "5.34.0.3", forRemoval = true)
-  public static final Color red = RED;
-
-  /**
-   * @deprecated Use {@link #GREEN} instead
-   */
-  @Deprecated(since = "5.34.0.3", forRemoval = true)
-  public static final Color green = GREEN;
+  public static final String VECTOR_CANNOT_BE_NULL = "Vector cannot be null";
 
   private PatientOrientation() {
     // Utility class
@@ -181,7 +164,7 @@ public final class PatientOrientation {
    * @throws NullPointerException if vector is null
    */
   public static Biped getBipedXOrientation(Vector3 vector) {
-    Objects.requireNonNull(vector, "Vector cannot be null");
+    Objects.requireNonNull(vector, VECTOR_CANNOT_BE_NULL);
     return vector.x() < 0 ? Biped.R : Biped.L;
   }
 
@@ -193,7 +176,7 @@ public final class PatientOrientation {
    * @throws NullPointerException if vector is null
    */
   public static Biped getBipedYOrientation(Vector3 vector) {
-    Objects.requireNonNull(vector, "Vector cannot be null");
+    Objects.requireNonNull(vector, VECTOR_CANNOT_BE_NULL);
     return vector.y() < 0 ? Biped.A : Biped.P;
   }
 
@@ -205,7 +188,7 @@ public final class PatientOrientation {
    * @throws NullPointerException if vector is null
    */
   public static Biped getBipedZOrientation(Vector3 vector) {
-    Objects.requireNonNull(vector, "Vector cannot be null");
+    Objects.requireNonNull(vector, VECTOR_CANNOT_BE_NULL);
     return vector.z() < 0 ? Biped.F : Biped.H;
   }
 
@@ -217,7 +200,7 @@ public final class PatientOrientation {
    * @throws NullPointerException if vector is null
    */
   public static Quadruped getQuadrupedXOrientation(Vector3 vector) {
-    Objects.requireNonNull(vector, "Vector cannot be null");
+    Objects.requireNonNull(vector, VECTOR_CANNOT_BE_NULL);
     return vector.x() < 0 ? Quadruped.RT : Quadruped.LE;
   }
 
@@ -229,7 +212,7 @@ public final class PatientOrientation {
    * @throws NullPointerException if vector is null
    */
   public static Quadruped getQuadrupedYOrientation(Vector3 vector) {
-    Objects.requireNonNull(vector, "Vector cannot be null");
+    Objects.requireNonNull(vector, VECTOR_CANNOT_BE_NULL);
     return vector.y() < 0 ? Quadruped.V : Quadruped.D;
   }
 
@@ -241,7 +224,7 @@ public final class PatientOrientation {
    * @throws NullPointerException if vector is null
    */
   public static Quadruped getQuadrupedZOrientation(Vector3 vector) {
-    Objects.requireNonNull(vector, "Vector cannot be null");
+    Objects.requireNonNull(vector, VECTOR_CANNOT_BE_NULL);
     return vector.z() < 0 ? Quadruped.CD : Quadruped.CR;
   }
 
@@ -258,7 +241,7 @@ public final class PatientOrientation {
    * @throws IllegalArgumentException if axis is not X, Y, or Z
    */
   public static Orientation getAxisOrientation(Vector3 vector, Axis axis, boolean quadruped) {
-    Objects.requireNonNull(vector, "Vector cannot be null");
+    Objects.requireNonNull(vector, VECTOR_CANNOT_BE_NULL);
     Objects.requireNonNull(axis, "Axis cannot be null");
 
     return switch (axis) {

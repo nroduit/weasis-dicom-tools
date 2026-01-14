@@ -207,7 +207,7 @@ public final class MultipartReader implements AutoCloseable {
       }
 
       buffer.readBytes(b, off, bytesToRead);
-      detector.updatePosition(bytesToRead);
+      detector.updatePosition();
 
       return bytesToRead;
     }
@@ -228,7 +228,7 @@ public final class MultipartReader implements AutoCloseable {
       int available = detector.getAvailableBytes();
       long toSkip = Math.min(n, available);
       buffer.skip((int) toSkip);
-      detector.updatePosition((int) toSkip);
+      detector.updatePosition();
       return toSkip;
     }
 
@@ -275,7 +275,7 @@ public final class MultipartReader implements AutoCloseable {
       return Math.max(0, boundaryPosition - buffer.getPosition());
     }
 
-    void updatePosition(int bytesProcessed) {
+    void updatePosition() {
       // Recalculate boundary position after reading data
       updateBoundaryPosition();
     }

@@ -22,14 +22,13 @@ import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.io.DicomInputStream.IncludeBulkData;
 import org.dcm4che3.util.UIDUtils;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
 import org.weasis.dicom.web.ContentType;
 import org.weasis.dicom.web.DicomStowRS;
 
 @DisplayName("DICOMWeb stow-rs scu")
 class StowIT {
 
-  //@Test
+  // @Test
   void testProcess() {
     List<String> files = new ArrayList<>();
     files.add(Path.of("src/test/resources/dicom/mr.dcm").toString());

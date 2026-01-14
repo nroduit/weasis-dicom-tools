@@ -26,6 +26,10 @@ public class HPComparatorFactory {
    */
   public static final int FRAME_INDEX = 0xffff;
 
+  private HPComparatorFactory() {
+    // Utility class
+  }
+
   public static HPComparator createHPComparator(Attributes sortingOp) {
     if (sortingOp.containsValue(Tag.SortByCategory)) {
       return HPComparatorFactory.createSortByCategory(sortingOp);

@@ -14,7 +14,7 @@ import org.weasis.dicom.hp.HPSelector;
 
 public abstract class HPSelectorCategoryService extends HPCategoryService {
 
-  public HPSelectorCategoryService(String category) {
+  protected HPSelectorCategoryService(String category) {
     super(category);
   }
 

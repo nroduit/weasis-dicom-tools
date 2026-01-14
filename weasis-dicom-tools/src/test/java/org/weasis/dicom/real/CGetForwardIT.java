@@ -16,14 +16,13 @@ import org.dcm4che3.data.VR;
 import org.dcm4che3.net.Status;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
 import org.weasis.dicom.op.CGetForward;
 import org.weasis.dicom.param.*;
 
 @DisplayName("DICOM C-GET forward")
 class CGetForwardIT {
 
-  //@Test
+  // @Test
   void testProcess() {
     DicomProgress progress = new DicomProgress();
     progress.addProgressListener(

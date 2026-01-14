@@ -117,8 +117,7 @@ public class DicomListener {
   }
 
   private void configureBinding(
-      AdvancedParams options, Connection connection, DicomNode scpNode, ListenerParams params)
-      throws Exception {
+      AdvancedParams options, Connection connection, DicomNode scpNode, ListenerParams params) {
     if (params.isBindCallingAet()) {
       options.configureBind(storeSCP.getApplicationEntity(), connection, scpNode);
     } else {
@@ -126,7 +125,7 @@ public class DicomListener {
     }
   }
 
-  private void configureTransferCapabilities(ListenerParams params) throws Exception {
+  private void configureTransferCapabilities(ListenerParams params) {
     var transferCapabilityFile = params.getTransferCapabilityFile();
 
     if (transferCapabilityFile != null) {

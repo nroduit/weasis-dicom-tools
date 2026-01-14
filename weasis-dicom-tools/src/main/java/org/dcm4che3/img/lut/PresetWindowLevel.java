@@ -13,9 +13,7 @@ import java.awt.image.DataBuffer;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Array;
-import java.net.URISyntaxException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import javax.xml.stream.XMLInputFactory;
@@ -209,13 +207,13 @@ public class PresetWindowLevel {
     }
   }
 
-  private static InputStream openPresetFile() throws URISyntaxException, IOException {
+  private static InputStream openPresetFile() throws IOException {
     var pathString = System.getProperty("dicom.presets.path");
     if (!StringUtil.hasText(pathString)) {
-      return  PresetWindowLevel.class.getResourceAsStream("presets.xml");
+      return PresetWindowLevel.class.getResourceAsStream("presets.xml");
     }
 
-    var path =  Paths.get(pathString);
+    var path = Paths.get(pathString);
     return Files.isReadable(path) ? Files.newInputStream(path) : null;
   }
 
@@ -441,9 +439,10 @@ public class PresetWindowLevel {
     }
 
     private static void setPresetKeyCode(PresetWindowLevel preset, int index) {
-      switch (index) {
-        case 0 -> preset.setKeyCode(FIRST_PRESET_KEY);
-        case 1 -> preset.setKeyCode(SECOND_PRESET_KEY);
+      if (index == 0) {
+        preset.setKeyCode(FIRST_PRESET_KEY);
+      } else if (index == 1) {
+        preset.setKeyCode(SECOND_PRESET_KEY);
       }
     }
   }

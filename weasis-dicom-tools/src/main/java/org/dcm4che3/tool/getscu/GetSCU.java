@@ -136,7 +136,7 @@ public class GetSCU implements AutoCloseable {
           } catch (Exception e) {
             throw new DicomServiceException(Status.ProcessingFailure, e);
           }
-          updateProgress(as, null);
+          updateProgress(null);
         }
       };
 
@@ -321,7 +321,7 @@ public class GetSCU implements AutoCloseable {
       @Override
       public void onDimseRSP(Association as, Attributes cmd, Attributes data) {
         super.onDimseRSP(as, cmd, data);
-        updateProgress(as, cmd);
+        updateProgress(cmd);
       }
     };
   }
@@ -377,7 +377,7 @@ public class GetSCU implements AutoCloseable {
     ServiceUtil.shutdownService(device.getScheduledExecutor());
   }
 
-  private void updateProgress(Association as, Attributes cmd) {
+  private void updateProgress(Attributes cmd) {
     var progress = state.getProgress();
     if (progress != null) {
       progress.setAttributes(cmd);

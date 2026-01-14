@@ -40,7 +40,6 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
-import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.weasis.dicom.op.CStore;
@@ -111,7 +110,7 @@ class CstoreIT {
   @DisplayName("Basic C-STORE Operations")
   class BasicOperations {
 
-  //  @Test
+    //  @Test
     @Timeout(value = 2, unit = TimeUnit.MINUTES)
     @DisplayName("Should successfully store DICOM file to remote server")
     @EnabledIf("org.weasis.dicom.real.DicomTestConfig#isActiveConfigurationAvailable")
@@ -126,7 +125,7 @@ class CstoreIT {
       System.out.printf("DICOM C-STORE Status: %s%n", state.getMessage());
     }
 
-  //  @Test
+    //  @Test
     @Timeout(value = 2, unit = TimeUnit.MINUTES)
     @DisplayName("Should store with progress tracking")
     @EnabledIf("org.weasis.dicom.real.DicomTestConfig#isActiveConfigurationAvailable")
@@ -154,7 +153,7 @@ class CstoreIT {
       assertNotNull(completedFiles.get(), "Completed file should be tracked");
     }
 
-   // @Test
+    // @Test
     @Timeout(value = 2, unit = TimeUnit.MINUTES)
     @DisplayName("Should store with advanced parameters")
     @EnabledIf("org.weasis.dicom.real.DicomTestConfig#isActiveConfigurationAvailable")
@@ -167,7 +166,7 @@ class CstoreIT {
       assertEquals(Status.Success, state.getStatus(), state.getMessage());
     }
 
-  //  @Test
+    //  @Test
     @Timeout(value = 2, unit = TimeUnit.MINUTES)
     @DisplayName("Should store with attribute modifications")
     @EnabledIf("org.weasis.dicom.real.DicomTestConfig#isActiveConfigurationAvailable")
@@ -245,7 +244,7 @@ class CstoreIT {
       assertThrows(NullPointerException.class, () -> CStore.process(callingNode, null, testFiles));
     }
 
-  //  @Test
+    //  @Test
     @DisplayName("Should handle null advanced parameters")
     void shouldHandleNullAdvancedParams() {
       // When
@@ -255,7 +254,7 @@ class CstoreIT {
       assertNotNull(state);
     }
 
-   // @Test
+    // @Test
     @DisplayName("Should handle null progress")
     void shouldHandleNullProgress() {
       // When
@@ -326,7 +325,7 @@ class CstoreIT {
   @DisplayName("Configuration-Based Tests")
   class ConfigurationBasedTests {
 
-   // @ParameterizedTest
+    // @ParameterizedTest
     @ValueSource(strings = {"public-server", "local-dcm4che"})
     @DisplayName("Should work with different configurations")
     @EnabledIf("org.weasis.dicom.real.DicomTestConfig#isConfigurationAvailable")
@@ -450,7 +449,7 @@ class CstoreIT {
   @EnabledIf("isLocalServerAvailable")
   class LocalServerTests {
 
- //   @Test
+    //   @Test
     @Timeout(value = 1, unit = TimeUnit.MINUTES)
     @DisplayName("Should store to local SCP server")
     void shouldStoreToLocalServer() throws IOException, InterruptedException {
@@ -486,7 +485,7 @@ class CstoreIT {
       assertFalse(storedFiles.isEmpty(), "At least one file should be stored");
     }
 
-    //@Test
+    // @Test
     @DisplayName("Should handle concurrent operations with CompletableFuture")
     void shouldHandleConcurrentOperationsWithCompletableFuture() {
       // Given

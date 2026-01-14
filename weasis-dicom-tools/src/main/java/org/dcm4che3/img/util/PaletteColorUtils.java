@@ -197,7 +197,7 @@ public final class PaletteColorUtils {
   }
 
   /** Helper record to organize color component data for palette operations. */
-  private record ColorComponents(
+  private record ColorComponents( // NOSONAR only internal use
       int[] redDesc,
       int[] greenDesc,
       int[] blueDesc,

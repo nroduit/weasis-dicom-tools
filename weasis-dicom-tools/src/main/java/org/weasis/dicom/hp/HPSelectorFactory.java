@@ -46,6 +46,10 @@ public class HPSelectorFactory {
    */
   public static final int FRAME_INDEX = 0xffff;
 
+  private HPSelectorFactory() {
+    // Utility class
+  }
+
   public static HPSelector createImageSetSelector(Attributes item) {
     String usageFlag = item.getString(Tag.ImageSetSelectorUsageFlag);
     if (usageFlag == null) {
@@ -259,8 +263,7 @@ public class HPSelectorFactory {
     try {
       HPFilter filter = FilterOp.valueOf(filterOp);
       String usageFlag = item.getString(Tag.ImageSetSelectorUsageFlag);
-      return createAttributeValueSelector(
-          item, usageFlag != null ? isMatch(usageFlag) : true, filter);
+      return createAttributeValueSelector(item, usageFlag == null || isMatch(usageFlag), filter);
     } catch (IllegalArgumentException e) {
       throw new IllegalArgumentException("Illegal (0072,0406) Filter-by Operator: " + filterOp);
     }

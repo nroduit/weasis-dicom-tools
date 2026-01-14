@@ -33,13 +33,11 @@ public final class MultipartHeaderParser {
     Map<String, String> headers = new HashMap<>();
     String[] lines = headerContent.split("\r\n");
 
-    StringBuilder currentField = new StringBuilder();
     String currentFieldName = null;
+    StringBuilder currentField = new StringBuilder();
 
     for (String line : lines) {
-      if (line.isEmpty()) {
-        break; // End of headers
-      }
+      if (line.isEmpty()) break; // End of headers
 
       if (line.startsWith(" ") || line.startsWith("\t")) {
         // Continuation line
@@ -49,9 +47,8 @@ public final class MultipartHeaderParser {
       } else {
         // New field
         if (currentFieldName != null) {
-          headers.put(
-              currentFieldName,
-              combineExistingValue(headers, currentFieldName, currentField.toString()));
+          headers.merge(
+              currentFieldName, currentField.toString(), (oldVal, newVal) -> oldVal + "," + newVal);
         }
 
         int colonIndex = line.indexOf(':');
@@ -59,18 +56,15 @@ public final class MultipartHeaderParser {
           currentFieldName = line.substring(0, colonIndex).trim();
           currentField = new StringBuilder(line.substring(colonIndex + 1).trim());
         } else {
-          // Malformed header line, skip it
           currentFieldName = null;
           currentField.setLength(0);
         }
       }
     }
 
-    // Don't forget the last field
     if (currentFieldName != null) {
-      headers.put(
-          currentFieldName,
-          combineExistingValue(headers, currentFieldName, currentField.toString()));
+      headers.merge(
+          currentFieldName, currentField.toString(), (oldVal, newVal) -> oldVal + "," + newVal);
     }
 
     return headers;

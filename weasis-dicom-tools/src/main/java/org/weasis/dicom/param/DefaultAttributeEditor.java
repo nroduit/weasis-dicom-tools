@@ -141,10 +141,9 @@ public class DefaultAttributeEditor implements AttributeEditor {
 
     @Override
     public boolean visit(Attributes attrs, int tag, VR vr, Object val) {
-      if (!isUidAttribute(vr, val, tag)) {
-        return true;
+      if (isUidAttribute(vr, val, tag)) {
+        processUidValue(attrs, tag, val);
       }
-      processUidValue(attrs, tag, val);
       return true;
     }
 

@@ -48,6 +48,8 @@ public record Vector3(double x, double y, double z) {
 
   private static final double EPSILON = 1e-10;
 
+  private static final String MESSAGE = "Other vector cannot be null";
+
   public Vector3 {
     x = normalizeZero(x);
     y = normalizeZero(y);
@@ -125,7 +127,7 @@ public record Vector3(double x, double y, double z) {
    * @throws NullPointerException if other is null
    */
   public double dot(Vector3 other) {
-    Objects.requireNonNull(other, "Other vector cannot be null");
+    Objects.requireNonNull(other, MESSAGE);
     return x * other.x + y * other.y + z * other.z;
   }
 
@@ -153,7 +155,7 @@ public record Vector3(double x, double y, double z) {
    * @throws NullPointerException if other is null
    */
   public Vector3 cross(Vector3 other) {
-    Objects.requireNonNull(other, "Other vector cannot be null");
+    Objects.requireNonNull(other, MESSAGE);
     return new Vector3(
         normalizeZero(y * other.z - z * other.y),
         normalizeZero(z * other.x - x * other.z),
@@ -168,7 +170,7 @@ public record Vector3(double x, double y, double z) {
    * @throws NullPointerException if other is null
    */
   public Vector3 add(Vector3 other) {
-    Objects.requireNonNull(other, "Other vector cannot be null");
+    Objects.requireNonNull(other, MESSAGE);
     return new Vector3(
         normalizeZero(x + other.x), normalizeZero(y + other.y), normalizeZero(z + other.z));
   }
@@ -181,7 +183,7 @@ public record Vector3(double x, double y, double z) {
    * @throws NullPointerException if other is null
    */
   public Vector3 subtract(Vector3 other) {
-    Objects.requireNonNull(other, "Other vector cannot be null");
+    Objects.requireNonNull(other, MESSAGE);
     return new Vector3(
         normalizeZero(x - other.x), normalizeZero(y - other.y), normalizeZero(z - other.z));
   }
@@ -225,7 +227,7 @@ public record Vector3(double x, double y, double z) {
    * @throws IllegalArgumentException if tolerance is negative
    */
   public boolean equals(Vector3 other, double tolerance) {
-    Objects.requireNonNull(other, "Other vector cannot be null");
+    Objects.requireNonNull(other, MESSAGE);
     if (tolerance < 0.0) {
       throw new IllegalArgumentException("Tolerance cannot be negative: " + tolerance);
     }

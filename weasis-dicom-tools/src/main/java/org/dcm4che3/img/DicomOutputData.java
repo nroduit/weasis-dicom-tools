@@ -485,7 +485,7 @@ public class DicomOutputData {
   public static String adaptSuitableSyntax(int bitStored, int type, String dstTsuid) {
     return switch (dstTsuid) {
       case UID.ImplicitVRLittleEndian, UID.ExplicitVRLittleEndian -> UID.ExplicitVRLittleEndian;
-      case UID.JPEGBaseline8Bit -> adaptJpegBaseline(type, bitStored);
+      case UID.JPEGBaseline8Bit -> adaptJpegBaseline(type);
       case UID.JPEGExtended12Bit,
           UID.JPEGSpectralSelectionNonHierarchical68,
           UID.JPEGFullProgressionNonHierarchical1012 ->
@@ -509,7 +509,7 @@ public class DicomOutputData {
     };
   }
 
-  private static String adaptJpegBaseline(int type, int bitStored) {
+  private static String adaptJpegBaseline(int type) {
     if (type <= CvType.CV_8S) {
       return UID.JPEGBaseline8Bit;
     } else if (type <= CvType.CV_16S) {

@@ -13,7 +13,6 @@ import java.nio.file.Path;
 import org.dcm4che3.net.Status;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.weasis.dicom.op.CGetForward;
 import org.weasis.dicom.param.*;
@@ -24,7 +23,7 @@ class DicomListenerIT {
 
   @TempDir public Path testFolder;
 
- // @Test
+  // @Test
   void testProcess() {
     AdvancedParams params = new AdvancedParams();
     ConnectOptions connectOptions = new ConnectOptions();

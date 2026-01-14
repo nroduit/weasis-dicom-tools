@@ -14,7 +14,6 @@ import org.dcm4che3.data.Tag;
 import org.dcm4che3.net.Status;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.weasis.dicom.op.CGet;
 import org.weasis.dicom.param.DicomNode;
@@ -27,7 +26,7 @@ class CGetIT {
 
   @TempDir public Path testFolder;
 
- // @Test
+  // @Test
   void testProcess() {
     DicomProgress progress = new DicomProgress();
     progress.addProgressListener(

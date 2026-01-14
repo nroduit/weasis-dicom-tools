@@ -49,7 +49,6 @@ public final class DicomImageReaderSpi extends ImageReaderSpi {
   // DICOM format detection constants
   private static final int DICOM_TAG_MIN = 0x0008_0000;
   private static final int DICOM_TAG_MAX = 0x0008_0016;
-  private static final int DICOM_PREAMBLE_SIZE = 128;
   private static final int DICOM_PREFIX_OFFSET = 124; // Skip bytes after initial 4-byte read
   private static final String DICOM_PREFIX = "DICM";
 

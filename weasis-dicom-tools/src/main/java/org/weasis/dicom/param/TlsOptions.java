@@ -18,7 +18,17 @@ import java.util.Objects;
  * <p>Provides predefined cipher suites and protocol versions for common TLS configurations.
  * Supports both keystore and truststore configuration for mutual authentication.
  */
-public final class TlsOptions {
+public record TlsOptions(
+    List<String> cipherSuites,
+    List<String> tlsProtocols,
+    boolean tlsNeedClientAuth,
+    String keystoreURL,
+    String keystoreType,
+    String keystorePass,
+    String keyPass,
+    String truststoreURL,
+    String truststoreType,
+    String truststorePass) {
 
   // Cipher Suites Constants
   /** Default cipher suites supporting various encryption algorithms */
@@ -63,19 +73,6 @@ public final class TlsOptions {
 
   /** Modern TLS protocols (recommended) */
   public static final List<String> MODERN_TLS = List.of("TLSv1.2", "TLSv1.3");
-
-  private final List<String> cipherSuites;
-  private final List<String> tlsProtocols;
-
-  private final boolean tlsNeedClientAuth;
-
-  private final String keystoreURL;
-  private final String keystoreType;
-  private final String keystorePass;
-  private final String keyPass;
-  private final String truststoreURL;
-  private final String truststoreType;
-  private final String truststorePass;
 
   /**
    * Creates TLS options with default cipher suites and protocols.
@@ -149,44 +146,14 @@ public final class TlsOptions {
     this.truststorePass = truststorePass;
   }
 
-  public boolean isTlsNeedClientAuth() {
-    return tlsNeedClientAuth;
-  }
-
-  public List<String> getCipherSuites() {
+  @Override
+  public List<String> cipherSuites() {
     return List.copyOf(cipherSuites);
   }
 
-  public List<String> getTlsProtocols() {
+  @Override
+  public List<String> tlsProtocols() {
     return tlsProtocols != null ? List.copyOf(tlsProtocols) : null;
-  }
-
-  public String getKeystoreURL() {
-    return keystoreURL;
-  }
-
-  public String getKeystoreType() {
-    return keystoreType;
-  }
-
-  public String getKeystorePass() {
-    return keystorePass;
-  }
-
-  public String getKeyPass() {
-    return keyPass;
-  }
-
-  public String getTruststoreURL() {
-    return truststoreURL;
-  }
-
-  public String getTruststoreType() {
-    return truststoreType;
-  }
-
-  public String getTruststorePass() {
-    return truststorePass;
   }
 
   @Override
@@ -202,21 +169,6 @@ public final class TlsOptions {
         && Objects.equals(truststoreURL, other.truststoreURL)
         && Objects.equals(truststoreType, other.truststoreType)
         && Objects.equals(truststorePass, other.truststorePass);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(
-        cipherSuites,
-        tlsProtocols,
-        tlsNeedClientAuth,
-        keystoreURL,
-        keystoreType,
-        keystorePass,
-        keyPass,
-        truststoreURL,
-        truststoreType,
-        truststorePass);
   }
 
   @Override

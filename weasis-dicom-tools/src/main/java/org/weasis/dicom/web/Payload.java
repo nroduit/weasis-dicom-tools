@@ -71,7 +71,7 @@ public interface Payload {
   }
 
   /** Payload implementation for byte arrays. */
-  record ByteArrayPayload(byte[] data) implements Payload {
+  record ByteArrayPayload(byte[] data) implements Payload { // NOSONAR only internal use
 
     public ByteArrayPayload {
       Objects.requireNonNull(data, "Data cannot be null");

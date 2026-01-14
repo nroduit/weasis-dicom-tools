@@ -30,6 +30,7 @@ public class JPEGParser implements XPEGParser {
   private static final long JPEG2000_SIGNATURE_BOX =
       0x6a5020200d0a870aL; // jP\040\040<CR><LF><0x87><LF>;
   private static final int CONTIGUOUS_CODESTREAM_BOX = 0x6a703263; // jp2c;
+  private static final String MONOCHROME2_TYPE = "MONOCHROME2";
 
   private final ByteBuffer buf = ByteBuffer.allocate(8);
   private final long codeStreamPosition;
@@ -93,7 +94,7 @@ public class JPEGParser implements XPEGParser {
           Tag.PhotometricInterpretation, VR.CS, params.colorPhotometricInterpretation());
       attrs.setInt(Tag.PlanarConfiguration, VR.US, 0);
     } else {
-      attrs.setString(Tag.PhotometricInterpretation, VR.CS, "MONOCHROME2");
+      attrs.setString(Tag.PhotometricInterpretation, VR.CS, MONOCHROME2_TYPE);
     }
     attrs.setInt(Tag.Rows, VR.US, params.rows());
     attrs.setInt(Tag.Columns, VR.US, params.columns());
@@ -295,7 +296,7 @@ public class JPEGParser implements XPEGParser {
     @Override
     public String colorPhotometricInterpretation() {
       if (samplesPerPixel() < 3) {
-        return "MONOCHROME2";
+        return MONOCHROME2_TYPE;
       }
 
       if (sof == JPEG.SOF3 || sof == JPEG.SOF55 || isRgb()) {
@@ -427,7 +428,7 @@ public class JPEGParser implements XPEGParser {
     @Override
     public String colorPhotometricInterpretation() {
       if (samplesPerPixel() < 3) {
-        return "MONOCHROME2";
+        return MONOCHROME2_TYPE;
       }
       return codParams.get(4) == 0
           ? "RGB" // Multiple component transformation

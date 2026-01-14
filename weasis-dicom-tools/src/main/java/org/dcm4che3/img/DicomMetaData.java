@@ -228,8 +228,7 @@ public final class DicomMetaData extends IIOMetadata {
 
   @Override
   public String toString() {
-    return """
-        DicomMetaData{transferSyntax='%s', sopClass='%s', frames=%d, hasFileMetaInfo=%s}"""
+    return "DicomMetaData{transferSyntax='%s', sopClass='%s', frames=%d, hasFileMetaInfo=%s}"
         .formatted(
             transferSyntaxUID,
             getMediaStorageSOPClassUID().orElse("N/A"),

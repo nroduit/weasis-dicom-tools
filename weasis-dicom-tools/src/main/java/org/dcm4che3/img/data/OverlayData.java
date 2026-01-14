@@ -274,7 +274,8 @@ public record OverlayData(
     int byteIndex = pixelIndex / 8;
     int bitIndex = pixelIndex % 8;
 
-    return byteIndex < overlayData.length && (overlayData[byteIndex] & (1 << bitIndex)) != 0;
+    return byteIndex < overlayData.length
+        && ((overlayData[byteIndex] & 0xff) & (1 << bitIndex)) != 0;
   }
 
   private static ImageCV createOverlayImage(byte[] pixelData, ImageDimensions dimensions) {
@@ -332,7 +333,7 @@ public record OverlayData(
 
   // Helper records
 
-  private record OverlayAttributes(
+  private record OverlayAttributes( // NOSONAR only internal use
       int rows, int columns, int imageFrameOrigin, int framesInOverlay, int[] origin) {}
 
   private record OverlayContext(

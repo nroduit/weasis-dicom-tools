@@ -16,7 +16,6 @@ import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
 import org.weasis.dicom.op.CFind;
 import org.weasis.dicom.param.DicomNode;
 import org.weasis.dicom.param.DicomParam;
@@ -26,7 +25,7 @@ import org.weasis.dicom.tool.ModalityWorklist;
 @DisplayName("DICOM Modality Worklist")
 class ModalityWorklistIT {
 
-  //@Test
+  // @Test
   void testProcess() {
     // Filter by AETitle by setting a value
     final int[] sps = {Tag.ScheduledProcedureStepSequence};

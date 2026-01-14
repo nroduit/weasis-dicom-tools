@@ -373,8 +373,8 @@ public final class Transcoder {
     if (params == null) {
       return false;
     }
-    var preserveRaw = params.isPreserveRawImage().orElse(false);
-    if (!preserveRaw) {
+
+    if (!params.isPreserveRawImage().orElse(false)) {
       return false;
     }
 

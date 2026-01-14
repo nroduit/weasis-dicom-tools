@@ -349,7 +349,7 @@ public class HangingProtocol extends Module {
   }
 
   public List<HPDisplaySet> getDisplaySetsOfImageSet(HPImageSet is) {
-    ArrayList<HPDisplaySet> result = new ArrayList<HPDisplaySet>(displaySets.size());
+    ArrayList<HPDisplaySet> result = new ArrayList<>(displaySets.size());
     for (HPDisplaySet ds : displaySets) {
       if (ds.getImageSet() == is) {
         result.add(ds);
@@ -392,12 +392,10 @@ public class HangingProtocol extends Module {
     return displaySet;
   }
 
-  @Deprecated
   public void addDisplaySet(HPDisplaySet displaySet) {
     if (displaySet == null) {
       throw new NullPointerException("displaySet");
     }
-
     doAddDisplaySet(displaySet);
   }
 
@@ -426,37 +424,50 @@ public class HangingProtocol extends Module {
     removeSequenceItem(Tag.DisplaySetsSequence, index);
     displaySets.remove(index);
 
-    for (; index < displaySets.size(); ++index) {
-      displaySets.get(index).setDisplaySetNumber(index + 1);
+    for (int i = index; i < displaySets.size(); i++) {
+      displaySets.get(i).setDisplaySetNumber(i + 1);
     }
 
-    int sgi = 0;
-    for (Iterator<HPScrollingGroup> iter = scrollingGroups.iterator(); iter.hasNext(); ++sgi) {
-      HPScrollingGroup sg = iter.next();
-      if (sg.removeDisplaySet(displaySet) && !sg.isValid()) {
-        removeSequenceItem(Tag.SynchronizedScrollingSequence, sgi--);
-        iter.remove();
-      } else {
-        sg.updateAttributes();
-      }
-    }
-
-    int ngi = 0;
-    for (Iterator<HPNavigationGroup> iter = navigationGroups.iterator(); iter.hasNext(); ++ngi) {
-      HPNavigationGroup ng = iter.next();
-      if (ng.removeReferenceDisplaySet(displaySet) && !ng.isValid()
-          || ng.getNavigationDisplaySet() == displaySet) {
-        if (ng.getNavigationDisplaySet() == displaySet) {
-          ng.setNavigationDisplaySet(null);
-        }
-        removeSequenceItem(Tag.NavigationIndicatorSequence, ngi--);
-        iter.remove();
-      } else {
-        ng.updateAttributes();
-      }
-    }
-
+    updateScrollingGroups(displaySet);
+    updateNavigationGroups(displaySet);
     return true;
+  }
+
+  private void updateScrollingGroups(HPDisplaySet displaySet) {
+    int index = 0;
+    Iterator<HPScrollingGroup> iterator = scrollingGroups.iterator();
+    while (iterator.hasNext()) {
+      HPScrollingGroup group = iterator.next();
+      if (group.removeDisplaySet(displaySet) && !group.isValid()) {
+        removeSequenceItem(Tag.SynchronizedScrollingSequence, index--);
+        iterator.remove();
+      } else {
+        group.updateAttributes();
+      }
+      index++;
+    }
+  }
+
+  private void updateNavigationGroups(HPDisplaySet displaySet) {
+    int index = 0;
+    Iterator<HPNavigationGroup> iterator = navigationGroups.iterator();
+    while (iterator.hasNext()) {
+      HPNavigationGroup group = iterator.next();
+      boolean shouldRemove =
+          group.removeReferenceDisplaySet(displaySet) && !group.isValid()
+              || group.getNavigationDisplaySet() == displaySet;
+
+      if (shouldRemove) {
+        if (group.getNavigationDisplaySet() == displaySet) {
+          group.setNavigationDisplaySet(null);
+        }
+        removeSequenceItem(Tag.NavigationIndicatorSequence, index--);
+        iterator.remove();
+      } else {
+        group.updateAttributes();
+      }
+      index++;
+    }
   }
 
   public void removeAllDisplaySets() {
@@ -653,7 +664,13 @@ public class HangingProtocol extends Module {
   private static <T extends HPCategoryService> HPCategoryService getHPCategorySpi(
       Class<T> serviceClass, final String category) {
     Iterator<HPCategoryService> iter = HPRegistry.getHPRegistry().getServiceProviders(serviceClass);
-    return iter.hasNext() ? iter.next() : null;
+    while (iter.hasNext()) {
+      HPCategoryService spi = iter.next();
+      if (spi.getCategoryName().equals(category)) {
+        return spi;
+      }
+    }
+    return null;
   }
 
   public static String[] getSupportedHPSelectorCategories() {

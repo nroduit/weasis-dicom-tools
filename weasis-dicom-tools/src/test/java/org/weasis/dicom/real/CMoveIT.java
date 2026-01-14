@@ -34,14 +34,12 @@ import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestFactory;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
-import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.weasis.dicom.op.CMove;
 import org.weasis.dicom.param.AdvancedParams;
@@ -249,7 +247,7 @@ class CMoveIT {
   @DisplayName("Parameter Validation")
   class ParameterValidation {
 
-    //@Test
+    // @Test
     @DisplayName("Should throw exception for null calling node")
     void should_throw_exception_for_null_calling_node() {
       // Given
@@ -380,7 +378,7 @@ class CMoveIT {
   @DisplayName("Configuration-Specific Tests")
   class ConfigurationSpecificTests {
 
-  //  @Test
+    //  @Test
     @DisplayName("Should use configuration-specific test data")
     @Timeout(value = 3, unit = TimeUnit.MINUTES)
     void should_use_configuration_specific_test_data() {
@@ -573,7 +571,7 @@ class CMoveIT {
   @DisplayName("Progress Monitoring")
   class ProgressMonitoring {
 
-    //@Test
+    // @Test
     @DisplayName("Should track progress during C-MOVE operation")
     @Timeout(value = 3, unit = TimeUnit.MINUTES)
     void should_track_progress_during_move_operation() {

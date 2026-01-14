@@ -33,7 +33,7 @@ public abstract class AbstractListenerParams {
    * @param bindCallingAet when true, only requests with matching called AETitle are accepted; when
    *     false, all called AETs are accepted
    */
-  public AbstractListenerParams(boolean bindCallingAet) {
+  protected AbstractListenerParams(boolean bindCallingAet) {
     this(null, bindCallingAet, null);
   }
 
@@ -44,7 +44,7 @@ public abstract class AbstractListenerParams {
    * @param bindCallingAet when true, only requests with matching called AETitle are accepted; when
    *     false, all called AETs are accepted
    */
-  public AbstractListenerParams(AdvancedParams params, boolean bindCallingAet) {
+  protected AbstractListenerParams(AdvancedParams params, boolean bindCallingAet) {
     this(params, bindCallingAet, null);
   }
 
@@ -57,7 +57,7 @@ public abstract class AbstractListenerParams {
    * @param transferCapabilityFile URL for transfer capabilities configuration file
    * @param acceptedCallingAETitles list of accepted calling AE titles (null accepts all)
    */
-  public AbstractListenerParams(
+  protected AbstractListenerParams(
       AdvancedParams params,
       boolean bindCallingAet,
       URL transferCapabilityFile,

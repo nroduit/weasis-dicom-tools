@@ -14,7 +14,7 @@ import org.weasis.dicom.hp.HPComparator;
 
 public abstract class HPComparatorCategoryService extends HPCategoryService {
 
-  public HPComparatorCategoryService(String category) {
+  protected HPComparatorCategoryService(String category) {
     super(category);
   }
 

@@ -471,7 +471,7 @@ public class StoreSCU implements AutoCloseable {
         ((DicomInputStream) in).setIncludeBulkData(IncludeBulkData.URI);
       }
     } else {
-      in = Files.newInputStream(path);
+      in = Files.newInputStream(path); // NOSONAR closed by caller in try-with-resources
       in.skip(fmiEndPos);
     }
     return in;

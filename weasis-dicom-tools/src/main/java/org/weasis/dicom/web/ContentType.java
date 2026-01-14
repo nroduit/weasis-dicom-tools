@@ -25,8 +25,6 @@ public enum ContentType {
   /** DICOM Part 10 file format (application/dicom) */
   APPLICATION_DICOM("application/dicom", -1);
 
-  private static final String DICOM_MIME_TYPE = "application/dicom";
-
   private final String type;
   private final int bulkdataTag;
 
@@ -59,7 +57,7 @@ public enum ContentType {
       if (detectedType == null) {
         throw new IOException("Failed to determine content type of file: '%s'".formatted(path));
       }
-      if (DICOM_MIME_TYPE.equalsIgnoreCase(detectedType)) {
+      if (APPLICATION_DICOM.type.equalsIgnoreCase(detectedType)) {
         return APPLICATION_DICOM;
       }
       throw new UnsupportedOperationException(

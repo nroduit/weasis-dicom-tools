@@ -125,7 +125,7 @@ public class AnatomicRegion {
     }
     AnatomicItem item = findAnatomicItem(code, dcm, regionAttributes);
 
-    CategoryBuilder category = findOrCreateCategory(code, item);
+    CategoryBuilder category = findOrCreateCategory(code);
     AnatomicRegion region = new AnatomicRegion(category, item, null);
     addModifiers(regionAttributes, region);
 
@@ -165,7 +165,7 @@ public class AnatomicRegion {
   }
 
   // Find existing category or create new one
-  private static CategoryBuilder findOrCreateCategory(Code code, AnatomicItem item) {
+  private static CategoryBuilder findOrCreateCategory(Code code) {
     String contextUID = code.getContextUID();
     if (!StringUtil.hasText(contextUID)) {
       return null;

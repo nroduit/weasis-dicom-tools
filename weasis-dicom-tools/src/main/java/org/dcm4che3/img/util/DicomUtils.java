@@ -87,7 +87,29 @@ public final class DicomUtils {
    * @return true if the UID is valid, false otherwise
    */
   public static boolean isValidUID(String uid) {
-    return StringUtil.hasText(uid) && uid.matches("^[0-9]+(\\.[0-9]+)*$") && uid.length() <= 64;
+    if (!StringUtil.hasText(uid) || uid.length() > 64) {
+      return false;
+    }
+    int len = uid.length();
+    if (uid.charAt(0) == '.' || uid.charAt(len - 1) == '.') {
+      return false;
+    }
+
+    boolean prevDot = false;
+    for (int i = 0; i < len; i++) {
+      char c = uid.charAt(i);
+      if (c == '.') {
+        if (prevDot) {
+          return false; // consecutive dots
+        }
+        prevDot = true;
+      } else if (c >= '0' && c <= '9') {
+        prevDot = false;
+      } else {
+        return false; // invalid character
+      }
+    }
+    return true;
   }
 
   /**

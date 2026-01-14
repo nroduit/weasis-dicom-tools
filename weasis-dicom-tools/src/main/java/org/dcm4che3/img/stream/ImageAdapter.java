@@ -483,7 +483,7 @@ public final class ImageAdapter {
     private int calculateTotalFragmentLength(Fragments fragments, int nbFragments) {
       return fragments.stream()
           .skip(1)
-          .limit(nbFragments - 1)
+          .limit(nbFragments - 1L)
           .mapToInt(obj -> ((BulkData) obj).length())
           .sum();
     }

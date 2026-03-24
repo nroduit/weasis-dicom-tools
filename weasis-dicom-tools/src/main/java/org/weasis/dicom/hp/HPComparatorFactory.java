@@ -14,6 +14,7 @@ import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Sequence;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
+import org.weasis.dicom.hp.enums.SortingDirection;
 import org.weasis.dicom.hp.plugins.AlongAxisComparator;
 import org.weasis.dicom.hp.plugins.ByAcqTimeComparator;
 import org.weasis.dicom.hp.spi.HPComparatorCategoryService;
@@ -51,15 +52,15 @@ public class HPComparatorFactory {
   }
 
   public static HPComparator createSortByAttribute(
-      String privateCreator, int tag, int valueNumber, String sortingDirection) {
+      String privateCreator, int tag, int valueNumber, SortingDirection sortingDirection) {
     return new SortByAttribute(privateCreator, tag, valueNumber, sortingDirection);
   }
 
-  public static HPComparator createSortAlongAxis(String sortingDirection) {
+  public static HPComparator createSortAlongAxis(SortingDirection sortingDirection) {
     return new AlongAxisComparator(sortingDirection);
   }
 
-  public static HPComparator createSortByAcqTime(String sortingDirection) {
+  public static HPComparator createSortByAcqTime(SortingDirection sortingDirection) {
     return new ByAcqTimeComparator(sortingDirection);
   }
 
@@ -144,20 +145,21 @@ public class HPComparatorFactory {
 
     private final int sign;
 
-    SortByAttribute(String privateCreator, int tag, int valueNumber, String sortingDirection) {
+    SortByAttribute(
+        String privateCreator, int tag, int valueNumber, SortingDirection sortingDirection) {
       super(tag, privateCreator);
       if (valueNumber == 0) {
         throw new IllegalArgumentException("valueNumber = 0");
       }
       this.valueNumber = valueNumber;
-      this.sign = CodeString.sortingDirectionToSign(sortingDirection);
+      this.sign = sortingDirection.getSign();
       sortingOp = new Attributes();
       sortingOp.setInt(Tag.SelectorAttribute, VR.AT, tag);
       if (privateCreator != null) {
         sortingOp.setString(Tag.SelectorAttributePrivateCreator, VR.LO, privateCreator);
       }
       sortingOp.setInt(Tag.SelectorValueNumber, VR.US, valueNumber);
-      sortingOp.setString(Tag.SortingDirection, VR.CS, sortingDirection);
+      sortingOp.setString(Tag.SortingDirection, VR.CS, sortingDirection.getCodeString());
     }
 
     SortByAttribute(Attributes sortingOp) {
@@ -174,7 +176,7 @@ public class HPComparatorFactory {
       if (cs == null) {
         throw new IllegalArgumentException("Missing (0072,0604) Sorting Direction");
       }
-      this.sign = CodeString.sortingDirectionToSign(cs);
+      this.sign = SortingDirection.fromString(cs).getSign();
       this.sortingOp = sortingOp;
     }
 

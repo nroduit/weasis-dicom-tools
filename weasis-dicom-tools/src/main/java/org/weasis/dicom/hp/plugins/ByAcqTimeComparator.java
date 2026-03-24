@@ -14,7 +14,8 @@ import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
 import org.weasis.dicom.hp.AbstractHPComparator;
-import org.weasis.dicom.hp.CodeString;
+import org.weasis.dicom.hp.enums.SortingDirection;
+import org.weasis.dicom.hp.enums.SortingOperation;
 
 public class ByAcqTimeComparator extends AbstractHPComparator {
 
@@ -27,14 +28,14 @@ public class ByAcqTimeComparator extends AbstractHPComparator {
     if (cs == null) {
       throw new IllegalArgumentException("Missing (0072,0604) Sorting Direction");
     }
-    this.sign = CodeString.sortingDirectionToSign(cs);
+    this.sign = SortingDirection.fromString(cs).getSign();
   }
 
-  public ByAcqTimeComparator(String sortingDirection) {
-    this.sign = CodeString.sortingDirectionToSign(sortingDirection);
+  public ByAcqTimeComparator(SortingDirection sortingDirection) {
+    this.sign = sortingDirection.getSign();
     this.sortOp = new Attributes();
-    sortOp.setString(Tag.SortByCategory, VR.CS, CodeString.BY_ACQ_TIME);
-    sortOp.setString(Tag.SortingDirection, VR.CS, sortingDirection);
+    sortOp.setString(Tag.SortByCategory, VR.CS, SortingOperation.BY_ACQ_TIME.getCodeString());
+    sortOp.setString(Tag.SortingDirection, VR.CS, sortingDirection.getCodeString());
   }
 
   public final Attributes getAttributes() {

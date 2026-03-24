@@ -9,11 +9,15 @@
  */
 package org.weasis.dicom.hp;
 
+import static org.weasis.dicom.hp.enums.SelectorValueNumber.ABSTRACT_PRIOR;
+import static org.weasis.dicom.hp.enums.SelectorValueNumber.RELATIVE_TIME;
+
 import java.util.Collection;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.img.util.DicomUtils;
+import org.weasis.dicom.hp.enums.RelativeTimeUnits;
 import org.weasis.dicom.macro.Code;
 import org.weasis.dicom.macro.Module;
 
@@ -57,7 +61,7 @@ public class HPTimeBasedImageSet extends Module {
   }
 
   public void setRelativeTime(RelativeTime relativeTime) {
-    dcmItems.setString(Tag.ImageSetSelectorCategory, VR.CS, CodeString.RELATIVE_TIME);
+    dcmItems.setString(Tag.ImageSetSelectorCategory, VR.CS, RELATIVE_TIME.getCodeString());
     dcmItems.setInt(Tag.RelativeTime, VR.US, relativeTime.getValues());
     dcmItems.setString(Tag.RelativeTimeUnits, VR.CS, relativeTime.getUnits().getCodeString());
   }
@@ -71,7 +75,7 @@ public class HPTimeBasedImageSet extends Module {
   }
 
   public void setAbstractPriorValue(AbstractPriorValue abstractPriorValue) {
-    dcmItems.setString(Tag.ImageSetSelectorCategory, VR.CS, CodeString.ABSTRACT_PRIOR);
+    dcmItems.setString(Tag.ImageSetSelectorCategory, VR.CS, ABSTRACT_PRIOR.getCodeString());
     dcmItems.setInt(Tag.AbstractPriorValue, VR.SS, abstractPriorValue.getValues());
   }
 
@@ -85,7 +89,7 @@ public class HPTimeBasedImageSet extends Module {
   }
 
   public void setAbstractPriorCode(Code code) {
-    dcmItems.setString(Tag.ImageSetSelectorCategory, VR.CS, CodeString.ABSTRACT_PRIOR);
+    dcmItems.setString(Tag.ImageSetSelectorCategory, VR.CS, ABSTRACT_PRIOR.getCodeString());
     dcmItems.ensureSequence(Tag.AbstractPriorCodeSequence, 1).add(code.getAttributes());
   }
 }

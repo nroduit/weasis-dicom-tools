@@ -17,7 +17,11 @@ import org.dcm4che3.data.Sequence;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.util.TagUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.weasis.dicom.geom.ImageOrientation.Plan;
+import org.weasis.dicom.hp.enums.Presence;
+import org.weasis.dicom.hp.enums.SelectorUsageFlag;
 import org.weasis.dicom.hp.filter.FilterOp;
 import org.weasis.dicom.hp.filter.HPFilter;
 import org.weasis.dicom.hp.plugins.ImagePlaneSelector;
@@ -35,10 +39,10 @@ import org.weasis.dicom.macro.Code;
  * @see ImagePlaneSelector
  * @see Code
  * @see FilterOp
- * @see CodeString
  * @see HangingProtocol
  */
 public class HPSelectorFactory {
+  private static final Logger LOGGER = LoggerFactory.getLogger(HPSelectorFactory.class);
 
   /**
    * Selector Value Number constant for indicating that the frame number shall be used for indexing
@@ -62,16 +66,16 @@ public class HPSelectorFactory {
   }
 
   private static boolean isMatch(String usageFlag) {
-    if (usageFlag.equals(CodeString.MATCH)) {
-      return true;
-    }
+    return SelectorUsageFlag.fromString(usageFlag).isMatch();
+  }
 
-    if (usageFlag.equals(CodeString.NO_MATCH)) {
-      return false;
+  public static VR getVR(String vr) {
+    try {
+      return VR.valueOf(vr);
+    } catch (Exception e) {
+      LOGGER.error("Cannot find VR for {}", vr);
+      return VR.OB;
     }
-
-    throw new IllegalArgumentException(
-        "Invalid (0072,0024) Image Set Selector Usage Flag: " + usageFlag);
   }
 
   public static HPSelector createAttributeValueSelector(
@@ -229,7 +233,7 @@ public class HPSelectorFactory {
       throw new IllegalArgumentException("Missing (0072,0050) Selector Attribute VR");
     }
 
-    return switch (CodeString.getVR(vrStr)) {
+    return switch (getVR(vrStr)) {
       case AT -> new IntSelector(item, Tag.SelectorATValue, match, filterOp, VR.AT);
       case CS -> new Str(item, Tag.SelectorCSValue, match, filterOp, VR.CS);
       case DS -> new Flt(item, Tag.SelectorDSValue, match, filterOp, VR.DS);
@@ -323,13 +327,7 @@ public class HPSelectorFactory {
   }
 
   private static boolean isPresent(String val) {
-    if (val.equals(CodeString.PRESENT)) {
-      return true;
-    }
-    if (val.equals(CodeString.NOT_PRESENT)) {
-      return false;
-    }
-    throw new IllegalArgumentException("Illegal (0072,0404) Filter-by Attribute Presence: " + val);
+    return Presence.fromString(val).isPresent();
   }
 
   private static class AttributePresenceSelector extends BaseAttributeSelector {

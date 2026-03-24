@@ -26,6 +26,7 @@ import org.dcm4che3.io.SAXReader;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.weasis.dicom.hp.enums.RelativeTimeUnits;
 import org.xml.sax.SAXException;
 
 public class HPImageSetTest {

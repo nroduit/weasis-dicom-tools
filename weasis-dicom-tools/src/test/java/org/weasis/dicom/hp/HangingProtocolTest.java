@@ -15,6 +15,8 @@ import java.util.Arrays;
 import java.util.List;
 import org.dcm4che3.data.Sequence;
 import org.junit.jupiter.api.Test;
+import org.weasis.dicom.hp.enums.ImageBoxLayoutType;
+import org.weasis.dicom.hp.enums.RelativeTimeUnits;
 import org.weasis.dicom.macro.Code;
 
 public class HangingProtocolTest {
@@ -121,7 +123,7 @@ public class HangingProtocolTest {
     dsRightCC.setDisplaySetLabel("R CC");
     dsRightCC.setDisplaySetPresentationGroup(1);
     HPImageBox imageBox1 = new HPImageBox();
-    imageBox1.setImageBoxLayoutType("TILED");
+    imageBox1.setImageBoxLayoutType(ImageBoxLayoutType.TILED);
     imageBox1.setImageBoxTileHorizontalDimension(1);
     imageBox1.setImageBoxTileVerticalDimension(1);
     dsRightCC.addImageBox(imageBox1);
@@ -133,7 +135,7 @@ public class HangingProtocolTest {
     dsRightMLO.setDisplaySetLabel("R MLO");
     dsRightMLO.setDisplaySetPresentationGroup(1);
     HPImageBox imageBox2 = new HPImageBox();
-    imageBox2.setImageBoxLayoutType("TILED");
+    imageBox2.setImageBoxLayoutType(ImageBoxLayoutType.TILED);
     imageBox2.setImageBoxTileHorizontalDimension(1);
     imageBox2.setImageBoxTileVerticalDimension(1);
     dsRightMLO.addImageBox(imageBox2);
@@ -145,7 +147,7 @@ public class HangingProtocolTest {
     dsLeftCC.setDisplaySetLabel("L CC");
     dsLeftCC.setDisplaySetPresentationGroup(1);
     HPImageBox imageBox3 = new HPImageBox();
-    imageBox3.setImageBoxLayoutType("TILED");
+    imageBox3.setImageBoxLayoutType(ImageBoxLayoutType.TILED);
     imageBox3.setImageBoxTileHorizontalDimension(1);
     imageBox3.setImageBoxTileVerticalDimension(1);
     dsLeftCC.addImageBox(imageBox3);
@@ -157,7 +159,7 @@ public class HangingProtocolTest {
     dsLeftMLO.setDisplaySetLabel("L MLO");
     dsLeftMLO.setDisplaySetPresentationGroup(1);
     HPImageBox imageBox4 = new HPImageBox();
-    imageBox4.setImageBoxLayoutType("TILED");
+    imageBox4.setImageBoxLayoutType(ImageBoxLayoutType.TILED);
     imageBox4.setImageBoxTileHorizontalDimension(1);
     imageBox4.setImageBoxTileVerticalDimension(1);
     dsLeftMLO.addImageBox(imageBox4);
@@ -198,7 +200,7 @@ public class HangingProtocolTest {
     // Verify each display set has one image box
     for (HPDisplaySet ds : displaySets) {
       assertEquals(1, ds.getImageBoxes().size());
-      assertEquals("TILED", ds.getImageBoxes().get(0).getImageBoxLayoutType());
+      assertEquals(ImageBoxLayoutType.TILED, ds.getImageBoxes().get(0).getImageBoxLayoutType());
     }
   }
 }

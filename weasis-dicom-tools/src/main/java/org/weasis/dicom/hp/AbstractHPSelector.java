@@ -9,6 +9,8 @@
  */
 package org.weasis.dicom.hp;
 
+import static org.weasis.dicom.hp.HPSelectorFactory.getVR;
+
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.img.util.DicomUtils;
 import org.weasis.dicom.macro.Code;
@@ -58,7 +60,7 @@ public abstract class AbstractHPSelector implements HPSelector {
 
   public Object getSelectorValue() {
     String vrStr = getSelectorAttributeVR();
-    return switch (CodeString.getVR(vrStr)) {
+    return switch (getVR(vrStr)) {
       case AT -> getAttributes().getInts(Tag.SelectorATValue);
       case CS -> getAttributes().getStrings(Tag.SelectorCSValue);
       case DS -> getAttributes().getFloats(Tag.SelectorDSValue);

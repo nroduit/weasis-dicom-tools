@@ -13,7 +13,8 @@ import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
 import org.weasis.dicom.hp.AbstractHPComparator;
-import org.weasis.dicom.hp.CodeString;
+import org.weasis.dicom.hp.enums.SortingDirection;
+import org.weasis.dicom.hp.enums.SortingOperation;
 
 public class AlongAxisComparator extends AbstractHPComparator {
 
@@ -36,18 +37,14 @@ public class AlongAxisComparator extends AbstractHPComparator {
     if (cs == null) {
       throw new IllegalArgumentException("Missing (0072,0604) Sorting Direction");
     }
-    try {
-      this.sign = CodeString.sortingDirectionToSign(cs);
-    } catch (IllegalArgumentException e) {
-      throw new IllegalArgumentException("Invalid (0072,0604) Sorting Direction: " + cs);
-    }
+    this.sign = SortingDirection.fromString(cs).getSign();
   }
 
-  public AlongAxisComparator(String sortingDirection) {
-    this.sign = CodeString.sortingDirectionToSign(sortingDirection);
+  public AlongAxisComparator(SortingDirection sortingDirection) {
+    this.sign = sortingDirection.getSign();
     this.sortOp = new Attributes();
-    sortOp.setString(Tag.SortByCategory, VR.CS, CodeString.ALONG_AXIS);
-    sortOp.setString(Tag.SortingDirection, VR.CS, sortingDirection);
+    sortOp.setString(Tag.SortByCategory, VR.CS, SortingOperation.ALONG_AXIS.getCodeString());
+    sortOp.setString(Tag.SortingDirection, VR.CS, sortingDirection.getCodeString());
   }
 
   public final Attributes getAttributes() {

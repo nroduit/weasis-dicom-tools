@@ -13,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.time.temporal.ChronoUnit;
 import org.junit.jupiter.api.Test;
+import org.weasis.dicom.hp.enums.RelativeTimeUnits;
 
 public class RelativeTimeUnitsTest {
 

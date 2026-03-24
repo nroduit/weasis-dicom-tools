@@ -13,6 +13,7 @@ import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.img.util.DicomUtils;
+import org.weasis.dicom.hp.enums.ImageBoxLayoutType;
 import org.weasis.dicom.macro.Module;
 
 public class HPImageBox extends Module {
@@ -24,7 +25,9 @@ public class HPImageBox extends Module {
   public HPImageBox(Attributes item, int tot) {
     super(item);
     if (tot > 1) {
-      if (!CodeString.TILED.equals(item.getString(Tag.ImageBoxLayoutType))) {
+      if (!ImageBoxLayoutType.TILED
+          .getCodeString()
+          .equals(item.getString(Tag.ImageBoxLayoutType))) {
         throw new IllegalArgumentException(item.getString(Tag.ImageBoxLayoutType));
       }
     }
@@ -46,12 +49,12 @@ public class HPImageBox extends Module {
     dcmItems.setDouble(Tag.DisplayEnvironmentSpatialPosition, VR.FD, values);
   }
 
-  public String getImageBoxLayoutType() {
-    return dcmItems.getString(Tag.ImageBoxLayoutType);
+  public ImageBoxLayoutType getImageBoxLayoutType() {
+    return ImageBoxLayoutType.fromString(dcmItems.getString(Tag.ImageBoxLayoutType));
   }
 
-  public void setImageBoxLayoutType(String type) {
-    dcmItems.setString(Tag.ImageBoxLayoutType, VR.CS, type);
+  public void setImageBoxLayoutType(ImageBoxLayoutType type) {
+    dcmItems.setString(Tag.ImageBoxLayoutType, VR.CS, type.getCodeString());
   }
 
   public Integer getImageBoxTileHorizontalDimension() {

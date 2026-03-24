@@ -11,6 +11,7 @@ package org.weasis.dicom.hp;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
+import org.weasis.dicom.hp.enums.RelativeTimeUnits;
 
 public class RelativeTime {
 

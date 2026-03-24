@@ -62,7 +62,8 @@ public class WadoParameters extends ArcParameters {
    * Creates WADO parameters with the specified configuration.
    *
    * @param archiveID the archive identifier, may be empty but not null
-   * @param wadoURL the WADO service URL, required
+   * @param wadoURL the WADO service URL, may be empty but not null when no base URL is provided or
+   *     with local files
    * @param requireOnlySOPInstanceUID whether to require only SOP Instance UID for retrieval
    * @param additionalParameters additional query parameters, may be null
    * @param overrideDicomTagsList comma-separated list of DICOM tag IDs to override, may be null
@@ -81,7 +82,7 @@ public class WadoParameters extends ArcParameters {
       boolean wadoRS) {
     super(
         Objects.requireNonNull(archiveID, "Archive ID cannot be null"),
-        validateAndNormalizeUrl(wadoURL),
+        Objects.requireNonNullElse(validateAndNormalizeUrl(wadoURL), ""),
         additionalParameters,
         overrideDicomTagsList,
         webLogin);
@@ -92,7 +93,8 @@ public class WadoParameters extends ArcParameters {
   /**
    * Creates WADO-URI parameters with default archive ID.
    *
-   * @param wadoURL the WADO service URL, required
+   * @param wadoURL the WADO service URL, may be empty but not null when no base URL is provided or
+   *     with local files
    * @param requireOnlySOPInstanceUID whether to require only SOP Instance UID for retrieval
    * @throws NullPointerException if wadoURL is null
    * @throws IllegalArgumentException if wadoURL is invalid
@@ -104,7 +106,8 @@ public class WadoParameters extends ArcParameters {
   /**
    * Creates WADO parameters with protocol selection and default archive ID.
    *
-   * @param wadoURL the WADO service URL, required
+   * @param wadoURL the WADO service URL, may be empty but not null when no base URL is provided or
+   *     with local files
    * @param requireOnlySOPInstanceUID whether to require only SOP Instance UID for retrieval
    * @param wadoRS whether to use WADO-RS protocol
    * @throws NullPointerException if wadoURL is null
@@ -117,7 +120,8 @@ public class WadoParameters extends ArcParameters {
   /**
    * Creates WADO-URI parameters with extended configuration and default archive ID.
    *
-   * @param wadoURL the WADO service URL, required
+   * @param wadoURL the WADO service URL, may be empty but not null when no base URL is provided or
+   *     with local files
    * @param requireOnlySOPInstanceUID whether to require only SOP Instance UID for retrieval
    * @param additionalParameters additional query parameters, may be null
    * @param overrideDicomTagsList comma-separated list of DICOM tag IDs to override, may be null
@@ -145,7 +149,8 @@ public class WadoParameters extends ArcParameters {
    * Creates WADO-URI parameters with full configuration except WADO-RS flag.
    *
    * @param archiveID the archive identifier, may be empty but not null
-   * @param wadoURL the WADO service URL, required
+   * @param wadoURL the WADO service URL, may be empty but not null when no base URL is provided or
+   *     with local files
    * @param requireOnlySOPInstanceUID whether to require only SOP Instance UID for retrieval
    * @param additionalParameters additional query parameters, may be null
    * @param overrideDicomTagsList comma-separated list of DICOM tag IDs to override, may be null
@@ -265,23 +270,15 @@ public class WadoParameters extends ArcParameters {
 
   // Validates and normalizes the WADO URL
   private static String validateAndNormalizeUrl(String wadoURL) {
-    Objects.requireNonNull(wadoURL, "WADO URL cannot be null");
-
     if (wadoURL.isBlank()) {
-      throw new IllegalArgumentException("WADO URL cannot be blank");
+      return "";
     }
 
     try {
       URI uri = new URI(wadoURL.trim());
-      if (uri.getScheme() == null) {
-        throw new IllegalArgumentException("WADO URL must include a scheme (http:// or https://)");
-      }
-      if (!uri.getScheme().matches("^https?$")) {
-        throw new IllegalArgumentException("WADO URL must use HTTP or HTTPS protocol");
-      }
       return uri.toString();
     } catch (URISyntaxException e) {
-      throw new IllegalArgumentException("Invalid WADO URL format: " + wadoURL, e);
+      throw new IllegalArgumentException("Invalid WADO URI format: " + wadoURL, e);
     }
   }
 

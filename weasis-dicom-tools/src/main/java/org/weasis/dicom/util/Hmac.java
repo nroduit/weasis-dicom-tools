@@ -34,6 +34,8 @@ public class Hmac {
   // Pre-computed lookup table for hex conversion (more efficient than array access)
   private static final char[] HEX_LOOKUP = HEX_DIGITS.toCharArray();
 
+  private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
   private final Mac mac;
 
   public Hmac() {
@@ -59,9 +61,8 @@ public class Hmac {
 
   /** Generate a random secret key of 16 bytes (128 bits) */
   public static byte[] generateRandomKey() {
-    SecureRandom random = new SecureRandom();
     byte[] bytes = new byte[KEY_BYTE_LENGTH];
-    random.nextBytes(bytes);
+    SECURE_RANDOM.nextBytes(bytes);
     return bytes;
   }
 

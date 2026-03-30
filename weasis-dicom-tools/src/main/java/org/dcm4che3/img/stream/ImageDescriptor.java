@@ -84,6 +84,8 @@ public final class ImageDescriptor {
   // Pixel padding and LUT modules
   private final Integer pixelPaddingValue;
   private final Integer pixelPaddingRangeLimit;
+  private final ModalityLutModule modalityLUT;
+  private final VoiLutModule voiLUT;
 
   // Frame-specific data collections
   private final List<MinMaxLocResult> minMaxPixelValues;
@@ -147,13 +149,13 @@ public final class ImageDescriptor {
     var lutData = createLutData(dcm);
     this.pixelPaddingValue = lutData.pixelPaddingValue();
     this.pixelPaddingRangeLimit = lutData.pixelPaddingRangeLimit();
+    this.modalityLUT = lutData.modalityLUT();
+    this.voiLUT = lutData.voiLUT();
 
     // Initialize frame-specific collections
     this.minMaxPixelValues = createNullFilledList(frames);
     this.voiLutPerFrame = createNullFilledList(frames);
     this.modalityLutPerFrame = createNullFilledList(frames);
-    modalityLutPerFrame.set(0, lutData.modalityLUT());
-    voiLutPerFrame.set(0, lutData.voiLUT());
   }
 
   private LookupTableCV createPaletteColorLookupTable(Attributes dcm) {
@@ -370,11 +372,11 @@ public final class ImageDescriptor {
   }
 
   public ModalityLutModule getModalityLUT() {
-    return modalityLutPerFrame.get(0);
+    return modalityLUT;
   }
 
   public VoiLutModule getVoiLUT() {
-    return voiLutPerFrame.get(0);
+    return voiLUT;
   }
 
   // === Frame-Specific Data Management ===
@@ -408,7 +410,7 @@ public final class ImageDescriptor {
    * @return the frame-specific VOI LUT or the base VOI LUT if not set
    */
   public VoiLutModule getVoiLutForFrame(int frame) {
-    return getLutModule(voiLutPerFrame, frame);
+    return getLutModule(voiLutPerFrame, voiLUT, frame);
   }
 
   /**
@@ -430,7 +432,7 @@ public final class ImageDescriptor {
    * @return the frame-specific modality LUT or the base modality LUT if not set
    */
   public ModalityLutModule getModalityLutForFrame(int frame) {
-    return getLutModule(modalityLutPerFrame, frame);
+    return getLutModule(modalityLutPerFrame, modalityLUT, frame);
   }
 
   /**
@@ -449,12 +451,12 @@ public final class ImageDescriptor {
     return frame >= 0 && frame < frames;
   }
 
-  private static <T> T getLutModule(List<T> list, int frame) {
+  private static <T> T getLutModule(List<T> list, T baseLut, int frame) {
     if (frame < 0 || frame >= list.size()) {
-      return list.get(0);
+      return baseLut;
     }
     T frameLut = list.get(frame);
-    return frameLut != null ? frameLut : list.get(0);
+    return frameLut != null ? frameLut : baseLut;
   }
 
   public void resetModalityLutForFrame(int frame) {

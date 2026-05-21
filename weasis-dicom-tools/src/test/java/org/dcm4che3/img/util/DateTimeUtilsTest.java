@@ -22,7 +22,7 @@ import org.dcm4che3.data.VR;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.*;
-import org.junitpioneer.jupiter.DefaultTimeZone;
+import org.weasis.dicom.junit.DefaultTimeZone;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class DateTimeUtilsTest {

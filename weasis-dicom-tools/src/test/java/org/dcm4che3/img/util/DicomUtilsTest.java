@@ -34,8 +34,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.junitpioneer.jupiter.DefaultLocale;
-import org.junitpioneer.jupiter.DefaultTimeZone;
+import org.weasis.dicom.junit.DefaultLocale;
+import org.weasis.dicom.junit.DefaultTimeZone;
 
 @DefaultLocale(language = "en", country = "US")
 class DicomUtilsTest {

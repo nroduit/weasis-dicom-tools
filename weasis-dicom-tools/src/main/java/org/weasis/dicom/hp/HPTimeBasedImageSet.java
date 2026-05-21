@@ -17,6 +17,7 @@ import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.img.util.DicomUtils;
+import org.weasis.core.util.annotations.Generated;
 import org.weasis.dicom.hp.enums.RelativeTimeUnits;
 import org.weasis.dicom.macro.Code;
 import org.weasis.dicom.macro.Module;
@@ -31,26 +32,32 @@ public class HPTimeBasedImageSet extends Module {
     super(attributes);
   }
 
+  @Generated
   public Integer getImageSetNumber() {
     return DicomUtils.getIntegerFromDicomElement(dcmItems, Tag.ImageSetNumber, null);
   }
 
+  @Generated
   public void setImageSetNumber(int imageSetNumber) {
     dcmItems.setInt(Tag.ImageSetNumber, VR.US, imageSetNumber);
   }
 
+  @Generated
   public String getImageSetLabel() {
     return dcmItems.getString(Tag.ImageSetLabel);
   }
 
+  @Generated
   public void setImageSetLabel(String imageSetLabel) {
     dcmItems.setString(Tag.ImageSetLabel, VR.LO, imageSetLabel);
   }
 
+  @Generated
   public String getImageSetSelectorCategory() {
     return dcmItems.getString(Tag.ImageSetSelectorCategory);
   }
 
+  @Generated
   public boolean hasRelativeTime() {
     return dcmItems.containsValue(Tag.RelativeTime);
   }

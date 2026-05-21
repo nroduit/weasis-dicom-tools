@@ -14,6 +14,7 @@ import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Sequence;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
+import org.weasis.core.util.annotations.Generated;
 import org.weasis.dicom.macro.Code;
 import org.weasis.dicom.macro.Module;
 
@@ -27,46 +28,57 @@ public class HPDefinition extends Module {
     super(item);
   }
 
+  @Generated
   public String getModality() {
     return dcmItems.getString(Tag.Modality);
   }
 
+  @Generated
   public void setModality(String modality) {
     dcmItems.setString(Tag.Modality, VR.CS, modality);
   }
 
+  @Generated
   public String getLaterality() {
     return dcmItems.getString(Tag.Laterality);
   }
 
+  @Generated
   public void setLaterality(String laterality) {
     dcmItems.setString(Tag.Laterality, VR.CS, laterality);
   }
 
+  @Generated
   public Collection<Code> getAnatomicRegionCode() {
     return Code.toCodeMacros(dcmItems.getSequence(Tag.AnatomicRegionSequence));
   }
 
+  @Generated
   public void addAnatomicRegionCodes(Code code) {
     addCode(Tag.AnatomicRegionSequence, code);
   }
 
+  @Generated
   public Collection<Code> getProcedureCodes() {
     return Code.toCodeMacros(dcmItems.getSequence(Tag.ProcedureCodeSequence));
   }
 
+  @Generated
   public void addProcedureCode(Code code) {
     addCode(Tag.ProcedureCodeSequence, code);
   }
 
+  @Generated
   public Collection<Code> getReasonForRequestedProcedureCodes() {
     return Code.toCodeMacros(dcmItems.getSequence(Tag.ReasonForRequestedProcedureCodeSequence));
   }
 
+  @Generated
   public void addReasonForRequestedProcedureCode(Code code) {
     addCode(Tag.ReasonForRequestedProcedureCodeSequence, code);
   }
 
+  @Generated
   protected void addCode(int tag, Code code) {
     Sequence seq = dcmItems.ensureSequence(tag, 1);
     seq.add(code.getAttributes());

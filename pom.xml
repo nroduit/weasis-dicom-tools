@@ -14,8 +14,8 @@
     <changelist></changelist> <!-- Remove "-SNAPSHOT" for release -->
     <sha1/>
 
-    <dcm4che.version>5.34.2</dcm4che.version>
-    <weasis.core.img.version>4.13.0</weasis.core.img.version>
+    <dcm4che.version>5.34.3</dcm4che.version>
+    <weasis.core.img.version>4.13.0.1</weasis.core.img.version>
   </properties>
 
   <modules>
@@ -65,7 +65,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.14.1</version>
+          <version>3.15.0</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -90,16 +90,12 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-dependency-plugin</artifactId>
-          <version>3.9.0</version>
+          <version>3.10.0</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>3.5.4</version>
-          <configuration>
-            <argLine>@{argLine} -XX:+EnableDynamicAgentLoading -Xshare:off</argLine>
-            <parallel>all</parallel>
-          </configuration>
+          <version>3.5.5</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -109,12 +105,12 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-enforcer-plugin</artifactId>
-          <version>3.6.2</version>
+          <version>3.6.3</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-resources-plugin</artifactId>
-          <version>3.4.0</version>
+          <version>3.5.0</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -145,7 +141,7 @@
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>exec-maven-plugin</artifactId>
-          <version>3.6.0</version>
+          <version>3.6.3</version>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
@@ -155,7 +151,12 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-failsafe-plugin</artifactId>
-          <version>3.5.4</version>
+          <version>3.5.5</version>
+        </plugin>
+        <plugin>
+          <groupId>org.sonarsource.scanner.maven</groupId>
+          <artifactId>sonar-maven-plugin</artifactId>
+          <version>5.6.0.6792</version>
         </plugin>
       </plugins>
     </pluginManagement>

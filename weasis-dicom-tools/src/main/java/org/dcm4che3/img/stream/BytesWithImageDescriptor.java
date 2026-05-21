@@ -97,24 +97,4 @@ public interface BytesWithImageDescriptor extends ImageReaderDescriptor {
    * @throws IllegalStateException if the VR cannot be determined
    */
   VR getPixelDataVR();
-
-  /**
-   * @deprecated Use {@link #isBigEndian()} instead. This method will be removed in a future
-   *     version.
-   */
-  @Deprecated(since = "5.34.3", forRemoval = true)
-  @Generated
-  default boolean bigEndian() {
-    return isBigEndian();
-  }
-
-  /**
-   * @deprecated Use {@link #isFloatPixelData()} instead. This method will be removed in a future
-   *     version.
-   */
-  @Deprecated(since = "5.34.3", forRemoval = true)
-  @Generated
-  default boolean floatPixelData() {
-    return isFloatPixelData();
-  }
 }

@@ -63,10 +63,6 @@ public record TlsOptions(
   /** TLS version 1.3 */
   public static final List<String> TLS_1_3 = List.of("TLSv1.3");
 
-  /** SSL version 3.0 (deprecated) */
-  @Deprecated(since = "Java 17", forRemoval = true)
-  public static final List<String> SSL_3 = List.of("SSLv3");
-
   /** SSL2Hello with multiple protocol support */
   public static final List<String> SSL2_HELLO =
       List.of("SSLv2Hello", "SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2");

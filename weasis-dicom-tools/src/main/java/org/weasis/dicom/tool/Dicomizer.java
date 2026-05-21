@@ -9,7 +9,6 @@
  */
 package org.weasis.dicom.tool;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
@@ -525,23 +524,4 @@ public final class Dicomizer {
 
   private record PixelDataContext( // NOSONAR only internal use
       byte[] prefix, long codeStreamSize) {} // NOSONAR only internal use
-
-  // Legacy method overloads for backward compatibility
-
-  /**
-   * @deprecated Use {@link #pdf(Attributes, Path, Path)} instead.
-   */
-  @Deprecated(since = "5.34.0.3", forRemoval = true)
-  public static void pdf(Attributes attrs, File pdfFile, File dcmFile) throws IOException {
-    pdf(attrs, pdfFile.toPath(), dcmFile.toPath());
-  }
-
-  /**
-   * @deprecated Use {@link #jpeg(Attributes, Path, Path, boolean)} instead.
-   */
-  @Deprecated(since = "5.34.0.3", forRemoval = true)
-  public static void jpeg(Attributes attrs, File jpgFile, File dcmFile, boolean noAPPn)
-      throws IOException {
-    jpeg(attrs, jpgFile.toPath(), dcmFile.toPath(), noAPPn);
-  }
 }

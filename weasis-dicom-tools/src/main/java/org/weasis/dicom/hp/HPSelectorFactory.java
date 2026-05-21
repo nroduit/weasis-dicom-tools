@@ -19,6 +19,7 @@ import org.dcm4che3.data.VR;
 import org.dcm4che3.util.TagUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.weasis.core.util.annotations.Generated;
 import org.weasis.dicom.geom.ImageOrientation.Plan;
 import org.weasis.dicom.hp.enums.Presence;
 import org.weasis.dicom.hp.enums.SelectorUsageFlag;
@@ -226,6 +227,7 @@ public class HPSelectorFactory {
     return sel;
   }
 
+  @Generated
   private static HPSelector createAttributeValueSelector(
       Attributes item, boolean match, HPFilter filterOp) {
     String vrStr = item.getString(Tag.SelectorAttributeVR);
@@ -383,6 +385,7 @@ public class HPSelectorFactory {
     }
   }
 
+  @Generated
   private static HPSelector createAttributeValueSelector(
       String usageFlag,
       String privateCreator,
@@ -450,6 +453,7 @@ public class HPSelectorFactory {
     }
   }
 
+  @Generated
   public static HPSelector createAttributeValueSelector(
       String usageFlag,
       String privateCreator,

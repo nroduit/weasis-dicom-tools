@@ -9,14 +9,12 @@
  */
 package org.weasis.dicom.tool;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Objects;
 import org.dcm4che3.net.Connection;
 import org.dcm4che3.net.TransferCapability;
 import org.dcm4che3.tool.storescp.StoreSCP;
-import org.weasis.core.util.annotations.Generated;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.DeviceListenerService;
 import org.weasis.dicom.param.DicomNode;
@@ -139,25 +137,5 @@ public class DicomListener {
     storeSCP
         .getApplicationEntity()
         .addTransferCapability(new TransferCapability(null, "*", TransferCapability.Role.SCP, "*"));
-  }
-
-  // Legacy method kept for backward compatibility
-
-  /**
-   * @deprecated use {@link #DicomListener(Path, DicomProgress)} instead
-   */
-  @Generated
-  @Deprecated(since = "5.34.0.3", forRemoval = true)
-  public DicomListener(File storageDir) {
-    this(storageDir.toPath(), null);
-  }
-
-  /**
-   * @deprecated use {@link #DicomListener(Path, DicomProgress)} instead
-   */
-  @Generated
-  @Deprecated(since = "5.34.0.3", forRemoval = true)
-  public DicomListener(File storageDir, DicomProgress dicomProgress) {
-    this(storageDir.toPath(), dicomProgress);
   }
 }

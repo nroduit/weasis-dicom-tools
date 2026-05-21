@@ -15,6 +15,7 @@ import java.util.List;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
+import org.weasis.core.util.annotations.Generated;
 import org.weasis.dicom.macro.Module;
 
 public class HPScrollingGroup extends Module {
@@ -46,6 +47,7 @@ public class HPScrollingGroup extends Module {
     }
   }
 
+  @Generated
   public List<HPDisplaySet> getDisplaySets() {
     return Collections.unmodifiableList(displaySets);
   }

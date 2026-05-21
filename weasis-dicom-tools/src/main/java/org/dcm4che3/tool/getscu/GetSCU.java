@@ -220,14 +220,6 @@ public class GetSCU implements AutoCloseable {
     this.storageDir = storageDir;
   }
 
-  /**
-   * @deprecated Use {@link #setStorageDirectory(Path)} instead
-   */
-  @Deprecated(since = "5.34.0.3", forRemoval = true)
-  public void setStorageDirectory(java.io.File storageDir) {
-    setStorageDirectory(storageDir != null ? storageDir.toPath() : null);
-  }
-
   public final void setPriority(int priority) {
     this.priority = priority;
   }
@@ -295,14 +287,6 @@ public class GetSCU implements AutoCloseable {
     }
     attrs.addAll(keys);
     retrieve(attrs);
-  }
-
-  /**
-   * @deprecated Use {@link #retrieve(Path)} instead
-   */
-  @Deprecated(since = "5.34.0.3", forRemoval = true)
-  public void retrieve(java.io.File f) throws IOException, InterruptedException {
-    retrieve(f.toPath());
   }
 
   /** Retrieves DICOM objects using the configured query keys. */

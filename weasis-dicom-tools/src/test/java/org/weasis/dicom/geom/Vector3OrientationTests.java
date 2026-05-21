@@ -21,7 +21,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.junitpioneer.jupiter.DefaultLocale;
+import org.weasis.dicom.junit.DefaultLocale;
 
 @DisplayNameGeneration(ReplaceUnderscores.class)
 class Vector3Test {

@@ -15,6 +15,7 @@ import java.util.List;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
+import org.weasis.core.util.annotations.Generated;
 import org.weasis.dicom.macro.Module;
 
 public class HPNavigationGroup extends Module {
@@ -61,15 +62,18 @@ public class HPNavigationGroup extends Module {
     }
   }
 
+  @Generated
   public final HPDisplaySet getNavigationDisplaySet() {
     return navDisplaySet;
   }
 
+  @Generated
   public final void setNavigationDisplaySet(HPDisplaySet displaySet) {
     this.navDisplaySet = displaySet;
     updateDisplaySetNumber();
   }
 
+  @Generated
   public List<HPDisplaySet> getReferenceDisplaySets() {
     return Collections.unmodifiableList(refDisplaySets);
   }

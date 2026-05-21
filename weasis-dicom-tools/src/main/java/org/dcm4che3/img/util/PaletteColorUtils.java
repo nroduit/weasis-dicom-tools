@@ -79,35 +79,6 @@ public final class PaletteColorUtils {
         : performGeneralLookup(source, lookup);
   }
 
-  /**
-   * Converts a palette-based image to RGB using DICOM attributes directly.
-   *
-   * <p><strong>Deprecated:</strong> This method is marked for removal in future versions. Use
-   * {@link #getRGBImageFromPaletteColorModel(PlanarImage, LookupTableCV)} with {@link
-   * #getPaletteColorLookupTable(Attributes)} instead.
-   *
-   * @param source the source image with palette color data
-   * @param ds the DICOM attributes containing palette information
-   * @return the RGB image, or the original image if conversion is not needed
-   * @deprecated Use the two-step approach with separate lookup table creation for better
-   *     performance
-   */
-  @Deprecated(since = "5.34.0.3", forRemoval = true)
-  public static PlanarImage getRGBImageFromPaletteColorModel(PlanarImage source, Attributes ds) {
-    if (ds == null) {
-      return source;
-    }
-
-    var colorComponents = extractColorComponents(ds);
-    if (!colorComponents.isValid()) {
-      return source;
-    }
-
-    return hasZeroOffsets(colorComponents)
-        ? performDirectTransform(source, colorComponents)
-        : performLookupTransform(source, colorComponents);
-  }
-
   // Check if DICOM attributes contain all required palette descriptors
   private static boolean hasPaletteColorDescriptors(Attributes ds) {
     return ds != null
@@ -164,13 +135,6 @@ public final class PaletteColorUtils {
         && lookup.getOffset(2) == 0;
   }
 
-  // Check if color components have zero offsets for optimization
-  private static boolean hasZeroOffsets(ColorComponents components) {
-    return components.redDesc()[1] == 0
-        && components.greenDesc()[1] == 0
-        && components.blueDesc()[1] == 0;
-  }
-
   // Apply optimized LUT transformation for 8-bit data with zero offsets
   private static PlanarImage performOptimizedTransform(PlanarImage source, LookupTableCV lookup) {
     return ImageTransformer.applyLUT(source.toMat(), lookup.getByteData());
@@ -178,21 +142,6 @@ public final class PaletteColorUtils {
 
   // Apply general LUT lookup operation
   private static PlanarImage performGeneralLookup(PlanarImage source, LookupTableCV lookup) {
-    return lookup.lookup(source.toMat());
-  }
-
-  // Apply direct LUT transformation using color components data
-  private static PlanarImage performDirectTransform(
-      PlanarImage source, ColorComponents components) {
-    return ImageTransformer.applyLUT(
-        source.toMat(),
-        new byte[][] {components.blueData(), components.greenData(), components.redData()});
-  }
-
-  // Apply LUT transformation by creating lookup table first
-  private static PlanarImage performLookupTransform(
-      PlanarImage source, ColorComponents components) {
-    var lookup = createPaletteLookupTable(components);
     return lookup.lookup(source.toMat());
   }
 

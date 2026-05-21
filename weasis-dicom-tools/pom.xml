@@ -17,15 +17,14 @@
   <properties>
     <java-version>17</java-version>
     <enforcer.jdk-version>[${java-version},)</enforcer.jdk-version>
-    <enforcer.maven-version>[3.8.1,)</enforcer.maven-version>
+    <enforcer.maven-version>[3.6.3,)</enforcer.maven-version>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
     <slf4j.version>2.0.17</slf4j.version>
-    <junit-bom.version>6.0.1</junit-bom.version>
-    <mockito.version>5.21.0</mockito.version>
-    <junit-pioneer.version>2.3.0</junit-pioneer.version>
+    <junit-bom.version>6.1.0</junit-bom.version>
+    <mockito.version>5.23.0</mockito.version>
 
     <sonar.projectKey>weasis-dicom-tools</sonar.projectKey>
     <sonar.organization>nroduit-github</sonar.organization>
@@ -34,8 +33,19 @@
     <sonar.java.source>${java-version}</sonar.java.source>
     <sonar.test.exclusions>src/test/**/*</sonar.test.exclusions>
 
-    <!-- Tests require the native library and can only be run on Linux, Windows and macOS-->
-    <argLine>-Djava.library.path=${project.build.directory}/lib/${os-name}-${cpu-name}</argLine>
+    <!-- Tests require the native library and can only be run on Linux, Windows and macOS.
+         The argLine below adds three JVM flags for tests:
+         (a) javaagent loads mockito-core at JVM start so the inline mock maker
+             no longer self-attaches at runtime (phased out by the JDK). The
+             ${org.mockito:mockito-core:jar} property is populated by the
+             resolve-dependency-paths execution of maven-dependency-plugin.
+         (b) enable-native-access=ALL-UNNAMED grants the unnamed module
+             permission to call the restricted System.loadLibrary used by
+             NativeLibrary in weasis-core-img; this project runs from the
+             classpath, so the named module is not visible.
+         (c) java.library.path points at the unpacked OpenCV native artefact
+             so the JNI loader in weasis-core-img can resolve it. -->
+    <argLine>-javaagent:${org.mockito:mockito-core:jar} --enable-native-access=ALL-UNNAMED -Djava.library.path=${project.build.directory}/lib/${os-name}-${cpu-name}</argLine>
   </properties>
 
   <dependencyManagement>
@@ -175,6 +185,18 @@
               </artifactItems>
             </configuration>
           </execution>
+          <execution>
+            <!-- Exposes resolved dependency paths as Maven properties of the form
+                 ${groupId:artifactId:type}. Used above to point Surefire's
+                 -javaagent at mockito-core, so Mockito's inline-mock-maker no
+                 longer relies on the self-attach mechanism that is being
+                 removed in future JDKs. -->
+            <id>resolve-dependency-paths</id>
+            <phase>process-test-classes</phase>
+            <goals>
+              <goal>properties</goal>
+            </goals>
+          </execution>
         </executions>
       </plugin>
       <plugin>
@@ -291,12 +313,17 @@
             <artifactId>jacoco-maven-plugin</artifactId>
             <configuration>
               <includes>
-                <include>org/dcm4che3/*.*</include>
-                <include>org/dcm4che3/**/*.*</include>
-                <include>org/weasis/dicom/**/*.*</include>
+                <include>org/dcm4che3/*</include>
+                <include>org/dcm4che3/**/*</include>
+                <include>org/weasis/dicom/**/*</include>
               </includes>
               <excludes>
-                <exclude>**/package-info.java</exclude>
+                <exclude>**/package-info</exclude>
+                <!-- dcm4che's generated Keyword.valueOf(int) is a huge switch statement
+                     that exceeds the JVM 64KB method size limit once JaCoCo injects its
+                     probes, so instrumentation fails with MethodTooLargeException. The
+                     class is a generated dictionary with no behaviour worth measuring. -->
+                <exclude>org/dcm4che3/data/Keyword</exclude>
               </excludes>
             </configuration>
             <executions>
@@ -391,20 +418,19 @@
 
     <!-- FOR TESTS -->
     <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-junit-jupiter</artifactId>
       <scope>test</scope>
     </dependency>
 
     <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-params</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.junit-pioneer</groupId>
-      <artifactId>junit-pioneer</artifactId>
-      <version>${junit-pioneer.version}</version>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>

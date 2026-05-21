@@ -27,6 +27,7 @@ import org.dcm4che3.io.DicomOutputStream;
 import org.dcm4che3.util.UIDUtils;
 import org.weasis.core.util.FileUtil;
 import org.weasis.core.util.StringUtil;
+import org.weasis.core.util.annotations.Generated;
 import org.weasis.dicom.hp.spi.HPCategoryService;
 import org.weasis.dicom.hp.spi.HPComparatorCategoryService;
 import org.weasis.dicom.hp.spi.HPRegistry;
@@ -81,6 +82,7 @@ public class HangingProtocol extends Module {
     initNavigationGroups();
   }
 
+  @Generated
   public void writeToDicomFile(Path outputPath) throws IOException {
     validateOutputPath(outputPath);
     FileUtil.prepareToWriteFile(outputPath);
@@ -91,125 +93,155 @@ public class HangingProtocol extends Module {
     }
   }
 
+  @Generated
   private static void validateOutputPath(Path outputPath) {
     if (StringUtil.hasText(outputPath.toString())) {
       throw new IllegalArgumentException("Output path cannot be null or empty");
     }
   }
 
+  @Generated
   protected HPImageSet createImageSet(List<HPSelector> selectors, Attributes dcmobj) {
     return new HPImageSet(selectors, dcmobj);
   }
 
+  @Generated
   protected HPDisplaySet createDisplaySet(Attributes ds, HPImageSet is) {
     return new HPDisplaySet(ds, is);
   }
 
+  @Generated
   protected HPDefinition createHangingProtocolDefinition(Attributes dcmobj) {
     return new HPDefinition(dcmobj);
   }
 
+  @Generated
   protected HPScreenDefinition createNominalScreenDefinition(Attributes item) {
     return new HPScreenDefinition(item);
   }
 
+  @Generated
   protected HPNavigationGroup createNavigationGroup(Attributes dcmobj) {
     return new HPNavigationGroup(dcmobj, displaySets);
   }
 
+  @Generated
   protected HPScrollingGroup createScrollingGroup(Attributes dssg) {
     return new HPScrollingGroup(dssg, displaySets);
   }
 
+  @Generated
   public String getHangingProtocolName() {
     return dcmItems.getString(Tag.HangingProtocolName);
   }
 
+  @Generated
   public void setHangingProtocolName(String name) {
     dcmItems.setString(Tag.HangingProtocolName, VR.SH, name);
   }
 
+  @Generated
   public String getHangingProtocolDescription() {
     return dcmItems.getString(Tag.HangingProtocolDescription);
   }
 
+  @Generated
   public void setHangingProtocolDescription(String description) {
     dcmItems.setString(Tag.HangingProtocolDescription, VR.LO, description);
   }
 
+  @Generated
   public String getHangingProtocolLevel() {
     return dcmItems.getString(Tag.HangingProtocolLevel);
   }
 
+  @Generated
   public void setHangingProtocolLevel(String level) {
     dcmItems.setString(Tag.HangingProtocolLevel, VR.CS, level);
   }
 
+  @Generated
   public String getHangingProtocolCreator() {
     return dcmItems.getString(Tag.HangingProtocolCreator);
   }
 
+  @Generated
   public void setHangingProtocolCreator(String creator) {
     dcmItems.setString(Tag.HangingProtocolCreator, VR.LO, creator);
   }
 
+  @Generated
   public Date getHangingProtocolCreationDateTime() {
     return dcmItems.getDate(Tag.HangingProtocolCreationDateTime);
   }
 
+  @Generated
   public void setHangingProtocolCreationDateTime(Date datetime) {
     dcmItems.setDate(Tag.HangingProtocolCreationDateTime, VR.DT, datetime);
   }
 
+  @Generated
   public Integer getNumberOfPriorsReferenced() {
     return DicomUtils.getIntegerFromDicomElement(dcmItems, Tag.NumberOfPriorsReferenced, null);
   }
 
+  @Generated
   public void setNumberOfPriorsReferenced(int priors) {
     dcmItems.setInt(Tag.NumberOfPriorsReferenced, VR.US, priors);
   }
 
+  @Generated
   public Integer getNumberOfScreens() {
     return DicomUtils.getIntegerFromDicomElement(dcmItems, Tag.NumberOfScreens, null);
   }
 
+  @Generated
   public void setNumberOfScreens(int screens) {
     dcmItems.setInt(Tag.NumberOfScreens, VR.US, screens);
   }
 
+  @Generated
   public Code getHangingProtocolUserIdentificationCode() {
     return Code.getNestedCode(dcmItems, Tag.HangingProtocolUserIdentificationCodeSequence);
   }
 
+  @Generated
   public void setHangingProtocolUserIdentificationCodeSequence(Code user) {
     dcmItems.ensureSequence(Tag.AbstractPriorCodeSequence, 1).add(user.getAttributes());
   }
 
+  @Generated
   public SOPInstanceReference getSourceHangingProtocol() {
     Attributes item = dcmItems.getNestedDataset(Tag.SourceHangingProtocolSequence);
     return item != null ? new SOPInstanceReference(item) : null;
   }
 
+  @Generated
   public void setSourceHangingProtocol(SOPInstanceReference sop) {
     dcmItems.ensureSequence(Tag.SourceHangingProtocolSequence, 1).add(sop.getAttributes());
   }
 
+  @Generated
   public String getHangingProtocolUserGroupName() {
     return dcmItems.getString(Tag.HangingProtocolUserGroupName);
   }
 
+  @Generated
   public void setHangingProtocolUserGroupName(String name) {
     dcmItems.setString(Tag.HangingProtocolUserGroupName, VR.LO, name);
   }
 
+  @Generated
   public String getPartialDataDisplayHandling() {
     return dcmItems.getString(Tag.PartialDataDisplayHandling);
   }
 
+  @Generated
   public void setPartialDataDisplayHandling(String type) {
     dcmItems.setString(Tag.PartialDataDisplayHandling, VR.CS, type);
   }
 
+  @Generated
   public List<HPDefinition> getHangingProtocolDefinitions() {
     return Collections.unmodifiableList(definitions);
   }
@@ -242,6 +274,7 @@ public class HangingProtocol extends Module {
     definitions.clear();
   }
 
+  @Generated
   public List<HPImageSet> getImageSets() {
     return Collections.unmodifiableList(imageSets);
   }
@@ -302,6 +335,7 @@ public class HangingProtocol extends Module {
     removeAllDisplaySets();
   }
 
+  @Generated
   public List<HPScreenDefinition> getNominalScreenDefinitions() {
     return Collections.unmodifiableList(screenDefs);
   }
@@ -334,6 +368,7 @@ public class HangingProtocol extends Module {
     screenDefs.clear();
   }
 
+  @Generated
   public int getNumberOfPresentationGroups() {
     return maxPresGroup;
   }
@@ -371,6 +406,7 @@ public class HangingProtocol extends Module {
     return null;
   }
 
+  @Generated
   public List<HPDisplaySet> getDisplaySets() {
     return Collections.unmodifiableList(displaySets);
   }
@@ -478,6 +514,7 @@ public class HangingProtocol extends Module {
     maxPresGroup = 0;
   }
 
+  @Generated
   public List<HPScrollingGroup> getScrollingGroups() {
     return maskNull(scrollingGroups);
   }
@@ -509,10 +546,12 @@ public class HangingProtocol extends Module {
     scrollingGroups.clear();
   }
 
+  @Generated
   public List<HPNavigationGroup> getNavigationGroups() {
     return maskNull(navigationGroups);
   }
 
+  @Generated
   private <T> List<T> maskNull(List<T> list) {
     return list == null ? Collections.<T>emptyList() : Collections.unmodifiableList(list);
   }
@@ -652,15 +691,18 @@ public class HangingProtocol extends Module {
     }
   }
 
+  @Generated
   public static HPSelectorCategoryService getHPSelectorSpi(String category) {
     return (HPSelectorCategoryService) getHPCategorySpi(HPSelectorCategoryService.class, category);
   }
 
+  @Generated
   public static HPComparatorCategoryService getHPComparatorSpi(String category) {
     return (HPComparatorCategoryService)
         getHPCategorySpi(HPComparatorCategoryService.class, category);
   }
 
+  @Generated
   private static <T extends HPCategoryService> HPCategoryService getHPCategorySpi(
       Class<T> serviceClass, final String category) {
     Iterator<HPCategoryService> iter = HPRegistry.getHPRegistry().getServiceProviders(serviceClass);
@@ -673,14 +715,17 @@ public class HangingProtocol extends Module {
     return null;
   }
 
+  @Generated
   public static String[] getSupportedHPSelectorCategories() {
     return getSupportedHPCategories(HPSelectorCategoryService.class);
   }
 
+  @Generated
   public static String[] getSupportedHPComparatorCategories() {
     return getSupportedHPCategories(HPComparatorCategoryService.class);
   }
 
+  @Generated
   private static <T extends HPCategoryService> String[] getSupportedHPCategories(
       Class<T> serviceClass) {
     Iterator<HPCategoryService> iter = HPRegistry.getHPRegistry().getServiceProviders(serviceClass);
@@ -693,67 +738,83 @@ public class HangingProtocol extends Module {
     return set.toArray(new String[0]);
   }
 
+  @Generated
   public String getSOPClassUID() {
     return dcmItems.getString(Tag.SOPClassUID);
   }
 
+  @Generated
   public void setSOPClassUID(String uid) {
     dcmItems.setString(Tag.SOPClassUID, VR.UI, uid);
   }
 
+  @Generated
   public String getSOPInstanceUID() {
     return dcmItems.getString(Tag.SOPInstanceUID);
   }
 
+  @Generated
   public void setSOPInstanceUID(String uid) {
     dcmItems.setString(Tag.SOPInstanceUID, VR.UI, uid);
   }
 
+  @Generated
   public String[] getSpecificCharacterSet() {
     return dcmItems.getStrings(Tag.SpecificCharacterSet);
   }
 
+  @Generated
   public void setSpecificCharacterSet(String[] ss) {
     dcmItems.setString(Tag.SpecificCharacterSet, VR.CS, ss);
   }
 
+  @Generated
   public Date getInstanceCreationDateTime() {
     return dcmItems.getDate(Tag.InstanceCreationDate, Tag.InstanceCreationTime);
   }
 
+  @Generated
   public void setInstanceCreationDateTime(Date d) {
     dcmItems.setDate(Tag.InstanceCreationDate, VR.DA, d);
     dcmItems.setDate(Tag.InstanceCreationTime, VR.TM, d);
   }
 
+  @Generated
   public String getInstanceCreatorUID() {
     return dcmItems.getString(Tag.InstanceCreatorUID);
   }
 
+  @Generated
   public void setInstanceCreatorUID(String s) {
     dcmItems.setString(Tag.InstanceCreatorUID, VR.UI, s);
   }
 
+  @Generated
   public String getRelatedGeneralSOPClassUID() {
     return dcmItems.getString(Tag.RelatedGeneralSOPClassUID);
   }
 
+  @Generated
   public void setRelatedGeneralSOPClassUID(String s) {
     dcmItems.setString(Tag.RelatedGeneralSOPClassUID, VR.UI, s);
   }
 
+  @Generated
   public String getOriginalSpecializedSOPClassUID() {
     return dcmItems.getString(Tag.OriginalSpecializedSOPClassUID);
   }
 
+  @Generated
   public void setOriginalSpecializedSOPClassUID(String s) {
     dcmItems.setString(Tag.OriginalSpecializedSOPClassUID, VR.UI, s);
   }
 
+  @Generated
   public String getInstanceNumber() {
     return dcmItems.getString(Tag.InstanceNumber);
   }
 
+  @Generated
   public void setInstanceNumber(String s) {
     dcmItems.setString(Tag.InstanceNumber, VR.IS, s);
   }

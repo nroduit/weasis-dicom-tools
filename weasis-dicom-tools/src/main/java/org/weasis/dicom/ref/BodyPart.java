@@ -501,12 +501,4 @@ public enum BodyPart implements AnatomicItem {
   public static BodyPart fromCode(String code) {
     return CODE_LOOKUP.get(code);
   }
-
-  /**
-   * @deprecated Use {@link #fromCode(String)} instead for better performance and clarity.
-   */
-  @Deprecated(since = "5.34.0.3", forRemoval = true)
-  public static BodyPart getBodyPartFromCode(String code) {
-    return fromCode(code);
-  }
 }

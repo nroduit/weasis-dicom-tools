@@ -9,7 +9,6 @@
  */
 package org.dcm4che3.tool.common;
 
-import java.io.File;
 import java.nio.file.Path;
 import java.util.Objects;
 import java.util.Optional;
@@ -188,29 +187,5 @@ public class FilesetInfo {
         + descriptorFileCharset
         + "'"
         + '}';
-  }
-
-  // Legacy compatibility methods
-
-  /**
-   * Gets the descriptor file as legacy File object.
-   *
-   * @return the descriptor file as File, or null if not set
-   * @deprecated Use {@link #getDescriptorFile()} instead
-   */
-  @Deprecated(since = "5.34.0.3", forRemoval = true)
-  public File getDescriptorFileAsLegacy() {
-    return descriptorFile != null ? descriptorFile.toFile() : null;
-  }
-
-  /**
-   * Sets the descriptor file using legacy File object.
-   *
-   * @param descriptorFile the descriptor file as File
-   * @deprecated Use {@link #setDescriptorFile(Path)} instead
-   */
-  @Deprecated(since = "5.34.0.3", forRemoval = true)
-  public void setDescriptorFileFromLegacy(File descriptorFile) {
-    this.descriptorFile = descriptorFile != null ? descriptorFile.toPath() : null;
   }
 }

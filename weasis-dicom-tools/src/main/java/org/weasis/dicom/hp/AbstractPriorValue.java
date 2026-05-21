@@ -9,6 +9,8 @@
  */
 package org.weasis.dicom.hp;
 
+import org.weasis.core.util.annotations.Generated;
+
 public class AbstractPriorValue {
 
   private final int start;
@@ -23,14 +25,17 @@ public class AbstractPriorValue {
     this(value[0], value[1]);
   }
 
+  @Generated
   final int[] getValues() {
     return new int[] {start, end};
   }
 
+  @Generated
   public final int getStart() {
     return start;
   }
 
+  @Generated
   public final int getEnd() {
     return end;
   }

@@ -11,6 +11,7 @@ package org.weasis.dicom.hp;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
+import org.weasis.core.util.annotations.Generated;
 import org.weasis.dicom.hp.enums.RelativeTimeUnits;
 
 public class RelativeTime {
@@ -34,14 +35,17 @@ public class RelativeTime {
     this.units = units;
   }
 
+  @Generated
   final int[] getValues() {
     return values;
   }
 
+  @Generated
   public final int getStart() {
     return values[0];
   }
 
+  @Generated
   public final int getEnd() {
     return values[1];
   }
@@ -58,10 +62,12 @@ public class RelativeTime {
     return LocalDateTime.now().minus(value, units.getChronoUnit());
   }
 
+  @Generated
   public final boolean isCurrentTime() {
     return values[0] == 0 && values[1] == 0;
   }
 
+  @Generated
   public final RelativeTimeUnits getUnits() {
     return units;
   }

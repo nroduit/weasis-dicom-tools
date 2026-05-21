@@ -172,20 +172,4 @@ public enum CodingScheme {
     }
     return Optional.empty();
   }
-
-  /**
-   * @deprecated Use {@link #fromDesignator(String)} instead for better null safety.
-   */
-  @Deprecated(since = "5.34.0.3", forRemoval = true)
-  public static CodingScheme getSchemeFromDesignator(String designator) {
-    return fromDesignator(designator).orElse(null);
-  }
-
-  /**
-   * @deprecated Use {@link #fromUid(String)} instead for better null safety.
-   */
-  @Deprecated(since = "5.34.0.3", forRemoval = true)
-  public static CodingScheme getSchemeFromUid(String uid) {
-    return fromUid(uid).orElse(null);
-  }
 }

@@ -17,6 +17,7 @@ import org.dcm4che3.data.Sequence;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.img.util.DicomUtils;
+import org.weasis.core.util.annotations.Generated;
 import org.weasis.dicom.geom.PatientOrientation.Biped;
 import org.weasis.dicom.geom.PatientOrientation.Quadruped;
 import org.weasis.dicom.macro.Module;
@@ -73,15 +74,18 @@ public class HPDisplaySet extends Module {
     return new HPImageBox(item, numImageBoxes);
   }
 
+  @Generated
   public final HPImageSet getImageSet() {
     return imageSet;
   }
 
+  @Generated
   public void setImageSet(HPImageSet imageSet) {
     dcmItems.setInt(Tag.ImageSetNumber, VR.US, imageSet.getImageSetNumber());
     this.imageSet = imageSet;
   }
 
+  @Generated
   public List<HPImageBox> getImageBoxes() {
     return Collections.unmodifiableList(imageBoxes);
   }
@@ -110,6 +114,7 @@ public class HPDisplaySet extends Module {
     imageBoxes.clear();
   }
 
+  @Generated
   public List<HPSelector> getFilterOperations() {
     return Collections.unmodifiableList(filters);
   }
@@ -134,6 +139,7 @@ public class HPDisplaySet extends Module {
     filters.clear();
   }
 
+  @Generated
   public List<HPComparator> getSortingOperations() {
     return Collections.unmodifiableList(cmps);
   }
@@ -176,142 +182,177 @@ public class HPDisplaySet extends Module {
     return result;
   }
 
+  @Generated
   public Integer getDisplaySetNumber() {
     return DicomUtils.getIntegerFromDicomElement(dcmItems, Tag.DisplaySetNumber, null);
   }
 
+  @Generated
   public void setDisplaySetNumber(int displaySetNumber) {
     dcmItems.setInt(Tag.DisplaySetNumber, VR.US, displaySetNumber);
   }
 
+  @Generated
   public void setDisplaySetLabel(String label) {
     dcmItems.setString(Tag.DisplaySetLabel, VR.LO, label);
   }
 
+  @Generated
   public String getDisplaySetLabel() {
     return dcmItems.getString(Tag.DisplaySetLabel);
   }
 
+  @Generated
   public Integer getDisplaySetPresentationGroup() {
     return DicomUtils.getIntegerFromDicomElement(dcmItems, Tag.DisplaySetPresentationGroup, null);
   }
 
+  @Generated
   public void setDisplaySetPresentationGroup(int group) {
     dcmItems.setInt(Tag.DisplaySetPresentationGroup, VR.US, group);
   }
 
+  @Generated
   public String getBlendingOperationType() {
     return dcmItems.getString(Tag.BlendingOperationType);
   }
 
+  @Generated
   public void setBlendingOperationType(String type) {
     dcmItems.setString(Tag.BlendingOperationType, VR.CS, type);
   }
 
+  @Generated
   public String getReformattingOperationType() {
     return dcmItems.getString(Tag.ReformattingOperationType);
   }
 
+  @Generated
   public void setReformattingOperationType(String type) {
     dcmItems.setString(Tag.ReformattingOperationType, VR.CS, type);
   }
 
+  @Generated
   public Double getReformattingThickness() {
     return DicomUtils.getDoubleFromDicomElement(dcmItems, Tag.ReformattingThickness, null);
   }
 
+  @Generated
   public void setReformattingThickness(double thickness) {
     dcmItems.setDouble(Tag.ReformattingThickness, VR.FD, thickness);
   }
 
+  @Generated
   public Double getReformattingInterval() {
     return DicomUtils.getDoubleFromDicomElement(dcmItems, Tag.ReformattingInterval, null);
   }
 
+  @Generated
   public void setReformattingInterval(double interval) {
     dcmItems.setDouble(Tag.ReformattingInterval, VR.FD, interval);
   }
 
+  @Generated
   public String getReformattingOperationInitialViewDirection() {
     return dcmItems.getString(Tag.ReformattingOperationInitialViewDirection);
   }
 
+  @Generated
   public void setReformattingOperationInitialViewDirection(String direction) {
     dcmItems.setString(Tag.ReformattingOperationInitialViewDirection, VR.CS, direction);
   }
 
+  @Generated
   public String[] get3DRenderingType() {
     return dcmItems.getStrings(Tag.ThreeDRenderingType);
   }
 
+  @Generated
   public void set3DRenderingType(String[] type) {
     dcmItems.setString(Tag.ThreeDRenderingType, VR.CS, type);
   }
 
+  @Generated
   public String[] getRowDisplaySetPatientOrientation() {
     return dcmItems.getStrings(Tag.DisplaySetPatientOrientation);
   }
 
+  @Generated
   public void setDisplaySetPatientOrientation(Biped row, Biped col) {
     dcmItems.setString(Tag.DisplaySetPatientOrientation, VR.CS, row.name(), col.name());
   }
 
+  @Generated
   public void setDisplaySetPatientOrientation(Quadruped row, Quadruped col) {
     dcmItems.setString(Tag.DisplaySetPatientOrientation, VR.CS, row.name(), col.name());
   }
 
+  @Generated
   public String getVOIType() {
     return dcmItems.getString(Tag.VOIType);
   }
 
+  @Generated
   public void setVOIType(String type) {
     dcmItems.setString(Tag.VOIType, VR.CS, type);
   }
 
+  @Generated
   public String getPseudoColorType() {
     return dcmItems.getString(Tag.PseudoColorType);
   }
 
+  @Generated
   public void setPseudoColorType(String type) {
     dcmItems.setString(Tag.PseudoColorType, VR.CS, type);
   }
 
+  @Generated
   public String getShowGrayscaleInverted() {
     return dcmItems.getString(Tag.ShowGrayscaleInverted);
   }
 
+  @Generated
   public void setShowGrayscaleInverted(String flag) {
     dcmItems.setString(Tag.ShowGrayscaleInverted, VR.CS, flag);
   }
 
+  @Generated
   public String getShowImageTrueSizeFlag() {
     return dcmItems.getString(Tag.ShowImageTrueSizeFlag);
   }
 
+  @Generated
   public void setShowImageTrueSizeFlag(String flag) {
     dcmItems.setString(Tag.ShowImageTrueSizeFlag, VR.CS, flag);
   }
 
+  @Generated
   public String getShowGraphicAnnotationFlag() {
     return dcmItems.getString(Tag.ShowGraphicAnnotationFlag);
   }
 
+  @Generated
   public void setShowGraphicAnnotationFlag(String flag) {
     dcmItems.setString(Tag.ShowGraphicAnnotationFlag, VR.CS, flag);
   }
 
+  @Generated
   public String getShowAcquisitionTechniquesFlag() {
     return dcmItems.getString(Tag.ShowAcquisitionTechniquesFlag);
   }
 
+  @Generated
   public void setShowAcquisitionTechniquesFlag(String flag) {
     dcmItems.setString(Tag.ShowAcquisitionTechniquesFlag, VR.CS, flag);
   }
 
+  @Generated
   public String getDisplaySetPresentationGroupDescription() {
     return dcmItems.getString(Tag.DisplaySetPresentationGroupDescription);
   }
 
+  @Generated
   public void setDisplaySetPresentationGroupDescription(String description) {
     dcmItems.setString(Tag.DisplaySetPresentationGroupDescription, VR.CS, description);
   }

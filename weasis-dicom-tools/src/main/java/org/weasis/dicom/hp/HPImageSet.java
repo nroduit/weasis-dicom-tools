@@ -16,6 +16,7 @@ import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Sequence;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
+import org.weasis.core.util.annotations.Generated;
 import org.weasis.dicom.macro.Module;
 
 public class HPImageSet extends Module {
@@ -64,27 +65,33 @@ public class HPImageSet extends Module {
     return true;
   }
 
+  @Generated
   public Sequence getImageSetSelectorSequence() {
     return dcmItems.getSequence(Tag.ImageSetSelectorSequence);
   }
 
+  @Generated
   public Sequence getTimeBasedImageSetsSequence() {
     return dcmItems.getSequence(Tag.TimeBasedImageSetsSequence);
   }
 
+  @Generated
   public void addTimeBasedImageSet(HPTimeBasedImageSet item) {
     dcmItems.ensureSequence(Tag.TimeBasedImageSetsSequence, 1).add(item.getAttributes());
   }
 
+  @Generated
   public List<HPSelector> getImageSetSelectors() {
     return Collections.unmodifiableList(selectors);
   }
 
+  @Generated
   public void addImageSetSelector(HPSelector selector) {
     dcmItems.ensureSequence(Tag.ImageSetSelectorSequence, 1).add(selector.getAttributes());
     selectors.add(selector);
   }
 
+  @Generated
   public int getImageSetNumber() {
     return imageSetNumber;
   }

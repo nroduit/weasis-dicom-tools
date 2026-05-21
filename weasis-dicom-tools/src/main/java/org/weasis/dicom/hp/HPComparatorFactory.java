@@ -14,6 +14,7 @@ import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Sequence;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
+import org.weasis.core.util.annotations.Generated;
 import org.weasis.dicom.hp.enums.SortingDirection;
 import org.weasis.dicom.hp.plugins.AlongAxisComparator;
 import org.weasis.dicom.hp.plugins.ByAcqTimeComparator;
@@ -104,6 +105,7 @@ public class HPComparatorFactory {
     return new FctGrp(tag, privCreator, comparator);
   }
 
+  @Generated
   private static HPComparator addSequencePointer(HPComparator cmp) {
     int tag = cmp.getSelectorSequencePointer();
     if (tag != 0) {
@@ -113,6 +115,7 @@ public class HPComparatorFactory {
     return cmp;
   }
 
+  @Generated
   private static HPComparator addFunctionalGroupPointer(HPComparator cmp) {
     int tag = cmp.getFunctionalGroupPointer();
     if (tag != 0) {
@@ -192,6 +195,7 @@ public class HPComparatorFactory {
       return sortingOp;
     }
 
+    @Generated
     public int compare(Attributes o1, int frame1, Attributes o2, int frame2) {
       VR e1 = o1.getVR(privateCreator, tag);
       if (e1 == null) {
@@ -248,6 +252,7 @@ public class HPComparatorFactory {
     }
   }
 
+  @Generated
   private static int compareAttributes(Attributes c1, Attributes c2) {
     if (c1 == null || c2 == null) {
       return 0;
@@ -260,6 +265,7 @@ public class HPComparatorFactory {
     return v1.compareTo(v2);
   }
 
+  @Generated
   private static int compareInts(int[] v1, int i1, int[] v2, int i2) {
     if (v1 == null || v2 == null || v1.length < i1 || v2.length < i2) {
       return 0;
@@ -267,6 +273,7 @@ public class HPComparatorFactory {
     return v1[i1 - 1] - v2[i2 - 1];
   }
 
+  @Generated
   private static int compareDoubles(double[] v1, int i1, double[] v2, int i2) {
     if (v1 == null || v2 == null || v1.length < i1 || v2.length < i2) {
       return 0;
@@ -275,6 +282,7 @@ public class HPComparatorFactory {
     return (d < 0) ? -1 : (d > 0) ? 1 : 0;
   }
 
+  @Generated
   private static int compareFloats(float[] v1, int i1, float[] v2, int i2) {
     if (v1 == null || v2 == null || v1.length < i1 || v2.length < i2) {
       return 0;
@@ -283,6 +291,7 @@ public class HPComparatorFactory {
     return (d < 0) ? -1 : (d > 0) ? 1 : 0;
   }
 
+  @Generated
   private static int compareDates(Date[] v1, int i1, Date[] v2, int i2) {
     if (v1 == null || v2 == null || v1.length < i1 || v2.length < i2) {
       return 0;
@@ -290,6 +299,7 @@ public class HPComparatorFactory {
     return v1[i1 - 1].compareTo(v2[i2 - 1]);
   }
 
+  @Generated
   private static int compareIntegers(int[] v1, int i1, int[] v2, int i2) {
     if (v1 == null || v2 == null || v1.length < i1 || v2.length < i2) {
       return 0;
@@ -298,6 +308,7 @@ public class HPComparatorFactory {
     return (d < 0) ? -1 : (d > 0) ? 1 : 0;
   }
 
+  @Generated
   private static int compareStrings(String[] v1, int i1, String[] v2, int i2) {
     if (v1 == null || v2 == null || v1.length < i1 || v2.length < i2) {
       return 0;

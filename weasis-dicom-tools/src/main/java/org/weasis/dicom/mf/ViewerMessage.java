@@ -11,7 +11,6 @@ package org.weasis.dicom.mf;
 
 import java.util.Locale;
 import java.util.Objects;
-import org.weasis.core.util.annotations.Generated;
 
 /**
  * Immutable record representing a message for DICOM viewer applications. This record encapsulates
@@ -247,44 +246,5 @@ public record ViewerMessage(String title, String message, Level level) {
   @Override
   public String toString() {
     return getDisplayText();
-  }
-
-  @Generated
-  @Deprecated(since = "5.34.0.4", forRemoval = true)
-  public enum eLevel {
-    INFO(Level.INFO),
-    WARN(Level.WARN),
-    ERROR(Level.ERROR);
-
-    private final Level newLevel;
-
-    eLevel(Level newLevel) {
-      this.newLevel = newLevel;
-    }
-
-    public Level toLevel() {
-      return newLevel;
-    }
-
-    @Generated
-    public static eLevel fromLevel(Level level) {
-      return switch (level) {
-        case INFO -> INFO;
-        case WARN -> WARN;
-        case ERROR -> ERROR;
-      };
-    }
-  }
-
-  @Generated
-  @Deprecated(since = "5.34.0.4", forRemoval = true)
-  public ViewerMessage(String title, String message, eLevel level) {
-    this(title, message, level.toLevel());
-  }
-
-  @Generated
-  @Deprecated(since = "5.34.0.4", forRemoval = true)
-  public eLevel eLevel() {
-    return eLevel.fromLevel(level);
   }
 }

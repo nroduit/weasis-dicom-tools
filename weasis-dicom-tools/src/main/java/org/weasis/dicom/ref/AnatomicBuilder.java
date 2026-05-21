@@ -205,14 +205,6 @@ public final class AnatomicBuilder {
     public static Optional<Category> fromContextUID(String uid) {
       return Optional.ofNullable(UID_LOOKUP.get(uid));
     }
-
-    /**
-     * @deprecated Use {@link #fromContextUID(String)} instead for better null safety.
-     */
-    @Deprecated(since = "5.34.0.3", forRemoval = true)
-    public static Category getCategoryFromContextUID(String uid) {
-      return fromContextUID(uid).orElse(null);
-    }
   }
 
   // Category-to-items mapping for efficient access

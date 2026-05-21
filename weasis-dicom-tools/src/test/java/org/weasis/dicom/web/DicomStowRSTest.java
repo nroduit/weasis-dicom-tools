@@ -533,10 +533,15 @@ class DicomStowRSTest {
         tsuid = dis.getTransferSyntax();
       }
 
-      assertThrows(HttpException.class, () -> dicomStowRS.uploadDicom(dicomFile));
-      assertThrows(HttpException.class, () -> dicomStowRS.uploadDicom(dicomData, tsuid));
+      // The test target is the unreachable TEST_URL, so the upload must fail at HTTP
+      // send. Depending on whether the host returns a status >= 400 or the connection
+      // is closed before any response, the failure surfaces either as HttpException
+      // (the typed one from sendRequest) or as a raw IOException from the JDK client.
+      // Both prove payload creation succeeded and the request reached the transport.
+      assertThrows(IOException.class, () -> dicomStowRS.uploadDicom(dicomFile));
+      assertThrows(IOException.class, () -> dicomStowRS.uploadDicom(dicomData, tsuid));
       assertThrows(
-          HttpException.class,
+          IOException.class,
           () -> {
             try (var dis = new DicomFileInputStream(dicomFile)) {
               dis.setIncludeBulkData(IncludeBulkData.URI);

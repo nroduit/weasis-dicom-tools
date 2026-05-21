@@ -307,12 +307,4 @@ public enum SurfacePart implements AnatomicItem {
   public static SurfacePart fromCode(String code) {
     return CODE_LOOKUP.get(code);
   }
-
-  /**
-   * @deprecated Use {@link #fromCode(String)} instead for better performance and clarity.
-   */
-  @Deprecated(since = "5.34.0.3", forRemoval = true)
-  public static SurfacePart getSurfacePartFromCode(String code) {
-    return fromCode(code);
-  }
 }

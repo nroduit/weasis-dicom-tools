@@ -8,7 +8,7 @@
 [![Reliability](https://sonarcloud.io/api/project_badges/measure?project=weasis-dicom-tools&metric=reliability_rating)](https://sonarcloud.io/component_measures?id=weasis-dicom-tools)
 [![Maintainability](https://sonarcloud.io/api/project_badges/measure?project=weasis-dicom-tools&metric=sqale_rating)](https://sonarcloud.io/component_measures?id=weasis-dicom-tools)
 [![Security](https://sonarcloud.io/api/project_badges/measure?project=weasis-dicom-tools&metric=security_rating)](https://sonarcloud.io/component_measures?id=weasis-dicom-tools)
-[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=weasis-dicom-tools&metric=alert_status)](https://sonarcloud.io/dashboard?id=weasis-dicom-tools)
+[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=weasis-dicom-tools&metric=alert_status)](https://sonarcloud.io/dashboard?id=weasis-dicom-tools) [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=weasis-dicom-tools&metric=coverage)](https://sonarcloud.io/summary/new_code?id=weasis-dicom-tools)
 
 A Java DICOM toolkit built on top of [dcm4che3](https://github.com/dcm4che/dcm4che) and
 [weasis-core-img](https://github.com/nroduit/weasis-core-img) (an OpenCV wrapper). It provides a

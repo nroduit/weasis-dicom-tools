@@ -138,7 +138,8 @@ public final class Transcoder {
    * indexing. The output path can be either a specific file or a directory where files will be
    * created using the source filename as a base.
    *
-   * @param srcPath the source DICOM image path
+   * @param srcPath path to a single DICOM file to read; must exist and be a regular file (not a
+   *     directory). Its filename is also used as the base name when {@code dstPath} is a directory
    * @param dstPath the destination path (file or directory)
    * @param params the image conversion parameters including format, quality, and rendering options
    * @return list of created output file paths
@@ -172,7 +173,8 @@ public final class Transcoder {
    * <p>This method handles compression, decompression, and format adaptation while preserving DICOM
    * metadata and ensuring compatibility with the target transfer syntax.
    *
-   * @param srcPath the source DICOM image path
+   * @param srcPath path to a single DICOM file to read; must exist and be a regular file (not a
+   *     directory). Its filename is also used as the base name when {@code dstPath} is a directory
    * @param dstPath the destination path (file or directory)
    * @param params the DICOM conversion parameters including target transfer syntax
    * @return the created output file path
@@ -201,7 +203,8 @@ public final class Transcoder {
    * <p>This method provides more control over the output destination and is useful for streaming
    * scenarios or when the output needs to be written to non-file destinations.
    *
-   * @param srcPath the source DICOM image path
+   * @param srcPath path to a single DICOM file to read; must exist and be a regular file (not a
+   *     directory)
    * @param outputStream the destination output stream
    * @param params the DICOM conversion parameters
    * @throws IOException if conversion fails due to I/O errors or format incompatibility

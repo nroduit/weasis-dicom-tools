@@ -11,6 +11,7 @@ package org.weasis.dicom.web;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -421,6 +422,36 @@ class DicomStowConfigTest {
       var builder = DicomStowConfig.builder().requestUrl(SAMPLE_URL);
 
       assertThrows(NullPointerException.class, () -> builder.contentType(null));
+    }
+  }
+
+  @Nested
+  class Http_Version_Configuration_Tests {
+
+    @Test
+    void should_use_default_http_version() {
+      var config = DicomStowConfig.builder().requestUrl(SAMPLE_URL).build();
+
+      assertEquals(HttpClient.Version.HTTP_1_1, config.getHttpVersion());
+    }
+
+    @ParameterizedTest
+    @MethodSource("httpVersions")
+    void should_accept_explicit_http_version(HttpClient.Version version) {
+      var config = DicomStowConfig.builder().requestUrl(SAMPLE_URL).httpVersion(version).build();
+
+      assertEquals(version, config.getHttpVersion());
+    }
+
+    static Stream<HttpClient.Version> httpVersions() {
+      return Stream.of(HttpClient.Version.HTTP_1_1, HttpClient.Version.HTTP_2);
+    }
+
+    @Test
+    void should_throw_null_pointer_exception_for_null_http_version() {
+      var builder = DicomStowConfig.builder().requestUrl(SAMPLE_URL);
+
+      assertThrows(NullPointerException.class, () -> builder.httpVersion(null));
     }
   }
 

@@ -75,12 +75,23 @@ public class DicomStowRS implements AutoCloseable {
   /** Legacy constructor for backward compatibility. */
   public DicomStowRS(
       String requestURL, ContentType contentType, String agentName, Map<String, String> headers) {
+    this(requestURL, contentType, agentName, headers, DicomStowConfig.DEFAULT_HTTP_VERSION);
+  }
+
+  /** Legacy constructor allowing the caller to pick the HTTP protocol version. */
+  public DicomStowRS(
+      String requestURL,
+      ContentType contentType,
+      String agentName,
+      Map<String, String> headers,
+      HttpClient.Version httpVersion) {
     this(
         DicomStowConfig.builder()
             .requestUrl(requestURL)
             .contentType(contentType)
             .userAgent(agentName)
             .headers(headers)
+            .httpVersion(httpVersion)
             .build());
   }
 
@@ -169,7 +180,7 @@ public class DicomStowRS implements AutoCloseable {
     return HttpClient.newBuilder()
         .executor(executorService)
         .followRedirects(HttpClient.Redirect.NORMAL)
-        .version(HttpClient.Version.HTTP_1_1)
+        .version(config.getHttpVersion())
         .connectTimeout(config.getConnectTimeout())
         .build();
   }

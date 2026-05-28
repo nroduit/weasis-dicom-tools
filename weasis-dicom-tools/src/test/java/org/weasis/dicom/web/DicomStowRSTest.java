@@ -115,6 +115,24 @@ class DicomStowRSTest {
     }
 
     @Test
+    void should_create_instance_with_legacy_constructor_and_http_version() {
+      Map<String, String> headers = Map.of("Authorization", "Bearer token123");
+
+      dicomStowRS =
+          new DicomStowRS(
+              TEST_URL,
+              ContentType.APPLICATION_DICOM,
+              TEST_USER_AGENT,
+              headers,
+              HttpClient.Version.HTTP_2);
+
+      assertNotNull(dicomStowRS);
+      assertEquals(ContentType.APPLICATION_DICOM, dicomStowRS.getContentType());
+      assertEquals(TEST_URL + "/studies", dicomStowRS.getRequestURL());
+      assertEquals(headers, dicomStowRS.getHeaders());
+    }
+
+    @Test
     void should_throw_null_pointer_exception_for_null_config() {
       assertThrows(NullPointerException.class, () -> new DicomStowRS(null));
     }

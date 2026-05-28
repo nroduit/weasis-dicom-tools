@@ -118,8 +118,12 @@ public final class MultipartReader implements AutoCloseable {
     int originalLength = currentBoundaryLength;
     try {
       if (isFirst) {
+        // For the first boundary the leading CRLF is optional, so scan for the bare --<boundary>
+        // pattern. discardDataUntilBoundary positions the buffer AT the start of the boundary; we
+        // then have to advance past the boundary bytes themselves before reading the terminator.
         adjustBoundaryForFirst();
         discardDataUntilBoundary();
+        buffer.skip(currentBoundaryLength);
       } else {
         buffer.skip(currentBoundaryLength);
       }
@@ -191,7 +195,20 @@ public final class MultipartReader implements AutoCloseable {
     @Override
     public int read() throws IOException {
       validateNotClosed();
-      return detector.hasReachedBoundary() ? -1 : buffer.readByte() & 0xFF;
+      while (true) {
+        if (detector.hasReachedBoundary()) {
+          return -1;
+        }
+        if (detector.getSafeAvailable() > 0) {
+          int b = buffer.readByte() & 0xFF;
+          detector.refresh();
+          return b;
+        }
+        // Boundary not yet visible in the buffer and not enough bytes are safe to read without
+        // potentially missing a partial boundary at the buffer's tail — pull in more data.
+        buffer.fillBuffer();
+        detector.refresh();
+      }
     }
 
     @Override
@@ -199,48 +216,75 @@ public final class MultipartReader implements AutoCloseable {
       validateNotClosed();
       Objects.checkFromIndexSize(off, len, b.length);
       if (len == 0) return 0;
-      if (detector.hasReachedBoundary()) return -1;
-
-      int bytesToRead = Math.min(len, detector.getAvailableBytes());
-      if (bytesToRead <= 0) {
-        return read() == -1 ? -1 : 1; // Fallback to single byte read
+      while (true) {
+        if (detector.hasReachedBoundary()) {
+          return -1;
+        }
+        int safe = detector.getSafeAvailable();
+        if (safe > 0) {
+          int bytesToRead = Math.min(len, safe);
+          buffer.readBytes(b, off, bytesToRead);
+          detector.refresh();
+          return bytesToRead;
+        }
+        buffer.fillBuffer();
+        detector.refresh();
       }
-
-      buffer.readBytes(b, off, bytesToRead);
-      detector.updatePosition();
-
-      return bytesToRead;
     }
 
     @Override
     public int available() throws IOException {
       validateNotClosed();
-
-      return detector.hasReachedBoundary() ? 0 : detector.getAvailableBytes();
+      return detector.hasReachedBoundary() ? 0 : detector.getSafeAvailable();
     }
 
     @Override
     public long skip(long n) throws IOException {
       validateNotClosed();
 
-      if (n <= 0 || detector.hasReachedBoundary()) return 0;
+      if (n <= 0) return 0;
 
-      int available = detector.getAvailableBytes();
-      long toSkip = Math.min(n, available);
-      buffer.skip((int) toSkip);
-      detector.updatePosition();
-      return toSkip;
+      long total = 0;
+      while (total < n) {
+        if (detector.hasReachedBoundary()) {
+          break;
+        }
+        int safe = detector.getSafeAvailable();
+        if (safe > 0) {
+          int step = (int) Math.min(n - total, safe);
+          buffer.skip(step);
+          detector.refresh();
+          total += step;
+        } else {
+          buffer.fillBuffer();
+          detector.refresh();
+        }
+      }
+      return total;
     }
 
     @Override
     public void close() throws IOException {
       if (!closed) {
-
-        // Consume remaining data in this part
-        while (!detector.hasReachedBoundary() && buffer.readByte() != -1) {
-          // Continue reading until boundary
+        try {
+          while (!detector.hasReachedBoundary()) {
+            int safe = detector.getSafeAvailable();
+            if (safe > 0) {
+              buffer.skip(safe);
+              detector.refresh();
+            } else {
+              buffer.fillBuffer();
+              detector.refresh();
+            }
+          }
+        } catch (IOException ignored) {
+          // Best-effort cleanup. If the underlying stream is broken or the boundary cannot be
+          // reached, mark this PartInputStream closed without propagating — rethrowing the same
+          // IOException that the body already raised would cause try-with-resources to attempt
+          // self-suppression.
+        } finally {
+          closed = true;
         }
-        closed = true;
       }
     }
 
@@ -255,37 +299,44 @@ public final class MultipartReader implements AutoCloseable {
     }
   }
 
-  /** Detects boundaries in the stream and manages available byte counting. */
+  /**
+   * Tracks the boundary's position relative to the buffer. {@link #boundaryFound} is the only flag
+   * that means "the boundary has been definitively located"; the {@link #getSafeAvailable()} value
+   * is purely a heuristic for "how many bytes can I consume without risk of missing a partial
+   * boundary at the buffer's tail".
+   */
   private class BoundaryDetector {
     private int boundaryPosition = -1;
-    private boolean boundaryFound = false;
+    private boolean boundaryFound;
 
     BoundaryDetector() {
-      updateBoundaryPosition();
+      refresh();
     }
 
     boolean hasReachedBoundary() {
-      return boundaryFound || (boundaryPosition != -1 && buffer.getPosition() >= boundaryPosition);
+      return boundaryFound && buffer.getPosition() >= boundaryPosition;
     }
 
-    int getAvailableBytes() {
-      if (boundaryPosition == -1) {
-        return buffer.available() - currentBoundaryLength;
+    /**
+     * Bytes that can be safely consumed in one chunk: if the boundary is located, this is the
+     * distance to it; otherwise it's the portion of the current buffer that cannot possibly contain
+     * the start of a still-incomplete boundary.
+     */
+    int getSafeAvailable() {
+      if (boundaryFound) {
+        return Math.max(0, boundaryPosition - buffer.getPosition());
       }
-      return Math.max(0, boundaryPosition - buffer.getPosition());
+      return Math.max(0, buffer.available() - currentBoundaryLength);
     }
 
-    void updatePosition() {
-      // Recalculate boundary position after reading data
-      updateBoundaryPosition();
-    }
-
-    private void updateBoundaryPosition() {
-      boundaryPosition = buffer.findPattern(boundary);
-      if (boundaryPosition == -1) {
-        // Ensure we don't read past potential boundary bytes at buffer end
-        int safeBytes = Math.max(0, buffer.available() - currentBoundaryLength);
-        boundaryPosition = buffer.getPosition() + safeBytes;
+    /** Re-scan after consuming bytes from the buffer or after a buffer refill. */
+    void refresh() {
+      int found = buffer.findPattern(boundary, currentBoundaryLength);
+      if (found != -1) {
+        boundaryPosition = found;
+        boundaryFound = true;
+      } else {
+        boundaryFound = false;
       }
     }
   }
@@ -350,18 +401,17 @@ public final class MultipartReader implements AutoCloseable {
       return position;
     }
 
-    int findPattern(byte[] pattern) {
-      // Simple pattern matching in current buffer
-      for (int i = position; i <= limit - pattern.length; i++) {
-        if (matchesPattern(i, pattern)) {
+    int findPattern(byte[] pattern, int patternLength) {
+      for (int i = position; i <= limit - patternLength; i++) {
+        if (matchesPattern(i, pattern, patternLength)) {
           return i;
         }
       }
       return -1;
     }
 
-    private boolean matchesPattern(int start, byte[] pattern) {
-      for (int i = 0; i < pattern.length; i++) {
+    private boolean matchesPattern(int start, byte[] pattern, int patternLength) {
+      for (int i = 0; i < patternLength; i++) {
         if (buffer[start + i] != pattern[i]) {
           return false;
         }

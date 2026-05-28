@@ -443,8 +443,8 @@ class MultipartReaderTest {
 
       try (var reader =
           new MultipartReader(new ByteArrayInputStream(multipartData), TEST_BOUNDARY_BYTES)) {
-        // Skip first boundary and read first part
-        assertFalse(reader.skipFirstBoundary());
+        // Skip first boundary; CRLF terminator → more parts follow.
+        assertTrue(reader.skipFirstBoundary());
         String headers1 = reader.readHeaders();
         assertTrue(headers1.contains("Content-Type: text/plain"));
 
@@ -475,13 +475,63 @@ class MultipartReaderTest {
         assertFalse(reader.readBoundary());
       }
     }
+
+    @Test
+    void should_read_part_larger_than_buffer() throws IOException {
+      // Part body of 32 KiB exercises the BoundaryDetector against repeated buffer refills —
+      // historically the cached "safe end" position became stale across fillBuffer() compactions
+      // and the read returned -1 prematurely, truncating downloads at ~one buffer worth of data.
+      var partBody = new byte[32 * 1024];
+      for (int i = 0; i < partBody.length; i++) {
+        partBody[i] = (byte) (i & 0xFF);
+      }
+      var prefix =
+          ("--" + TEST_BOUNDARY + "\r\nContent-Type: application/octet-stream\r\n\r\n")
+              .getBytes(StandardCharsets.UTF_8);
+      var suffix = ("\r\n--" + TEST_BOUNDARY + "--").getBytes(StandardCharsets.UTF_8);
+      var body = new byte[prefix.length + partBody.length + suffix.length];
+      System.arraycopy(prefix, 0, body, 0, prefix.length);
+      System.arraycopy(partBody, 0, body, prefix.length, partBody.length);
+      System.arraycopy(suffix, 0, body, prefix.length + partBody.length, suffix.length);
+
+      try (var reader = new MultipartReader(new ByteArrayInputStream(body), TEST_BOUNDARY_BYTES)) {
+        assertTrue(reader.skipFirstBoundary());
+        assertTrue(reader.readHeaders().contains("application/octet-stream"));
+        try (var partStream = reader.newPartInputStream()) {
+          assertArrayEquals(partBody, partStream.readAllBytes());
+        }
+        assertFalse(reader.readBoundary());
+      }
+    }
+
+    @Test
+    void should_handle_first_boundary_without_preamble_or_leading_crlf() throws IOException {
+      // Orthanc and other DICOMweb servers can emit the first boundary at offset 0 with no
+      // leading CRLF — the parser must recognise it just like the with-preamble form.
+      var body =
+          ("--"
+                  + TEST_BOUNDARY
+                  + "\r\nContent-Type: application/dicom\r\n\r\nPAYLOAD\r\n--"
+                  + TEST_BOUNDARY
+                  + "--")
+              .getBytes(StandardCharsets.UTF_8);
+
+      try (var reader = new MultipartReader(new ByteArrayInputStream(body), TEST_BOUNDARY_BYTES)) {
+        assertTrue(reader.skipFirstBoundary());
+        assertTrue(reader.readHeaders().contains("application/dicom"));
+        try (var partStream = reader.newPartInputStream()) {
+          assertEquals("PAYLOAD", new String(partStream.readAllBytes(), StandardCharsets.UTF_8));
+        }
+        assertFalse(reader.readBoundary());
+      }
+    }
   }
 
   @Nested
   class Error_Handling_Tests {
 
     @Test
-    void should_throw_exception_for_invalid_boundary_terminator() {
+    void should_throw_exception_for_invalid_boundary_terminator() throws IOException {
       var invalidData =
           createMultipartData(
               "--" + TEST_BOUNDARY + "XX" // Invalid terminator
@@ -489,10 +539,9 @@ class MultipartReaderTest {
 
       try (var reader =
           new MultipartReader(new ByteArrayInputStream(invalidData), TEST_BOUNDARY_BYTES)) {
-        reader.skipFirstBoundary();
-        assertThrows(MultipartStreamException.class, reader::readBoundary);
-      } catch (IOException e) {
-        fail("Should only throw MultipartStreamException");
+        // The first boundary is well-formed but the terminator that follows is neither CRLF nor
+        // "--" — skipFirstBoundary itself must surface the malformed terminator.
+        assertThrows(MultipartStreamException.class, reader::skipFirstBoundary);
       }
     }
 

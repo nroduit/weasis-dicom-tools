@@ -9,6 +9,7 @@
  */
 package org.weasis.dicom.web;
 
+import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -22,6 +23,9 @@ public final class DicomStowConfig {
   private static final String DEFAULT_USER_AGENT = "Weasis STOW-RS Client";
   private static final int DEFAULT_THREAD_POOL_SIZE = 5;
   private static final Duration DEFAULT_CONNECT_TIMEOUT = Duration.ofSeconds(10);
+  // DICOMweb servers vary in HTTP/2 support, and STOW uses multipart/related streaming
+  // which is best-tested over chunked HTTP/1.1.
+  static final HttpClient.Version DEFAULT_HTTP_VERSION = HttpClient.Version.HTTP_1_1;
 
   private final String requestUrl;
   private final ContentType contentType;
@@ -29,6 +33,7 @@ public final class DicomStowConfig {
   private final Map<String, String> headers;
   private final int threadPoolSize;
   private final Duration connectTimeout;
+  private final HttpClient.Version httpVersion;
 
   private DicomStowConfig(Builder builder) {
     this.requestUrl = normalizeUrl(builder.requestUrl);
@@ -37,6 +42,7 @@ public final class DicomStowConfig {
     this.headers = Map.copyOf(builder.headers);
     this.threadPoolSize = builder.threadPoolSize;
     this.connectTimeout = builder.connectTimeout;
+    this.httpVersion = builder.httpVersion;
   }
 
   public String getRequestUrl() {
@@ -61,6 +67,10 @@ public final class DicomStowConfig {
 
   public Duration getConnectTimeout() {
     return connectTimeout;
+  }
+
+  public HttpClient.Version getHttpVersion() {
+    return httpVersion;
   }
 
   /** Creates a new builder instance. */
@@ -89,6 +99,7 @@ public final class DicomStowConfig {
     private final Map<String, String> headers = new HashMap<>();
     private int threadPoolSize = DEFAULT_THREAD_POOL_SIZE;
     private Duration connectTimeout = DEFAULT_CONNECT_TIMEOUT;
+    private HttpClient.Version httpVersion = DEFAULT_HTTP_VERSION;
 
     private Builder() {}
 
@@ -132,6 +143,11 @@ public final class DicomStowConfig {
 
     public Builder connectTimeout(Duration connectTimeout) {
       this.connectTimeout = Objects.requireNonNull(connectTimeout);
+      return this;
+    }
+
+    public Builder httpVersion(HttpClient.Version httpVersion) {
+      this.httpVersion = Objects.requireNonNull(httpVersion);
       return this;
     }
 

@@ -209,7 +209,15 @@ public class StoreSCP {
     Attributes attributes = fmi;
     if (needsAttributeParsing()) {
       attributes = parseAttributes(tempFile);
-      attributes.addAll(fmi);
+      // Merge the File Meta Information (group 0002, always ISO IR 6) so the path pattern can
+      // reference those tags too. The FMI carries no Specific Character Set, so merging it as-is
+      // into a dataset with a non-ASCII-compatible charset (e.g. GB18030) makes dcm4che throw
+      // IncompatibleSpecificCharacterSetException. Align a copy of the FMI with the dataset's
+      // Specific Character Set before merging to pass that compatibility check without mutating
+      // the caller's FMI.
+      Attributes fmiToMerge = new Attributes(fmi);
+      fmiToMerge.setSpecificCharacterSet(attributes.getSpecificCharacterSet().toCodes());
+      attributes.addAll(fmiToMerge);
     }
 
     return filePathFormat.format(attributes);

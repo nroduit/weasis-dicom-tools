@@ -203,7 +203,7 @@ public class ArcParameters {
     if (!StringUtil.hasText(overrideDicomTagsList)) {
       return null;
     }
-    String[] tagStrings = overrideDicomTagsList.split(TAG_DELIMITER);
+    String[] tagStrings = overrideDicomTagsList.split(TAG_DELIMITER + "\\s*");
     return Arrays.stream(tagStrings)
         .mapToInt(this::parseTagId)
         .filter(tagId -> tagId != -1) // Filter out invalid tags

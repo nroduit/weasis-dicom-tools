@@ -9,7 +9,6 @@
  */
 package org.dcm4che3.tool.common;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -40,14 +39,14 @@ public abstract class DicomFiles {
     /**
      * Process a discovered DICOM file.
      *
-     * @param f the file being processed
+     * @param p the path of the file being processed
      * @param fmi the file meta information
      * @param dsPos the dataset position in the file (-1 for XML files)
      * @param ds the dataset attributes
      * @return true if processing was successful, false otherwise
      * @throws Exception if processing fails
      */
-    boolean dicomFile(File f, Attributes fmi, long dsPos, Attributes ds) throws Exception;
+    boolean dicomFile(Path p, Attributes fmi, long dsPos, Attributes ds) throws Exception;
   }
 
   /**
@@ -104,13 +103,13 @@ public abstract class DicomFiles {
       var ds = new Attributes();
       var ch = new ContentHandlerAdapter(ds);
 
-      parser.parse(path.toFile(), ch);
+      parser.parse(Files.newInputStream(path), ch);
 
       var fmi = ch.getFileMetaInformation();
       if (fmi == null) {
         fmi = ds.createFileMetaInformation(UID.ExplicitVRLittleEndian);
       }
-      boolean success = scb.dicomFile(path.toFile(), fmi, -1, ds);
+      boolean success = scb.dicomFile(path, fmi, -1, ds);
       printProgress(printout, success);
     } catch (Exception e) {
       handleError("Failed to parse file " + path, e);
@@ -118,7 +117,7 @@ public abstract class DicomFiles {
   }
 
   private static void processBinaryDicomFile(Path path, boolean printout, Callback scb) {
-    try (var in = new DicomInputStream(path.toFile())) {
+    try (var in = new DicomInputStream(Files.newInputStream(path))) {
       in.setIncludeBulkData(IncludeBulkData.NO);
       var fmi = in.readFileMetaInformation();
       long dsPos = in.getPosition();
@@ -128,7 +127,7 @@ public abstract class DicomFiles {
         fmi = ds.createFileMetaInformation(in.getTransferSyntax());
       }
 
-      boolean success = scb.dicomFile(path.toFile(), fmi, dsPos, ds);
+      boolean success = scb.dicomFile(path, fmi, dsPos, ds);
       printProgress(printout, success);
 
     } catch (Exception e) {

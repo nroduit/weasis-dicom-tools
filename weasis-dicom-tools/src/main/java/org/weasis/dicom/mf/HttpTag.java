@@ -11,6 +11,7 @@ package org.weasis.dicom.mf;
 
 import static org.weasis.dicom.web.MultipartConstants.CONTENT_TYPE;
 
+import java.util.Locale;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
@@ -136,7 +137,7 @@ public final class HttpTag {
    * @since 5.34.0.4
    */
   public boolean isSensitive() {
-    String lowerKey = key.toLowerCase();
+    String lowerKey = key.toLowerCase(Locale.ROOT);
     return lowerKey.contains("auth")
         || lowerKey.contains("token")
         || lowerKey.contains("password")

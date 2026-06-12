@@ -25,6 +25,7 @@ import org.weasis.core.util.StringUtil;
 public class SopInstance implements Xml, Comparable<SopInstance> {
 
   private static final String KEY_SEPARATOR = "?";
+  private static final String ATTR_DIRECT_DOWNLOAD_FILE = "DirectDownloadFile";
   private final String sopInstanceUID;
   private final String sopClassUID;
   private final Integer instanceNumber;
@@ -111,7 +112,7 @@ public class SopInstance implements Xml, Comparable<SopInstance> {
     Xml.addXmlAttribute(Tag.TransferSyntaxUID, transferSyntaxUID, writer);
     Xml.addXmlAttribute(Tag.ImageComments, imageComments, writer);
     Xml.addXmlAttribute(Tag.InstanceNumber, getStringInstanceNumber(), writer);
-    Xml.addXmlAttribute("DirectDownloadFile", directDownloadFile, writer);
+    Xml.addXmlAttribute(ATTR_DIRECT_DOWNLOAD_FILE, directDownloadFile, writer);
 
     writer.append("/>");
   }

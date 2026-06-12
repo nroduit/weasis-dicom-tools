@@ -37,6 +37,9 @@ public class Series implements Xml, Comparable<Series> {
 
   private static final int MIN_COMPRESSION = 0;
   private static final int MAX_COMPRESSION = 100;
+  private static final String ATTR_DIRECT_DOWNLOAD_THUMBNAIL = "DirectDownloadThumbnail";
+  private static final String ATTR_WADO_TRANSFER_SYNTAX_UID = "WadoTransferSyntaxUID";
+  private static final String ATTR_WADO_COMPRESSION_RATE = "WadoCompressionRate";
   private final String seriesInstanceUID;
   private final Map<String, SopInstance> sopInstanceMap;
 
@@ -232,9 +235,9 @@ public class Series implements Xml, Comparable<Series> {
     Xml.addXmlAttribute(Tag.SeriesDescription, seriesDescription, writer);
     Xml.addXmlAttribute(Tag.SeriesNumber, seriesNumber, writer);
     Xml.addXmlAttribute(Tag.Modality, modality, writer);
-    Xml.addXmlAttribute("DirectDownloadThumbnail", thumbnail, writer);
-    Xml.addXmlAttribute("WadoTransferSyntaxUID", wadoTransferSyntaxUID, writer);
-    Xml.addXmlAttribute("WadoCompressionRate", getCompressionRateString(), writer);
+    Xml.addXmlAttribute(ATTR_DIRECT_DOWNLOAD_THUMBNAIL, thumbnail, writer);
+    Xml.addXmlAttribute(ATTR_WADO_TRANSFER_SYNTAX_UID, wadoTransferSyntaxUID, writer);
+    Xml.addXmlAttribute(ATTR_WADO_COMPRESSION_RATE, getCompressionRateString(), writer);
 
     writer.append(">");
   }

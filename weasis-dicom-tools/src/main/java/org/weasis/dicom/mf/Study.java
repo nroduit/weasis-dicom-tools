@@ -12,6 +12,7 @@ package org.weasis.dicom.mf;
 import java.io.IOException;
 import java.io.Writer;
 import java.text.Collator;
+import java.time.DateTimeException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -25,6 +26,8 @@ import java.util.Set;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.img.util.DateTimeUtils;
 import org.dcm4che3.img.util.DicomObjectUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Represents a DICOM study within a patient, containing multiple series. Provides functionality for
@@ -34,6 +37,7 @@ import org.dcm4che3.img.util.DicomObjectUtil;
  * at a specific date and time. Studies contain one or more series of images or other DICOM objects.
  */
 public class Study implements Xml, Comparable<Study> {
+  private static final Logger LOGGER = LoggerFactory.getLogger(Study.class);
 
   private final String studyInstanceUID;
   private final Map<String, Series> seriesMap;
@@ -249,7 +253,7 @@ public class Study implements Xml, Comparable<Study> {
   // Compares study descriptions with locale-aware collation
   private static int compareStudyDescriptions(String desc1, String desc2) {
     if (desc1 != null && desc2 != null) {
-      return Collator.getInstance(Locale.getDefault()).compare(desc1, desc2);
+      return Collator.getInstance(Locale.ROOT).compare(desc1, desc2);
     }
     if (desc1 == null && desc2 == null) {
       return 0; // Both null
@@ -258,12 +262,12 @@ public class Study implements Xml, Comparable<Study> {
     return desc1 == null ? 1 : -1;
   }
 
-  // Parses DICOM date and time into LocalDateTime
   private static LocalDateTime parseStudyDateTime(String studyDate, String studyTime) {
     try {
       return DateTimeUtils.dateTime(
           DicomObjectUtil.getDicomDate(studyDate), DicomObjectUtil.getDicomTime(studyTime));
-    } catch (Exception e) {
+    } catch (DateTimeException | NumberFormatException e) {
+      LOGGER.debug("Cannot parse study date/time: {} / {}", studyDate, studyTime);
       return null;
     }
   }

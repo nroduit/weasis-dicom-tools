@@ -12,7 +12,6 @@ package org.dcm4che3.tool.common;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
@@ -412,8 +411,9 @@ class DicomFilesTest {
     }
 
     @Override
-    public boolean dicomFile(File f, Attributes fmi, long dsPos, Attributes ds) {
-      callbackResults.add(new CallbackResult(f.getName(), fmi, dsPos, ds, returnValue));
+    public boolean dicomFile(Path p, Attributes fmi, long dsPos, Attributes ds) {
+      callbackResults.add(
+          new CallbackResult(p.getFileName().toString(), fmi, dsPos, ds, returnValue));
       if (returnValue) {
         successCount.incrementAndGet();
       } else {
@@ -428,9 +428,9 @@ class DicomFilesTest {
     private final List<String> processedFiles = new ArrayList<>();
 
     @Override
-    public boolean dicomFile(File f, Attributes fmi, long dsPos, Attributes ds) throws Exception {
+    public boolean dicomFile(Path p, Attributes fmi, long dsPos, Attributes ds) throws Exception {
       int count = callCount.incrementAndGet();
-      processedFiles.add(f.getName());
+      processedFiles.add(p.getFileName().toString());
       if (count == 1) {
         throw new RuntimeException("Test exception");
       }

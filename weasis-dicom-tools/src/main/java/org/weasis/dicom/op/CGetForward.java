@@ -662,8 +662,8 @@ public class CGetForward implements AutoCloseable {
 
   private static InformationModel getInformationModel(AdvancedParams options) {
     Object model = options.getInformationModel();
-    if (model instanceof InformationModel) {
-      return (InformationModel) model;
+    if (model instanceof InformationModel informationModel) {
+      return informationModel;
     }
     return InformationModel.StudyRoot;
   }

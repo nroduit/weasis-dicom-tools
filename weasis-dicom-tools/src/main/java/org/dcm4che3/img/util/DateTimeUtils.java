@@ -367,14 +367,12 @@ public final class DateTimeUtils {
       return DEFAULT_DATE_FORMATTER.withLocale(locale).format(date);
     } else if (date instanceof LocalTime) {
       return DEFAULT_TIME_FORMATTER.withLocale(locale).format(date);
-    } else if (date instanceof LocalDateTime) {
-      return DEFAULT_DATETIME_FORMATTER.withLocale(locale).format(date);
-    } else if (date instanceof ZonedDateTime) {
+    } else if (date instanceof LocalDateTime || date instanceof ZonedDateTime) {
       return DEFAULT_DATETIME_FORMATTER.withLocale(locale).format(date);
     } else if (date instanceof Instant instant) {
       return DEFAULT_DATETIME_FORMATTER
           .withLocale(locale)
-          .format((instant).atZone(ZoneId.systemDefault()));
+          .format(instant.atZone(ZoneId.systemDefault()));
     }
     return "";
   }

@@ -53,7 +53,7 @@ public class Patient implements Xml, Comparable<Patient> {
         return null;
       }
 
-      String upperSex = sex.toUpperCase(Locale.getDefault());
+      String upperSex = sex.toUpperCase(Locale.ROOT);
       if (upperSex.startsWith("M")) {
         return MALE.getCode();
       } else if (upperSex.startsWith("F")) {

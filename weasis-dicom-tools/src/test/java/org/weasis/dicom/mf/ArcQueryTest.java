@@ -15,7 +15,10 @@ import static org.mockito.Mockito.*;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
-import java.util.*;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
@@ -30,7 +33,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 @DisplayNameGeneration(ReplaceUnderscores.class)
 class ArcQueryTest {
 
-  // Test data factories
   private WadoParameters createTestWadoParameters() {
     return WadoParameters.builder("http://test.example.com/wado")
         .withArchiveID("test-archive")
@@ -59,8 +61,7 @@ class ArcQueryTest {
   private QueryResult createTestQueryResult() {
     var patients =
         List.of(createTestPatient("PAT001", null), createTestPatient("PAT002", "HOSPITAL_A"));
-    var wadoParams = createTestWadoParameters();
-    return new DefaultQueryResult(patients, wadoParams);
+    return new DefaultQueryResult(patients, createTestWadoParameters());
   }
 
   private QueryResult createEmptyQueryResult() {
@@ -78,7 +79,6 @@ class ArcQueryTest {
     var wadoParams = createTestWadoParametersWithAuth();
     wadoParams.addHttpTag("X-API-Key", "secret-key-123");
     wadoParams.addHttpTag("Authorization", "Bearer token123");
-
     return new DefaultQueryResult(patients, wadoParams);
   }
 
@@ -129,24 +129,13 @@ class ArcQueryTest {
           () -> assertFalse(manifest.contains("uid=\"null\"")));
     }
 
-    @Test
-    void constructor_with_empty_manifest_uid_generates_uid() {
-      var resultList = List.of(createTestQueryResult());
-
-      var query = new ArcQuery(resultList, "");
-
-      var manifest = query.xmlManifest("2.5");
-      assertTrue(manifest.contains("uid=") && !manifest.contains("uid=\"\""));
-    }
-
-    @Test
-    void constructor_with_whitespace_manifest_uid_generates_uid() {
-      var resultList = List.of(createTestQueryResult());
-
-      var query = new ArcQuery(resultList, "   ");
+    @ParameterizedTest
+    @ValueSource(strings = {"", "   "})
+    void constructor_with_blank_manifest_uid_generates_uid(String blankUid) {
+      var query = new ArcQuery(List.of(createTestQueryResult()), blankUid);
 
       var manifest = query.xmlManifest("2.5");
-      assertTrue(manifest.contains("uid=") && !manifest.contains("uid=\"   \""));
+      assertTrue(manifest.contains("uid=") && !manifest.contains("uid=\"" + blankUid + "\""));
     }
   }
 
@@ -164,21 +153,17 @@ class ArcQueryTest {
 
     @Test
     void supports_empty_result_list() {
-      var emptyList = Collections.<QueryResult>emptyList();
-
-      var query = new ArcQuery(emptyList);
+      var query = new ArcQuery(List.of());
 
       assertAll(
-          () -> assertEquals(emptyList, query.getQueryList()),
+          () -> assertTrue(query.getQueryList().isEmpty()),
           () -> assertNotNull(query.xmlManifest("2.5")));
     }
 
     @Test
     void supports_large_result_list() {
-      var resultList = new ArrayList<QueryResult>();
-      for (int i = 0; i < 100; i++) {
-        resultList.add(createTestQueryResult());
-      }
+      var resultList =
+          new ArrayList<>(IntStream.range(0, 100).mapToObj(i -> createTestQueryResult()).toList());
 
       var query = new ArcQuery(resultList);
 
@@ -225,17 +210,12 @@ class ArcQueryTest {
     void modern_manifest_includes_all_query_results_with_content() {
       var resultList =
           List.of(
-              createTestQueryResult(),
-              createQueryResultWithMessage(),
-              createEmptyQueryResult() // This should be excluded
-              );
+              createTestQueryResult(), createQueryResultWithMessage(), createEmptyQueryResult());
 
       var query = new ArcQuery(resultList);
       var manifest = query.xmlManifest("2.5");
 
-      // Should include first two results but not the empty one
-      var arcQueryCount = countOccurrences(manifest, "<arcQuery");
-      assertEquals(2, arcQueryCount);
+      assertEquals(2, countOccurrences(manifest, "<arcQuery"));
     }
 
     @Test
@@ -304,12 +284,9 @@ class ArcQueryTest {
               createQueryResultWithMessage(),
               createQueryResultWithHttpTags());
 
-      var query = new ArcQuery(resultList);
-      var manifest = query.xmlManifest("1");
+      var manifest = new ArcQuery(resultList).xmlManifest("1");
 
-      // Legacy format should include only one wado_query element
-      var wadoQueryCount = countOccurrences(manifest, "<wado_query");
-      assertEquals(1, wadoQueryCount);
+      assertEquals(1, countOccurrences(manifest, "<wado_query"));
     }
 
     @Test
@@ -331,7 +308,6 @@ class ArcQueryTest {
       var query = new ArcQuery(resultList);
       var manifest = query.xmlManifest("1");
 
-      // Should only contain XML declaration, no wado_query elements
       assertAll(
           () -> assertTrue(manifest.contains("<?xml")),
           () -> assertFalse(manifest.contains("<wado_query")));
@@ -393,12 +369,11 @@ class ArcQueryTest {
 
       var manifest = query.xmlManifest("2.5");
 
-      // Should contain patient elements (exact format depends on Patient.toXml implementation)
       assertAll(
-          () -> assertNotNull(manifest), () -> assertTrue(manifest.length() > 0)
-          // Note: Patient XML structure would need to be verified based on Patient.toXml
-          // implementation
-          );
+          () -> assertTrue(manifest.contains("<Patient")),
+          () -> assertTrue(manifest.contains("PatientID=\"PAT001\"")),
+          () -> assertTrue(manifest.contains("PatientID=\"PAT002\"")),
+          () -> assertTrue(manifest.contains("PatientName=\"Test^Patient^PAT001\"")));
     }
 
     @Test
@@ -430,10 +405,7 @@ class ArcQueryTest {
       var query = new ArcQuery(List.of(result));
       var manifest = query.xmlManifest("2.5");
 
-      // The XML should be properly escaped (actual escaping depends on Xml.addXmlAttribute
-      // implementation)
       assertAll(
-          () -> assertNotNull(manifest),
           () -> assertTrue(manifest.contains("Title with")),
           () -> assertTrue(manifest.contains("Message with")));
     }
@@ -472,15 +444,10 @@ class ArcQueryTest {
     }
 
     @Test
-    void writeManifest_handles_io_exceptions() {
+    void writeManifest_handles_io_exceptions() throws IOException {
       var query = new ArcQuery(List.of(createTestQueryResult()));
       var faultyWriter = mock(Writer.class);
-
-      try {
-        doThrow(new IOException("Write error")).when(faultyWriter).append(any(CharSequence.class));
-      } catch (IOException e) {
-        // Mock setup
-      }
+      doThrow(new IOException("Write error")).when(faultyWriter).append(any(CharSequence.class));
 
       assertThrows(IOException.class, () -> query.writeManifest(faultyWriter, "2.5"));
     }
@@ -506,7 +473,7 @@ class ArcQueryTest {
 
     @ParameterizedTest
     @NullAndEmptySource
-    @ValueSource(strings = {"", "  ", "2.0", "3", "invalid"})
+    @ValueSource(strings = {"  ", "2.0", "3", "invalid"})
     void manifest_version_handling_edge_cases(String version) {
       var query = new ArcQuery(List.of(createTestQueryResult()));
 
@@ -523,18 +490,15 @@ class ArcQueryTest {
     void manifest_with_mixed_content_and_empty_results() {
       var resultList =
           List.of(
-              createTestQueryResult(), // Has patients
-              createEmptyQueryResult(), // Empty
-              createQueryResultWithMessage(), // Has message only
-              createEmptyQueryResult() // Empty
-              );
+              createTestQueryResult(),
+              createEmptyQueryResult(),
+              createQueryResultWithMessage(),
+              createEmptyQueryResult());
 
       var query = new ArcQuery(resultList);
       var manifest = query.xmlManifest("2.5");
 
-      // Should include 2 arcQuery elements (first and third results)
-      var arcQueryCount = countOccurrences(manifest, "<arcQuery");
-      assertEquals(2, arcQueryCount);
+      assertEquals(2, countOccurrences(manifest, "<arcQuery"));
     }
 
     @Test
@@ -576,22 +540,25 @@ class ArcQueryTest {
 
     @Test
     void large_manifest_generation_performance() {
-      var resultList = new ArrayList<QueryResult>();
-      for (int i = 0; i < 50; i++) {
-        var result = createTestQueryResult();
-        result.setViewerMessage(ViewerMessage.info("Message " + i, "Content " + i));
-        resultList.add(result);
-      }
+      var resultList =
+          new ArrayList<>(
+              IntStream.range(0, 50)
+                  .mapToObj(
+                      i -> {
+                        var result = createTestQueryResult();
+                        result.setViewerMessage(ViewerMessage.info("Message " + i, "Content " + i));
+                        return result;
+                      })
+                  .toList());
 
       var query = new ArcQuery(resultList);
 
-      // Should complete without timing out
       assertTimeout(
-          java.time.Duration.ofSeconds(5),
+          Duration.ofSeconds(5),
           () -> {
             var manifest = query.xmlManifest("2.5");
             assertNotNull(manifest);
-            assertTrue(manifest.length() > 1000); // Should be substantial
+            assertTrue(manifest.length() > 1000);
           });
     }
 
@@ -611,22 +578,11 @@ class ArcQueryTest {
     }
   }
 
-  // Helper method to count occurrences of a substring
   private int countOccurrences(String text, String substring) {
     int count = 0;
-    int index = 0;
-    while ((index = text.indexOf(substring, index)) != -1) {
+    for (int idx = 0; (idx = text.indexOf(substring, idx)) != -1; idx += substring.length()) {
       count++;
-      index += substring.length();
     }
     return count;
-  }
-
-  // Helper method to verify XML structure (simplified)
-  private void assertValidXmlStructure(String xml) {
-    assertAll(
-        () -> assertTrue(xml.contains("<?xml"), "Should contain XML declaration"),
-        () -> assertTrue(xml.trim().endsWith(">"), "Should end with closing tag"),
-        () -> assertFalse(xml.contains("><"), "Should not contain malformed tags"));
   }
 }

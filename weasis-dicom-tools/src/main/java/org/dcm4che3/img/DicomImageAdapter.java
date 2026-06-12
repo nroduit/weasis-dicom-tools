@@ -15,8 +15,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.function.Function;
 import org.dcm4che3.image.PhotometricInterpretation;
 import org.dcm4che3.img.data.PrDicomObject;
+import org.dcm4che3.img.lut.ModalityLutModule;
 import org.dcm4che3.img.lut.PresetWindowLevel;
 import org.dcm4che3.img.stream.ImageDescriptor;
 import org.dcm4che3.img.util.LookupTableUtils;
@@ -167,13 +169,11 @@ public class DicomImageAdapter {
    * @return the rescale intercept value (default: 0.0)
    */
   public double getRescaleIntercept(PrDicomObject dcm) {
-    if (dcm != null) {
-      OptionalDouble prIntercept = dcm.getModalityLutModule().getRescaleIntercept();
-      if (prIntercept.isPresent()) {
-        return prIntercept.getAsDouble();
-      }
-    }
-    return desc.getModalityLutForFrame(frameIndex).getRescaleIntercept().orElse(0.0);
+    return getRescaleValue(
+        dcm,
+        ModalityLutModule::getRescaleIntercept,
+        desc.getModalityLutForFrame(frameIndex).getRescaleIntercept(),
+        0.0);
   }
 
   /**
@@ -183,13 +183,25 @@ public class DicomImageAdapter {
    * @return the rescale slope value (default: 1.0)
    */
   public double getRescaleSlope(PrDicomObject dcm) {
+    return getRescaleValue(
+        dcm,
+        ModalityLutModule::getRescaleSlope,
+        desc.getModalityLutForFrame(frameIndex).getRescaleSlope(),
+        1.0);
+  }
+
+  private double getRescaleValue(
+      PrDicomObject dcm,
+      Function<ModalityLutModule, OptionalDouble> extractor,
+      OptionalDouble descriptorValue,
+      double defaultValue) {
     if (dcm != null) {
-      OptionalDouble prSlope = dcm.getModalityLutModule().getRescaleSlope();
-      if (prSlope.isPresent()) {
-        return prSlope.getAsDouble();
+      OptionalDouble prValue = extractor.apply(dcm.getModalityLutModule());
+      if (prValue.isPresent()) {
+        return prValue.getAsDouble();
       }
     }
-    return desc.getModalityLutForFrame(frameIndex).getRescaleSlope().orElse(1.0);
+    return descriptorValue.orElse(defaultValue);
   }
 
   public double getFullDynamicWidth(WlPresentation wl) {

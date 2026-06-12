@@ -614,6 +614,4 @@ public final class DicomUtils {
   private interface ArrayValueSupplier<T> {
     T get() throws NumberFormatException;
   }
-
-  private record FormatResult(String value, int length) {}
 }

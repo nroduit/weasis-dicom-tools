@@ -144,7 +144,8 @@ public class DicomState {
 
   public Duration getProcessTime() {
     if (startTransferDateTime != null && endTransferDateTime != null) {
-      return Duration.between(startTransferDateTime, endTransferDateTime);
+      ZoneId zone = ZoneId.systemDefault();
+      return Duration.between(startTransferDateTime.atZone(zone), endTransferDateTime.atZone(zone));
     }
     return null;
   }

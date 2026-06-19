@@ -15,14 +15,12 @@
   <name>Weasis DICOM API (based on dcm4che3)</name>
 
   <properties>
-    <java-version>17</java-version>
     <enforcer.jdk-version>[${java-version},)</enforcer.jdk-version>
     <enforcer.maven-version>[3.6.3,)</enforcer.maven-version>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-    <slf4j.version>2.0.17</slf4j.version>
     <junit-bom.version>6.1.0</junit-bom.version>
     <mockito.version>5.23.0</mockito.version>
 

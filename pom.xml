@@ -16,10 +16,15 @@
 
     <dcm4che.version>5.34.3</dcm4che.version>
     <weasis.core.img.version>4.13.0</weasis.core.img.version>
+
+    <!-- Shared by both modules (weasis-dicom-tools + benchmark). -->
+    <java-version>17</java-version>
+    <slf4j.version>2.0.17</slf4j.version>
   </properties>
 
   <modules>
     <module>weasis-dicom-tools</module>
+    <module>benchmark</module>
   </modules>
 
   <licenses>
@@ -45,11 +50,13 @@
       </snapshots>
     </repository>
     <repository>
-      <id>mvn-repo-master</id>
-      <url>https://raw.githubusercontent.com/nroduit/mvn-repo/master/</url>
       <snapshots>
-        <enabled>false</enabled>
+        <enabled>true</enabled>
+        <updatePolicy>daily</updatePolicy>
       </snapshots>
+      <id>nroduit-mvn-repo</id>
+      <name>nroduit GitHub Maven Repository</name>
+      <url>https://raw.githubusercontent.com/nroduit/mvn-repo/master/</url>
     </repository>
     <repository>
       <id>www.dcm4che.org</id>

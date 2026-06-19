@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<manifest uid="1d5e4c94-98e1-44ea-95a2-49bdd0215102" xmlns="http://www.weasis.org/xsd/2.5" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<arcQuery arcId="local" baseUrl="https://nroduit.github.io/demo-archive/demo/">
+		<Patient PatientBirthDate="19500704" PatientID="MF-compression-frag" PatientName="TEST^Compression" PatientSex="M">
+			<Study StudyDate="20031208" StudyDescription="Test compression and fragments" StudyID="17VL4452" StudyInstanceUID="1.3.6.1.4.1.5962.1.2.17.20031208063649.855" StudyTime="123649">
+				<Series DirectDownloadThumbnail="thumb/tumb_5149141540109322604.jpg" Modality="OT" SeriesDescription="JPEG2000 and 1024 fragments" SeriesInstanceUID="1.3.6.1.4.1.5962.1.3.17.1.20031208063649.855.1" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.276.0.7230010.3.1.4.1787205428.2361.1071048149.1.1" InstanceNumber="8" SOPInstanceUID="1.2.276.0.7230010.3.1.4.1787205428.2361.1071048149.1.1"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_5149141540109322604.jpg" Modality="OT" SeriesDescription="JPEG and 1024 fragments" SeriesInstanceUID="1.3.6.1.4.1.5962.1.3.17.1.20031208063649.855.2" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.276.0.7230010.3.1.4.1787205428.2361.1071048149.1.2" InstanceNumber="8" SOPInstanceUID="1.2.276.0.7230010.3.1.4.1787205428.2361.1071048149.1.2"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_5149141540109322604.jpg" Modality="OT" SeriesDescription="JPEG-LS and 1024 fragments" SeriesInstanceUID="1.3.6.1.4.1.5962.1.3.17.1.20031208063649.855.3" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.276.0.7230010.3.1.4.1787205428.2361.1071048149.1.3" InstanceNumber="8" SOPInstanceUID="1.2.276.0.7230010.3.1.4.1787205428.2361.1071048149.1.3"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_5149141540109322604.jpg" Modality="OT" SeriesDescription="RLE and 1024 fragments" SeriesInstanceUID="1.3.6.1.4.1.5962.1.3.17.1.20031208063649.855.4" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.276.0.7230010.3.1.4.1787205428.2361.1071048149.1.4" InstanceNumber="8" SOPInstanceUID="1.2.276.0.7230010.3.1.4.1787205428.2361.1071048149.1.4"/>
+				</Series>
+			</Study>
+		</Patient>
+	</arcQuery>
+</manifest>

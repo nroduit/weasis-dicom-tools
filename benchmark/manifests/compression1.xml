@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<manifest uid="b6a820fb-862b-4e76-a728-2f33fd5f69d1" xmlns="http://www.weasis.org/xsd/2.5" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<arcQuery arcId="local" baseUrl="https://nroduit.github.io/demo-archive/demo/">
+		<Patient PatientBirthDate="19500704" PatientID="MF-compression-frag" PatientName="TEST^Compression" PatientSex="M">
+			<Study StudyDate="20031208" StudyDescription="Test of different compression types" StudyID="8NM1" StudyInstanceUID="1.3.6.1.4.1.5962.1.2.8.20031208063649.855" StudyTime="113649">
+				<Series DirectDownloadThumbnail="thumb/tumb_4966723168501339883.jpg" Modality="OT" SeriesInstanceUID="1.2.40.0.13.1.1.127093478623178955064520309246402482290" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.167578842087735637843929364087123641184" InstanceNumber="8" SOPInstanceUID="1.2.40.0.13.1.1.167578842087735637843929364087123641184"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_10769425193753748524.jpg" Modality="XA" SeriesInstanceUID="1.2.40.0.13.1.1.133361991888548322318273313188719425395" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.215961456853976178712582381392520897729" InstanceNumber="4" SOPInstanceUID="1.2.40.0.13.1.1.215961456853976178712582381392520897729"/>
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.250248624067381846955775170588225540072" InstanceNumber="5" SOPInstanceUID="1.2.40.0.13.1.1.250248624067381846955775170588225540072"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_13266209819901950244.jpg" Modality="CT" SeriesInstanceUID="1.2.40.0.13.1.1.141954104053998000334493109942138349421" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.246593617456893699618958966750312724538" InstanceNumber="4" SOPInstanceUID="1.2.40.0.13.1.1.246593617456893699618958966750312724538"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_15516382399546981530.jpg" Modality="CT" SeriesInstanceUID="1.2.40.0.13.1.1.159907596789575104114083204790368246828" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.121648096267897646366118788503786401297" InstanceNumber="2" SOPInstanceUID="1.2.40.0.13.1.1.121648096267897646366118788503786401297"/>
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.160854273913689623244848555214981495660" InstanceNumber="3" SOPInstanceUID="1.2.40.0.13.1.1.160854273913689623244848555214981495660"/>
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.54577245542263220634190393749890616766" InstanceNumber="4" SOPInstanceUID="1.2.40.0.13.1.1.54577245542263220634190393749890616766"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_152538585775991252.jpg" Modality="CR" SeriesInstanceUID="1.2.40.0.13.1.1.167238936549504774243395727786904178877" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.97138469001588511649872891178171992413" InstanceNumber="8" SOPInstanceUID="1.2.40.0.13.1.1.97138469001588511649872891178171992413"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_7093418917519447222.jpg" Modality="US" SeriesInstanceUID="1.2.40.0.13.1.1.172703842505808464552892389776464509038" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.140405312174888458840966101062906794292" InstanceNumber="8" SOPInstanceUID="1.2.40.0.13.1.1.140405312174888458840966101062906794292"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_13266209819901950244.jpg" Modality="CT" SeriesInstanceUID="1.2.40.0.13.1.1.176353938571383852106940176176510844274" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.316427068615265559049024909747611410528" InstanceNumber="8" SOPInstanceUID="1.2.40.0.13.1.1.316427068615265559049024909747611410528"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_152538585775991252.jpg" Modality="CR" SeriesInstanceUID="1.2.40.0.13.1.1.193759798016047717458060268335468336431" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.43304829682947754294073383835509234857" InstanceNumber="4" SOPInstanceUID="1.2.40.0.13.1.1.43304829682947754294073383835509234857"/>
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.189187079567615122417865727043769260789" InstanceNumber="5" SOPInstanceUID="1.2.40.0.13.1.1.189187079567615122417865727043769260789"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_7434139612105462605.jpg" Modality="CR" SeriesInstanceUID="1.2.40.0.13.1.1.209056470697791518382282332095081030661" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.332537070574318607576857455251777067268" InstanceNumber="8" SOPInstanceUID="1.2.40.0.13.1.1.332537070574318607576857455251777067268"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_2320672802949609330.jpg" Modality="MR" SeriesInstanceUID="1.2.40.0.13.1.1.232211943950479852807978928538073013068" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.73118399926486422867233934584957135155" InstanceNumber="8" SOPInstanceUID="1.2.40.0.13.1.1.73118399926486422867233934584957135155"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_7577062633454105364.jpg" Modality="OT" SeriesInstanceUID="1.2.40.0.13.1.1.238932197270656229333584702726749305175" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.119177628065274003319178517732978863123" InstanceNumber="8" SOPInstanceUID="1.2.40.0.13.1.1.119177628065274003319178517732978863123"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_4866829327103773983.jpg" Modality="OT" SeriesInstanceUID="1.2.40.0.13.1.1.245372525214794932579901966975539373923" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.35364642643562885152995385393946402803" InstanceNumber="8" SOPInstanceUID="1.2.40.0.13.1.1.35364642643562885152995385393946402803"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_4886733643187458581.jpg" Modality="MR" SeriesInstanceUID="1.2.40.0.13.1.1.247670816485611090102457947808857979653" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.297226919482153625569193570963848217898" InstanceNumber="8" SOPInstanceUID="1.2.40.0.13.1.1.297226919482153625569193570963848217898"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_5048515707228689075.jpg" Modality="CT" SeriesInstanceUID="1.2.40.0.13.1.1.253953235643488577330559331206796464266" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.216920252739982447001983308838812918553" InstanceNumber="5" SOPInstanceUID="1.2.40.0.13.1.1.216920252739982447001983308838812918553"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_13368744442177656824.jpg" Modality="NM" SeriesInstanceUID="1.2.40.0.13.1.1.25908672015663838098913152243525667913" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.112399228334232726013863562163236990795" InstanceNumber="4" SOPInstanceUID="1.2.40.0.13.1.1.112399228334232726013863562163236990795"/>
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.12425643686588943289548055104254623086" InstanceNumber="5" SOPInstanceUID="1.2.40.0.13.1.1.12425643686588943289548055104254623086"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_5149141540109322604.jpg" Modality="OT" SeriesInstanceUID="1.2.40.0.13.1.1.270190601059894516472058730145435975979" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.123527530109847575387876144807041856609" InstanceNumber="8" SOPInstanceUID="1.2.40.0.13.1.1.123527530109847575387876144807041856609"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_7434139612105462605.jpg" Modality="CR" SeriesInstanceUID="1.2.40.0.13.1.1.271065400694710220325763860610398755822" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.76963071789194162861745102963240378451" InstanceNumber="4" SOPInstanceUID="1.2.40.0.13.1.1.76963071789194162861745102963240378451"/>
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.128962738278359589022945837666750124997" InstanceNumber="5" SOPInstanceUID="1.2.40.0.13.1.1.128962738278359589022945837666750124997"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_5474732684439023367.jpg" Modality="OT" SeriesInstanceUID="1.2.40.0.13.1.1.28543443299091662442823983697109308636" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.282900798377102591506834774085044141664" InstanceNumber="8" SOPInstanceUID="1.2.40.0.13.1.1.282900798377102591506834774085044141664"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_12359736651169398199.jpg" Modality="MR" SeriesInstanceUID="1.2.40.0.13.1.1.295031076646311572112575900146940304733" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.312591515639395246788021530702174909668" InstanceNumber="8" SOPInstanceUID="1.2.40.0.13.1.1.312591515639395246788021530702174909668"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_15137039234966084764.jpg" Modality="CR" SeriesInstanceUID="1.2.40.0.13.1.1.29572170208187921261172698528150000672" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.142273939249694194618967782852354443825" InstanceNumber="8" SOPInstanceUID="1.2.40.0.13.1.1.142273939249694194618967782852354443825"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_4886733643187458581.jpg" Modality="MR" SeriesInstanceUID="1.2.40.0.13.1.1.309201689099355018439327898050146396485" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.93958990802219547242725763322809091163" InstanceNumber="4" SOPInstanceUID="1.2.40.0.13.1.1.93958990802219547242725763322809091163"/>
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.101772441098939018653955844116690048148" InstanceNumber="5" SOPInstanceUID="1.2.40.0.13.1.1.101772441098939018653955844116690048148"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_5048515707228689075.jpg" Modality="CT" SeriesInstanceUID="1.2.40.0.13.1.1.316665413438087897754646803863172490327" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.77593066791483460094583882853894279390" InstanceNumber="8" SOPInstanceUID="1.2.40.0.13.1.1.77593066791483460094583882853894279390"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_12359736651169398199.jpg" Modality="MR" SeriesInstanceUID="1.2.40.0.13.1.1.324370486982676517718057287736237876064" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.27163629025892916597989556673301689227" InstanceNumber="4" SOPInstanceUID="1.2.40.0.13.1.1.27163629025892916597989556673301689227"/>
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.197811443804553419330949377530158290556" InstanceNumber="5" SOPInstanceUID="1.2.40.0.13.1.1.197811443804553419330949377530158290556"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_2320672802949609330.jpg" Modality="MR" SeriesInstanceUID="1.2.40.0.13.1.1.36684559029109200626142907544968679640" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.85760909252711247961019977247282016453" InstanceNumber="4" SOPInstanceUID="1.2.40.0.13.1.1.85760909252711247961019977247282016453"/>
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.241124067680382211877784575078166520743" InstanceNumber="5" SOPInstanceUID="1.2.40.0.13.1.1.241124067680382211877784575078166520743"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_15137039234966084764.jpg" Modality="CR" SeriesInstanceUID="1.2.40.0.13.1.1.51454021316447121372219352698712584650" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.253415382785026582465009011830766603450" InstanceNumber="4" SOPInstanceUID="1.2.40.0.13.1.1.253415382785026582465009011830766603450"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_15516382399546981530.jpg" Modality="CT" SeriesInstanceUID="1.2.40.0.13.1.1.5535141694295647247100530628078789299" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.61692986002337942339510828342722055448" InstanceNumber="8" SOPInstanceUID="1.2.40.0.13.1.1.61692986002337942339510828342722055448"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_534518010107821724.jpg" Modality="MR" SeriesInstanceUID="1.2.40.0.13.1.1.63573438610443884372277848345096215212" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.290097549608975036866922672766379697481" InstanceNumber="4" SOPInstanceUID="1.2.40.0.13.1.1.290097549608975036866922672766379697481"/>
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.53650666560834421876574681572253576148" InstanceNumber="5" SOPInstanceUID="1.2.40.0.13.1.1.53650666560834421876574681572253576148"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_10769425193753748524.jpg" Modality="XA" SeriesInstanceUID="1.2.40.0.13.1.1.74365347029050249488340100188096226745" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.135292758582707953540740072892454789712" InstanceNumber="8" SOPInstanceUID="1.2.40.0.13.1.1.135292758582707953540740072892454789712"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_534518010107821724.jpg" Modality="MR" SeriesInstanceUID="1.2.40.0.13.1.1.94054172130411039729121762457500430821" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.40.0.13.1.1.136753961308387839079969956438371041433" InstanceNumber="8" SOPInstanceUID="1.2.40.0.13.1.1.136753961308387839079969956438371041433"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_13368744442177656824.jpg" Modality="NM" SeriesInstanceUID="1.3.6.1.4.1.5962.1.3.8.1.20031208063649.855" SeriesNumber="1">
+					<Instance DirectDownloadFile="1.2.276.0.7230010.3.1.4.1787205428.2352.1071048147.1" InstanceNumber="8" SOPInstanceUID="1.2.276.0.7230010.3.1.4.1787205428.2352.1071048147.1"/>
+				</Series>
+			</Study>
+		</Patient>
+	</arcQuery>
+</manifest>

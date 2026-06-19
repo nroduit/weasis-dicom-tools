@@ -1,0 +1,12 @@
+# Ad-hoc local benchmark output (e.g. mac-5.0.csv, mac-report.html) stays untracked.
+*.csv
+*.html
+
+# Corpus fetched from the demo archive by fetch-corpus.sh — reproducible from the
+# vendored manifests/ + corpus.lock, so the binaries themselves are never committed.
+corpus/
+
+# ...but the committed, dated benchmark history under results/ IS tracked
+# (written by the native-benchmark workflow / aggregate-results.py).
+!results/
+!results/**

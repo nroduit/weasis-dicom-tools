@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<manifest uid="3b2c3a08-10eb-43e0-9b29-95977e0e710e" xmlns="http://www.weasis.org/xsd/2.5" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<arcQuery arcId="local" baseUrl="https://nroduit.github.io/demo-archive/demo/">
+		<Patient PatientID="PIG 4BA_98659" PatientName="TEST^Photometric Interpretation" PatientSex="O">
+			<Study StudyDate="20041018" StudyDescription="Test Photometric Interpretation" StudyInstanceUID="1.2.840.113619.2.98.3467.1098086125.0.69" StudyTime="122419">
+				<Series DirectDownloadThumbnail="thumb/tumb_6555285183891995203.jpg" Modality="US" SeriesDescription="Test RGB" SeriesInstanceUID="1.2.40.0.13.1.1.174837738883920071074308671435667278685" SeriesNumber="1">
+					<Instance InstanceNumber="1" SOPInstanceUID="1.2.40.0.13.1.1.75699434012420281431899874274436428076" DirectDownloadFile="1.2.40.0.13.1.1.75699434012420281431899874274436428076"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_6143257254400119746.jpg" Modality="US" SeriesDescription="YBR_FULL" SeriesInstanceUID="1.2.40.0.13.1.1.292543359504713203703828512757607614864" SeriesNumber="1">
+					<Instance InstanceNumber="22" SOPInstanceUID="1.2.40.0.13.1.1.120850205437059738156326987522667904907" DirectDownloadFile="1.2.40.0.13.1.1.120850205437059738156326987522667904907"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_3079964914779922286.jpg" Modality="US" SeriesDescription="YBR_FULL_422" SeriesInstanceUID="1.2.40.0.13.1.1.45653013396044006507995806643500112598" SeriesNumber="1">
+					<Instance InstanceNumber="13" SOPInstanceUID="1.2.40.0.13.1.1.143655214259059498898549911291445775539" DirectDownloadFile="1.2.40.0.13.1.1.143655214259059498898549911291445775539"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_5358407556964217349.jpg" Modality="US" SeriesDescription="Test YBR_FULL_422" SeriesInstanceUID="1.2.840.113619.2.98.3467.1098086125.0.70" SeriesNumber="0001">
+					<Instance InstanceNumber="7" SOPInstanceUID="1.2.840.113619.2.98.3467.1098086125.0.77" DirectDownloadFile="1.2.840.113619.2.98.3467.1098086125.0.77"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_14939790020185952354.jpg" Modality="US" SeriesDescription="Test MONOCHROME2" SeriesInstanceUID="1.2.40.0.13.1.1.122270019448124560098735282914374064195" SeriesNumber="2">
+					<Instance InstanceNumber="101" SOPInstanceUID="1.2.40.0.13.1.1.286145458149728631212017302675002118581" DirectDownloadFile="1.2.40.0.13.1.1.286145458149728631212017302675002118581"/>
+				</Series>
+				<Series DirectDownloadThumbnail="thumb/tumb_8646820489044656452.jpg" Modality="US" SeriesDescription="Test PALETTE COLOR" SeriesInstanceUID="1.2.40.0.13.1.1.289494807713901808938101707293962434443" SeriesNumber="5829">
+					<Instance InstanceNumber="24" SOPInstanceUID="1.2.40.0.13.1.1.155769172416208169785060571711755915755" DirectDownloadFile="1.2.40.0.13.1.1.155769172416208169785060571711755915755"/>
+				</Series>
+			</Study>
+		</Patient>
+	</arcQuery>
+</manifest>

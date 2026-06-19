@@ -1,0 +1,180 @@
+name: Native codec benchmark
+# Manually triggered. Runs the native smoke test (load + byte-swap + threaded decode)
+# as a gate, then the codec benchmark, on every supported OS/arch, and commits the
+# dated CSVs under benchmark/results/ so later runs can diff against them.
+on:
+  workflow_dispatch:
+    inputs:
+      warmup:
+        description: 'Benchmark warmup passes per file'
+        type: string
+        default: '2'
+      iterations:
+        description: 'Benchmark timed passes per file (median reported)'
+        type: string
+        default: '5'
+      commit_results:
+        description: 'Commit the dated CSVs under benchmark/results/'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Fetch the codec corpus once (byte-exact static files from the Weasis demo archive,
+  # selected by the vendored manifests + pinned by corpus.lock) and hand it to every
+  # matrix job as an artifact, so the demo host is hit once instead of per-OS, and the
+  # benchmark never depends on a live network. actions/cache skips the re-download when
+  # neither the manifests nor the lock changed.
+  corpus:
+    name: Fetch corpus
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+      - name: Restore cached corpus
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        with:
+          path: benchmark/corpus
+          key: codec-corpus-${{ hashFiles('benchmark/manifests/**', 'benchmark/corpus.lock', 'benchmark/fetch-corpus.sh') }}
+      - name: Fetch + verify corpus
+        run: bash benchmark/fetch-corpus.sh benchmark/corpus
+      - name: Upload corpus
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: codec-corpus
+          path: benchmark/corpus
+          if-no-files-found: error
+
+  benchmark:
+    name: ${{ matrix.classifier }}
+    needs: corpus
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,    classifier: linux-x86-64 }
+          - { os: ubuntu-24.04-arm, classifier: linux-aarch64 }
+          - { os: macos-26-intel,   classifier: macosx-x86-64 }
+          - { os: macos-latest,     classifier: macosx-aarch64 }
+          - { os: windows-latest,   classifier: windows-x86-64 }
+          # Windows-on-ARM has no native build; validate the x86-64 DLL under x64
+          # emulation (an x64 JDK is required to load it). windows-11-arm is public preview.
+          - { os: windows-11-arm,   classifier: windows-x86-64-emulated, emulated: true }
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+      - name: Download corpus
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: codec-corpus
+          path: benchmark/corpus
+      - name: Set up JDK 17
+        if: ${{ !matrix.emulated }}
+        uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
+      # On Windows-on-ARM, force an x64 JDK so it runs under emulation and can load the
+      # x86-64 opencv_java.dll (an arm64 JVM would reject the x64 native).
+      - name: Set up JDK 17 (x64 under ARM emulation)
+        if: ${{ matrix.emulated }}
+        uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          architecture: 'x64'
+          cache: 'maven'
+      # Online build once so the native + deps land in ~/.m2; the launchers then run offline.
+      - name: Pre-warm Maven (build + cache natives)
+        run: mvn -B -ntp -DskipTests install
+      - name: Native smoke test (Unix)
+        if: runner.os != 'Windows'
+        run: bash native-distro-test/run-matrix.sh --local
+      - name: Native smoke test (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./native-distro-test/run-local.ps1
+      - name: Benchmark (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          OUT: ${{ github.workspace }}/bench-out/${{ matrix.classifier }}.csv
+          # The corpus is small; the launcher's 8g default is sized for large multiframe
+          # studies, not needed here. Override to keep runner memory modest.
+          JAVA_OPTS: '-Xms512m -Xmx4g'
+        run: |
+          mkdir -p "$(dirname "$OUT")"
+          bash benchmark/run-codec-benchmark.sh \
+            benchmark/corpus \
+            "${{ inputs.warmup }}" "${{ inputs.iterations }}"
+      - name: Benchmark (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          if not exist "%GITHUB_WORKSPACE%\bench-out" mkdir "%GITHUB_WORKSPACE%\bench-out"
+          set "OUT=%GITHUB_WORKSPACE%\bench-out\${{ matrix.classifier }}.csv"
+          set "JAVA_OPTS=-Xms512m -Xmx4g"
+          call benchmark\run-codec-benchmark.bat benchmark\corpus ${{ inputs.warmup }} ${{ inputs.iterations }}
+      # Record the concrete runner image + host CPU + provenance so the rolling *-latest
+      # labels stay traceable and a throughput shift can be told apart from a hardware
+      # rotation or correlated to a commit (ImageOS/ImageVersion are set on GH runners).
+      - name: Record runner image
+        shell: bash
+        env:
+          RUNNER_LABEL: ${{ matrix.os }}
+          EMULATED: ${{ matrix.emulated && 'true' || 'false' }}
+          GIT_SHA: ${{ github.sha }}
+          GIT_REF: ${{ github.ref_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          mkdir -p bench-out
+          bash benchmark/collect-metadata.sh "${{ matrix.classifier }}" "bench-out/${{ matrix.classifier }}.json"
+          cat "bench-out/${{ matrix.classifier }}.json"
+      - name: Upload CSV + metadata
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: bench-${{ matrix.classifier }}
+          path: |
+            bench-out/${{ matrix.classifier }}.csv
+            bench-out/${{ matrix.classifier }}.json
+          if-no-files-found: error
+
+  collect:
+    name: Collect & commit results
+    needs: benchmark
+    if: ${{ !cancelled() && inputs.commit_results }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - name: Download all platform CSVs
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: incoming
+          pattern: bench-*
+          merge-multiple: true
+      - name: Aggregate + diff vs previous run
+        run: |
+          DATE=$(date -u +%F)
+          echo "RESULT_DATE=$DATE" >> "$GITHUB_ENV"
+          python3 benchmark/aggregate-results.py \
+            --incoming incoming --date "$DATE" \
+            --summary-file "$GITHUB_STEP_SUMMARY"
+      - name: Commit dated results
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add benchmark/results
+          if git diff --cached --quiet; then
+            echo "No new benchmark results to commit."
+          else
+            git commit -m "Add codec benchmark results ${RESULT_DATE}"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi

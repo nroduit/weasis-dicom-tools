@@ -14,7 +14,6 @@ jobs:
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
           persist-credentials: false
       - name: Set up JDK for compilation
         uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
@@ -22,14 +21,21 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
           cache: 'maven'
-      - name: Cache SonarCloud packages
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      - name: Build and test
+        run: mvn -Pcoverage -f weasis-dicom-tools -B verify
+      # Sonar analysis runs in a separate workflow_run-triggered workflow (sonar.yml) so it
+      # has access to SONAR_TOKEN even for pull requests from forks and Dependabot.
+      - name: Save PR context for Sonar analysis
+        if: github.event_name == 'pull_request'
+        run: |
+          mkdir -p pr-context
+          echo "${{ github.event.pull_request.number }}" > pr-context/pr_number
+          echo "${{ github.event.pull_request.head.ref }}" > pr-context/head_ref
+          echo "${{ github.event.pull_request.base.ref }}" > pr-context/base_ref
+      - name: Upload PR context
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          path: ~/.sonar/cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
-      - name: Build and analyze
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: mvn -Pcoverage -f weasis-dicom-tools -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+          name: pr-context
+          path: pr-context/
+          retention-days: 1

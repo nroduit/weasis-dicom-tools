@@ -1,0 +1,59 @@
+name: Sonar
+# Runs after the "Build" workflow completes. Using workflow_run means this job executes in the
+# base-repository context, so SONAR_TOKEN is available even for pull requests from forks and
+# Dependabot (where secrets are withheld from the triggering workflow).
+on:
+  workflow_run:
+    workflows: [ "Build" ]
+    types: [ completed ]
+permissions:
+  contents: read
+jobs:
+  sonar:
+    name: SonarCloud
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download PR context
+        if: github.event.workflow_run.event == 'pull_request'
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          name: pr-context
+          path: pr-context
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Resolve analysis parameters
+        id: ctx
+        run: |
+          if [ "${{ github.event.workflow_run.event }}" = "pull_request" ]; then
+            pr=$(cat pr-context/pr_number)
+            head=$(cat pr-context/head_ref)
+            base=$(cat pr-context/base_ref)
+            echo "checkout_ref=refs/pull/${pr}/head" >> "$GITHUB_OUTPUT"
+            echo "sonar_args=-Dsonar.pullrequest.key=${pr} -Dsonar.pullrequest.branch=${head} -Dsonar.pullrequest.base=${base}" >> "$GITHUB_OUTPUT"
+          else
+            echo "checkout_ref=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+            echo "sonar_args=-Dsonar.branch.name=${{ github.event.workflow_run.head_branch }}" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          ref: ${{ steps.ctx.outputs.checkout_ref }}
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+          persist-credentials: false
+      - name: Set up JDK for compilation
+        uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
+      - name: Cache SonarCloud packages
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+      - name: Build and analyze
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: mvn -Pcoverage -f weasis-dicom-tools -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar ${{ steps.ctx.outputs.sonar_args }}

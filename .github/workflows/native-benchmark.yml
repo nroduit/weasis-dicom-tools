@@ -39,7 +39,11 @@ jobs:
         with:
           path: benchmark/corpus
           key: codec-corpus-${{ hashFiles('benchmark/manifests/**', 'benchmark/corpus.lock', 'benchmark/fetch-corpus.sh') }}
-      - name: Fetch + verify corpus
+      # corpus.lock is a local-only reproducibility aid; CI fetches fresh from the manifests,
+      # so run in write mode (download + regenerate a throwaway lock, no committed lock needed).
+      - name: Fetch corpus
+        env:
+          LOCK_MODE: write
         run: bash benchmark/fetch-corpus.sh benchmark/corpus
       - name: Upload corpus
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

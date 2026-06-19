@@ -557,6 +557,72 @@ class StoreFromStreamSCUTest {
   }
 
   @Nested
+  class Idle_Close_Race_Tests {
+
+    @BeforeEach
+    void setUp() throws IOException {
+      storeFromStreamSCU =
+          new StoreFromStreamSCU(advancedParams, callingNode, calledNode, dicomProgress);
+    }
+
+    @Test
+    void idle_close_proceeds_when_no_transfer_is_in_flight() throws Exception {
+      setPrivateAssociation(mockAssociation);
+      when(mockAssociation.isReadyForDataTransfer()).thenReturn(true);
+
+      // Arm the idle timer, then run the scheduled close directly.
+      storeFromStreamSCU.triggerCloseExecutor();
+      storeFromStreamSCU.close(false);
+
+      verify(mockAssociation).release();
+      verify(mockAssociation).waitForSocketClose();
+      assertFalse(storeFromStreamSCU.hasAssociation());
+    }
+
+    @Test
+    void idle_close_is_deferred_while_a_transfer_is_in_flight() throws Exception {
+      setPrivateAssociation(mockAssociation);
+      addInFlightIuid(TEST_IUID);
+
+      // Arm the idle timer, then run the scheduled close while a C-STORE is still pending.
+      storeFromStreamSCU.triggerCloseExecutor();
+      storeFromStreamSCU.close(false);
+
+      // The association must not be torn down under an active transfer.
+      verify(mockAssociation, never()).release();
+      verify(mockAssociation, never()).waitForSocketClose();
+      assertTrue(storeFromStreamSCU.hasAssociation());
+    }
+
+    @Test
+    void prepare_transfer_cancels_pending_idle_close() throws Exception {
+      setPrivateAssociation(mockAssociation);
+      when(mockAssociation.isReadyForDataTransfer()).thenReturn(true);
+      when(mockAssociation.getTransferSyntaxesFor(TEST_CUID)).thenReturn(Set.of(TEST_TSUID));
+
+      storeFromStreamSCU.triggerCloseExecutor();
+      assertNotNull(getScheduledFuture(), "idle close should be armed");
+
+      storeFromStreamSCU.prepareTransfer(mockDeviceOpService, TEST_IUID, TEST_CUID, TEST_TSUID);
+
+      assertNull(getScheduledFuture(), "reusing the association must disarm the idle close");
+    }
+
+    @Test
+    void force_close_tears_down_even_with_a_transfer_in_flight() throws Exception {
+      setPrivateAssociation(mockAssociation);
+      when(mockAssociation.isReadyForDataTransfer()).thenReturn(true);
+      addInFlightIuid(TEST_IUID);
+
+      storeFromStreamSCU.close(true);
+
+      verify(mockAssociation).release();
+      verify(mockAssociation).waitForSocketClose();
+      assertFalse(storeFromStreamSCU.hasAssociation());
+    }
+  }
+
+  @Nested
   class Association_Closure_Tests {
 
     @BeforeEach
@@ -814,6 +880,28 @@ class StoreFromStreamSCUTest {
     }
 
     @Test
+    void should_drain_outstanding_responses_before_renegotiation_close()
+        throws IOException, InterruptedException {
+      setPrivateAssociation(mockAssociation);
+      when(mockAssociation.isReadyForDataTransfer()).thenReturn(true);
+      when(mockAssociation.getTransferSyntaxesFor(TEST_CUID))
+          .thenReturn(Set.of(UID.ImplicitVRLittleEndian));
+
+      // A new SOP Class / transfer syntax forces an association teardown to renegotiate.
+      assertThrows(
+          IOException.class,
+          () ->
+              storeFromStreamSCU.prepareTransfer(
+                  mockDeviceOpService, TEST_IUID, TEST_CUID, TEST_TSUID));
+
+      // Outstanding C-STORE responses must be drained before the association is released.
+      var inOrder = inOrder(mockAssociation);
+      inOrder.verify(mockAssociation).waitForOutstandingRSP();
+      inOrder.verify(mockAssociation).release();
+      inOrder.verify(mockAssociation).waitForSocketClose();
+    }
+
+    @Test
     void should_handle_empty_pending_transfers_immediately()
         throws IOException, InterruptedException {
       setPrivateAssociation(mockAssociation);
@@ -930,6 +1018,28 @@ class StoreFromStreamSCUTest {
       return association;
     } catch (Exception e) {
       throw new RuntimeException("Failed to set private association field", e);
+    }
+  }
+
+  // Marks an instance UID as currently being processed (a C-STORE in flight).
+  @SuppressWarnings("unchecked")
+  private void addInFlightIuid(String iuid) {
+    try {
+      var field = StoreFromStreamSCU.class.getDeclaredField("instanceUidsCurrentlyProcessed");
+      field.setAccessible(true);
+      ((java.util.Map<String, Integer>) field.get(storeFromStreamSCU)).put(iuid, 1);
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to set in-flight IUID", e);
+    }
+  }
+
+  private Object getScheduledFuture() {
+    try {
+      var field = StoreFromStreamSCU.class.getDeclaredField("scheduledFuture");
+      field.setAccessible(true);
+      return field.get(storeFromStreamSCU);
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to read scheduledFuture field", e);
     }
   }
 }

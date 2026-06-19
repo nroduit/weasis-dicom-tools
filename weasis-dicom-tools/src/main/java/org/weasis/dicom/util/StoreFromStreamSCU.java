@@ -49,6 +49,7 @@ public class StoreFromStreamSCU {
   private static final int CLOSE_DELAY_SECONDS = 15;
   private static final int WAIT_SLEEP_MS = 20;
   private static final int MAX_WAIT_LOOPS = 3000; // 1 minute max
+  private static final long OUTSTANDING_RSP_TIMEOUT_MS = 10_000;
 
   @FunctionalInterface
   public interface RSPHandlerFactory {
@@ -332,19 +333,46 @@ public class StoreFromStreamSCU {
   /**
    * Closes the DICOM association.
    *
+   * <p>A forced close tears the association down immediately. A scheduled (idle) close only
+   * proceeds when no C-STORE is still in flight: closing the association while the caller is still
+   * writing surfaces downstream as a "Socket closed" error on the next operation. When transfers
+   * are still pending the close is deferred and the idle timer is re-armed.
+   *
    * @param force true to force immediate closure
    */
   public synchronized void close(boolean force) {
-    if (force || countdown.compareAndSet(true, false)) {
+    if (force) {
       closeAssociation();
+      return;
     }
+    if (!countdown.compareAndSet(true, false)) {
+      return;
+    }
+    if (!instanceUidsCurrentlyProcessed.isEmpty()) {
+      LOGGER.debug(
+          "Idle close deferred: {} C-STORE transfer(s) still in flight",
+          instanceUidsCurrentlyProcessed.size());
+      countdown.set(true);
+      scheduledFuture =
+          closeAssociationExecutor.schedule(
+              closeAssociationTask, CLOSE_DELAY_SECONDS, TimeUnit.SECONDS);
+      return;
+    }
+    closeAssociation();
   }
 
   private void closeAssociation() {
+    cancelScheduledClose();
     if (as != null) {
       try {
         LOGGER.info("Closing DICOM association");
         if (as.isReadyForDataTransfer()) {
+          // Wait for the responses of already dispatched C-STOREs before releasing. The
+          // association is torn down here notably to renegotiate presentation contexts for a new
+          // SOP Class / transfer syntax; releasing while responses are still outstanding drops
+          // those instances (seen downstream as missing instances at the end of a series, or a
+          // "Socket closed" error on a concurrent write).
+          drainOutstandingResponses(as);
           as.release();
         }
         as.waitForSocketClose();
@@ -355,6 +383,39 @@ public class StoreFromStreamSCU {
         LOGGER.trace("Cannot close association", e);
       }
       as = null;
+    }
+  }
+
+  /**
+   * Waits, up to {@link #OUTSTANDING_RSP_TIMEOUT_MS}, for the C-STORE responses of operations
+   * already dispatched on the association to be received. Unlike {@code
+   * instanceUidsCurrentlyProcessed} (decremented as soon as a C-STORE is dispatched), this reflects
+   * dcm4che's authoritative outstanding-response state. {@link Association#waitForOutstandingRSP()}
+   * also returns when the association closes, so a dead peer cannot block it indefinitely; the
+   * bounded join is an extra safeguard against an alive-but-silent peer.
+   */
+  private void drainOutstandingResponses(Association association) {
+    Thread waiter =
+        new Thread(
+            () -> {
+              try {
+                association.waitForOutstandingRSP();
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+              }
+            },
+            "storescu-drain-rsp");
+    waiter.setDaemon(true);
+    waiter.start();
+    try {
+      waiter.join(OUTSTANDING_RSP_TIMEOUT_MS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+    if (waiter.isAlive()) {
+      LOGGER.warn(
+          "Timeout after {} ms waiting for outstanding C-STORE responses before closing association",
+          OUTSTANDING_RSP_TIMEOUT_MS);
     }
   }
 
@@ -407,18 +468,24 @@ public class StoreFromStreamSCU {
         new PresentationContext(rq.getNumberOfPresentationContexts() * 2 + 1, cuid, tsuid));
   }
 
-  /** Triggers the scheduled association closure. */
+  /**
+   * (Re)arms the scheduled association closure. Any previously scheduled close is cancelled so the
+   * idle delay is always measured from the most recent activity; this prevents a timer armed at the
+   * start of a burst from firing in the middle of a still-active transfer.
+   */
   public synchronized void triggerCloseExecutor() {
-    if (shouldScheduleClose()) {
-      scheduledFuture =
-          closeAssociationExecutor.schedule(
-              closeAssociationTask, CLOSE_DELAY_SECONDS, TimeUnit.SECONDS);
-    }
+    cancelScheduledClose();
+    countdown.set(true);
+    scheduledFuture =
+        closeAssociationExecutor.schedule(
+            closeAssociationTask, CLOSE_DELAY_SECONDS, TimeUnit.SECONDS);
   }
 
-  private boolean shouldScheduleClose() {
-    return (scheduledFuture == null || scheduledFuture.isDone())
-        && countdown.compareAndSet(false, true);
+  private void cancelScheduledClose() {
+    if (scheduledFuture != null) {
+      scheduledFuture.cancel(false);
+      scheduledFuture = null;
+    }
   }
 
   /**
@@ -454,6 +521,10 @@ public class StoreFromStreamSCU {
   public void prepareTransfer(DeviceOpService service, String iuid, String cuid, String dstTsuid)
       throws IOException {
     synchronized (this) {
+      // The association is about to be used again: disarm any pending idle close so it cannot
+      // tear down the connection while this transfer is in progress.
+      cancelScheduledClose();
+      countdown.set(false);
       if (hasAssociation()) {
         handleExistingAssociation(cuid, dstTsuid);
       } else {

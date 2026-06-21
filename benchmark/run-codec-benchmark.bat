@@ -73,7 +73,10 @@ if not defined WEASIS_VERSION set "WEASIS_VERSION=default"
 set "JAVA_CMD=java %JAVA_OPTS% -Dweasis.core.img.version=%WEASIS_VERSION% -Djava.library.path=^"%LIB_DIR%^" --enable-native-access=ALL-UNNAMED -cp ^"%CP%^" org.dcm4che3.img.bench.CodecBenchmark ^"%SAMPLE_DIR%^" %WARMUP% %ITERS%"
 
 if defined OUT (
-  %JAVA_CMD% > "%OUT%"
+  rem Leading redirect: the ^"-escaped quotes inside JAVA_CMD confuse cmd's parser so a
+  rem trailing "> file" is taken as a java argument, not a redirect (CSV then leaks to the
+  rem console and no file is written). Binding the redirect first avoids that.
+  >"%OUT%" %JAVA_CMD%
   set "RC=!errorlevel!"
   rem Build-metadata sidecar next to the CSV (parity with the CI run); never fail the run on it
   rem (matches the "|| true" guard in run-codec-benchmark.sh).

@@ -16,7 +16,7 @@ jobs:
     steps:
       - name: Download PR context
         if: github.event.workflow_run.event == 'pull_request'
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: pr-context
           path: pr-context
@@ -35,7 +35,7 @@ jobs:
             echo "checkout_ref=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
             echo "sonar_args=-Dsonar.branch.name=${{ github.event.workflow_run.head_branch }}" >> "$GITHUB_OUTPUT"
           fi
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ steps.ctx.outputs.checkout_ref }}
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis

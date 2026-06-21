@@ -8,7 +8,7 @@
   "image_version": "20260615.205.1",
   "cpu_model": "AMD EPYC 9V74 80-Core Processor",
   "cpu_count": "4",
-  "git_sha": "5a44a81293cae1a33661bb6d3afd5ddc0eb605ad",
+  "git_sha": "a34a0007d9b200af2d6d7670aa19830d37123de1",
   "git_ref": "master",
-  "run_url": "https://github.com/nroduit/weasis-dicom-tools/actions/runs/27914617650"
+  "run_url": "https://github.com/nroduit/weasis-dicom-tools/actions/runs/27916276208"
 }

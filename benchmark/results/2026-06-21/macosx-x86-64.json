@@ -8,7 +8,7 @@
   "image_version": "20260608.0215.1",
   "cpu_model": "Intel(R) Core(TM) i7-8700B CPU @ 3.20GHz",
   "cpu_count": "4",
-  "git_sha": "90a87257d8daec6c77ef99b71e7dec50acd6ab16",
+  "git_sha": "5a44a81293cae1a33661bb6d3afd5ddc0eb605ad",
   "git_ref": "master",
-  "run_url": "https://github.com/nroduit/weasis-dicom-tools/actions/runs/27912153053"
+  "run_url": "https://github.com/nroduit/weasis-dicom-tools/actions/runs/27914617650"
 }

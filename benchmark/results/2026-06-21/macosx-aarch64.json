@@ -1,0 +1,14 @@
+{
+  "classifier": "macosx-aarch64",
+  "runner_label": "macos-latest",
+  "runner_os": "macOS",
+  "runner_arch": "ARM64",
+  "emulated": false,
+  "image_os": "macos15",
+  "image_version": "20260610.0126.1",
+  "cpu_model": "Apple M1 (Virtual)",
+  "cpu_count": "3",
+  "git_sha": "90a87257d8daec6c77ef99b71e7dec50acd6ab16",
+  "git_ref": "master",
+  "run_url": "https://github.com/nroduit/weasis-dicom-tools/actions/runs/27912153053"
+}

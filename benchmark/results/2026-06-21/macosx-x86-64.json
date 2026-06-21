@@ -1,0 +1,14 @@
+{
+  "classifier": "macosx-x86-64",
+  "runner_label": "macos-26-intel",
+  "runner_os": "macOS",
+  "runner_arch": "X64",
+  "emulated": false,
+  "image_os": "macos26",
+  "image_version": "20260608.0215.1",
+  "cpu_model": "Intel(R) Core(TM) i7-8700B CPU @ 3.20GHz",
+  "cpu_count": "4",
+  "git_sha": "90a87257d8daec6c77ef99b71e7dec50acd6ab16",
+  "git_ref": "master",
+  "run_url": "https://github.com/nroduit/weasis-dicom-tools/actions/runs/27912153053"
+}

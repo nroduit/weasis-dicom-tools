@@ -1,0 +1,14 @@
+{
+  "classifier": "linux-aarch64",
+  "runner_label": "ubuntu-24.04-arm",
+  "runner_os": "Linux",
+  "runner_arch": "ARM64",
+  "emulated": false,
+  "image_os": "ubuntu24-arm64",
+  "image_version": "20260615.31.1",
+  "cpu_model": "Neoverse-N2",
+  "cpu_count": "4",
+  "git_sha": "90a87257d8daec6c77ef99b71e7dec50acd6ab16",
+  "git_ref": "master",
+  "run_url": "https://github.com/nroduit/weasis-dicom-tools/actions/runs/27912153053"
+}

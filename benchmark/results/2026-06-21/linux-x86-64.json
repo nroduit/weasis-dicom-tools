@@ -1,0 +1,14 @@
+{
+  "classifier": "linux-x86-64",
+  "runner_label": "ubuntu-latest",
+  "runner_os": "Linux",
+  "runner_arch": "X64",
+  "emulated": false,
+  "image_os": "ubuntu24",
+  "image_version": "20260615.205.1",
+  "cpu_model": "AMD EPYC 7763 64-Core Processor",
+  "cpu_count": "4",
+  "git_sha": "90a87257d8daec6c77ef99b71e7dec50acd6ab16",
+  "git_ref": "master",
+  "run_url": "https://github.com/nroduit/weasis-dicom-tools/actions/runs/27912153053"
+}

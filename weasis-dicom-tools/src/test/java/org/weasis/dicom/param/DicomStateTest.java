@@ -13,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.dcm4che3.data.Attributes;
@@ -159,7 +160,7 @@ class DicomStateTest {
     @Test
     void datetime_setters_and_getters_work_correctly() {
       var state = new DicomState();
-      var now = LocalDateTime.now();
+      var now = LocalDateTime.now(ZoneId.of("CET"));
 
       state.setStartConnectionDateTime(now);
       state.setStartTransferDateTime(now.plusMinutes(1));

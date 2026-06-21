@@ -70,7 +70,10 @@ if not exist "%LIB_DIR%" (
 
 set "CP_FILE=%MODULE_DIR%\target\codec-bench-cp.txt"
 call "%MVN%" %OFF% -ntp dependency:build-classpath %VFLAG% -pl benchmark -Dmdep.includeScope=runtime -Dmdep.outputFile="%CP_FILE%" || exit /b 1
-set /p DEPCP=<"%CP_FILE%"
+rem `set /p` truncates input at 1023 chars and the slf4j jars sit at the tail of the
+rem classpath (NoClassDefFoundError once the line is longer, e.g. on CI's deeper paths).
+rem `for /f` reads the full line; eol=| avoids the default ';' eol splitting the classpath.
+for /f "usebackq eol=| delims=" %%C in ("%CP_FILE%") do set "DEPCP=%%C"
 set "CP=%MODULE_DIR%\target\classes;%DEPCP%"
 
 if not defined WEASIS_VERSION set "WEASIS_VERSION=default"

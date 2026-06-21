@@ -10,6 +10,7 @@
 package org.weasis.dicom.hp;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Objects;
 import org.weasis.core.util.annotations.Generated;
 import org.weasis.dicom.hp.enums.RelativeTimeUnits;
@@ -59,7 +60,7 @@ public class RelativeTime {
   }
 
   private LocalDateTime toDate(int value) {
-    return LocalDateTime.now().minus(value, units.getChronoUnit());
+    return LocalDateTime.now(ZoneId.of("CET")).minus(value, units.getChronoUnit());
   }
 
   @Generated

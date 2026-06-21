@@ -7,7 +7,6 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
  */
-
 package org.dcm4che3.img.bench;
 
 import java.awt.image.BufferedImage;
@@ -33,6 +32,7 @@ import java.util.stream.Stream;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
+import org.dcm4che3.imageio.codec.TransferSyntaxType;
 import org.dcm4che3.img.DicomImageReadParam;
 import org.dcm4che3.img.DicomImageReader;
 import org.dcm4che3.img.DicomJpegWriteParam;
@@ -43,7 +43,6 @@ import org.dcm4che3.img.Transcoder;
 import org.dcm4che3.img.stream.DicomFileInputStream;
 import org.dcm4che3.img.stream.ImageDescriptor;
 import org.dcm4che3.img.util.SupplierEx;
-import org.dcm4che3.imageio.codec.TransferSyntaxType;
 import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.io.DicomOutputStream;
 import org.weasis.opencv.data.PlanarImage;
@@ -55,26 +54,26 @@ import org.weasis.opencv.data.PlanarImage;
  * pixels &rarr; raw raster), <b>transcode</b> (decode + re-encode back to the <i>source</i> codec
  * &mdash; a same-codec round-trip) and <b>encode</b> alone (re-encode of already-decoded pixels
  * &mdash; the frames are decoded eagerly and untimed first, so the timer covers only the encoder)
- * and prints one CSV row per file. Both the transcode and the encode pass re-encode with the encoder
- * that matches the file's own decoder, so {@code decode_*}, {@code transcode_*} and {@code encode_*}
- * all exercise the same codec; the {@code decoder} / {@code encoder} columns name it. The transcode
- * is skipped (its columns left blank) for raw sources &mdash; nothing to decompress &mdash; and for
- * compressed codecs the library cannot encode (RLE, HTJ2K); the encode columns are likewise blank
- * when the source codec has no encoder. Run it once against the baseline native library and once
- * against the candidate, then diff the two CSVs:
+ * and prints one CSV row per file. Both the transcode and the encode pass re-encode with the
+ * encoder that matches the file's own decoder, so {@code decode_*}, {@code transcode_*} and {@code
+ * encode_*} all exercise the same codec; the {@code decoder} / {@code encoder} columns name it. The
+ * transcode is skipped (its columns left blank) for raw sources &mdash; nothing to decompress
+ * &mdash; and for compressed codecs the library cannot encode (RLE, HTJ2K); the encode columns are
+ * likewise blank when the source codec has no encoder. Run it once against the baseline native
+ * library and once against the candidate, then diff the two CSVs:
  *
  * <ul>
  *   <li><b>{@code dst_ts}</b> is the syntax actually written by the round-trip; it equals {@code
  *       src_ts} (same codec in, same codec out). The harness <i>verifies</i> the process genuinely
- *       decompressed and recompressed: if the encoder downgraded the output to raw because the pixel
- *       type rules out the source codec, no recompression happened and the file is reported as an
- *       {@code ERROR} row rather than misleading timings.
+ *       decompressed and recompressed: if the encoder downgraded the output to raw because the
+ *       pixel type rules out the source codec, no recompression happened and the file is reported
+ *       as an {@code ERROR} row rather than misleading timings.
  *   <li><b>{@code *_mpps}</b> columns give throughput (megapixels/s) &mdash; the speed gate.
  *   <li><b>{@code decode_sha1}</b> is a hash of the raw decoded pixels &mdash; for lossless source
  *       syntaxes it must be identical between the two builds (correctness gate). For the color
  *       samples this catches an RGB/BGR swap. For lossy source it may legitimately differ.
- *   <li><b>{@code enc_sha1}</b> hashes the re-encoded stream &mdash; identical only when the encoder
- *       is deterministic and lossless.
+ *   <li><b>{@code enc_sha1}</b> hashes the re-encoded stream &mdash; identical only when the
+ *       encoder is deterministic and lossless.
  *   <li><b>{@code psnr_db} / {@code ssim}</b> measure round-trip quality: the re-encoded stream is
  *       decoded back and compared against the original raster. Relevant for <i>lossy</i> source
  *       codecs (the round-trip's generation loss) &mdash; the candidate's values must be &ge; the
@@ -98,13 +97,14 @@ public class CodecBenchmark {
 
   // SSIM is computed over non-overlapping windows, processed in horizontal strips to bound memory.
   private static final int SSIM_WINDOW = 8;
-  private static final int STRIP_HEIGHT = 32; // multiple of SSIM_WINDOW so whole windows fit a strip
+  private static final int STRIP_HEIGHT =
+      32; // multiple of SSIM_WINDOW so whole windows fit a strip
 
   private static final String CSV_HEADER =
-          "file,frames,rows,cols,mp_per_frame,src_ts,"
-                  + "decoder,decode_med_ms,decode_p95_ms,decode_mpps,decode_sha1,"
-                  + "dst_ts,transcode_med_ms,transcode_p95_ms,transcode_mpps,out_kb,enc_sha1,psnr_db,ssim,"
-                  + "encoder,encode_med_ms,encode_p95_ms,encode_mpps";
+      "file,frames,rows,cols,mp_per_frame,src_ts,"
+          + "decoder,decode_med_ms,decode_p95_ms,decode_mpps,decode_sha1,"
+          + "dst_ts,transcode_med_ms,transcode_p95_ms,transcode_mpps,out_kb,enc_sha1,psnr_db,ssim,"
+          + "encoder,encode_med_ms,encode_p95_ms,encode_mpps";
 
   public static void main(String[] args) throws IOException {
     if (args.length < 1) {
@@ -148,15 +148,15 @@ public class CodecBenchmark {
     }
 
     System.err.printf(
-            "# weasis-core-img=%s  java=%s  os=%s/%s  cores=%d%n",
-            System.getProperty("weasis.core.img.version", "?"),
-            System.getProperty("java.version"),
-            System.getProperty("os.name"),
-            System.getProperty("os.arch"),
-            Runtime.getRuntime().availableProcessors());
+        "# weasis-core-img=%s  java=%s  os=%s/%s  cores=%d%n",
+        System.getProperty("weasis.core.img.version", "?"),
+        System.getProperty("java.version"),
+        System.getProperty("os.name"),
+        System.getProperty("os.arch"),
+        Runtime.getRuntime().availableProcessors());
     System.err.printf(
-            "# transcode=same-codec round-trip  warmup=%d  iterations=%d  files=%d  skipped=%d%n",
-            warmup, iters, files.size(), skipped);
+        "# transcode=same-codec round-trip  warmup=%d  iterations=%d  files=%d  skipped=%d%n",
+        warmup, iters, files.size(), skipped);
     System.out.println(CSV_HEADER);
 
     for (Path f : files) {
@@ -177,8 +177,8 @@ public class CodecBenchmark {
       dis.setIncludeBulkData(DicomInputStream.IncludeBulkData.URI);
       Attributes attrs = dis.readDataset();
       return attrs.getInt(Tag.Rows, 0) > 0
-              && attrs.getInt(Tag.Columns, 0) > 0
-              && attrs.contains(Tag.PixelData);
+          && attrs.getInt(Tag.Columns, 0) > 0
+          && attrs.contains(Tag.PixelData);
     } catch (Exception e) {
       return false; // not a DICOM stream, truncated, or otherwise unreadable
     }
@@ -186,7 +186,7 @@ public class CodecBenchmark {
 
   /** Per-file source metadata: frame count, geometry, pixel depth and transfer syntax. */
   private record FrameInfo(
-          int frames, int rows, int cols, int bitsStored, int samplesPerPixel, String srcTS) {
+      int frames, int rows, int cols, int bitsStored, int samplesPerPixel, String srcTS) {
     double mpPerFrame() {
       return rows * (double) cols / 1_000_000.0;
     }
@@ -198,17 +198,17 @@ public class CodecBenchmark {
 
   /** Timed transcode result plus the round-trip verification (output syntax, size, quality). */
   private record TranscodeResult(
-          double medMs,
-          double p95Ms,
-          double mpps,
-          long outBytes,
-          String encSha1,
-          String dstTS,
-          double psnr,
-          double ssim) {}
+      double medMs,
+      double p95Ms,
+      double mpps,
+      long outBytes,
+      String encSha1,
+      String dstTS,
+      double psnr,
+      double ssim) {}
 
   private static void benchOne(Path f, String label, int warmup, int iters)
-          throws IOException, NoSuchAlgorithmException {
+      throws IOException, NoSuchAlgorithmException {
     // The caller has already verified via isDecodableImage that this file carries pixel data.
     FrameInfo info = readFrameInfo(f);
 
@@ -223,10 +223,11 @@ public class CodecBenchmark {
     boolean compressedSource = isEncapsulated(info.srcTS());
 
     TranscodeResult transcode =
-            compressedSource && hasEncoder ? timeTranscode(f, info, warmup, iters) : null;
+        compressedSource && hasEncoder ? timeTranscode(f, info, warmup, iters) : null;
     long[] encodeNs = hasEncoder ? timeEncode(f, info.srcTS(), info.frames(), warmup, iters) : null;
 
-    System.out.println(buildRow(label, info, hasEncoder, decodeNs, decodeSha1, transcode, encodeNs));
+    System.out.println(
+        buildRow(label, info, hasEncoder, decodeNs, decodeSha1, transcode, encodeNs));
   }
 
   /** Reads frame count, geometry, pixel depth and transfer syntax without loading pixel data. */
@@ -235,34 +236,36 @@ public class CodecBenchmark {
       dis.setIncludeBulkData(DicomInputStream.IncludeBulkData.NO);
       Attributes attrs = dis.readDataset();
       return new FrameInfo(
-              attrs.getInt(Tag.NumberOfFrames, 1),
-              attrs.getInt(Tag.Rows, 0),
-              attrs.getInt(Tag.Columns, 0),
-              attrs.getInt(Tag.BitsStored, attrs.getInt(Tag.BitsAllocated, 8)),
-              attrs.getInt(Tag.SamplesPerPixel, 1),
-              dis.getTransferSyntax());
+          attrs.getInt(Tag.NumberOfFrames, 1),
+          attrs.getInt(Tag.Rows, 0),
+          attrs.getInt(Tag.Columns, 0),
+          attrs.getInt(Tag.BitsStored, attrs.getInt(Tag.BitsAllocated, 8)),
+          attrs.getInt(Tag.SamplesPerPixel, 1),
+          dis.getTransferSyntax());
     }
   }
 
-  /** Re-creates reader + stream each pass so pixels are genuinely re-decoded; returns the SHA-1. */
+  /**
+   * Re-creates reader + stream each pass so pixels are genuinely re-decoded; returns the digest.
+   */
   private static String timeDecode(Path f, int frames, int warmup, int iters, long[] ns)
-          throws IOException, NoSuchAlgorithmException {
-    String sha1 = null;
+      throws IOException, NoSuchAlgorithmException {
+    String digest = null;
     for (int i = -warmup; i < iters; i++) {
       long t0 = System.nanoTime();
       String h = decodeAllFrames(f, frames);
       long dt = System.nanoTime() - t0;
       if (i >= 0) {
         ns[i] = dt;
-        sha1 = h; // deterministic across passes; keep the last
+        digest = h; // deterministic across passes; keep the last
       }
     }
-    return sha1;
+    return digest;
   }
 
   /** Full decode + re-encode to the source codec (output discarded but counted), then verified. */
   private static TranscodeResult timeTranscode(Path f, FrameInfo info, int warmup, int iters)
-          throws IOException, NoSuchAlgorithmException {
+      throws IOException, NoSuchAlgorithmException {
     String srcTS = info.srcTS();
     long[] ns = new long[iters];
     long outBytes = -1;
@@ -278,7 +281,8 @@ public class CodecBenchmark {
         encSha1 = sink.hex();
       }
     }
-    // ---- VERIFY + QUALITY (untimed): decode the re-encoded stream and compare to the original. ----
+    // ---- VERIFY + QUALITY (untimed): decode the re-encoded stream and compare to the original.
+    // ----
     // Written next to the source (a caller-controlled directory) rather than the world-writable
     // system temp dir, then deleted in the finally block.
     Path tmp = Files.createTempFile(f.toAbsolutePath().getParent(), "codecbench-", ".dcm");
@@ -292,28 +296,30 @@ public class CodecBenchmark {
       // type ruled out the codec) no recompression happened — fail the row loudly.
       if (!srcTS.equals(actualDstTS) || !isEncapsulated(actualDstTS)) {
         throw new IOException(
-                "transcode did not recompress to source codec (" + srcTS + " -> " + actualDstTS + ")");
+            "transcode did not recompress to source codec (" + srcTS + " -> " + actualDstTS + ")");
       }
       // Dynamic range used as PSNR/SSIM peak. Signed pixels use their full bit-depth span.
       double maxVal = (double) (1L << Math.max(1, info.bitsStored())) - 1;
       double[] q = quality(f, tmp, info.frames(), maxVal, info.samplesPerPixel() >= 3);
       return new TranscodeResult(
-              ns2ms(median(ns)),
-              ns2ms(p95(ns)),
-              info.totalMp() / (median(ns) / 1e9),
-              outBytes,
-              encSha1,
-              actualDstTS,
-              q[0],
-              q[1]);
+          ns2ms(median(ns)),
+          ns2ms(p95(ns)),
+          info.totalMp() / (median(ns) / 1e9),
+          outBytes,
+          encSha1,
+          actualDstTS,
+          q[0],
+          q[1]);
     } finally {
       Files.deleteIfExists(tmp);
     }
   }
 
-  /** Re-encodes to the SOURCE syntax; frames are decoded eagerly (untimed), only encode is timed. */
+  /**
+   * Re-encodes to the SOURCE syntax; frames are decoded eagerly (untimed), only encode is timed.
+   */
   private static long[] timeEncode(Path f, String srcTS, int frames, int warmup, int iters)
-          throws IOException, NoSuchAlgorithmException {
+      throws IOException, NoSuchAlgorithmException {
     long[] ns = new long[iters];
     for (int i = -warmup; i < iters; i++) {
       long dt = encodeOnly(f, srcTS, frames);
@@ -326,53 +332,53 @@ public class CodecBenchmark {
 
   /** Assembles one CSV row from the decode / transcode / encode measurements. */
   private static String buildRow(
-          String label,
-          FrameInfo info,
-          boolean hasEncoder,
-          long[] decodeNs,
-          String decodeSha1,
-          TranscodeResult transcode,
-          long[] encodeNs) {
+      String label,
+      FrameInfo info,
+      boolean hasEncoder,
+      long[] decodeNs,
+      String decodeSha1,
+      TranscodeResult transcode,
+      long[] encodeNs) {
     double totalMp = info.totalMp();
     StringBuilder sb = new StringBuilder();
     sb.append(csv(label))
-            .append(',')
-            .append(info.frames())
-            .append(',')
-            .append(info.rows())
-            .append(',')
-            .append(info.cols())
-            .append(',')
-            .append(fmt(info.mpPerFrame()))
-            .append(',')
-            .append(info.srcTS())
-            .append(',')
-            .append(csv(codecName(info.srcTS()))) // decoder (names the codec before the decode columns)
-            .append(',')
-            .append(fmt(ns2ms(median(decodeNs))))
-            .append(',')
-            .append(fmt(ns2ms(p95(decodeNs))))
-            .append(',')
-            .append(fmt(totalMp / (median(decodeNs) / 1e9)))
-            .append(',')
-            .append(decodeSha1);
+        .append(',')
+        .append(info.frames())
+        .append(',')
+        .append(info.rows())
+        .append(',')
+        .append(info.cols())
+        .append(',')
+        .append(fmt(info.mpPerFrame()))
+        .append(',')
+        .append(info.srcTS())
+        .append(',')
+        .append(csv(codecName(info.srcTS()))) // decoder (names the codec before the decode columns)
+        .append(',')
+        .append(fmt(ns2ms(median(decodeNs))))
+        .append(',')
+        .append(fmt(ns2ms(p95(decodeNs))))
+        .append(',')
+        .append(fmt(totalMp / (median(decodeNs) / 1e9)))
+        .append(',')
+        .append(decodeSha1);
     if (transcode != null) {
       sb.append(',')
-              .append(transcode.dstTS())
-              .append(',')
-              .append(fmt(transcode.medMs()))
-              .append(',')
-              .append(fmt(transcode.p95Ms()))
-              .append(',')
-              .append(fmt(transcode.mpps()))
-              .append(',')
-              .append(fmt(transcode.outBytes() / 1024.0))
-              .append(',')
-              .append(transcode.encSha1())
-              .append(',')
-              .append(fmtPsnr(transcode.psnr()))
-              .append(',')
-              .append(fmt(transcode.ssim()));
+          .append(transcode.dstTS())
+          .append(',')
+          .append(fmt(transcode.medMs()))
+          .append(',')
+          .append(fmt(transcode.p95Ms()))
+          .append(',')
+          .append(fmt(transcode.mpps()))
+          .append(',')
+          .append(fmt(transcode.outBytes() / 1024.0))
+          .append(',')
+          .append(transcode.encSha1())
+          .append(',')
+          .append(fmtPsnr(transcode.psnr()))
+          .append(',')
+          .append(fmt(transcode.ssim()));
     } else {
       sb.append(",,,,,,,,"); // 8 transcode columns
     }
@@ -381,11 +387,11 @@ public class CodecBenchmark {
     // encode columns are independent: present whenever the source codec has an encoder.
     if (encodeNs != null) {
       sb.append(',')
-              .append(fmt(ns2ms(median(encodeNs))))
-              .append(',')
-              .append(fmt(ns2ms(p95(encodeNs))))
-              .append(',')
-              .append(fmt(totalMp / (median(encodeNs) / 1e9)));
+          .append(fmt(ns2ms(median(encodeNs))))
+          .append(',')
+          .append(fmt(ns2ms(p95(encodeNs))))
+          .append(',')
+          .append(fmt(totalMp / (median(encodeNs) / 1e9)));
     } else {
       sb.append(",,,"); // 3 encode columns
     }
@@ -399,11 +405,11 @@ public class CodecBenchmark {
     return new DicomImageReader(Transcoder.dicomImageReaderSpi);
   }
 
-  /** Reads every frame's raw raster and returns a SHA-1 over the decoded pixel data. */
+  /** Reads every frame's raw raster and returns a SHA-256 over the decoded pixel data. */
   private static String decodeAllFrames(Path f, int frames)
-          throws IOException, NoSuchAlgorithmException {
+      throws IOException, NoSuchAlgorithmException {
     DicomImageReader reader = newReader();
-    MessageDigest md = MessageDigest.getInstance("SHA-1");
+    MessageDigest md = MessageDigest.getInstance("SHA-256");
     try (DicomFileInputStream iis = new DicomFileInputStream(f)) {
       reader.setInput(iis);
       DicomImageReadParam param = (DicomImageReadParam) reader.getDefaultReadParam();
@@ -441,7 +447,7 @@ public class CodecBenchmark {
    * is hashed into a counting sink and discarded.
    */
   private static long encodeOnly(Path f, String targetTS, int frames)
-          throws IOException, NoSuchAlgorithmException {
+      throws IOException, NoSuchAlgorithmException {
     DicomImageReader reader = newReader();
     try (DicomFileInputStream iis = new DicomFileInputStream(f)) {
       reader.setInput(iis);
@@ -476,8 +482,7 @@ public class CodecBenchmark {
           out.writeRawImageData(dos, dataSet);
         } else {
           int[] jpegParams =
-                  out.adaptTagsToCompressedImage(
-                          dataSet, out.getFirstImage().get(), desc, writeParams);
+              out.adaptTagsToCompressedImage(dataSet, out.getFirstImage().get(), desc, writeParams);
           out.writeCompressedImageData(dos, dataSet, jpegParams);
         }
       }
@@ -495,12 +500,12 @@ public class CodecBenchmark {
    *
    * <p>Grayscale is compared on the raw decoded samples (peak = {@code maxVal}). Color is compared
    * in the reader's RGB presentation via {@link DicomImageReader#read} with peak 255: a lossless
-   * color transcode may change the photometric interpretation (e.g. YBR_FULL &harr; RGB), so the raw
-   * samples differ while the displayed pixels are identical &mdash; comparing in RGB makes a
+   * color transcode may change the photometric interpretation (e.g. YBR_FULL &harr; RGB), so the
+   * raw samples differ while the displayed pixels are identical &mdash; comparing in RGB makes a
    * lossless color round-trip score Inf/1.0.
    */
   private static double[] quality(Path orig, Path enc, int frames, double maxVal, boolean color)
-          throws IOException {
+      throws IOException {
     final double peak = color ? 255.0 : maxVal;
     final double c1 = sq(0.01 * peak);
     final double c2 = sq(0.03 * peak);
@@ -510,7 +515,7 @@ public class CodecBenchmark {
     // accumulators: sum of squared error, sample count, SSIM sum, window count
     double[] acc = new double[4];
     try (DicomFileInputStream i1 = new DicomFileInputStream(orig);
-         DicomFileInputStream i2 = new DicomFileInputStream(enc)) {
+        DicomFileInputStream i2 = new DicomFileInputStream(enc)) {
       r1.setInput(i1);
       r2.setInput(i2);
       DicomImageReadParam p1 = (DicomImageReadParam) r1.getDefaultReadParam();
@@ -536,7 +541,7 @@ public class CodecBenchmark {
 
   /** Grayscale (and other raw-sample) comparison: per band, in horizontal strips, on the raster. */
   private static void accumulateGrayFrame(
-          double[] acc, Raster ra, Raster rb, double c1, double c2) {
+      double[] acc, Raster ra, Raster rb, double c1, double c2) {
     int w = Math.min(ra.getWidth(), rb.getWidth());
     int h = Math.min(ra.getHeight(), rb.getHeight());
     int bands = Math.min(ra.getNumBands(), rb.getNumBands());
@@ -557,7 +562,7 @@ public class CodecBenchmark {
    * independently and pooled, in horizontal strips to bound memory on large frames.
    */
   private static void accumulateColorFrame(
-          double[] acc, BufferedImage ba, BufferedImage be, double c1, double c2) {
+      double[] acc, BufferedImage ba, BufferedImage be, double c1, double c2) {
     int w = Math.min(ba.getWidth(), be.getWidth());
     int h = Math.min(ba.getHeight(), be.getHeight());
     for (int y = 0; y < h; y += STRIP_HEIGHT) {
@@ -578,7 +583,7 @@ public class CodecBenchmark {
 
   /** Adds one strip's squared error and SSIM windows into the running accumulator. */
   private static void accumulateStrip(
-          double[] acc, double[] a, double[] e, int w, int hh, double c1, double c2) {
+      double[] acc, double[] a, double[] e, int w, int hh, double c1, double c2) {
     for (int k = 0; k < a.length; k++) {
       double d = a[k] - e[k];
       acc[0] += d * d;
@@ -594,7 +599,7 @@ public class CodecBenchmark {
 
   /** SSIM over a single window at (wx,wy) in two row-major strip buffers of width w. */
   private static double ssimWindow(
-          double[] a, double[] e, int w, int wx, int wy, double c1, double c2) {
+      double[] a, double[] e, int w, int wx, int wy, double c1, double c2) {
     int n = SSIM_WINDOW * SSIM_WINDOW;
     double sa = 0;
     double se = 0;
@@ -674,13 +679,13 @@ public class CodecBenchmark {
     md.update((byte) v);
   }
 
-  /** Output stream that discards data but counts bytes and keeps a running SHA-1. */
+  /** Output stream that discards data but counts bytes and keeps a running SHA-256. */
   private static final class CountingDigestStream extends OutputStream {
     long count;
     final MessageDigest md;
 
     CountingDigestStream() throws NoSuchAlgorithmException {
-      md = MessageDigest.getInstance("SHA-1");
+      md = MessageDigest.getInstance("SHA-256");
     }
 
     @Override
@@ -701,12 +706,14 @@ public class CodecBenchmark {
   }
 
   private static long median(long[] a) {
+    if (a.length == 0) return 0L;
     long[] s = a.clone();
     Arrays.sort(s);
     return s[s.length / 2];
   }
 
   private static long p95(long[] a) {
+    if (a.length == 0) return 0L;
     long[] s = a.clone();
     Arrays.sort(s);
     int idx = (int) Math.ceil(0.95 * s.length) - 1;

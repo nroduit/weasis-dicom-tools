@@ -28,6 +28,11 @@ set "MODULE_DIR=%~dp0"
 if "%MODULE_DIR:~-1%"=="\" set "MODULE_DIR=%MODULE_DIR:~0,-1%"
 for %%I in ("%MODULE_DIR%\..") do set "REPO_ROOT=%%~fI"
 if not defined MVN set "MVN=mvn"
+rem cmd's `call "mvn"` won't PATHEXT-resolve a quoted bare command name: it fails silently
+rem with exit 1 and no output (the build then dies at "# building ..."). Resolve a bare
+rem launcher to its full path so the quoted `call "%MVN%"` invocations below work; `where`
+rem echoes an explicit path back unchanged, and if it finds nothing we keep the original.
+for /f "delims=" %%I in ('where "%MVN%" 2^>nul') do if not defined MVN_RESOLVED set "MVN=%%I" & set "MVN_RESOLVED=1"
 
 set "SAMPLE_DIR=%~f1"
 set "WARMUP=%~2"

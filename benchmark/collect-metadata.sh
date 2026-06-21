@@ -30,7 +30,9 @@ case "$os" in
            cpu_count=$(getconf _NPROCESSORS_ONLN 2>/dev/null) ;;
   macOS)   cpu_model=$(sysctl -n machdep.cpu.brand_string 2>/dev/null)
            cpu_count=$(getconf _NPROCESSORS_ONLN 2>/dev/null) ;;
-  Windows) cpu_model=$(wmic cpu get name /value 2>/dev/null | sed -n 's/^Name=//p' | tr -d '\r' | head -1)
+  Windows) # wmic is removed from recent Windows / GitHub windows-latest images; use PowerShell
+           # (as collect-metadata.ps1 does). `|| true` keeps a missing/empty result non-fatal under set -e.
+           cpu_model=$(powershell -NoProfile -Command "(Get-CimInstance Win32_Processor).Name" 2>/dev/null | tr -d '\r' | head -1 || true)
            cpu_count="${NUMBER_OF_PROCESSORS:-}" ;;
   *)       cpu_model=""; cpu_count=$(getconf _NPROCESSORS_ONLN 2>/dev/null) ;;
 esac

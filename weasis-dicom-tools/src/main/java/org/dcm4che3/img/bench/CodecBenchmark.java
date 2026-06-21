@@ -706,16 +706,16 @@ public class CodecBenchmark {
   }
 
   private static long median(long[] a) {
-    if (a.length == 0) return 0L;
     long[] s = a.clone();
     Arrays.sort(s);
+    if (s.length == 0) return 0L;
     return s[s.length / 2];
   }
 
   private static long p95(long[] a) {
-    if (a.length == 0) return 0L;
     long[] s = a.clone();
     Arrays.sort(s);
+    if (s.length == 0) return 0L;
     int idx = (int) Math.ceil(0.95 * s.length) - 1;
     return s[Math.max(0, Math.min(idx, s.length - 1))];
   }

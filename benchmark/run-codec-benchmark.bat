@@ -54,8 +54,8 @@ set "VFLAG="
 if defined WEASIS_VERSION set "VFLAG=-Dweasis.core.img.version=%WEASIS_VERSION%"
 
 echo # building (weasis-core-img=%WEASIS_VERSION%) ... 1>&2
-call "%MVN%" %OFF% -q install -DskipTests %VFLAG% -pl weasis-dicom-tools -am || exit /b 1
-call "%MVN%" %OFF% -q process-classes %VFLAG% -pl benchmark || exit /b 1
+call "%MVN%" %OFF% -ntp install -DskipTests %VFLAG% -pl weasis-dicom-tools -am || exit /b 1
+call "%MVN%" %OFF% -ntp process-classes %VFLAG% -pl benchmark || exit /b 1
 
 set "LIB_DIR=%MODULE_DIR%\target\lib\%NATIVE_DIR_NAME%"
 if not exist "%LIB_DIR%" (
@@ -64,7 +64,7 @@ if not exist "%LIB_DIR%" (
 )
 
 set "CP_FILE=%MODULE_DIR%\target\codec-bench-cp.txt"
-call "%MVN%" %OFF% -q dependency:build-classpath %VFLAG% -pl benchmark -Dmdep.includeScope=runtime -Dmdep.outputFile="%CP_FILE%" || exit /b 1
+call "%MVN%" %OFF% -ntp dependency:build-classpath %VFLAG% -pl benchmark -Dmdep.includeScope=runtime -Dmdep.outputFile="%CP_FILE%" || exit /b 1
 set /p DEPCP=<"%CP_FILE%"
 set "CP=%MODULE_DIR%\target\classes;%DEPCP%"
 
@@ -74,10 +74,13 @@ set "JAVA_CMD=java %JAVA_OPTS% -Dweasis.core.img.version=%WEASIS_VERSION% -Djava
 
 if defined OUT (
   %JAVA_CMD% > "%OUT%"
-  rem Build-metadata sidecar next to the CSV (parity with the CI run).
+  set "RC=!errorlevel!"
+  rem Build-metadata sidecar next to the CSV (parity with the CI run); never fail the run on it
+  rem (matches the "|| true" guard in run-codec-benchmark.sh).
   set "OUT_JSON=%OUT%"
   if /i "%OUT:~-4%"==".csv" set "OUT_JSON=%OUT:~0,-4%"
-  powershell -NoProfile -ExecutionPolicy Bypass -File "%MODULE_DIR%\collect-metadata.ps1" -Classifier windows-x86-64 -Out "%OUT_JSON%.json"
+  powershell -NoProfile -ExecutionPolicy Bypass -File "%MODULE_DIR%\collect-metadata.ps1" -Classifier windows-x86-64 -Out "!OUT_JSON!.json" || ver >nul
+  exit /b !RC!
 ) else (
   %JAVA_CMD%
 )

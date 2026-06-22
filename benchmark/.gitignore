@@ -10,3 +10,4 @@ corpus/
 # (written by the native-benchmark workflow / aggregate-results.py).
 !results/
 !results/**
+/corpus.lock

@@ -50,13 +50,13 @@
       </snapshots>
     </repository>
     <repository>
+      <id>nroduit-mvn-repo</id>
+      <name>nroduit GitHub Maven Repository</name>
+      <url>https://raw.githubusercontent.com/nroduit/mvn-repo/master/</url>
       <snapshots>
         <enabled>true</enabled>
         <updatePolicy>daily</updatePolicy>
       </snapshots>
-      <id>nroduit-mvn-repo</id>
-      <name>nroduit GitHub Maven Repository</name>
-      <url>https://raw.githubusercontent.com/nroduit/mvn-repo/master/</url>
     </repository>
     <repository>
       <id>www.dcm4che.org</id>

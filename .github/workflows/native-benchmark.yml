@@ -21,6 +21,13 @@ on:
 permissions:
   contents: read
 
+# Serialize runs: the collect job commits to benchmark/results, so overlapping runs would
+# race on the push. Do not cancel in-progress — a partially finished benchmark commit is worse
+# than waiting.
+concurrency:
+  group: native-benchmark
+  cancel-in-progress: false
+
 jobs:
   # Fetch the codec corpus once (byte-exact static files from the Weasis demo archive,
   # selected by the vendored manifests + pinned by corpus.lock) and hand it to every
@@ -30,12 +37,13 @@ jobs:
   corpus:
     name: Fetch corpus
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           persist-credentials: false
       - name: Restore cached corpus
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
           path: benchmark/corpus
           key: codec-corpus-${{ hashFiles('benchmark/manifests/**', 'benchmark/corpus.lock', 'benchmark/fetch-corpus.sh') }}
@@ -46,7 +54,7 @@ jobs:
           LOCK_MODE: write
         run: bash benchmark/fetch-corpus.sh benchmark/corpus
       - name: Upload corpus
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: codec-corpus
           path: benchmark/corpus
@@ -56,6 +64,7 @@ jobs:
     name: ${{ matrix.classifier }}
     needs: corpus
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -69,17 +78,17 @@ jobs:
           # emulation (an x64 JDK is required to load it). windows-11-arm is public preview.
           - { os: windows-11-arm,   classifier: windows-x86-64-emulated, emulated: true }
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           persist-credentials: false
       - name: Download corpus
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: codec-corpus
           path: benchmark/corpus
       - name: Set up JDK 17
         if: ${{ !matrix.emulated }}
-        uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
+        uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -88,7 +97,7 @@ jobs:
       # x86-64 opencv_java.dll (an arm64 JVM would reject the x64 native).
       - name: Set up JDK 17 (x64 under ARM emulation)
         if: ${{ matrix.emulated }}
-        uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
+        uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -141,7 +150,7 @@ jobs:
           bash benchmark/collect-metadata.sh "${{ matrix.classifier }}" "bench-out/${{ matrix.classifier }}.json"
           cat "bench-out/${{ matrix.classifier }}.json"
       - name: Upload CSV + metadata
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: bench-${{ matrix.classifier }}
           path: |
@@ -154,12 +163,13 @@ jobs:
     needs: benchmark
     if: ${{ !cancelled() && inputs.commit_results }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
       - name: Download all platform CSVs
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           path: incoming
           pattern: bench-*

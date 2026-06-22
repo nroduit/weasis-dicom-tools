@@ -1,15 +1,28 @@
 version: 2
 updates:
-  - package-ecosystem: "github-actions"
-    directory: "/"
+  # Keep pinned GitHub Actions SHAs (and their version comments) up to date.
+  - package-ecosystem: github-actions
+    directory: /
     schedule:
-      interval: "weekly"
+      interval: weekly
+    commit-message:
+      prefix: ci
     groups:
-      github-actions:
+      actions:
         patterns:
           - "*"
+
+  # Maven dependencies for the root BOM and the bundle module.
+  - package-ecosystem: maven
+    directories:
+      - /
+      - /weasis-dicom-tools
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
     commit-message:
-      prefix: "ci"
-    labels:
-      - "dependencies"
-      - "github-actions"
+      prefix: build
+    groups:
+      maven:
+        patterns:
+          - "*"

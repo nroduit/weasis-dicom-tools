@@ -717,7 +717,12 @@ public class CodecBenchmark {
     Arrays.sort(s);
     if (s.length == 0) return 0L;
     int idx = (int) Math.ceil(0.95 * s.length) - 1;
-    return s[Math.max(0, Math.min(idx, s.length - 1))];
+    if (idx < 0) {
+      idx = 0;
+    } else if (idx >= s.length) {
+      idx = s.length - 1;
+    }
+    return s[idx];
   }
 
   private static double ns2ms(long ns) {

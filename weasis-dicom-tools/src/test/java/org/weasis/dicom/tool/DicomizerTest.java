@@ -11,12 +11,15 @@ package org.weasis.dicom.tool;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
+import javax.imageio.ImageIO;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
@@ -33,6 +36,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.opencv.core.Core;
+import org.opencv.imgcodecs.Imgcodecs;
 import org.weasis.opencv.natives.NativeLibrary;
 
 @DisplayNameGeneration(ReplaceUnderscores.class)
@@ -355,6 +360,56 @@ class DicomizerTest {
       assertTrue(Files.exists(outputJpeg));
     }
 
+    @Test
+    void convert_16bit_png_produces_non_white_jpeg() throws IOException {
+      var input16BitPng = create16BitGradientPng();
+      var outputJpeg = tempDir.resolve("converted_16bit.jpg");
+
+      var result = Dicomizer.convertToJpegAndWrite(input16BitPng, outputJpeg, null);
+
+      assertTrue(result);
+      assertTrue(Files.exists(outputJpeg));
+
+      // Regression: a 16-bit input must be down-converted before JPEG encoding. Without it the
+      // encoder saturates every sample to 255 and writes an all-white image.
+      var written = Imgcodecs.imread(outputJpeg.toString(), Imgcodecs.IMREAD_COLOR);
+      assertFalse(written.empty(), "Converted JPEG could not be read back");
+      var mean = Core.mean(written);
+      assertTrue(
+          mean.val[0] < 250 && mean.val[1] < 250 && mean.val[2] < 250,
+          "Converted JPEG is (near-)white, mean=" + mean);
+    }
+
+    @Test
+    void convert_keeps_jpeg_extension_without_appending_jpg() throws URISyntaxException {
+      var inputPng = createTestPngFile();
+      var outputJpeg = tempDir.resolve("converted.jpeg");
+
+      var result = Dicomizer.convertToJpegAndWrite(inputPng, outputJpeg, null);
+
+      assertTrue(result);
+      assertTrue(Files.exists(outputJpeg), "Requested .jpeg output should be written as-is");
+      assertFalse(
+          Files.exists(tempDir.resolve("converted.jpeg.jpg")),
+          "A .jpeg request must not produce a double .jpeg.jpg extension");
+    }
+
+    @Test
+    void convert_jpeg_input_overwrites_existing_output() throws IOException, URISyntaxException {
+      var inputJpeg = createTestJpegFile();
+      var existingOutput = tempDir.resolve("existing.jpg");
+      var staleContent = "stale content".getBytes();
+      Files.write(existingOutput, staleContent);
+
+      var result = Dicomizer.convertToJpegAndWrite(inputJpeg, existingOutput, null);
+
+      assertTrue(result, "Conversion must overwrite an existing writable output file");
+      assertTrue(Files.exists(existingOutput));
+      assertFalse(
+          Arrays.equals(staleContent, Files.readAllBytes(existingOutput)),
+          "Existing output should have been replaced with the converted image");
+    }
+
     @ParameterizedTest
     @ValueSource(ints = {10, 50, 90, 100})
     void convert_to_jpeg_respects_quality_parameter(int quality) throws IOException {
@@ -561,6 +616,24 @@ class DicomizerTest {
     var resource = getClass().getResource("/org/dcm4che3/img/expected_imgForPrLUT.png");
     assertNotNull(resource, "Test PNG resource not found");
     return Path.of(resource.toURI());
+  }
+
+  // Builds a 16-bit/sample PNG with a vertical gradient (values spanning 0..65535). Written through
+  // ImageIO because the bundled OpenCV PNG encoder only supports 8-bit output.
+  private Path create16BitGradientPng() throws IOException {
+    int width = 64;
+    int height = 64;
+    var image = new BufferedImage(width, height, BufferedImage.TYPE_USHORT_GRAY);
+    var raster = image.getRaster();
+    for (int y = 0; y < height; y++) {
+      int v = (int) ((double) y / (height - 1) * 65535.0);
+      for (int x = 0; x < width; x++) {
+        raster.setSample(x, y, 0, v);
+      }
+    }
+    var pngFile = tempDir.resolve("gradient_16bit.png");
+    assertTrue(ImageIO.write(image, "png", pngFile.toFile()), "Failed to write 16-bit PNG fixture");
+    return pngFile;
   }
 
   private Path createTestTextFile(String filename) throws IOException {

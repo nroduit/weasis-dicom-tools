@@ -16,6 +16,7 @@ import java.nio.channels.ByteChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Date;
 import java.util.Objects;
 import org.dcm4che3.data.Attributes;
@@ -33,6 +34,9 @@ import org.dcm4che3.imageio.codec.mpeg.MPEG2Parser;
 import org.dcm4che3.io.DicomOutputStream;
 import org.dcm4che3.util.ByteUtils;
 import org.dcm4che3.util.UIDUtils;
+import org.opencv.core.Core;
+import org.opencv.core.CvType;
+import org.opencv.core.Mat;
 import org.opencv.core.MatOfInt;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.slf4j.Logger;
@@ -446,8 +450,8 @@ public final class Dicomizer {
 
     if (isValidJpegFile(inputFile)) {
       LOGGER.info("Input file is already a JPEG image: {}", inputFile);
-      if (outputFile != null) {
-        Files.copy(inputFile, outputFile);
+      if (outputFile != null && !inputFile.equals(outputFile)) {
+        Files.copy(inputFile, outputFile, StandardCopyOption.REPLACE_EXISTING);
       }
       return true;
     }
@@ -461,13 +465,38 @@ public final class Dicomizer {
       return false;
     }
 
-    Path finalOutputFile = determineOutputFile(inputFile, outputFile);
-    MatOfInt encodingParams = createJpegEncodingParams(quality);
+    // The JPEG encoder only supports 8-bit samples. Inputs read as 16-bit (or float) — e.g. a
+    // 16-bit-per-channel PNG screenshot — must be down-converted, otherwise the encoder saturates
+    // every value above 255 and produces an all-white image.
+    ImageCV jpegImage = toEightBit(imageCV);
+    try {
+      Path finalOutputFile = determineOutputFile(inputFile, outputFile);
+      MatOfInt encodingParams = createJpegEncodingParams(quality);
 
-    boolean success = ImageIOHandler.writeImage(imageCV, finalOutputFile, encodingParams);
-    logConversionResult(success, finalOutputFile);
+      boolean success = ImageIOHandler.writeImage(jpegImage, finalOutputFile, encodingParams);
+      logConversionResult(success, finalOutputFile);
 
-    return success;
+      return success;
+    } finally {
+      if (jpegImage != imageCV) {
+        jpegImage.release();
+      }
+      imageCV.release();
+    }
+  }
+
+  private static ImageCV toEightBit(ImageCV image) {
+    int depth = CvType.depth(image.type());
+    if (depth == CvType.CV_8U) {
+      return image;
+    }
+    Mat dst = new Mat();
+    if (depth == CvType.CV_16U || depth == CvType.CV_16S) {
+      image.convertTo(dst, CvType.CV_8U, 255.0 / 65535.0);
+    } else {
+      Core.normalize(image, dst, 0, 255, Core.NORM_MINMAX, CvType.CV_8U);
+    }
+    return ImageCV.fromMat(dst);
   }
 
   private static Path determineOutputFile(Path inputFile, Path outputFile) {
@@ -479,11 +508,9 @@ public final class Dicomizer {
   }
 
   private static Path ensureJpegExtension(Path outputFile) {
-    String outputPath = outputFile.toString();
-    String outputExtension = FileUtil.getExtension(outputPath).toLowerCase();
-    if (!outputExtension.endsWith(".jpg")) {
-      outputPath = outputPath + ".jpg";
-      return Path.of(outputPath);
+    String outputExtension = FileUtil.getExtension(outputFile.toString()).toLowerCase();
+    if (!isJpegExtension(outputExtension)) {
+      return Path.of(outputFile + ".jpg");
     }
     return outputFile;
   }

@@ -43,7 +43,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Restore cached corpus
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: benchmark/corpus
           key: codec-corpus-${{ hashFiles('benchmark/manifests/**', 'benchmark/corpus.lock', 'benchmark/fetch-corpus.sh') }}
@@ -88,7 +88,7 @@ jobs:
           path: benchmark/corpus
       - name: Set up JDK 17
         if: ${{ !matrix.emulated }}
-        uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287
+        uses: actions/setup-java@1bcf9fb12cf4aa7d266a90ae39939e61372fe520
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -97,7 +97,7 @@ jobs:
       # x86-64 opencv_java.dll (an arm64 JVM would reject the x64 native).
       - name: Set up JDK 17 (x64 under ARM emulation)
         if: ${{ matrix.emulated }}
-        uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287
+        uses: actions/setup-java@1bcf9fb12cf4aa7d266a90ae39939e61372fe520
         with:
           distribution: 'temurin'
           java-version: '17'

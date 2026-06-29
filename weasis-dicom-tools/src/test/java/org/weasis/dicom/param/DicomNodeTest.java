@@ -102,6 +102,31 @@ class DicomNodeTest {
     }
 
     @Test
+    void creates_node_with_aet_hostname_port_and_description() {
+      var node = new DicomNode(VALID_AET, VALID_HOSTNAME, VALID_PORT, "Main PACS");
+
+      assertEquals(VALID_AET, node.getAet());
+      assertEquals(VALID_HOSTNAME, node.getHostname());
+      assertEquals(VALID_PORT, node.getPort());
+      assertEquals("Main PACS", node.getDescription());
+      assertNull(node.getId());
+    }
+
+    @Test
+    void creates_node_with_full_configuration_and_description() {
+      var node = new DicomNode(VALID_ID, VALID_AET, VALID_HOSTNAME, VALID_PORT, true, "Main PACS");
+
+      assertEquals(VALID_ID, node.getId());
+      assertEquals("Main PACS", node.getDescription());
+      assertTrue(node.isValidateHostname());
+    }
+
+    @Test
+    void leaves_description_null_when_not_provided() {
+      assertNull(new DicomNode(VALID_AET, VALID_HOSTNAME, VALID_PORT).getDescription());
+    }
+
+    @Test
     void trims_whitespace_from_aet() {
       var node = new DicomNode("  " + VALID_AET + "  ");
 
@@ -253,6 +278,10 @@ class DicomNodeTest {
               "same with id ignored",
               new DicomNode(1L, "TEST", "localhost", 11112),
               new DicomNode(2L, "TEST", "localhost", 11112)),
+          Arguments.of(
+              "same with description ignored",
+              new DicomNode("TEST", "localhost", 11112, "Main PACS"),
+              new DicomNode("TEST", "localhost", 11112, "Other label")),
           Arguments.of(
               "same with null values",
               new DicomNode("TEST", null, null),

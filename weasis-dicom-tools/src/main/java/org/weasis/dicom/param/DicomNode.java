@@ -47,6 +47,7 @@ public class DicomNode {
   private final Integer port;
   private final boolean validateHostname;
   private final Long id;
+  private final String description;
 
   /** Creates a DICOM node with only an AET. */
   public DicomNode(String aet) {
@@ -61,6 +62,11 @@ public class DicomNode {
   /** Creates a DICOM node with AET, hostname, and port. */
   public DicomNode(String aet, String hostname, Integer port) {
     this(null, aet, hostname, port, false);
+  }
+
+  /** Creates a DICOM node with AET, hostname, port, and a human-readable description. */
+  public DicomNode(String aet, String hostname, Integer port, String description) {
+    this(null, aet, hostname, port, false, description);
   }
 
   /** Creates a DICOM node with ID, AET, hostname, and port. */
@@ -79,6 +85,28 @@ public class DicomNode {
    * @throws IllegalArgumentException if AET is invalid or port is out of range
    */
   public DicomNode(Long id, String aet, String hostname, Integer port, boolean validateHostname) {
+    this(id, aet, hostname, port, validateHostname, null);
+  }
+
+  /**
+   * Creates a DICOM node with full configuration and a human-readable description.
+   *
+   * @param id unique identifier for this node
+   * @param aet Application Entity Title (required, max 16 characters)
+   * @param hostname network hostname or IP address
+   * @param port network port (1-65535)
+   * @param validateHostname whether to validate hostname during comparisons
+   * @param description human-readable label for this node, or null when unset; not part of node
+   *     identity (excluded from {@link #equals(Object)} and {@link #hashCode()})
+   * @throws IllegalArgumentException if AET is invalid or port is out of range
+   */
+  public DicomNode(
+      Long id,
+      String aet,
+      String hostname,
+      Integer port,
+      boolean validateHostname,
+      String description) {
     validateAet(aet);
     validatePort(port);
     this.id = id;
@@ -86,6 +114,7 @@ public class DicomNode {
     this.hostname = hostname;
     this.port = port;
     this.validateHostname = validateHostname;
+    this.description = description;
   }
 
   private static void validateAet(String aet) {
@@ -105,6 +134,13 @@ public class DicomNode {
 
   public Long getId() {
     return id;
+  }
+
+  /**
+   * @return the human-readable description of this node, or null when unset
+   */
+  public String getDescription() {
+    return description;
   }
 
   public String getAet() {

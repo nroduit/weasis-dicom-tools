@@ -21,7 +21,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-    <junit-bom.version>6.1.0</junit-bom.version>
+    <junit-bom.version>6.1.1</junit-bom.version>
     <mockito.version>5.23.0</mockito.version>
 
     <sonar.projectKey>weasis-dicom-tools</sonar.projectKey>

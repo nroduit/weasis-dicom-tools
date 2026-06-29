@@ -1,5 +1,18 @@
 # Changelog
 
+## [v5.34.3.1](https://github.com/nroduit/weasis-dicom-tools/tree/v5.34.3.1) (2026-06-29)
+
+[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.34.3...v5.34.3.1)
+
+**Closed issues:**
+
+- Dicomizer: cannot import color images with 16-bit per channel [\#40](https://github.com/nroduit/weasis-dicom-tools/issues/40)
+
+**Merged pull requests:**
+
+- build: bump the maven group across 2 directories with 8 updates [\#39](https://github.com/nroduit/weasis-dicom-tools/pull/39) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci: bump the github-actions group across 1 directory with 6 updates [\#38](https://github.com/nroduit/weasis-dicom-tools/pull/38) ([dependabot[bot]](https://github.com/apps/dependabot))
+
 ## [v5.34.3](https://github.com/nroduit/weasis-dicom-tools/tree/v5.34.3) (2026-05-28)
 
 [Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.34.2...v5.34.3)

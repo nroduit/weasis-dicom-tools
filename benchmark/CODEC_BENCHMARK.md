@@ -289,6 +289,18 @@ diffs each platform against the previous dated run, so regressions surface acros
 commits over time. See [`results/README.md`](results/README.md). Locally, collect a
 set of CSVs the same way with `aggregate-results.py --incoming <dir> --date <YYYY-MM-DD>`.
 
+To review the accumulated history, `report-results.py` builds a single report over all dated runs:
+
+```bash
+benchmark/report-results.py                              # per-platform trend dashboard -> results/report.html
+benchmark/report-results.py --compare 2026-06-21 2026-07-05   # every platform of A vs B -> results/report-A-vs-B.html
+benchmark/report-results.py --format interactive         # pick platform + both dates in the browser
+```
+
+The interactive page is self-contained (embeds every run's rows; the per-file diff is recomputed
+client-side, matching `compare-codec-benchmark.py`), so you can open it and compare any platform
+across any two dates — e.g. `windows-x86-64` `2026-06-21` vs `2026-07-05` — without re-running anything.
+
 ## Files
 
 - `src/main/java/org/dcm4che3/img/bench/CodecBenchmark.java` — the harness (`main`).
@@ -299,6 +311,9 @@ set of CSVs the same way with `aggregate-results.py --incoming <dir> --date <YYY
 - `manifests/*.xml` — vendored Weasis manifests selecting the corpus; `corpus.lock` — sha256 pin.
 - `compare-codec-benchmark.py` — diffs two CSV reports (per-file deltas + PASS/FAIL gates).
 - `aggregate-results.py` — collects per-platform CSVs into `results/<date>/` and diffs vs the previous run.
+- `report-results.py` — builds a report across the whole `results/` history: a per-platform trend
+  dashboard, a date-A-vs-date-B comparison, or a self-contained interactive page whose dropdowns
+  recompute the per-file diff in the browser.
 - `collect-metadata.sh` / `collect-metadata.ps1` — write the build-metadata sidecar (host CPU,
   OS/arch, git commit; CI adds runner image + run URL). Shared by the launchers and CI so local
   and CI results carry the same provenance.

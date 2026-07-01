@@ -51,5 +51,17 @@ python3 ../compare-codec-benchmark.py \
     2026-06-01/linux-x86-64.csv 2026-06-21/linux-x86-64.csv --html > diff.html
 ```
 
+To view the whole history at once, `report-results.py` builds a report over every dated folder:
+
+```bash
+python3 ../report-results.py                              # per-platform trend dashboard -> report.html
+python3 ../report-results.py --compare 2026-06-21 2026-07-05   # every platform of A vs B
+python3 ../report-results.py --format interactive         # -> report-interactive.html
+```
+
+The interactive page is self-contained (all runs embedded, diff recomputed in the browser): pick a
+platform and any two dates from the dropdowns — e.g. `windows-x86-64` `2026-06-21` vs `2026-07-05` —
+and it shows the per-file diff without re-running anything.
+
 The comparison is only meaningful **per platform** (same machine class, same files);
 throughput is not comparable across different OS/arch runners.

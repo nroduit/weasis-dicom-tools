@@ -121,19 +121,24 @@ jobs:
           # The corpus is small; the launcher's 8g default is sized for large multiframe
           # studies, not needed here. Override to keep runner memory modest.
           JAVA_OPTS: '-Xms512m -Xmx4g'
+          WARMUP: ${{ inputs.warmup }}
+          ITERATIONS: ${{ inputs.iterations }}
         run: |
           mkdir -p "$(dirname "$OUT")"
           bash benchmark/run-codec-benchmark.sh \
             benchmark/corpus \
-            "${{ inputs.warmup }}" "${{ inputs.iterations }}"
+            "$WARMUP" "$ITERATIONS"
       - name: Benchmark (Windows)
         if: runner.os == 'Windows'
         shell: cmd
+        env:
+          WARMUP: ${{ inputs.warmup }}
+          ITERATIONS: ${{ inputs.iterations }}
         run: |
           if not exist "%GITHUB_WORKSPACE%\bench-out" mkdir "%GITHUB_WORKSPACE%\bench-out"
           set "OUT=%GITHUB_WORKSPACE%\bench-out\${{ matrix.classifier }}.csv"
           set "JAVA_OPTS=-Xms512m -Xmx4g"
-          call benchmark\run-codec-benchmark.bat benchmark\corpus ${{ inputs.warmup }} ${{ inputs.iterations }}
+          call benchmark\run-codec-benchmark.bat benchmark\corpus %WARMUP% %ITERATIONS%
       # Record the concrete runner image + host CPU + provenance so the rolling *-latest
       # labels stay traceable and a throughput shift can be told apart from a hardware
       # rotation or correlated to a commit (ImageOS/ImageVersion are set on GH runners).

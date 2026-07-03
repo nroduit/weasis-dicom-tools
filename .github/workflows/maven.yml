@@ -39,11 +39,19 @@ jobs:
         run: mvn -B -f weasis-dicom-tools dependency:copy-dependencies -DincludeScope=test -DoutputDirectory=target/sonar-libs
       - name: Save PR context for Sonar analysis
         if: github.event_name == 'pull_request'
+        # The head ref is attacker-controlled (fork branch names may contain shell
+        # metacharacters). Pass every value through env and write it literally with printf
+        # rather than interpolating ${{ }} into the script. The privileged sonar.yml job
+        # re-validates these files before use.
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           mkdir -p pr-context
-          echo "${{ github.event.pull_request.number }}" > pr-context/pr_number
-          echo "${{ github.event.pull_request.head.ref }}" > pr-context/head_ref
-          echo "${{ github.event.pull_request.base.ref }}" > pr-context/base_ref
+          printf '%s\n' "$PR_NUMBER"   > pr-context/pr_number
+          printf '%s\n' "$PR_HEAD_REF" > pr-context/head_ref
+          printf '%s\n' "$PR_BASE_REF" > pr-context/base_ref
       # A single tarball keeps .git (and other dotfiles) intact regardless of the upload action's
       # hidden-file handling, and is faster to move than thousands of class files.
       - name: Package Sonar analysis input

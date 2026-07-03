@@ -10,6 +10,7 @@
 package org.weasis.dicom.geom;
 
 import java.awt.Color;
+import java.util.Locale;
 import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,7 +96,7 @@ public final class PatientOrientation {
         return null;
       }
       try {
-        return valueOf(value.trim().toUpperCase());
+        return valueOf(value.trim().toUpperCase(Locale.ROOT));
       } catch (IllegalArgumentException e) {
         LOGGER.debug("Unknown biped orientation: {}", value);
         return null;
@@ -146,7 +147,7 @@ public final class PatientOrientation {
         return null;
       }
       try {
-        return valueOf(value.trim().toUpperCase());
+        return valueOf(value.trim().toUpperCase(Locale.ROOT));
       } catch (IllegalArgumentException e) {
         LOGGER.debug("Unknown quadruped orientation: {}", value);
         return null;

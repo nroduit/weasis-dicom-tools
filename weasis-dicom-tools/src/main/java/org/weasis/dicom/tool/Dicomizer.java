@@ -18,6 +18,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Date;
+import java.util.Locale;
 import java.util.Objects;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.BulkData;
@@ -413,7 +414,7 @@ public final class Dicomizer {
         return false;
       }
 
-      String inputExtension = FileUtil.getExtension(inputFile.toString()).toLowerCase();
+      String inputExtension = FileUtil.getExtension(inputFile.toString()).toLowerCase(Locale.ROOT);
       if (handleJpegFile(inputFile, outputFile, inputExtension)) {
         return true;
       }
@@ -508,7 +509,7 @@ public final class Dicomizer {
   }
 
   private static Path ensureJpegExtension(Path outputFile) {
-    String outputExtension = FileUtil.getExtension(outputFile.toString()).toLowerCase();
+    String outputExtension = FileUtil.getExtension(outputFile.toString()).toLowerCase(Locale.ROOT);
     if (!isJpegExtension(outputExtension)) {
       return Path.of(outputFile + ".jpg");
     }

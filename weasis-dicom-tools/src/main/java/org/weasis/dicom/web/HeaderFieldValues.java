@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -142,7 +143,7 @@ public final class HeaderFieldValues {
         skipSeparator();
 
         if (StringUtil.hasText(name)) {
-          params.put(name.toLowerCase(), value);
+          params.put(name.toLowerCase(Locale.ROOT), value);
         }
       }
 

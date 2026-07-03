@@ -17,6 +17,7 @@ import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.text.DecimalFormat;
 import java.util.EnumSet;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.xml.XMLConstants;
 import javax.xml.transform.OutputKeys;
@@ -519,7 +520,7 @@ public class FindSCU implements AutoCloseable {
   }
 
   private Attributes loadAttributesFromFile(Path filePath) throws Exception {
-    var fileName = filePath.getFileName().toString().toLowerCase();
+    var fileName = filePath.getFileName().toString().toLowerCase(Locale.ROOT);
 
     if (fileName.endsWith(".xml")) {
       return SAXReader.parse(filePath.toString());

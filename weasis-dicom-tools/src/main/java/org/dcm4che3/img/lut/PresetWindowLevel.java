@@ -418,7 +418,7 @@ public class PresetWindowLevel {
       return vLut.getVoiLutFunction()
           .map(
               function ->
-                  switch (function.toUpperCase()) {
+                  switch (function.toUpperCase(Locale.ROOT)) {
                     case "SIGMOID" ->
                         new LutShape(Function.SIGMOID, Function.SIGMOID + dicomKeyWord);
                     case "LINEAR" -> new LutShape(Function.LINEAR, Function.LINEAR + dicomKeyWord);

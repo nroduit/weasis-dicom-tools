@@ -9,6 +9,7 @@
  */
 package org.dcm4che3.img.lut;
 
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalDouble;
@@ -151,7 +152,7 @@ public final class ModalityLutModule {
     }
     final String pixelIntensityRelationship = dcm.getString(Tag.PixelIntensityRelationship);
     return pixelIntensityRelationship == null
-        || !RESTRICTED_PIXEL_INTENSITIES.contains(pixelIntensityRelationship.toUpperCase());
+        || !RESTRICTED_PIXEL_INTENSITIES.contains(pixelIntensityRelationship.toUpperCase(Locale.ROOT));
   }
 
   private void logComplianceWarnings(final Double intercept, final LookupTableCV lutTable) {

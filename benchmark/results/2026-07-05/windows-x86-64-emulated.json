@@ -1,0 +1,14 @@
+{
+  "classifier": "windows-x86-64-emulated",
+  "runner_label": "windows-11-arm",
+  "runner_os": "Windows",
+  "runner_arch": "ARM64",
+  "emulated": true,
+  "image_os": "win11-arm64",
+  "image_version": "20260629.93.2",
+  "cpu_model": "Cobalt 100",
+  "cpu_count": "4",
+  "git_sha": "5a7f98558544133d587e40f75612a0655e752962",
+  "git_ref": "master",
+  "run_url": "https://github.com/nroduit/weasis-dicom-tools/actions/runs/28732165832"
+}

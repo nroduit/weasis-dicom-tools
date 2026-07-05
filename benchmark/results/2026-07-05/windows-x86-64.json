@@ -1,0 +1,14 @@
+{
+  "classifier": "windows-x86-64",
+  "runner_label": "windows-latest",
+  "runner_os": "Windows",
+  "runner_arch": "X64",
+  "emulated": false,
+  "image_os": "win25-vs2026",
+  "image_version": "20260628.158.1",
+  "cpu_model": "AMD EPYC 9V74 80-Core Processor                ",
+  "cpu_count": "4",
+  "git_sha": "5a7f98558544133d587e40f75612a0655e752962",
+  "git_ref": "master",
+  "run_url": "https://github.com/nroduit/weasis-dicom-tools/actions/runs/28732165832"
+}

@@ -461,7 +461,17 @@ public final class ImageDescriptor {
 
   public void resetModalityLutForFrame(int frame) {
     if (isValidFrameIndex(frame)) {
-      modalityLutPerFrame.set(frame, ModalityLutModule.getResetInstance());
+      ModalityLutModule current = getModalityLutForFrame(frame);
+      Double slope =
+          current.getRescaleSlope().isPresent() ? current.getRescaleSlope().getAsDouble() : null;
+      Double intercept =
+          current.getRescaleIntercept().isPresent()
+              ? current.getRescaleIntercept().getAsDouble()
+              : null;
+      modalityLutPerFrame.set(
+          frame,
+          ModalityLutModule.getResetInstance(
+              slope, intercept, current.getRescaleType().orElse(null)));
     }
   }
 

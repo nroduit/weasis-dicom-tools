@@ -152,7 +152,8 @@ public final class ModalityLutModule {
     }
     final String pixelIntensityRelationship = dcm.getString(Tag.PixelIntensityRelationship);
     return pixelIntensityRelationship == null
-        || !RESTRICTED_PIXEL_INTENSITIES.contains(pixelIntensityRelationship.toUpperCase(Locale.ROOT));
+        || !RESTRICTED_PIXEL_INTENSITIES.contains(
+            pixelIntensityRelationship.toUpperCase(Locale.ROOT));
   }
 
   private void logComplianceWarnings(final Double intercept, final LookupTableCV lutTable) {
@@ -289,6 +290,17 @@ public final class ModalityLutModule {
   private record DefaultValues(Double intercept, String type) {}
 
   public static ModalityLutModule getResetInstance() {
-    return new ModalityLutModule(true, false, null, null, null, null, null, null);
+    return getResetInstance(null, null, null);
+  }
+
+  /**
+   * Reset instance that retains the rescale slope/intercept/type. {@link #isReset()} signals
+   * consumers to treat the (already-rescaled) float image as identity, while the retained rescale
+   * lets a re-decoded raw frame be rescaled correctly instead of with an implicit slope of 1.
+   */
+  public static ModalityLutModule getResetInstance(
+      Double rescaleSlope, Double rescaleIntercept, String rescaleType) {
+    return new ModalityLutModule(
+        true, false, rescaleSlope, rescaleIntercept, rescaleType, null, null, null);
   }
 }

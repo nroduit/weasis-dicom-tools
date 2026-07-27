@@ -307,6 +307,12 @@ public class DicomImageAdapter {
    * @return the modality lookup table, or null if no transformation is needed
    */
   public LookupTableCV getModalityLookup(WlPresentation wlp, boolean inverseLUTAction) {
+    // An already-rescaled (float-converted) frame carries a reset modality LUT: its pixels are
+    // real-world values, so the modality transform must be identity. Returning null here prevents a
+    // second application of the rescale (which would otherwise corrupt min/max and pixel readouts).
+    if (desc.getModalityLutForFrame(frameIndex).isReset()) {
+      return null;
+    }
     Optional<Integer> paddingValue = desc.getPixelPaddingValue();
     boolean pixelPadding = wlp == null || wlp.isPixelPadding();
     PrDicomObject pr = extractPresentationState(wlp);

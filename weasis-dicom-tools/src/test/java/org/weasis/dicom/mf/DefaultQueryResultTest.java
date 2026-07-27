@@ -356,7 +356,7 @@ class DefaultQueryResultTest {
           () -> assertTrue(stringRep.contains("DefaultQueryResult")),
           () -> assertTrue(stringRep.contains("patientCount=3")),
           () -> assertTrue(stringRep.contains("wadoParameters=")),
-          () -> assertTrue(stringRep.contains("hasViewerMessage=false")));
+          () -> assertTrue(stringRep.contains("viewerMessageCount=0")));
     }
 
     @Test
@@ -367,7 +367,7 @@ class DefaultQueryResultTest {
 
       String stringRep = result.toString();
 
-      assertTrue(stringRep.contains("hasViewerMessage=true"));
+      assertTrue(stringRep.contains("viewerMessageCount=1"));
     }
 
     @Test
@@ -378,7 +378,7 @@ class DefaultQueryResultTest {
 
       assertAll(
           () -> assertTrue(stringRep.contains("patientCount=0")),
-          () -> assertTrue(stringRep.contains("hasViewerMessage=false")));
+          () -> assertTrue(stringRep.contains("viewerMessageCount=0")));
     }
   }
 

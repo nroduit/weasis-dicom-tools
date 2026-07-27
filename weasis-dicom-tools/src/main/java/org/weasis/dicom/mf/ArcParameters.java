@@ -42,10 +42,6 @@ public class ArcParameters {
   public static final String ARCHIVE_ID = "arcId";
   public static final String BASE_URL = "baseUrl";
   public static final String QUERY_MODE = "queryMode";
-  public static final String TAG_PR_ROOT = "presentations";
-  public static final String TAG_PR = "presentation";
-  public static final String TAG_SEL_ROOT = "selections";
-  public static final String TAG_SEL = "selection";
 
   // Manifest version 1
   public static final String TAG_HTTP_TAG = "httpTag";

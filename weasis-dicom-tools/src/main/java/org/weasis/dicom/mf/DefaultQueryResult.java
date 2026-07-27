@@ -78,8 +78,8 @@ public class DefaultQueryResult extends AbstractQueryResult {
         + getPatientCount()
         + ", wadoParameters="
         + wadoParameters
-        + ", hasViewerMessage="
-        + (getViewerMessage() != null)
+        + ", viewerMessageCount="
+        + getViewerMessages().size()
         + '}';
   }
 
@@ -99,7 +99,7 @@ public class DefaultQueryResult extends AbstractQueryResult {
     }
     return Objects.equals(getPatients(), that.getPatients())
         && Objects.equals(wadoParameters, that.wadoParameters)
-        && Objects.equals(getViewerMessage(), that.getViewerMessage());
+        && Objects.equals(getViewerMessages(), that.getViewerMessages());
   }
 
   /**
@@ -109,6 +109,6 @@ public class DefaultQueryResult extends AbstractQueryResult {
    */
   @Override
   public int hashCode() {
-    return Objects.hash(getPatients(), wadoParameters, getViewerMessage());
+    return Objects.hash(getPatients(), wadoParameters, getViewerMessages());
   }
 }

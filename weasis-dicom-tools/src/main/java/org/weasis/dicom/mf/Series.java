@@ -10,7 +10,6 @@
 package org.weasis.dicom.mf;
 
 import java.io.IOException;
-import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -32,7 +31,7 @@ import org.weasis.core.util.StringUtil;
  * <p>A series groups related medical images or objects that share common acquisition parameters and
  * are part of the same imaging procedure or sequence.
  */
-public class Series implements Xml, Comparable<Series> {
+public class Series implements ManifestNode, Comparable<Series> {
   private static final Logger LOGGER = LoggerFactory.getLogger(Series.class);
 
   private static final int MIN_COMPRESSION = 0;
@@ -40,6 +39,13 @@ public class Series implements Xml, Comparable<Series> {
   private static final String ATTR_DIRECT_DOWNLOAD_THUMBNAIL = "DirectDownloadThumbnail";
   private static final String ATTR_WADO_TRANSFER_SYNTAX_UID = "WadoTransferSyntaxUID";
   private static final String ATTR_WADO_COMPRESSION_RATE = "WadoCompressionRate";
+
+  // DICOM keywords resolved once (the element names are constant per tag).
+  private static final String KEY_SERIES_INSTANCE_UID = ManifestNode.keyword(Tag.SeriesInstanceUID);
+  private static final String KEY_SERIES_DESCRIPTION = ManifestNode.keyword(Tag.SeriesDescription);
+  private static final String KEY_SERIES_NUMBER = ManifestNode.keyword(Tag.SeriesNumber);
+  private static final String KEY_MODALITY = ManifestNode.keyword(Tag.Modality);
+
   private final String seriesInstanceUID;
   private final Map<String, SopInstance> sopInstanceMap;
 
@@ -198,10 +204,17 @@ public class Series implements Xml, Comparable<Series> {
   }
 
   @Override
-  public void toXml(Writer writer) throws IOException {
-    writeSeriesStart(writer);
-    writeSopInstances(writer);
-    writeSeriesEnd(writer);
+  public void write(ManifestSerializer serializer) throws IOException {
+    serializer.beginObject(ManifestNode.Level.SERIES.getTagName());
+    serializer.attribute(KEY_SERIES_INSTANCE_UID, seriesInstanceUID);
+    serializer.attribute(KEY_SERIES_DESCRIPTION, seriesDescription);
+    serializer.attribute(KEY_SERIES_NUMBER, seriesNumber);
+    serializer.attribute(KEY_MODALITY, modality);
+    serializer.attribute(ATTR_DIRECT_DOWNLOAD_THUMBNAIL, thumbnail);
+    serializer.attribute(ATTR_WADO_TRANSFER_SYNTAX_UID, wadoTransferSyntaxUID);
+    serializer.attribute(ATTR_WADO_COMPRESSION_RATE, getCompressionRateString());
+    writeSopInstances(serializer);
+    serializer.endObject();
   }
 
   @Override
@@ -227,34 +240,19 @@ public class Series implements Xml, Comparable<Series> {
     return Objects.hash(seriesInstanceUID);
   }
 
-  // Writes the opening series tag with attributes
-  private void writeSeriesStart(Writer writer) throws IOException {
-    writer.append("\n<").append(Xml.Level.SERIES.getTagName()).append(" ");
-
-    Xml.addXmlAttribute(Tag.SeriesInstanceUID, seriesInstanceUID, writer);
-    Xml.addXmlAttribute(Tag.SeriesDescription, seriesDescription, writer);
-    Xml.addXmlAttribute(Tag.SeriesNumber, seriesNumber, writer);
-    Xml.addXmlAttribute(Tag.Modality, modality, writer);
-    Xml.addXmlAttribute(ATTR_DIRECT_DOWNLOAD_THUMBNAIL, thumbnail, writer);
-    Xml.addXmlAttribute(ATTR_WADO_TRANSFER_SYNTAX_UID, wadoTransferSyntaxUID, writer);
-    Xml.addXmlAttribute(ATTR_WADO_COMPRESSION_RATE, getCompressionRateString(), writer);
-
-    writer.append(">");
-  }
-
-  // Writes all SOP instances in sorted order
-  private void writeSopInstances(Writer writer) throws IOException {
+  // Writes all SOP instances in sorted order, wrapped in an array
+  private void writeSopInstances(ManifestSerializer serializer) throws IOException {
+    if (sopInstanceMap.isEmpty()) {
+      return;
+    }
     var sortedInstances = new ArrayList<>(sopInstanceMap.values());
     Collections.sort(sortedInstances);
 
+    serializer.beginArray(ManifestNode.Level.INSTANCE.getTagName());
     for (SopInstance instance : sortedInstances) {
-      instance.toXml(writer);
+      instance.write(serializer);
     }
-  }
-
-  // Writes the closing series tag
-  private void writeSeriesEnd(Writer writer) throws IOException {
-    writer.append("\n</").append(Xml.Level.SERIES.getTagName()).append(">");
+    serializer.endArray();
   }
 
   // Returns compression rate as string, null if not set

@@ -10,7 +10,6 @@
 package org.weasis.dicom.mf;
 
 import java.io.IOException;
-import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -30,7 +29,7 @@ import org.weasis.core.util.StringUtil;
  * <p>A patient is identified by a combination of Patient ID and optional Issuer of Patient ID,
  * which together form a pseudo Patient UID for global identification across different systems.
  */
-public class Patient implements Xml, Comparable<Patient> {
+public class Patient implements ManifestNode, Comparable<Patient> {
 
   /** Valid patient sex values according to DICOM standard */
   private enum PatientSex {
@@ -63,6 +62,15 @@ public class Patient implements Xml, Comparable<Patient> {
       }
     }
   }
+
+  // DICOM keywords resolved once (the element names are constant per tag).
+  private static final String KEY_PATIENT_ID = ManifestNode.keyword(Tag.PatientID);
+  private static final String KEY_ISSUER_OF_PATIENT_ID =
+      ManifestNode.keyword(Tag.IssuerOfPatientID);
+  private static final String KEY_PATIENT_NAME = ManifestNode.keyword(Tag.PatientName);
+  private static final String KEY_PATIENT_BIRTH_DATE = ManifestNode.keyword(Tag.PatientBirthDate);
+  private static final String KEY_PATIENT_BIRTH_TIME = ManifestNode.keyword(Tag.PatientBirthTime);
+  private static final String KEY_PATIENT_SEX = ManifestNode.keyword(Tag.PatientSex);
 
   private final String patientID;
   private final String issuerOfPatientID;
@@ -202,10 +210,16 @@ public class Patient implements Xml, Comparable<Patient> {
   }
 
   @Override
-  public void toXml(Writer writer) throws IOException {
-    writePatientStart(writer);
-    writeStudiesInOrder(writer);
-    writePatientEnd(writer);
+  public void write(ManifestSerializer serializer) throws IOException {
+    serializer.beginObject(ManifestNode.Level.PATIENT.getTagName());
+    serializer.attribute(KEY_PATIENT_ID, patientID);
+    serializer.attribute(KEY_ISSUER_OF_PATIENT_ID, issuerOfPatientID);
+    serializer.attribute(KEY_PATIENT_NAME, patientName);
+    serializer.attribute(KEY_PATIENT_BIRTH_DATE, patientBirthDate);
+    serializer.attribute(KEY_PATIENT_BIRTH_TIME, patientBirthTime);
+    serializer.attribute(KEY_PATIENT_SEX, patientSex);
+    writeStudiesInOrder(serializer);
+    serializer.endObject();
   }
 
   @Override
@@ -228,32 +242,18 @@ public class Patient implements Xml, Comparable<Patient> {
     return Objects.hash(patientID, issuerOfPatientID);
   }
 
-  // Writes the opening patient tag with attributes
-  private void writePatientStart(Writer writer) throws IOException {
-    writer.append("\n<").append(Xml.Level.PATIENT.getTagName()).append(" ");
-
-    Xml.addXmlAttribute(Tag.PatientID, patientID, writer);
-    Xml.addXmlAttribute(Tag.IssuerOfPatientID, issuerOfPatientID, writer);
-    Xml.addXmlAttribute(Tag.PatientName, patientName, writer);
-    Xml.addXmlAttribute(Tag.PatientBirthDate, patientBirthDate, writer);
-    Xml.addXmlAttribute(Tag.PatientBirthTime, patientBirthTime, writer);
-    Xml.addXmlAttribute(Tag.PatientSex, patientSex, writer);
-
-    writer.append(">");
-  }
-
-  // Writes all studies in sorted order
-  private void writeStudiesInOrder(Writer writer) throws IOException {
+  // Writes all studies in sorted order, wrapped in an array
+  private void writeStudiesInOrder(ManifestSerializer serializer) throws IOException {
+    if (studiesMap.isEmpty()) {
+      return;
+    }
     var sortedStudies = new ArrayList<>(studiesMap.values());
     Collections.sort(sortedStudies);
 
+    serializer.beginArray(ManifestNode.Level.STUDY.getTagName());
     for (Study study : sortedStudies) {
-      study.toXml(writer);
+      study.write(serializer);
     }
-  }
-
-  // Writes the closing patient tag
-  private void writePatientEnd(Writer writer) throws IOException {
-    writer.append("\n</").append(Xml.Level.PATIENT.getTagName()).append(">");
+    serializer.endArray();
   }
 }

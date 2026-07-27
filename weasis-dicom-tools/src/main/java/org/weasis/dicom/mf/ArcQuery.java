@@ -22,16 +22,15 @@ import org.slf4j.LoggerFactory;
 import org.weasis.core.util.StringUtil;
 
 /**
- * Implementation of XML manifest generation for DICOM archive queries. Supports both legacy version
- * 1.0 and modern version 2.5 manifest formats.
+ * Manifest generation for DICOM archive queries. A single tree traversal feeds a {@link
+ * ManifestSerializer}, so the same content can be emitted as XML (version 2.5) or as JSON.
  */
 public class ArcQuery implements XmlManifest {
   private static final Logger LOGGER = LoggerFactory.getLogger(ArcQuery.class);
 
-  private static final String VERSION_1 = "1";
-  private static final String XML_DECLARATION = "<?xml version=\"1.0\" encoding=\"%s\" ?>";
-  private static final String LEGACY_SCHEMA =
-      "xmlns=\"http://www.weasis.org/xsd\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"";
+  private static final String ATTR_HTTP_TAG_KEY = "key";
+  private static final String ATTR_HTTP_TAG_VALUE = "value";
+
   private final List<QueryResult> queryList;
   private final String manifestUID;
 
@@ -52,178 +51,147 @@ public class ArcQuery implements XmlManifest {
 
   @Override
   public String xmlManifest(String version) {
-    try (var manifest = new StringWriter()) {
-      writeManifest(manifest, version);
-      return manifest.toString();
+    try (var writer = new StringWriter()) {
+      writeManifest(writer, version);
+      return writer.toString();
     } catch (IOException e) {
       LOGGER.error("Cannot write manifest", e);
       return null;
     }
   }
 
+  /** Generates a JSON manifest (always the modern structure, mirroring the 2.5 element names). */
+  public String jsonManifest(String version) {
+    try (var writer = new StringWriter()) {
+      writeManifest(writer, version, ManifestFormat.JSON);
+      return writer.toString();
+    } catch (IOException e) {
+      LOGGER.error("Cannot write manifest", e);
+      return null;
+    }
+  }
+
+  /** Generates a manifest string in the requested format, or null if generation fails. */
+  public String manifest(String version, ManifestFormat format) {
+    return format == ManifestFormat.JSON ? jsonManifest(version) : xmlManifest(version);
+  }
+
   @Override
   public void writeManifest(Writer writer, String version) throws IOException {
-    writeXmlHeader(writer);
-
-    if (isLegacyVersion(version)) {
-      writeLegacyManifest(writer);
-    } else {
-      writeModernManifest(writer);
-    }
+    // Only the modern 2.5 structure is emitted; the version argument is accepted for API
+    // compatibility but no longer selects a legacy variant.
+    writeModernManifest(new XmlManifestSerializer(writer, getCharsetEncoding()));
   }
 
-  public void writeXmlHeader(Writer writer) throws IOException {
-    writer.append(String.format(XML_DECLARATION, getCharsetEncoding()));
-  }
-
-  private boolean isLegacyVersion(String version) {
-    return version != null && VERSION_1.equals(version.trim());
-  }
-
-  private void writeLegacyManifest(Writer writer) throws IOException {
-    for (QueryResult archive : queryList) {
-      if (hasContent(archive)) {
-        writeLegacyQuery(writer, archive);
-        break; // Legacy format accepts only one element
-      }
-    }
-  }
-
-  private void writeModernManifest(Writer writer) throws IOException {
-    writeManifestRoot(writer);
-    writeArchiveQueries(writer);
-    writeDocumentEnd(writer);
-  }
-
-  public void writeManifestRoot(Writer writer) throws IOException {
-    writer.append("\n<").append(ArcParameters.TAG_DOCUMENT_ROOT).append(" ");
-
-    Xml.addXmlAttribute(ArcParameters.MANIFEST_UID, manifestUID, writer);
-    writer.append(ArcParameters.SCHEMA).append(">");
-  }
-
-  public void writeDocumentEnd(Writer writer) throws IOException {
-    writer.append("\n</").append(ArcParameters.TAG_DOCUMENT_ROOT).append(">\n");
-  }
-
-  public void writeArchiveQueries(Writer writer) throws IOException {
-    for (QueryResult archive : queryList) {
-      if (hasContent(archive)) {
-        writeArchiveQuery(writer, archive);
-      }
-    }
-  }
-
-  public void writeArchiveQuery(Writer writer, QueryResult archive) throws IOException {
-    WadoParameters wadoParams = archive.getWadoParameters();
-
-    writeQueryStart(writer, ArcParameters.TAG_ARC_QUERY);
-    writeQueryAttributes(writer, wadoParams, false);
-    writeQueryContent(writer, archive, wadoParams);
-    writeQueryEnd(writer, ArcParameters.TAG_ARC_QUERY);
-  }
-
-  private void writeLegacyQuery(Writer writer, QueryResult archive) throws IOException {
-    WadoParameters wadoParams = archive.getWadoParameters();
-
-    writeLegacyQueryStart(writer);
-    writeQueryAttributes(writer, wadoParams, true);
-    writeQueryContent(writer, archive, wadoParams);
-    writeLegacyQueryEnd(writer);
-  }
-
-  private void writeLegacyQueryStart(Writer writer) throws IOException {
-    writer
-        .append("\n<")
-        .append(WadoParameters.TAG_WADO_QUERY)
-        .append(" ")
-        .append(LEGACY_SCHEMA)
-        .append(" ");
-  }
-
-  private void writeLegacyQueryEnd(Writer writer) throws IOException {
-    writer.append("\n</").append(WadoParameters.TAG_WADO_QUERY).append(">\n");
-  }
-
-  public void writeQueryStart(Writer writer, String tagName) throws IOException {
-    writer.append("\n<").append(tagName).append(" ");
-  }
-
-  public void writeQueryEnd(Writer writer, String tagName) throws IOException {
-    writer.append("\n</").append(tagName).append(">");
-  }
-
-  public void writeQueryAttributes(Writer writer, WadoParameters wadoParams, boolean isLegacy)
+  /** Writes the manifest to {@code writer} in the requested format. */
+  public void writeManifest(Writer writer, String version, ManifestFormat format)
       throws IOException {
-    if (isLegacy) {
-      Xml.addXmlAttribute(WadoParameters.WADO_URL, wadoParams.getBaseURL(), writer);
+    if (format == ManifestFormat.JSON) {
+      // JSON has no legacy variant: always emit the modern structure.
+      writeModernManifest(new JsonManifestSerializer(writer));
     } else {
-      Xml.addXmlAttribute(ArcParameters.ARCHIVE_ID, wadoParams.getArchiveID(), writer);
-      Xml.addXmlAttribute(ArcParameters.BASE_URL, wadoParams.getBaseURL(), writer);
+      writeManifest(writer, version);
     }
-
-    Xml.addXmlAttribute(ArcParameters.WEB_LOGIN, wadoParams.getWebLogin(), writer);
-    Xml.addXmlAttribute(
-        WadoParameters.WADO_ONLY_SOP_UID, wadoParams.isRequireOnlySOPInstanceUID(), writer);
-    Xml.addXmlAttribute(
-        ArcParameters.ADDITIONAL_PARAMETERS, wadoParams.getAdditionalParameters(), writer);
-    Xml.addXmlAttribute(
-        ArcParameters.OVERRIDE_TAGS, wadoParams.getOverrideDicomTagIDList(), writer);
-
-    writer.append(">");
-  }
-
-  public void writeQueryContent(Writer writer, QueryResult archive, WadoParameters wadoParams)
-      throws IOException {
-    writeHttpTags(writer, wadoParams.getHttpTaglist());
-    writeViewerMessage(writer, archive.getViewerMessage());
-    writePatients(writer, new ArrayList<>(archive.getPatients().values()));
   }
 
   public static boolean hasContent(QueryResult archive) {
-    return !archive.getPatients().isEmpty() || archive.getViewerMessage() != null;
+    return !archive.getPatients().isEmpty() || !archive.getViewerMessages().isEmpty();
   }
 
-  private static void writePatients(Writer writer, List<Patient> patientList) throws IOException {
+  private void writeModernManifest(ManifestSerializer serializer) throws IOException {
+    serializer.beginDocument();
+    serializer.beginObject(ArcParameters.TAG_DOCUMENT_ROOT);
+    serializer.attribute(ArcParameters.MANIFEST_UID, manifestUID);
+    serializer.schema(ArcParameters.SCHEMA);
+
+    serializer.beginArray(ArcParameters.TAG_ARC_QUERY);
+    for (QueryResult archive : queryList) {
+      if (hasContent(archive)) {
+        writeArchiveQuery(serializer, archive);
+      }
+    }
+    serializer.endArray();
+
+    serializer.endObject();
+    serializer.endDocument();
+  }
+
+  private void writeArchiveQuery(ManifestSerializer serializer, QueryResult archive)
+      throws IOException {
+    WadoParameters wadoParams = archive.getWadoParameters();
+    serializer.beginObject(ArcParameters.TAG_ARC_QUERY);
+
+    serializer.attribute(ArcParameters.ARCHIVE_ID, wadoParams.getArchiveID());
+    serializer.attribute(ArcParameters.BASE_URL, wadoParams.getBaseURL());
+    QueryMode queryMode = wadoParams.getQueryMode();
+    if (queryMode != QueryMode.DEFAULT) {
+      serializer.attribute(ArcParameters.QUERY_MODE, queryMode.name());
+    }
+    writeCommonQueryAttributes(serializer, wadoParams);
+
+    writeQueryContent(serializer, archive, wadoParams);
+    serializer.endObject();
+  }
+
+  private void writeCommonQueryAttributes(ManifestSerializer serializer, WadoParameters wadoParams)
+      throws IOException {
+    serializer.attribute(ArcParameters.WEB_LOGIN, wadoParams.getWebLogin());
+    serializer.attribute(
+        WadoParameters.WADO_ONLY_SOP_UID, wadoParams.isRequireOnlySOPInstanceUID());
+    serializer.attribute(ArcParameters.ADDITIONAL_PARAMETERS, wadoParams.getAdditionalParameters());
+    serializer.attribute(ArcParameters.OVERRIDE_TAGS, wadoParams.getOverrideDicomTagsList());
+  }
+
+  private void writeQueryContent(
+      ManifestSerializer serializer, QueryResult archive, WadoParameters wadoParams)
+      throws IOException {
+    writeHttpTags(serializer, wadoParams.getHttpTaglist());
+    writeViewerMessages(serializer, archive.getViewerMessages());
+    writePatients(serializer, new ArrayList<>(archive.getPatients().values()));
+  }
+
+  private static void writePatients(ManifestSerializer serializer, List<Patient> patientList)
+      throws IOException {
     if (patientList.isEmpty()) {
       return;
     }
-
     Collections.sort(patientList);
 
+    serializer.beginArray(ManifestNode.Level.PATIENT.getTagName());
     for (Patient patient : patientList) {
-      patient.toXml(writer);
+      patient.write(serializer);
     }
+    serializer.endArray();
   }
 
-  public static void writeHttpTags(Writer writer, List<HttpTag> httpTags) throws IOException {
+  private static void writeHttpTags(ManifestSerializer serializer, List<HttpTag> httpTags)
+      throws IOException {
     if (httpTags == null || httpTags.isEmpty()) {
       return;
     }
-
+    serializer.beginArray(ArcParameters.TAG_HTTP_TAG);
     for (HttpTag tag : httpTags) {
-      writer
-          .append("\n<")
-          .append(ArcParameters.TAG_HTTP_TAG)
-          .append(" key=\"")
-          .append(tag.getKey())
-          .append("\" value=\"")
-          .append(tag.getValue())
-          .append("\" />");
+      serializer.beginLeaf(ArcParameters.TAG_HTTP_TAG);
+      serializer.attribute(ATTR_HTTP_TAG_KEY, tag.getKey());
+      serializer.attribute(ATTR_HTTP_TAG_VALUE, tag.getValue());
+      serializer.endLeaf();
     }
+    serializer.endArray();
   }
 
-  public static void writeViewerMessage(Writer writer, ViewerMessage message) throws IOException {
-    if (message == null) {
+  private static void writeViewerMessages(
+      ManifestSerializer serializer, List<ViewerMessage> messages) throws IOException {
+    if (messages == null || messages.isEmpty()) {
       return;
     }
-
-    writer.append("\n<").append(ViewerMessage.TAG_DOCUMENT_MSG).append(" ");
-
-    Xml.addXmlAttribute(ViewerMessage.MSG_ATTRIBUTE_TITLE, message.title(), writer);
-    Xml.addXmlAttribute(ViewerMessage.MSG_ATTRIBUTE_DESC, message.message(), writer);
-    Xml.addXmlAttribute(ViewerMessage.MSG_ATTRIBUTE_LEVEL, message.level().name(), writer);
-
-    writer.append("/>");
+    serializer.beginArray(ViewerMessage.TAG_DOCUMENT_MSG);
+    for (ViewerMessage message : messages) {
+      serializer.beginLeaf(ViewerMessage.TAG_DOCUMENT_MSG);
+      serializer.attribute(ViewerMessage.MSG_ATTRIBUTE_TITLE, message.title());
+      serializer.attribute(ViewerMessage.MSG_ATTRIBUTE_DESC, message.message());
+      serializer.attribute(ViewerMessage.MSG_ATTRIBUTE_LEVEL, message.level().name());
+      serializer.endLeaf();
+    }
+    serializer.endArray();
   }
 }

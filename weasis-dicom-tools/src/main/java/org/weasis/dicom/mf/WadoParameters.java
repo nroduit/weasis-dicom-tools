@@ -50,13 +50,11 @@ import java.util.Objects;
  */
 public class WadoParameters extends ArcParameters {
 
-  // Manifest version 1.0
-  public static final String TAG_WADO_QUERY = "wado_query";
-  public static final String WADO_URL = "wadoURL";
   public static final String WADO_ONLY_SOP_UID = "requireOnlySOPInstanceUID";
 
   private final boolean requireOnlySOPInstanceUID;
   private final boolean wadoRS;
+  private final QueryMode queryMode;
 
   /**
    * Creates WADO parameters with the specified configuration.
@@ -80,6 +78,34 @@ public class WadoParameters extends ArcParameters {
       String overrideDicomTagsList,
       String webLogin,
       boolean wadoRS) {
+    this(
+        archiveID,
+        wadoURL,
+        requireOnlySOPInstanceUID,
+        additionalParameters,
+        overrideDicomTagsList,
+        webLogin,
+        wadoRS,
+        QueryMode.DEFAULT);
+  }
+
+  /**
+   * Creates WADO parameters with an explicit query mode.
+   *
+   * @param queryMode the connector Weasis uses to complete the manifest; {@link
+   *     QueryMode#DICOM_WEB} allows a manifest partially populated (stopping at any hierarchy
+   *     level), may be null for the default
+   * @see #WadoParameters(String, String, boolean, String, String, String, boolean)
+   */
+  public WadoParameters(
+      String archiveID,
+      String wadoURL,
+      boolean requireOnlySOPInstanceUID,
+      String additionalParameters,
+      String overrideDicomTagsList,
+      String webLogin,
+      boolean wadoRS,
+      QueryMode queryMode) {
     super(
         Objects.requireNonNull(archiveID, "Archive ID cannot be null"),
         Objects.requireNonNullElse(validateAndNormalizeUrl(wadoURL), ""),
@@ -88,6 +114,7 @@ public class WadoParameters extends ArcParameters {
         webLogin);
     this.requireOnlySOPInstanceUID = requireOnlySOPInstanceUID;
     this.wadoRS = wadoRS;
+    this.queryMode = Objects.requireNonNullElse(queryMode, QueryMode.DEFAULT);
   }
 
   /**
@@ -236,14 +263,24 @@ public class WadoParameters extends ArcParameters {
     return wadoRS ? "WADO-RS" : "WADO-URI";
   }
 
+  /**
+   * Returns the connector Weasis uses to complete the manifest.
+   *
+   * @return the query mode, never null
+   */
+  public QueryMode getQueryMode() {
+    return queryMode;
+  }
+
   @Override
   public String toString() {
     return String.format(
-        "WadoParameters{archiveID='%s', wadoURL='%s', protocol='%s', requireOnlySOPInstanceUID=%b, "
-            + "webLogin='%s', additionalParams='%s', httpTagCount=%d}",
+        "WadoParameters{archiveID='%s', wadoURL='%s', protocol='%s', queryMode=%s, "
+            + "requireOnlySOPInstanceUID=%b, webLogin='%s', additionalParams='%s', httpTagCount=%d}",
         getArchiveID(),
         getBaseURL(),
         getProtocolName(),
+        queryMode,
         requireOnlySOPInstanceUID,
         getWebLogin(),
         getAdditionalParameters(),
@@ -260,12 +297,13 @@ public class WadoParameters extends ArcParameters {
     }
     return super.equals(obj)
         && requireOnlySOPInstanceUID == that.requireOnlySOPInstanceUID
-        && wadoRS == that.wadoRS;
+        && wadoRS == that.wadoRS
+        && queryMode == that.queryMode;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(super.hashCode(), requireOnlySOPInstanceUID, wadoRS);
+    return Objects.hash(super.hashCode(), requireOnlySOPInstanceUID, wadoRS, queryMode);
   }
 
   // Validates and normalizes the WADO URL
@@ -296,6 +334,7 @@ public class WadoParameters extends ArcParameters {
     private String overrideDicomTagsList;
     private String webLogin;
     private final boolean wadoRS;
+    private QueryMode queryMode = QueryMode.DEFAULT;
 
     private Builder(String wadoURL, boolean wadoRS) {
       this.wadoURL = wadoURL;
@@ -358,6 +397,18 @@ public class WadoParameters extends ArcParameters {
     }
 
     /**
+     * Sets the connector Weasis uses to complete the manifest.
+     *
+     * @param queryMode the query mode; {@link QueryMode#DICOM_WEB} allows a partially populated
+     *     manifest, null resets to the default
+     * @return this builder
+     */
+    public Builder withQueryMode(QueryMode queryMode) {
+      this.queryMode = queryMode != null ? queryMode : QueryMode.DEFAULT;
+      return this;
+    }
+
+    /**
      * Builds the WadoParameters instance.
      *
      * @return a new WadoParameters instance
@@ -370,7 +421,8 @@ public class WadoParameters extends ArcParameters {
           additionalParameters,
           overrideDicomTagsList,
           webLogin,
-          wadoRS);
+          wadoRS,
+          queryMode);
     }
   }
 }

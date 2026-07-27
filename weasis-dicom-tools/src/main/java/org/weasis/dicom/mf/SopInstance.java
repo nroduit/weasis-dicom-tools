@@ -10,7 +10,6 @@
 package org.weasis.dicom.mf;
 
 import java.io.IOException;
-import java.io.Writer;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
@@ -22,10 +21,18 @@ import org.weasis.core.util.StringUtil;
  * XML serialization, comparison, and map operations. Supports both single-frame and multi-frame
  * DICOM instances.
  */
-public class SopInstance implements Xml, Comparable<SopInstance> {
+public class SopInstance implements ManifestNode, Comparable<SopInstance> {
 
   private static final String KEY_SEPARATOR = "?";
   private static final String ATTR_DIRECT_DOWNLOAD_FILE = "DirectDownloadFile";
+
+  // DICOM keywords resolved once (the element names are constant per tag).
+  private static final String KEY_SOP_INSTANCE_UID = ManifestNode.keyword(Tag.SOPInstanceUID);
+  private static final String KEY_SOP_CLASS_UID = ManifestNode.keyword(Tag.SOPClassUID);
+  private static final String KEY_TRANSFER_SYNTAX_UID = ManifestNode.keyword(Tag.TransferSyntaxUID);
+  private static final String KEY_IMAGE_COMMENTS = ManifestNode.keyword(Tag.ImageComments);
+  private static final String KEY_INSTANCE_NUMBER = ManifestNode.keyword(Tag.InstanceNumber);
+
   private final String sopInstanceUID;
   private final String sopClassUID;
   private final Integer instanceNumber;
@@ -104,17 +111,15 @@ public class SopInstance implements Xml, Comparable<SopInstance> {
   }
 
   @Override
-  public void toXml(Writer writer) throws IOException {
-    writer.append("\n<").append(Xml.Level.INSTANCE.getTagName()).append(" ");
-
-    Xml.addXmlAttribute(Tag.SOPInstanceUID, sopInstanceUID, writer);
-    Xml.addXmlAttribute(Tag.SOPClassUID, sopClassUID, writer);
-    Xml.addXmlAttribute(Tag.TransferSyntaxUID, transferSyntaxUID, writer);
-    Xml.addXmlAttribute(Tag.ImageComments, imageComments, writer);
-    Xml.addXmlAttribute(Tag.InstanceNumber, getStringInstanceNumber(), writer);
-    Xml.addXmlAttribute(ATTR_DIRECT_DOWNLOAD_FILE, directDownloadFile, writer);
-
-    writer.append("/>");
+  public void write(ManifestSerializer serializer) throws IOException {
+    serializer.beginLeaf(ManifestNode.Level.INSTANCE.getTagName());
+    serializer.attribute(KEY_SOP_INSTANCE_UID, sopInstanceUID);
+    serializer.attribute(KEY_SOP_CLASS_UID, sopClassUID);
+    serializer.attribute(KEY_TRANSFER_SYNTAX_UID, transferSyntaxUID);
+    serializer.attribute(KEY_IMAGE_COMMENTS, imageComments);
+    serializer.attribute(KEY_INSTANCE_NUMBER, getStringInstanceNumber());
+    serializer.attribute(ATTR_DIRECT_DOWNLOAD_FILE, directDownloadFile);
+    serializer.endLeaf();
   }
 
   @Override

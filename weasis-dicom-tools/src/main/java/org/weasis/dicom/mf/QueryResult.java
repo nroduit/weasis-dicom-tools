@@ -74,16 +74,33 @@ public interface QueryResult {
   Map<String, Patient> getPatients();
 
   /**
-   * Returns the viewer message associated with this query result.
+   * Returns the viewer messages associated with this query result. An arcQuery may carry several
+   * messages (e.g. one per data-quality issue), all emitted in the manifest.
    *
-   * @return the viewer message, or {@code null} if none is set
+   * @return an unmodifiable list of viewer messages, empty if none is set
+   */
+  List<ViewerMessage> getViewerMessages();
+
+  /**
+   * Adds a viewer message to this query result. A {@code null} message is ignored.
+   *
+   * @param viewerMessage the viewer message to add
+   */
+  void addViewerMessage(ViewerMessage viewerMessage);
+
+  /**
+   * Returns the first viewer message associated with this query result.
+   *
+   * @return the first viewer message, or {@code null} if none is set
+   * @see #getViewerMessages()
    */
   ViewerMessage getViewerMessage();
 
   /**
-   * Sets the viewer message for this query result.
+   * Replaces the viewer messages of this query result with the single message given.
    *
-   * @param viewerMessage the viewer message to set
+   * @param viewerMessage the viewer message to set; {@code null} clears the messages
+   * @see #addViewerMessage(ViewerMessage)
    */
   void setViewerMessage(ViewerMessage viewerMessage);
 

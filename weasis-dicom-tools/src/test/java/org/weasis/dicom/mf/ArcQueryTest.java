@@ -12,21 +12,21 @@ package org.weasis.dicom.mf;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import jakarta.json.Json;
+import jakarta.json.JsonObject;
 import java.io.IOException;
+import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -71,6 +71,13 @@ class ArcQueryTest {
   private QueryResult createQueryResultWithMessage() {
     var result = createTestQueryResult();
     result.setViewerMessage(ViewerMessage.info("Query Complete", "Found 2 patients"));
+    return result;
+  }
+
+  private QueryResult createQueryResultWithMessages() {
+    var result = createTestQueryResult();
+    result.addViewerMessage(ViewerMessage.info("Query Complete", "Found 2 patients"));
+    result.addViewerMessage(ViewerMessage.warn("Partial", "One archive was unreachable"));
     return result;
   }
 
@@ -257,80 +264,184 @@ class ArcQueryTest {
           () -> assertTrue(manifest.contains("description=\"Found 2 patients\"")),
           () -> assertTrue(manifest.contains("severity=\"INFO\"")));
     }
+
+    @Test
+    void modern_manifest_repeats_each_viewer_message() {
+      var query = new ArcQuery(List.of(createQueryResultWithMessages()));
+
+      var manifest = query.xmlManifest("2.5");
+
+      assertAll(
+          () -> assertEquals(2, countOccurrences(manifest, "<Message")),
+          () -> assertTrue(manifest.contains("title=\"Query Complete\"")),
+          () -> assertTrue(manifest.contains("title=\"Partial\"")),
+          () -> assertTrue(manifest.contains("severity=\"WARN\"")));
+    }
   }
 
   @Nested
-  class Legacy_Manifest_Generation_Tests {
+  class Query_Mode_Tests {
+
+    private QueryResult resultWithQueryMode(QueryMode queryMode) {
+      var wado =
+          WadoParameters.builder("http://test.example.com/dicomweb")
+              .withArchiveID("dcmweb")
+              .withQueryMode(queryMode)
+              .build();
+      return new DefaultQueryResult(List.of(createTestPatient("PAT001", null)), wado);
+    }
 
     @Test
-    void xmlManifest_generates_legacy_manifest_for_version_1() {
-      var query = new ArcQuery(List.of(createTestQueryResult()));
+    void default_query_mode_omits_attribute() {
+      var manifest = new ArcQuery(List.of(resultWithQueryMode(QueryMode.DICOM))).xmlManifest("2.5");
 
-      var manifest = query.xmlManifest("1");
+      assertFalse(manifest.contains("queryMode="));
+    }
+
+    @Test
+    void dicom_web_query_mode_is_written() {
+      var manifest =
+          new ArcQuery(List.of(resultWithQueryMode(QueryMode.DICOM_WEB))).xmlManifest("2.5");
+
+      assertTrue(manifest.contains("queryMode=\"DICOM_WEB\""));
+    }
+
+    @Test
+    void non_default_query_mode_is_written() {
+      var manifest = new ArcQuery(List.of(resultWithQueryMode(QueryMode.DB))).xmlManifest("2.5");
+
+      assertTrue(manifest.contains("queryMode=\"DB\""));
+    }
+
+    @Test
+    void dicom_web_manifest_may_stop_at_series_level() {
+      var patient = createTestPatient("PAT001", null);
+      var study = new Study("1.2.3.4");
+      study.addSeries(new Series("1.2.3.4.5")); // series with no instances
+      patient.addStudy(study);
+      var wado =
+          WadoParameters.builder("http://test.example.com/dicomweb")
+              .withQueryMode(QueryMode.DICOM_WEB)
+              .build();
+
+      var manifest =
+          new ArcQuery(List.of(new DefaultQueryResult(List.of(patient), wado))).xmlManifest("2.5");
 
       assertAll(
-          () -> assertTrue(manifest.contains("<?xml version=\"1.0\" encoding=\"UTF-8\" ?>")),
-          () -> assertTrue(manifest.contains("<wado_query")),
-          () -> assertTrue(manifest.contains("xmlns=\"http://www.weasis.org/xsd\"")),
-          () -> assertTrue(manifest.contains("wadoURL=")),
-          () -> assertTrue(manifest.contains("</wado_query>")));
+          () -> assertTrue(manifest.contains("queryMode=\"DICOM_WEB\"")),
+          () -> assertTrue(manifest.contains("SeriesInstanceUID=\"1.2.3.4.5\"")),
+          () -> assertFalse(manifest.contains("<Instance")));
     }
+  }
 
-    @Test
-    void legacy_manifest_includes_only_first_result_with_content() {
-      var resultList =
-          List.of(
-              createTestQueryResult(),
-              createQueryResultWithMessage(),
-              createQueryResultWithHttpTags());
+  @Nested
+  class Json_Manifest_Tests {
 
-      var manifest = new ArcQuery(resultList).xmlManifest("1");
-
-      assertEquals(1, countOccurrences(manifest, "<wado_query"));
-    }
-
-    @Test
-    void legacy_manifest_uses_wado_url_instead_of_base_url() {
-      var query = new ArcQuery(List.of(createTestQueryResult()));
-
-      var manifest = query.xmlManifest("1");
-
-      assertAll(
-          () -> assertTrue(manifest.contains("wadoURL=")),
-          () -> assertFalse(manifest.contains("baseUrl=")),
-          () -> assertFalse(manifest.contains("arcId=")));
-    }
-
-    @Test
-    void legacy_manifest_excludes_empty_results() {
-      var resultList = List.of(createEmptyQueryResult());
-
-      var query = new ArcQuery(resultList);
-      var manifest = query.xmlManifest("1");
-
-      assertAll(
-          () -> assertTrue(manifest.contains("<?xml")),
-          () -> assertFalse(manifest.contains("<wado_query")));
-    }
-
-    static Stream<Arguments> legacyVersionVariations() {
-      return Stream.of(
-          Arguments.of("1"), Arguments.of(" 1 "), Arguments.of("1.0") // This should NOT be legacy
-          );
-    }
-
-    @ParameterizedTest
-    @MethodSource("legacyVersionVariations")
-    void legacy_version_detection_works_correctly(String version) {
-      var query = new ArcQuery(List.of(createTestQueryResult()));
-
-      var manifest = query.xmlManifest(version);
-
-      if ("1".equals(version.trim())) {
-        assertTrue(manifest.contains("<wado_query"));
-      } else {
-        assertTrue(manifest.contains("<manifest"));
+    private JsonObject parse(String json) {
+      try (var reader = Json.createReader(new StringReader(json))) {
+        return reader.readObject();
       }
+    }
+
+    @Test
+    void json_manifest_mirrors_xml_hierarchy() {
+      var query = new ArcQuery(List.of(createTestQueryResult()), "manifest-1");
+
+      var json = query.jsonManifest("2.5");
+      var manifest = parse(json).getJsonObject("manifest");
+      var arcQuery = manifest.getJsonArray("arcQuery").getJsonObject(0);
+      var patient = arcQuery.getJsonArray("Patient").getJsonObject(0);
+
+      assertAll(
+          () -> assertEquals("manifest-1", manifest.getString("uid")),
+          () -> assertEquals("test-archive", arcQuery.getString("arcId")),
+          () -> assertEquals("http://test.example.com/wado", arcQuery.getString("baseUrl")),
+          () -> assertTrue(arcQuery.getBoolean("requireOnlySOPInstanceUID")),
+          () -> assertTrue(patient.getString("PatientID").startsWith("PAT")));
+    }
+
+    @Test
+    void json_manifest_writes_viewer_messages_as_array() {
+      var query = new ArcQuery(List.of(createQueryResultWithMessages()));
+
+      var json = query.jsonManifest("2.5");
+      var arcQuery =
+          parse(json).getJsonObject("manifest").getJsonArray("arcQuery").getJsonObject(0);
+      var messages = arcQuery.getJsonArray("Message");
+
+      assertAll(
+          () -> assertEquals(2, messages.size()),
+          () -> assertEquals("Query Complete", messages.getJsonObject(0).getString("title")),
+          () -> assertEquals("INFO", messages.getJsonObject(0).getString("severity")),
+          () -> assertEquals("Partial", messages.getJsonObject(1).getString("title")),
+          () -> assertEquals("WARN", messages.getJsonObject(1).getString("severity")));
+    }
+
+    @Test
+    void json_manifest_omits_default_query_mode_and_writes_dicom_web() {
+      var wadoDefault = WadoParameters.builder("http://x/dicomweb").withArchiveID("a").build();
+      var wadoWeb =
+          WadoParameters.builder("http://x/dicomweb")
+              .withArchiveID("a")
+              .withQueryMode(QueryMode.DICOM_WEB)
+              .build();
+      var patients = List.of(createTestPatient("PAT001", null));
+
+      var defaultArc =
+          parse(
+                  new ArcQuery(List.of(new DefaultQueryResult(patients, wadoDefault)))
+                      .jsonManifest("2.5"))
+              .getJsonObject("manifest")
+              .getJsonArray("arcQuery")
+              .getJsonObject(0);
+      var webArc =
+          parse(
+                  new ArcQuery(List.of(new DefaultQueryResult(patients, wadoWeb)))
+                      .jsonManifest("2.5"))
+              .getJsonObject("manifest")
+              .getJsonArray("arcQuery")
+              .getJsonObject(0);
+
+      assertAll(
+          () -> assertFalse(defaultArc.containsKey("queryMode")),
+          () -> assertEquals("DICOM_WEB", webArc.getString("queryMode")));
+    }
+
+    @Test
+    void json_manifest_may_stop_at_series_level() {
+      var patient = createTestPatient("PAT001", null);
+      var study = new Study("1.2.3.4");
+      study.addSeries(new Series("1.2.3.4.5")); // no instances
+      patient.addStudy(study);
+      var wado =
+          WadoParameters.builder("http://x/dicomweb").withQueryMode(QueryMode.DICOM_WEB).build();
+
+      var json =
+          new ArcQuery(List.of(new DefaultQueryResult(List.of(patient), wado))).jsonManifest("2.5");
+      var series =
+          parse(json)
+              .getJsonObject("manifest")
+              .getJsonArray("arcQuery")
+              .getJsonObject(0)
+              .getJsonArray("Patient")
+              .getJsonObject(0)
+              .getJsonArray("Study")
+              .getJsonObject(0)
+              .getJsonArray("Series")
+              .getJsonObject(0);
+
+      assertAll(
+          () -> assertEquals("1.2.3.4.5", series.getString("SeriesInstanceUID")),
+          () -> assertFalse(series.containsKey("Instance")));
+    }
+
+    @Test
+    void manifest_dispatches_on_format() {
+      var query = new ArcQuery(List.of(createTestQueryResult()));
+
+      assertAll(
+          () -> assertTrue(query.manifest("2.5", ManifestFormat.XML).contains("<manifest")),
+          () -> assertTrue(query.manifest("2.5", ManifestFormat.JSON).trim().startsWith("{")));
     }
   }
 
@@ -429,18 +540,20 @@ class ArcQueryTest {
     }
 
     @Test
-    void writeManifest_supports_different_versions() throws IOException {
+    void writeManifest_ignores_version_and_always_writes_modern() throws IOException {
       var query = new ArcQuery(List.of(createTestQueryResult()));
 
       var modernWriter = new StringWriter();
-      var legacyWriter = new StringWriter();
+      var otherWriter = new StringWriter();
 
       query.writeManifest(modernWriter, "2.5");
-      query.writeManifest(legacyWriter, "1");
+      query.writeManifest(otherWriter, "1");
 
       assertAll(
           () -> assertTrue(modernWriter.toString().contains("<manifest")),
-          () -> assertTrue(legacyWriter.toString().contains("<wado_query")));
+          () -> assertTrue(otherWriter.toString().contains("<manifest")),
+          () -> assertFalse(otherWriter.toString().contains("<wado_query")),
+          () -> assertEquals(modernWriter.toString(), otherWriter.toString()));
     }
 
     @Test
@@ -473,17 +586,15 @@ class ArcQueryTest {
 
     @ParameterizedTest
     @NullAndEmptySource
-    @ValueSource(strings = {"  ", "2.0", "3", "invalid"})
+    @ValueSource(strings = {"  ", "1", "2.0", "3", "invalid"})
     void manifest_version_handling_edge_cases(String version) {
       var query = new ArcQuery(List.of(createTestQueryResult()));
 
       var manifest = query.xmlManifest(version);
 
-      if ("1".equals(version)) {
-        assertTrue(manifest.contains("<wado_query"));
-      } else {
-        assertTrue(manifest.contains("<manifest"));
-      }
+      assertAll(
+          () -> assertTrue(manifest.contains("<manifest")),
+          () -> assertFalse(manifest.contains("<wado_query")));
     }
 
     @Test
@@ -563,18 +674,16 @@ class ArcQueryTest {
     }
 
     @Test
-    void manifest_format_consistency() {
+    void manifest_output_is_independent_of_version() {
       var query = new ArcQuery(List.of(createTestQueryResult()));
 
       var modernManifest = query.xmlManifest("2.5");
-      var legacyManifest = query.xmlManifest("1");
+      var otherManifest = query.xmlManifest("1");
 
       assertAll(
           () -> assertTrue(modernManifest.startsWith("<?xml")),
-          () -> assertTrue(legacyManifest.startsWith("<?xml")),
           () -> assertTrue(modernManifest.contains("UTF-8")),
-          () -> assertTrue(legacyManifest.contains("UTF-8")),
-          () -> assertNotEquals(modernManifest, legacyManifest));
+          () -> assertEquals(modernManifest, otherManifest));
     }
   }
 

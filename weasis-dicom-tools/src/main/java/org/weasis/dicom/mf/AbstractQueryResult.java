@@ -9,6 +9,7 @@
  */
 package org.weasis.dicom.mf;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -29,7 +30,7 @@ import org.weasis.core.util.LangUtil;
 public abstract class AbstractQueryResult implements QueryResult {
 
   protected final Map<String, Patient> patientMap;
-  protected ViewerMessage viewerMessage;
+  protected final List<ViewerMessage> viewerMessages = new ArrayList<>();
 
   protected AbstractQueryResult() {
     this(null);
@@ -139,13 +140,26 @@ public abstract class AbstractQueryResult implements QueryResult {
   }
 
   @Override
+  public List<ViewerMessage> getViewerMessages() {
+    return Collections.unmodifiableList(viewerMessages);
+  }
+
+  @Override
+  public void addViewerMessage(ViewerMessage viewerMessage) {
+    if (viewerMessage != null) {
+      viewerMessages.add(viewerMessage);
+    }
+  }
+
+  @Override
   public ViewerMessage getViewerMessage() {
-    return viewerMessage;
+    return viewerMessages.isEmpty() ? null : viewerMessages.get(0);
   }
 
   @Override
   public void setViewerMessage(ViewerMessage viewerMessage) {
-    this.viewerMessage = viewerMessage;
+    viewerMessages.clear();
+    addViewerMessage(viewerMessage);
   }
 
   // Finds and removes patients by ID when issuer information is not included

@@ -10,7 +10,6 @@
 package org.weasis.dicom.mf;
 
 import java.io.IOException;
-import java.io.Writer;
 import java.text.Collator;
 import java.time.DateTimeException;
 import java.time.LocalDateTime;
@@ -36,8 +35,18 @@ import org.slf4j.LoggerFactory;
  * <p>A study represents a single imaging procedure or examination performed on a patient, typically
  * at a specific date and time. Studies contain one or more series of images or other DICOM objects.
  */
-public class Study implements Xml, Comparable<Study> {
+public class Study implements ManifestNode, Comparable<Study> {
   private static final Logger LOGGER = LoggerFactory.getLogger(Study.class);
+
+  // DICOM keywords resolved once (the element names are constant per tag).
+  private static final String KEY_STUDY_INSTANCE_UID = ManifestNode.keyword(Tag.StudyInstanceUID);
+  private static final String KEY_STUDY_DESCRIPTION = ManifestNode.keyword(Tag.StudyDescription);
+  private static final String KEY_STUDY_DATE = ManifestNode.keyword(Tag.StudyDate);
+  private static final String KEY_STUDY_TIME = ManifestNode.keyword(Tag.StudyTime);
+  private static final String KEY_ACCESSION_NUMBER = ManifestNode.keyword(Tag.AccessionNumber);
+  private static final String KEY_STUDY_ID = ManifestNode.keyword(Tag.StudyID);
+  private static final String KEY_REFERRING_PHYSICIAN_NAME =
+      ManifestNode.keyword(Tag.ReferringPhysicianName);
 
   private final String studyInstanceUID;
   private final Map<String, Series> seriesMap;
@@ -172,10 +181,17 @@ public class Study implements Xml, Comparable<Study> {
   }
 
   @Override
-  public void toXml(Writer writer) throws IOException {
-    writeStudyStart(writer);
-    writeSeriesInOrder(writer);
-    writeStudyEnd(writer);
+  public void write(ManifestSerializer serializer) throws IOException {
+    serializer.beginObject(ManifestNode.Level.STUDY.getTagName());
+    serializer.attribute(KEY_STUDY_INSTANCE_UID, studyInstanceUID);
+    serializer.attribute(KEY_STUDY_DESCRIPTION, studyDescription);
+    serializer.attribute(KEY_STUDY_DATE, studyDate);
+    serializer.attribute(KEY_STUDY_TIME, studyTime);
+    serializer.attribute(KEY_ACCESSION_NUMBER, accessionNumber);
+    serializer.attribute(KEY_STUDY_ID, studyID);
+    serializer.attribute(KEY_REFERRING_PHYSICIAN_NAME, referringPhysicianName);
+    writeSeriesInOrder(serializer);
+    serializer.endObject();
   }
 
   @Override
@@ -204,34 +220,19 @@ public class Study implements Xml, Comparable<Study> {
     return Objects.hash(studyInstanceUID);
   }
 
-  // Writes the opening study tag with attributes
-  private void writeStudyStart(Writer writer) throws IOException {
-    writer.append("\n<").append(Xml.Level.STUDY.getTagName()).append(" ");
-
-    Xml.addXmlAttribute(Tag.StudyInstanceUID, studyInstanceUID, writer);
-    Xml.addXmlAttribute(Tag.StudyDescription, studyDescription, writer);
-    Xml.addXmlAttribute(Tag.StudyDate, studyDate, writer);
-    Xml.addXmlAttribute(Tag.StudyTime, studyTime, writer);
-    Xml.addXmlAttribute(Tag.AccessionNumber, accessionNumber, writer);
-    Xml.addXmlAttribute(Tag.StudyID, studyID, writer);
-    Xml.addXmlAttribute(Tag.ReferringPhysicianName, referringPhysicianName, writer);
-
-    writer.append(">");
-  }
-
-  // Writes all series in sorted order
-  private void writeSeriesInOrder(Writer writer) throws IOException {
+  // Writes all series in sorted order, wrapped in an array
+  private void writeSeriesInOrder(ManifestSerializer serializer) throws IOException {
+    if (seriesMap.isEmpty()) {
+      return;
+    }
     var sortedSeries = new ArrayList<>(seriesMap.values());
     Collections.sort(sortedSeries);
 
+    serializer.beginArray(ManifestNode.Level.SERIES.getTagName());
     for (Series series : sortedSeries) {
-      series.toXml(writer);
+      series.write(serializer);
     }
-  }
-
-  // Writes the closing study tag
-  private void writeStudyEnd(Writer writer) throws IOException {
-    writer.append("\n</").append(Xml.Level.STUDY.getTagName()).append(">");
+    serializer.endArray();
   }
 
   // Compares study date/time with null-safe logic (most recent first)

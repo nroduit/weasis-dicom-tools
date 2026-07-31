@@ -131,6 +131,31 @@ class ArcParametersTest {
     }
 
     @ParameterizedTest
+    @ValueSource(
+        strings = {
+          " 0x0010 , 32 , 0x0040 ",
+          "0x0010,  32,0x0040  ",
+          "\t0x0010\t,\n32\n,  0x0040",
+          "  0x0010 ,32, 0x0040"
+        })
+    void parseOverrideTags_ignores_whitespace_around_tags(String input) {
+      var params = new ArcParameters(ARCHIVE_ID, BASE_URL, null, input, null);
+      assertArrayEquals(new int[] {0x0010, 32, 0x0040}, params.getOverrideDicomTagIDList());
+    }
+
+    @Test
+    void parseOverrideTags_with_whitespace_only_entries_filters_them() {
+      var params = new ArcParameters(ARCHIVE_ID, BASE_URL, null, "0x0010, ,\t, 0x0020", null);
+      assertArrayEquals(new int[] {0x0010, 0x0020}, params.getOverrideDicomTagIDList());
+    }
+
+    @Test
+    void parseOverrideTags_with_inner_space_in_tag_filters_it() {
+      var params = new ArcParameters(ARCHIVE_ID, BASE_URL, null, "0x0010 0x0020, 32", null);
+      assertArrayEquals(new int[] {32}, params.getOverrideDicomTagIDList());
+    }
+
+    @ParameterizedTest
     @NullAndEmptySource
     @ValueSource(strings = {"   "})
     void parseOverrideTags_with_null_or_invalid_returns_null(String input) {

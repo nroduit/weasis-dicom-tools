@@ -141,14 +141,12 @@ public class DicomOutputData {
     MatOfInt dicomParams = null;
     try {
       dicomParams = new MatOfInt(params);
+      // Must be read before encoding, which releases the source image
+      double uncompressedFrameSize = frameSizeInBytes(images.get(0).get());
       for (int i = 0; i < images.size(); i++) {
         buf = encodeImageFrame(i, dicomParams);
         if (i == 0) {
-          writeDatasetHeader(dos, dataSet, params, buf);
-          PlanarImage image = images.get(i).get();
-          if (image.isReleasedAfterProcessing()) {
-            image.release();
-          }
+          writeDatasetHeader(dos, dataSet, params, buf, uncompressedFrameSize);
         }
         writeCompressedFrame(dos, buf);
       }
@@ -183,20 +181,21 @@ public class DicomOutputData {
     return buf;
   }
 
+  private static double frameSizeInBytes(PlanarImage image) {
+    return (double) image.width() * image.height() * image.elemSize();
+  }
+
   private void writeDatasetHeader(
-      DicomOutputStream dos, Attributes dataSet, int[] params, Mat buffer) throws IOException {
-    var compressionRatio = calculateCompressionRatio(buffer);
-    adaptCompressionRatio(dataSet, params, compressionRatio);
+      DicomOutputStream dos, Attributes dataSet, int[] params, Mat buffer, double uncompressedSize)
+      throws IOException {
+    adaptCompressionRatio(dataSet, params, calculateCompressionRatio(uncompressedSize, buffer));
     dos.writeDataset(null, dataSet);
     dos.writeHeader(Tag.PixelData, VR.OB, -1);
     dos.writeHeader(Tag.Item, null, 0);
   }
 
-  private double calculateCompressionRatio(Mat buffer) throws IOException {
-    var firstImage = getFirstImage().get();
-    int compressedLength = buffer.width() * buffer.height() * (int) buffer.elemSize();
-    double uncompressed = firstImage.width() * firstImage.height() * (double) firstImage.elemSize();
-    return uncompressed / compressedLength;
+  private double calculateCompressionRatio(double uncompressedSize, Mat buffer) {
+    return uncompressedSize / (buffer.width() * buffer.height() * (int) buffer.elemSize());
   }
 
   private void writeCompressedFrame(DicomOutputStream dos, Mat buffer) throws IOException {
@@ -208,36 +207,32 @@ public class DicomOutputData {
   }
 
   private void adaptCompressionRatio(Attributes dataSet, int[] params, double ratio) {
-    var compressionInfo = extractCompressionInfo(params);
-
-    if (compressionInfo.isLossy()) {
-      setLossyCompressionTags(dataSet, compressionInfo.type(), ratio);
+    if (TransferSyntaxType.isLossyCompression(tsuid)) {
+      setLossyCompressionTags(dataSet, params[Imgcodecs.DICOM_PARAM_COMPRESSION], ratio);
     }
-  }
-
-  private CompressionInfo extractCompressionInfo(int[] params) {
-    return new CompressionInfo(
-        params[Imgcodecs.DICOM_PARAM_COMPRESSION],
-        params[Imgcodecs.DICOM_PARAM_JPEG_QUALITY],
-        params[Imgcodecs.DICOM_PARAM_J2K_COMPRESSION_FACTOR],
-        params[Imgcodecs.DICOM_PARAM_JPEGLS_LOSSY_ERROR]);
   }
 
   private void setLossyCompressionTags(Attributes dataSet, int compressType, double ratio) {
     dataSet.setString(Tag.LossyImageCompression, VR.CS, "01");
 
     var method = getCompressionMethod(compressType);
-    var updatedRatios = updateCompressionRatios(dataSet, ratio);
-    var updatedMethods = updateCompressionMethods(dataSet, method);
+    dataSet.setString(
+        Tag.LossyImageCompressionMethod, VR.CS, updateCompressionMethods(dataSet, method));
 
-    dataSet.setDouble(Tag.LossyImageCompressionRatio, VR.DS, updatedRatios);
-    dataSet.setString(Tag.LossyImageCompressionMethod, VR.CS, updatedMethods);
+    // A ratio must be strictly positive, otherwise leave the type 3 attribute out
+    if (ratio > 0 && Double.isFinite(ratio)) {
+      dataSet.setDouble(
+          Tag.LossyImageCompressionRatio, VR.DS, updateCompressionRatios(dataSet, ratio));
+    } else {
+      LOGGER.warn("Cannot compute the lossy compression ratio of {}", method);
+    }
   }
 
   private String getCompressionMethod(int compressType) {
     return switch (compressType) {
       case Imgcodecs.DICOM_CP_J2K -> "ISO_15444_1";
       case Imgcodecs.DICOM_CP_JPLS -> "ISO_14495_1";
+      case Imgcodecs.DICOM_CP_JXL -> "ISO_18181_1";
       default -> "ISO_10918_1";
     };
   }
@@ -377,7 +372,9 @@ public class DicomOutputData {
 
     int compressionType = determineCompressionType(transferSyntax);
 
-    if (!UID.JPEGXL.equals(param.getTransferSyntaxUid()) || elemSize == 2) {
+    // JPEG XL uses the quality as a lossless switch: 100 means mathematically lossless
+    if (transferSyntax == TransferSyntaxType.JPEG_XL
+        && (!UID.JPEGXL.equals(param.getTransferSyntaxUid()) || elemSize == 2)) {
       param.setCompressionQuality(100);
     }
 
@@ -575,14 +572,6 @@ public class DicomOutputData {
 
   private record CompressionSettings(
       int compressType, int bitCompressedForEncoder, int jpeglsNLE) {}
-
-  private record CompressionInfo(int type, int jpegQuality, int jpeg2000CompRatio, int jpeglsNLE) {
-    boolean isLossy() {
-      return (type == Imgcodecs.DICOM_CP_JPG && jpegQuality > 0)
-          || (type == Imgcodecs.DICOM_CP_J2K && jpeg2000CompRatio > 0)
-          || (type == Imgcodecs.DICOM_CP_JPLS && jpeglsNLE > 0);
-    }
-  }
 
   private record ImageAttributes(int channels, boolean signed) {}
 

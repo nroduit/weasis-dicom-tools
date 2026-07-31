@@ -341,6 +341,46 @@ class TranscoderTest {
   }
 
   @ParameterizedTest
+  @ValueSource(
+      strings = {
+        UID.JPEGLosslessSV1,
+        UID.JPEGLossless,
+        UID.JPEG2000Lossless,
+        UID.JPEGLSLossless,
+        UID.JPEGXLLossless
+      })
+  void lossless_transcoding_must_not_set_the_lossy_image_compression_module(
+      String targetTransferSyntax) throws Exception {
+    var attributes = transcodeAndReadDataset(targetTransferSyntax);
+
+    assertNull(attributes.getString(Tag.LossyImageCompression));
+    assertNull(attributes.getString(Tag.LossyImageCompressionRatio));
+    assertNull(attributes.getString(Tag.LossyImageCompressionMethod));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {UID.JPEGBaseline8Bit, UID.JPEG2000, UID.JPEGLSNearLossless, UID.JPEGXL})
+  void lossy_transcoding_must_set_the_lossy_image_compression_module(String targetTransferSyntax)
+      throws Exception {
+    var attributes = transcodeAndReadDataset(targetTransferSyntax);
+
+    assertEquals("01", attributes.getString(Tag.LossyImageCompression));
+    assertTrue(attributes.getDouble(Tag.LossyImageCompressionRatio, 0.0) > 0.0);
+    assertNotNull(attributes.getString(Tag.LossyImageCompressionMethod));
+  }
+
+  private Attributes transcodeAndReadDataset(String targetTransferSyntax) throws Exception {
+    var spec = TestImageSpec.color().withDimensions(128, 128).withPhotometricInterpretation("RGB");
+    var inputFile = createTestImage(spec);
+    var params = new DicomTranscodeParam(targetTransferSyntax);
+    var outputFile = transcodeDicom(inputFile, params);
+
+    try (var stream = new DicomFileInputStream(outputFile)) {
+      return stream.readDataset();
+    }
+  }
+
+  @ParameterizedTest
   @ValueSource(strings = {UID.RLELossless, UID.JPEG2000MC, UID.JPIPHTJ2KReferenced, UID.MPEG2MPHL})
   void test_transfer_syntax_adaptation_when_target_format_is_unsupported(
       String targetTransferSyntax) {

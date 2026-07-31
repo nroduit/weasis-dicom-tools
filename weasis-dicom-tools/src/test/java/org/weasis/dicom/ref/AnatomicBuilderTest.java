@@ -17,12 +17,16 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.ResourceBundle;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
@@ -36,6 +40,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.weasis.dicom.junit.DefaultLocale;
 import org.weasis.dicom.ref.AnatomicBuilder.Category;
+import org.weasis.dicom.ref.AnatomicBuilder.CategoryBuilder;
 import org.weasis.dicom.ref.AnatomicBuilder.OtherCategory;
 
 @DefaultLocale(language = "en", country = "US")
@@ -475,33 +480,129 @@ class AnatomicBuilderTest {
 
     @Test
     void categoryMap_contains_expected_entries_without_mocks() {
+      Map<CategoryBuilder, List<AnatomicItem>> categoryMap = AnatomicBuilder.getCategoryMap();
       // Prefer real data over mocks: verify that category mappings expose real enums
-      assertTrue(AnatomicBuilder.categoryMap.containsKey(Category.SURFACE));
-      assertTrue(AnatomicBuilder.categoryMap.containsKey(Category.ALL_REGIONS));
-      assertTrue(AnatomicBuilder.categoryMap.containsKey(Category.COMMON));
-      assertTrue(AnatomicBuilder.categoryMap.containsKey(Category.ENDOSCOPY));
+      assertTrue(categoryMap.containsKey(Category.SURFACE));
+      assertTrue(categoryMap.containsKey(Category.ALL_REGIONS));
+      assertTrue(categoryMap.containsKey(Category.COMMON));
+      assertTrue(categoryMap.containsKey(Category.ENDOSCOPY));
 
       // SURFACE -> SurfacePart.values()
-      List<AnatomicItem> surface = AnatomicBuilder.categoryMap.get(Category.SURFACE);
+      List<AnatomicItem> surface = categoryMap.get(Category.SURFACE);
       assertNotNull(surface);
       assertEquals(SurfacePart.values().length, surface.size());
 
       // ALL_REGIONS -> BodyPart.values()
-      List<AnatomicItem> all = AnatomicBuilder.categoryMap.get(Category.ALL_REGIONS);
+      List<AnatomicItem> all = categoryMap.get(Category.ALL_REGIONS);
       assertNotNull(all);
       assertEquals(BodyPart.values().length, all.size());
 
       // COMMON is a filtered subset from BodyPart
-      List<AnatomicItem> common = AnatomicBuilder.categoryMap.get(Category.COMMON);
+      List<AnatomicItem> common = categoryMap.get(Category.COMMON);
       assertNotNull(common);
       assertFalse(common.isEmpty());
       assertTrue(common.stream().allMatch(i -> ((BodyPart) i).isCommon()));
 
       // ENDOSCOPY is a filtered subset from BodyPart
-      List<AnatomicItem> endoscopy = AnatomicBuilder.categoryMap.get(Category.ENDOSCOPY);
+      List<AnatomicItem> endoscopy = categoryMap.get(Category.ENDOSCOPY);
       assertNotNull(endoscopy);
       assertFalse(endoscopy.isEmpty());
       assertTrue(endoscopy.stream().allMatch(i -> ((BodyPart) i).isEndoscopic()));
+    }
+
+    @Test
+    void categoryMap_is_not_modifiable() {
+      Map<CategoryBuilder, List<AnatomicItem>> categoryMap = AnatomicBuilder.getCategoryMap();
+      List<AnatomicItem> surface = categoryMap.get(Category.SURFACE);
+      assertThrows(
+          UnsupportedOperationException.class, () -> categoryMap.put(Category.SURFACE, List.of()));
+      assertThrows(UnsupportedOperationException.class, () -> surface.add(BodyPart.ABDOMEN));
+    }
+
+    @Test
+    void getCategoryItems_returns_empty_list_for_unknown_category() {
+      CategoryBuilder unknown = new OtherCategory("1.2.840.3.5.404", "UNKNOWN", "Unknown");
+      assertTrue(AnatomicBuilder.getCategoryItems(unknown).isEmpty());
+      assertTrue(AnatomicBuilder.getCategoryItems(null).isEmpty());
+    }
+  }
+
+  @Nested
+  class Custom_Category_Registration_Tests {
+
+    // The registry is static and Surefire runs tests in parallel: one context UID per test
+    private static final AtomicInteger COUNTER = new AtomicInteger();
+
+    private final String contextUID = "1.2.840.3.5.98." + COUNTER.incrementAndGet();
+    private final CategoryBuilder custom = new OtherCategory(contextUID, "CUSTOM", "Custom");
+
+    @AfterEach
+    void unregister() {
+      AnatomicBuilder.unregisterCategory(custom);
+    }
+
+    @Test
+    void registered_category_is_exposed_by_the_accessors() {
+      List<AnatomicItem> items = List.of(BodyPart.ABDOMEN, BodyPart.HEAD);
+      AnatomicBuilder.registerCategory(custom, items);
+
+      assertEquals(items, AnatomicBuilder.getCategoryItems(custom));
+      assertEquals(items, AnatomicBuilder.getCategoryMap().get(custom));
+      assertEquals(custom, AnatomicBuilder.getCategoryFromContextUID(contextUID).orElse(null));
+      // Standard categories are still there, and first
+      assertEquals(Category.SURFACE, AnatomicBuilder.getCategoryMap().keySet().iterator().next());
+    }
+
+    @Test
+    void registering_twice_replaces_the_items() {
+      AnatomicBuilder.registerCategory(custom, List.of(BodyPart.ABDOMEN));
+      AnatomicBuilder.registerCategory(custom, List.of(BodyPart.HEAD));
+
+      assertEquals(List.of(BodyPart.HEAD), AnatomicBuilder.getCategoryItems(custom));
+    }
+
+    @Test
+    void registered_items_are_copied_and_not_modifiable() {
+      List<AnatomicItem> items = new ArrayList<>(List.of(BodyPart.ABDOMEN));
+      AnatomicBuilder.registerCategory(custom, items);
+      items.add(BodyPart.HEAD);
+
+      List<AnatomicItem> registered = AnatomicBuilder.getCategoryItems(custom);
+      assertEquals(List.of(BodyPart.ABDOMEN), registered);
+      assertThrows(UnsupportedOperationException.class, () -> registered.add(BodyPart.HEAD));
+    }
+
+    @Test
+    void registering_a_standard_context_uid_is_rejected() {
+      CategoryBuilder shadow =
+          new OtherCategory(Category.COMMON.getContextUID(), "SHADOW", "Shadow");
+      List<AnatomicItem> items = List.of(BodyPart.ABDOMEN);
+
+      assertThrows(
+          IllegalArgumentException.class, () -> AnatomicBuilder.registerCategory(shadow, items));
+      assertEquals(
+          Category.COMMON,
+          AnatomicBuilder.getCategoryFromContextUID(Category.COMMON.getContextUID()).orElse(null));
+    }
+
+    @Test
+    void registering_null_arguments_is_rejected() {
+      List<AnatomicItem> items = List.of(BodyPart.ABDOMEN);
+      assertThrows(NullPointerException.class, () -> AnatomicBuilder.registerCategory(null, items));
+      assertThrows(
+          NullPointerException.class, () -> AnatomicBuilder.registerCategory(custom, null));
+    }
+
+    @Test
+    void unregisterCategory_reports_whether_it_was_registered() {
+      assertFalse(AnatomicBuilder.unregisterCategory(custom));
+
+      AnatomicBuilder.registerCategory(custom, List.of(BodyPart.ABDOMEN));
+      assertTrue(AnatomicBuilder.unregisterCategory(custom));
+
+      assertFalse(AnatomicBuilder.getCategoryMap().containsKey(custom));
+      assertTrue(AnatomicBuilder.getCategoryItems(custom).isEmpty());
+      assertTrue(AnatomicBuilder.getCategoryFromContextUID(contextUID).isEmpty());
     }
   }
 

@@ -9,11 +9,14 @@
  */
 package org.weasis.dicom.ref;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -32,6 +35,7 @@ import org.weasis.core.util.StringUtil;
  *   <li>Legacy code compatibility for body parts
  *   <li>Predicate-based filtering and searching
  *   <li>Category management with localized titles
+ *   <li>Registration of custom categories through {@link #registerCategory}
  * </ul>
  *
  * @see AnatomicItem
@@ -208,7 +212,10 @@ public final class AnatomicBuilder {
   }
 
   // Category-to-items mapping for efficient access
-  public static final Map<CategoryBuilder, List<AnatomicItem>> categoryMap = createCategoryMap();
+  private static final Map<CategoryBuilder, List<AnatomicItem>> STANDARD_CATEGORIES =
+      createCategoryMap();
+  private static final AtomicReference<Map<CategoryBuilder, List<AnatomicItem>>>
+      EXTENSION_CATEGORIES = new AtomicReference<>(Map.of());
 
   // Efficient lookup maps initialized once
   private static final Map<String, BodyPart> CODE_TO_BODY_PART = createBodyPartCodeMap();
@@ -222,13 +229,112 @@ public final class AnatomicBuilder {
     // Utility class - prevent instantiation
   }
 
-  // Create immutable lookup maps using modern Java 17 patterns
+  // Create immutable lookup maps
   private static Map<CategoryBuilder, List<AnatomicItem>> createCategoryMap() {
-    return Map.of(
-        Category.SURFACE, List.of(SurfacePart.values()),
-        Category.ALL_REGIONS, List.of(BodyPart.values()),
-        Category.COMMON, filterBodyParts(BodyPart::isCommon),
-        Category.ENDOSCOPY, filterBodyParts(BodyPart::isEndoscopic));
+    Map<CategoryBuilder, List<AnatomicItem>> map = new LinkedHashMap<>();
+    map.put(Category.SURFACE, List.of(SurfacePart.values()));
+    map.put(Category.ALL_REGIONS, List.of(BodyPart.values()));
+    map.put(Category.COMMON, filterBodyParts(BodyPart::isCommon));
+    map.put(Category.ENDOSCOPY, filterBodyParts(BodyPart::isEndoscopic));
+    return Collections.unmodifiableMap(map);
+  }
+
+  /**
+   * Returns the standard categories plus the registered ones, in that order.
+   *
+   * @return unmodifiable snapshot of the category-to-items mapping
+   */
+  public static Map<CategoryBuilder, List<AnatomicItem>> getCategoryMap() {
+    Map<CategoryBuilder, List<AnatomicItem>> extensions = EXTENSION_CATEGORIES.get();
+    if (extensions.isEmpty()) {
+      return STANDARD_CATEGORIES;
+    }
+    Map<CategoryBuilder, List<AnatomicItem>> merged = new LinkedHashMap<>(STANDARD_CATEGORIES);
+    merged.putAll(extensions);
+    return Collections.unmodifiableMap(merged);
+  }
+
+  /**
+   * Returns the items of a category, standard or registered.
+   *
+   * @param category the category to look up, may be {@code null}
+   * @return unmodifiable list of items, empty if the category is unknown
+   */
+  public static List<AnatomicItem> getCategoryItems(CategoryBuilder category) {
+    if (category == null) {
+      return List.of();
+    }
+    List<AnatomicItem> items = STANDARD_CATEGORIES.get(category);
+    if (items == null) {
+      items = EXTENSION_CATEGORIES.get().get(category);
+    }
+    return items == null ? List.of() : items;
+  }
+
+  /**
+   * Finds a category by its context UID among the standard and the registered ones.
+   *
+   * @param contextUID the context UID to look up
+   * @return an Optional containing the matching category, or empty if not found
+   */
+  public static Optional<CategoryBuilder> getCategoryFromContextUID(String contextUID) {
+    CategoryBuilder standard = Category.fromContextUID(contextUID).orElse(null);
+    if (standard != null) {
+      return Optional.of(standard);
+    }
+    return EXTENSION_CATEGORIES.get().keySet().stream()
+        .filter(c -> c.getContextUID().equals(contextUID))
+        .findFirst();
+  }
+
+  /**
+   * Registers a custom category and its items, replacing any category previously registered with
+   * the same context UID.
+   *
+   * @param category the custom category, must not be null
+   * @param items the items of this category, must not be null or contain null
+   * @throws IllegalArgumentException if the context UID is already used by a standard {@link
+   *     Category}
+   */
+  public static void registerCategory(CategoryBuilder category, List<AnatomicItem> items) {
+    Objects.requireNonNull(category, "category must not be null");
+    Objects.requireNonNull(items, "items must not be null");
+    List<AnatomicItem> copy = List.copyOf(items);
+    if (Category.fromContextUID(category.getContextUID()).isPresent()) {
+      throw new IllegalArgumentException(
+          "Standard categories cannot be overridden: " + category.getContextUID());
+    }
+
+    EXTENSION_CATEGORIES.updateAndGet(
+        current -> {
+          Map<CategoryBuilder, List<AnatomicItem>> updated = new LinkedHashMap<>(current);
+          updated.remove(category); // keep the new insertion order when replacing an existing entry
+          updated.put(category, copy);
+          return Collections.unmodifiableMap(updated);
+        });
+  }
+
+  /**
+   * Removes a previously registered custom category.
+   *
+   * @param category the category to remove
+   * @return true if the category was registered
+   */
+  public static boolean unregisterCategory(CategoryBuilder category) {
+    if (category == null) {
+      return false;
+    }
+    Map<CategoryBuilder, List<AnatomicItem>> previous =
+        EXTENSION_CATEGORIES.getAndUpdate(
+            current -> {
+              if (!current.containsKey(category)) {
+                return current;
+              }
+              Map<CategoryBuilder, List<AnatomicItem>> updated = new LinkedHashMap<>(current);
+              updated.remove(category);
+              return Collections.unmodifiableMap(updated);
+            });
+    return previous.containsKey(category);
   }
 
   private static List<AnatomicItem> filterBodyParts(Predicate<BodyPart> filter) {

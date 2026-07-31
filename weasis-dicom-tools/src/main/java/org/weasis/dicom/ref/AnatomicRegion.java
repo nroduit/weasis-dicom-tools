@@ -21,7 +21,6 @@ import org.dcm4che3.data.VR;
 import org.weasis.core.util.StringUtil;
 import org.weasis.dicom.macro.Code;
 import org.weasis.dicom.macro.ItemCode;
-import org.weasis.dicom.ref.AnatomicBuilder.Category;
 import org.weasis.dicom.ref.AnatomicBuilder.CategoryBuilder;
 import org.weasis.dicom.ref.AnatomicBuilder.OtherCategory;
 
@@ -171,12 +170,11 @@ public class AnatomicRegion {
       return null;
     }
 
-    CategoryBuilder category = Category.fromContextUID(contextUID).orElse(null);
-    if (category == null) {
-      category =
-          new OtherCategory(contextUID, code.getContextIdentifier(), code.getContextIdentifier());
-    }
-    return category;
+    return AnatomicBuilder.getCategoryFromContextUID(contextUID)
+        .orElseGet(
+            () ->
+                new OtherCategory(
+                    contextUID, code.getContextIdentifier(), code.getContextIdentifier()));
   }
 
   // Write legacy body part examined tag if available

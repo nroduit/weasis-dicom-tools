@@ -196,10 +196,10 @@ public class ArcParameters {
 
   // Parses comma-separated override tags into integer array
   private int[] parseOverrideTags(String overrideDicomTagsList) {
-    if (!StringUtil.hasText(overrideDicomTagsList)) {
+    String[] tagStrings = StringUtil.getStringArray(overrideDicomTagsList, TAG_DELIMITER);
+    if (tagStrings.length == 0) {
       return null;
     }
-    String[] tagStrings = overrideDicomTagsList.split(TAG_DELIMITER + "\\s*");
     return Arrays.stream(tagStrings)
         .mapToInt(this::parseTagId)
         .filter(tagId -> tagId != -1) // Filter out invalid tags

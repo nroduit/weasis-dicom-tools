@@ -320,10 +320,9 @@ public class HangingProtocol extends Module {
     for (; index < imageSets.size(); ++index) {
       HPImageSet otherImageSet = imageSets.get(index);
       otherImageSet.setImageSetNumber(index + 1);
-      for (Iterator<HPDisplaySet> iter = getDisplaySetsOfImageSet(otherImageSet).iterator();
-          iter.hasNext(); ) {
-        iter.next().setImageSet(otherImageSet);
-      }
+        for (HPDisplaySet hpDisplaySet : getDisplaySetsOfImageSet(otherImageSet)) {
+            hpDisplaySet.setImageSet(otherImageSet);
+        }
     }
 
     return true;
@@ -394,15 +393,14 @@ public class HangingProtocol extends Module {
   }
 
   public String getDisplaySetPresentationGroupDescription(int pgNo) {
-    for (int i = 0, n = displaySets.size(); i < n; i++) {
-      HPDisplaySet ds = displaySets.get(i);
-      if (ds.getDisplaySetPresentationGroup() == pgNo) {
-        String desc = ds.getDisplaySetPresentationGroupDescription();
-        if (desc != null) {
-          return desc;
-        }
+      for (HPDisplaySet ds : displaySets) {
+          if (ds.getDisplaySetPresentationGroup() == pgNo) {
+              String desc = ds.getDisplaySetPresentationGroupDescription();
+              if (desc != null) {
+                  return desc;
+              }
+          }
       }
-    }
     return null;
   }
 
@@ -437,7 +435,8 @@ public class HangingProtocol extends Module {
 
   protected void doAddDisplaySet(HPDisplaySet displaySet) {
     displaySet.setDisplaySetNumber(displaySets.size() + 1);
-    int group = displaySet.getDisplaySetPresentationGroup();
+    Integer presentationGroup = displaySet.getDisplaySetPresentationGroup();
+    int group = presentationGroup == null ? 0 : presentationGroup;
     if (group == 0) {
       group = Math.max(maxPresGroup, 1);
       displaySet.setDisplaySetPresentationGroup(group);

@@ -207,11 +207,11 @@ public final class ImageDescriptor {
   }
 
   private OverlayDataContainer createOverlayData(Attributes dcm) {
+    var lutShape = dcm.getString(Tag.PresentationLUTShape);
     var embeddedOverlays = EmbeddedOverlay.getEmbeddedOverlay(dcm);
     var overlays = OverlayData.getOverlayData(dcm, 0xffff);
 
-    return new OverlayDataContainer(
-        embeddedOverlays, overlays, dcm.getString(Tag.PresentationLUTShape));
+    return new OverlayDataContainer(embeddedOverlays, overlays, lutShape);
   }
 
   private LutDataContainer createLutData(Attributes dcm) {

@@ -213,7 +213,7 @@ public final class Transcoder {
       throws IOException {
     DicomImageReader reader = new DicomImageReader(dicomImageReaderSpi);
     try {
-      reader.setInput(new DicomFileInputStream(srcPath));
+      reader.setInput(new DicomFileInputStream(srcPath), false, false);
       var context = createTranscodeContext(reader, params);
 
       try (var dos = new DicomOutputStream(outputStream, context.actualTsuid)) {
@@ -249,7 +249,7 @@ public final class Transcoder {
 
   private static DicomImageReader createAndConfigureReader(Path srcPath) throws Exception {
     var reader = new DicomImageReader(dicomImageReaderSpi);
-    reader.setInput(new DicomFileInputStream(srcPath));
+    reader.setInput(new DicomFileInputStream(srcPath), false, false);
     return reader;
   }
 
@@ -299,6 +299,9 @@ public final class Transcoder {
   private static DicomTranscodeContext createTranscodeContext(
       DicomImageReader reader, DicomTranscodeParam params) throws IOException {
     var metaData = reader.getStreamMetadata();
+    if (metaData == null) {
+      throw new IOException("No DICOM metadata available from the image reader");
+    }
     var dataSet = new Attributes(metaData.getDicomObject());
     dataSet.remove(Tag.PixelData);
 

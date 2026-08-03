@@ -1,5 +1,16 @@
 # Changelog
 
+## [v5.34.3.3](https://github.com/nroduit/weasis-dicom-tools/tree/v5.34.3.3) (2026-08-03)
+
+[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.34.3.2...v5.34.3.3)
+
+**Merged pull requests:**
+
+- build: bump the maven group across 2 directories with 1 update [\#49](https://github.com/nroduit/weasis-dicom-tools/pull/49) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci: bump actions/setup-java from 5.6.0 to 5.7.0 in the actions group [\#48](https://github.com/nroduit/weasis-dicom-tools/pull/48) ([dependabot[bot]](https://github.com/apps/dependabot))
+- build: bump the maven group across 2 directories with 3 updates [\#47](https://github.com/nroduit/weasis-dicom-tools/pull/47) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci: bump the actions group across 1 directory with 2 updates [\#46](https://github.com/nroduit/weasis-dicom-tools/pull/46) ([dependabot[bot]](https://github.com/apps/dependabot))
+
 ## [v5.34.3.2](https://github.com/nroduit/weasis-dicom-tools/tree/v5.34.3.2) (2026-07-27)
 
 [Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.34.3.1...v5.34.3.2)

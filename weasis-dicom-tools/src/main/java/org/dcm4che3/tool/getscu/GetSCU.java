@@ -16,6 +16,7 @@ import java.nio.file.StandardCopyOption;
 import java.security.GeneralSecurityException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.ElementDictionary;
 import org.dcm4che3.data.Tag;
@@ -41,6 +42,7 @@ import org.dcm4che3.net.service.DicomServiceRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.util.FileUtil;
+import org.weasis.dicom.param.CancelListener;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
 import org.weasis.dicom.util.ServiceUtil;
@@ -101,6 +103,8 @@ public class GetSCU implements AutoCloseable {
   private final DicomState state;
   private DimseRSPHandler rspHandler;
   private long totalSize = 0;
+  private final AtomicBoolean cancelSent = new AtomicBoolean();
+  private final CancelListener cancelListener = this::handleCancel;
 
   private final BasicCStoreSCP storageSCP =
       new BasicCStoreSCP("*") {
@@ -273,6 +277,10 @@ public class GetSCU implements AutoCloseable {
 
   @Override
   public void close() throws IOException, InterruptedException {
+    var progress = state.getProgress();
+    if (progress != null) {
+      progress.removeCancelListener(cancelListener);
+    }
     if (as != null && as.isReadyForDataTransfer()) {
       as.waitForOutstandingRSP();
       as.release();
@@ -295,9 +303,8 @@ public class GetSCU implements AutoCloseable {
   }
 
   private void retrieve(Attributes keys) throws IOException, InterruptedException {
-    var rspHandler = createResponseHandler();
-    retrieve(keys, rspHandler);
-    scheduleCancellationIfNeeded(rspHandler);
+    retrieve(keys, createResponseHandler());
+    scheduleCancellationIfNeeded();
   }
 
   private DimseRSPHandler createResponseHandler() {
@@ -310,17 +317,47 @@ public class GetSCU implements AutoCloseable {
     };
   }
 
-  private void scheduleCancellationIfNeeded(DimseRSPHandler rspHandler) {
+  private void scheduleCancellationIfNeeded() {
     if (cancelAfter > 0) {
-      device.schedule(() -> cancelRetrieve(rspHandler), cancelAfter, TimeUnit.MILLISECONDS);
+      device.schedule(this::cancelRetrieve, cancelAfter, TimeUnit.MILLISECONDS);
     }
   }
 
-  private void cancelRetrieve(DimseRSPHandler rspHandler) {
-    try {
-      rspHandler.cancel(as);
-    } catch (IOException e) {
-      LOGGER.error("Cancel C-GET", e);
+  /** Cancels or aborts, depending on how far the progress has escalated. */
+  private void handleCancel() {
+    var progress = state.getProgress();
+    if (progress != null && progress.isAborted()) {
+      abortRetrieve();
+    } else {
+      cancelRetrieve();
+    }
+  }
+
+  /**
+   * Sends a C-CANCEL for the pending C-GET. Only the first call reaches the network: the remaining
+   * sub-operations are then terminated by the SCP and the association is released normally.
+   */
+  public void cancelRetrieve() {
+    if (rspHandler == null || as == null || !as.isReadyForDataTransfer()) {
+      return;
+    }
+    if (cancelSent.compareAndSet(false, true)) {
+      try {
+        rspHandler.cancel(as);
+      } catch (IOException e) {
+        LOGGER.error("Cancel C-GET", e);
+      }
+    }
+  }
+
+  /**
+   * Tears the association down with an A-ABORT. Unlike a C-CANCEL, which the archive answers when
+   * it gets to it, this stops the incoming objects at once.
+   */
+  public void abortRetrieve() {
+    if (as != null && as.isReadyForDataTransfer()) {
+      LOGGER.info("Aborting the C-GET association of {}", rq.getCalledAET());
+      as.abort();
     }
   }
 
@@ -332,6 +369,14 @@ public class GetSCU implements AutoCloseable {
   private void retrieve(Attributes keys, DimseRSPHandler rspHandler)
       throws IOException, InterruptedException {
     this.rspHandler = rspHandler;
+    var progress = state.getProgress();
+    if (progress != null) {
+      // Registered before the request is sent so a cancel raised meanwhile is not lost
+      progress.addCancelListener(cancelListener);
+      if (progress.isCancelled()) {
+        return;
+      }
+    }
     as.cget(model.getCuid(), priority, keys, null, rspHandler);
   }
 
@@ -365,8 +410,8 @@ public class GetSCU implements AutoCloseable {
     var progress = state.getProgress();
     if (progress != null) {
       progress.setAttributes(cmd);
-      if (progress.isCancelled() && rspHandler != null) {
-        cancelRetrieve(rspHandler);
+      if (progress.isCancelled()) {
+        handleCancel();
       }
     }
   }

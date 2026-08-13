@@ -205,6 +205,88 @@ class DicomProgressTest {
       assertEquals(5, progress.getNumberOfRemainingSuboperations());
       assertEquals("Error", progress.getErrorComment());
     }
+
+    @Test
+    void should_notify_cancel_listeners_on_cancel() {
+      var notified = new AtomicInteger();
+      progress.addCancelListener(notified::incrementAndGet);
+
+      progress.cancel();
+
+      assertEquals(1, notified.get());
+    }
+
+    @Test
+    void should_notify_cancel_listeners_only_once() {
+      var notified = new AtomicInteger();
+      progress.addCancelListener(notified::incrementAndGet);
+
+      progress.cancel();
+      progress.cancel();
+
+      assertEquals(1, notified.get());
+    }
+
+    @Test
+    void should_notify_late_cancel_listener_immediately() {
+      var notified = new AtomicInteger();
+      progress.cancel();
+
+      progress.addCancelListener(notified::incrementAndGet);
+
+      assertEquals(1, notified.get());
+    }
+
+    @Test
+    void should_escalate_a_cancelled_operation_to_an_abort() {
+      var notified = new AtomicInteger();
+      progress.addCancelListener(notified::incrementAndGet);
+
+      progress.cancel();
+      progress.abort();
+
+      assertEquals(2, notified.get(), "the SCU must be signalled again to tear the association");
+      assertTrue(progress.isAborted());
+    }
+
+    @Test
+    void should_notify_an_abort_only_once() {
+      var notified = new AtomicInteger();
+      progress.addCancelListener(notified::incrementAndGet);
+
+      progress.abort();
+      progress.abort();
+
+      assertEquals(1, notified.get());
+    }
+
+    @Test
+    void should_report_an_aborted_operation_as_cancelled() {
+      progress.abort();
+
+      assertTrue(progress.isCancelled());
+      assertEquals(Status.Cancel, progress.getStatus());
+    }
+
+    @Test
+    void should_not_be_aborted_by_a_plain_cancel() {
+      progress.cancel();
+
+      assertTrue(progress.isCancelled());
+      assertFalse(progress.isAborted());
+    }
+
+    @Test
+    void should_not_notify_removed_cancel_listener() {
+      var notified = new AtomicInteger();
+      CancelListener listener = notified::incrementAndGet;
+      progress.addCancelListener(listener);
+      progress.removeCancelListener(listener);
+
+      progress.cancel();
+
+      assertEquals(0, notified.get());
+    }
   }
 
   @Nested

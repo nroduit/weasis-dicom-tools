@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.ElementDictionary;
 import org.dcm4che3.data.Tag;
@@ -30,6 +31,7 @@ import org.dcm4che3.net.pdu.ExtendedNegotiation;
 import org.dcm4che3.net.pdu.PresentationContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.weasis.dicom.param.CancelListener;
 import org.weasis.dicom.param.DicomProgress;
 import org.weasis.dicom.param.DicomState;
 
@@ -86,6 +88,9 @@ public class MoveSCU extends Device implements AutoCloseable {
   private Association as;
   private int cancelAfter;
   private boolean releaseEager;
+  private DimseRSPHandler rspHandler;
+  private final AtomicBoolean cancelSent = new AtomicBoolean();
+  private final CancelListener cancelListener = this::handleCancel;
 
   /** Creates a new MoveSCU instance without progress tracking. */
   public MoveSCU() {
@@ -206,6 +211,10 @@ public class MoveSCU extends Device implements AutoCloseable {
   /** Closes the DICOM association and releases resources. */
   @Override
   public void close() throws IOException, InterruptedException {
+    var progress = state.getProgress();
+    if (progress != null) {
+      progress.removeCancelListener(cancelListener);
+    }
     if (as != null && as.isReadyForDataTransfer()) {
       as.waitForOutstandingRSP();
       as.release();
@@ -244,11 +253,19 @@ public class MoveSCU extends Device implements AutoCloseable {
   }
 
   private void performMove(Attributes queryKeys) throws IOException, InterruptedException {
-    var rspHandler = createResponseHandler();
+    this.rspHandler = createResponseHandler();
+    var progress = state.getProgress();
+    if (progress != null) {
+      // Registered before the request is sent so a cancel raised meanwhile is not lost
+      progress.addCancelListener(cancelListener);
+      if (progress.isCancelled()) {
+        return;
+      }
+    }
     as.cmove(model.cuid, priority, queryKeys, null, destination, rspHandler);
 
     if (cancelAfter > 0) {
-      scheduleCancellation(rspHandler);
+      scheduleCancellation();
     }
   }
 
@@ -267,26 +284,59 @@ public class MoveSCU extends Device implements AutoCloseable {
     if (progress != null) {
       progress.setAttributes(cmd);
       if (progress.isCancelled()) {
-        try {
-          // The handler will be passed to this method from the calling context
-          LOGGER.info("Cancelling C-MOVE operation due to progress cancellation");
-        } catch (Exception e) {
-          LOGGER.error("Error during progress cancellation", e);
-        }
+        handleCancel();
       }
     }
   }
 
-  private void scheduleCancellation(DimseRSPHandler handler) {
+  /** Cancels or aborts, depending on how far the progress has escalated. */
+  private void handleCancel() {
+    var progress = state.getProgress();
+    if (progress != null && progress.isAborted()) {
+      abortRetrieve();
+    } else {
+      cancelRetrieve();
+    }
+  }
+
+  /**
+   * Tears the association down with an A-ABORT. Unlike a C-CANCEL, which the archive answers when
+   * it gets to it, this stops the sub-operations sent to the move destination at once.
+   */
+  public void abortRetrieve() {
+    if (as != null && as.isReadyForDataTransfer()) {
+      LOGGER.info("Aborting the C-MOVE association of {}", rq.getCalledAET());
+      as.abort();
+    }
+  }
+
+  /**
+   * Sends a C-CANCEL for the pending C-MOVE, which stops the SCP from sending further objects to
+   * the move destination. Only the first call reaches the network.
+   */
+  public void cancelRetrieve() {
+    if (rspHandler == null || as == null || !as.isReadyForDataTransfer()) {
+      return;
+    }
+    if (cancelSent.compareAndSet(false, true)) {
+      try {
+        rspHandler.cancel(as);
+      } catch (IOException e) {
+        LOGGER.error("Cancel C-MOVE", e);
+      }
+    }
+  }
+
+  private void scheduleCancellation() {
     schedule(
         () -> {
-          try {
-            handler.cancel(as);
-            if (releaseEager) {
+          cancelRetrieve();
+          if (releaseEager) {
+            try {
               as.release();
+            } catch (IOException e) {
+              LOGGER.error("Release association after cancelling C-MOVE", e);
             }
-          } catch (IOException e) {
-            LOGGER.error("Error cancelling C-MOVE operation after timeout", e);
           }
         },
         cancelAfter,

@@ -12,6 +12,7 @@ package org.weasis.dicom.param;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
@@ -21,9 +22,11 @@ import org.dcm4che3.net.Status;
 public class DicomProgress implements CancelListener {
 
   private final List<ProgressListener> listeners = new CopyOnWriteArrayList<>();
+  private final List<CancelListener> cancelListeners = new CopyOnWriteArrayList<>();
   private final AtomicReference<Attributes> attributes = new AtomicReference<>();
   private final AtomicReference<Path> processedFile = new AtomicReference<>();
-  private volatile boolean cancelled;
+  private final AtomicBoolean cancelled = new AtomicBoolean();
+  private final AtomicBoolean aborted = new AtomicBoolean();
   private volatile boolean lastFailed;
 
   /**
@@ -95,9 +98,52 @@ public class DicomProgress implements CancelListener {
     listeners.remove(listener);
   }
 
+  /**
+   * Adds a listener notified as soon as {@link #cancel()} is called. If the operation is already
+   * cancelled, the listener is notified immediately.
+   *
+   * @param listener the listener to add (null values are ignored)
+   */
+  public void addCancelListener(CancelListener listener) {
+    if (listener != null && !cancelListeners.contains(listener)) {
+      cancelListeners.add(listener);
+      if (cancelled.get()) {
+        listener.cancel();
+      }
+    }
+  }
+
+  /**
+   * Removes a cancel listener.
+   *
+   * @param listener the listener to remove
+   */
+  public void removeCancelListener(CancelListener listener) {
+    cancelListeners.remove(listener);
+  }
+
+  /**
+   * Cancels the operation and notifies the registered cancel listeners so the running SCU can send
+   * a C-CANCEL without waiting for the next response. Subsequent calls are no-ops.
+   */
   @Override
   public void cancel() {
-    this.cancelled = true;
+    if (cancelled.compareAndSet(false, true)) {
+      cancelListeners.forEach(CancelListener::cancel);
+    }
+  }
+
+  /**
+   * Escalates the cancellation: the running SCU releases its association instead of waiting for the
+   * archive to answer the C-CANCEL. Meant for archives that take a long time to honour a cancel and
+   * keep sending meanwhile. The listeners are notified again, so an operation already cancelled
+   * moves on to the abort.
+   */
+  public void abort() {
+    cancelled.set(true);
+    if (aborted.compareAndSet(false, true)) {
+      cancelListeners.forEach(CancelListener::cancel);
+    }
   }
 
   /**
@@ -106,7 +152,16 @@ public class DicomProgress implements CancelListener {
    * @return true if cancelled
    */
   public boolean isCancelled() {
-    return cancelled;
+    return cancelled.get();
+  }
+
+  /**
+   * Checks whether the association must be torn down rather than cancelled.
+   *
+   * @return true if aborted
+   */
+  public boolean isAborted() {
+    return aborted.get();
   }
 
   /**
@@ -115,7 +170,7 @@ public class DicomProgress implements CancelListener {
    * @return the status code (Cancel if cancelled, Pending if no attributes, or actual status)
    */
   public int getStatus() {
-    if (cancelled) {
+    if (cancelled.get()) {
       return Status.Cancel;
     }
     Attributes dcm = attributes.get();

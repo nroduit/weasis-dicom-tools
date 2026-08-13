@@ -35,7 +35,8 @@ import org.weasis.core.util.StringUtil;
  *   <li>Legacy code compatibility for body parts
  *   <li>Predicate-based filtering and searching
  *   <li>Category management with localized titles
- *   <li>Registration of custom categories through {@link #registerCategory}
+ *   <li>Registration of custom categories and of private extensions of standard context groups
+ *       through {@link #registerCategory}
  * </ul>
  *
  * @see AnatomicItem
@@ -140,6 +141,84 @@ public final class AnatomicBuilder {
     @Override
     public int hashCode() {
       return Objects.hashCode(contextUID);
+    }
+  }
+
+  /**
+   * Private extension of a standard {@link Category}: it keeps the context UID and the identifier
+   * of the extended context group and adds private codes identified by an extension creator UID.
+   *
+   * <p>Items flagged with {@link AnatomicItem#isContextGroupExtension()} are written with the
+   * Context Group Extension attributes, as required for a private extension of a standard context
+   * group.
+   */
+  public static final class ExtendedCategory implements CategoryBuilder {
+
+    private final Category baseCategory;
+    private final String extensionCreatorUID;
+    private final String title;
+
+    /**
+     * @param baseCategory the standard context group being extended, must not be null
+     * @param extensionCreatorUID the UID of the organization that created the private codes, must
+     *     not be null
+     * @param title the human-readable title, must not be null
+     */
+    public ExtendedCategory(Category baseCategory, String extensionCreatorUID, String title) {
+      this.baseCategory = Objects.requireNonNull(baseCategory, "baseCategory must not be null");
+      this.extensionCreatorUID =
+          Objects.requireNonNull(extensionCreatorUID, "extensionCreatorUID must not be null");
+      this.title = Objects.requireNonNull(title, "title must not be null");
+    }
+
+    @Override
+    public String getContextUID() {
+      return baseCategory.getContextUID();
+    }
+
+    @Override
+    public String getIdentifier() {
+      return baseCategory.getIdentifier();
+    }
+
+    @Override
+    public String getTitle() {
+      return title;
+    }
+
+    /**
+     * Returns the standard context group extended by this category.
+     *
+     * @return the extended category
+     */
+    public Category getBaseCategory() {
+      return baseCategory;
+    }
+
+    /**
+     * Returns the value written in Context Group Extension Creator UID.
+     *
+     * @return the extension creator UID
+     */
+    public String getExtensionCreatorUID() {
+      return extensionCreatorUID;
+    }
+
+    @Override
+    public String toString() {
+      return title;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      return obj instanceof ExtendedCategory other
+          && baseCategory == other.baseCategory
+          && extensionCreatorUID.equals(other.extensionCreatorUID);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(baseCategory, extensionCreatorUID);
     }
   }
 
@@ -288,19 +367,38 @@ public final class AnatomicBuilder {
   }
 
   /**
+   * Finds a registered {@link ExtendedCategory} by the UID written in Context Group Extension
+   * Creator UID.
+   *
+   * @param extensionCreatorUID the extension creator UID to look up
+   * @return an Optional containing the matching extension, or empty if none is registered
+   */
+  public static Optional<ExtendedCategory> getExtendedCategory(String extensionCreatorUID) {
+    if (!StringUtil.hasText(extensionCreatorUID)) {
+      return Optional.empty();
+    }
+    return EXTENSION_CATEGORIES.get().keySet().stream()
+        .filter(ExtendedCategory.class::isInstance)
+        .map(ExtendedCategory.class::cast)
+        .filter(c -> extensionCreatorUID.equals(c.getExtensionCreatorUID()))
+        .findFirst();
+  }
+
+  /**
    * Registers a custom category and its items, replacing any category previously registered with
    * the same context UID.
    *
    * @param category the custom category, must not be null
    * @param items the items of this category, must not be null or contain null
    * @throws IllegalArgumentException if the context UID is already used by a standard {@link
-   *     Category}
+   *     Category}, unless the category is an {@link ExtendedCategory} of that context group
    */
   public static void registerCategory(CategoryBuilder category, List<AnatomicItem> items) {
     Objects.requireNonNull(category, "category must not be null");
     Objects.requireNonNull(items, "items must not be null");
     List<AnatomicItem> copy = List.copyOf(items);
-    if (Category.fromContextUID(category.getContextUID()).isPresent()) {
+    if (!(category instanceof ExtendedCategory)
+        && Category.fromContextUID(category.getContextUID()).isPresent()) {
       throw new IllegalArgumentException(
           "Standard categories cannot be overridden: " + category.getContextUID());
     }

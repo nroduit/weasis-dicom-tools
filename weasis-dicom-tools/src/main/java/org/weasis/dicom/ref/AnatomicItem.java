@@ -40,4 +40,15 @@ public interface AnatomicItem extends ItemCode {
    * @return {@code true} if the anatomical item is paired, {@code false} otherwise
    */
   boolean isPaired();
+
+  /**
+   * Indicates whether this item is a private code added by a context group extension rather than a
+   * code of the standard context group.
+   *
+   * @return {@code true} if the item comes from a private extension
+   * @see org.weasis.dicom.ref.AnatomicBuilder.ExtendedCategory
+   */
+  default boolean isContextGroupExtension() {
+    return false;
+  }
 }

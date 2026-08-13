@@ -12,6 +12,7 @@ package org.weasis.dicom.ref;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -41,6 +42,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.weasis.dicom.junit.DefaultLocale;
 import org.weasis.dicom.ref.AnatomicBuilder.Category;
 import org.weasis.dicom.ref.AnatomicBuilder.CategoryBuilder;
+import org.weasis.dicom.ref.AnatomicBuilder.ExtendedCategory;
 import org.weasis.dicom.ref.AnatomicBuilder.OtherCategory;
 
 @DefaultLocale(language = "en", country = "US")
@@ -603,6 +605,127 @@ class AnatomicBuilderTest {
       assertFalse(AnatomicBuilder.getCategoryMap().containsKey(custom));
       assertTrue(AnatomicBuilder.getCategoryItems(custom).isEmpty());
       assertTrue(AnatomicBuilder.getCategoryFromContextUID(contextUID).isEmpty());
+    }
+  }
+
+  @Nested
+  class Extended_Category_Registration_Tests {
+
+    // The registry is static and Surefire runs tests in parallel: one creator UID per test
+    private static final AtomicInteger COUNTER = new AtomicInteger();
+
+    private final String creatorUID = "1.2.840.3.5.99." + COUNTER.incrementAndGet();
+    private final ExtendedCategory extended =
+        new ExtendedCategory(Category.ALL_REGIONS, creatorUID, "Extended regions");
+    private final AnatomicItem privateItem =
+        new PrivateItem("TEST-1", "Private region", CodingScheme.DCM);
+
+    @AfterEach
+    void unregister() {
+      AnatomicBuilder.unregisterCategory(extended);
+    }
+
+    @Test
+    void extension_of_a_standard_context_group_can_be_registered() {
+      List<AnatomicItem> items = List.of(BodyPart.ABDOMEN, privateItem);
+      AnatomicBuilder.registerCategory(extended, items);
+
+      assertEquals(items, AnatomicBuilder.getCategoryItems(extended));
+      assertEquals(items, AnatomicBuilder.getCategoryMap().get(extended));
+      // The standard context group it extends is left untouched
+      assertEquals(
+          Category.ALL_REGIONS,
+          AnatomicBuilder.getCategoryFromContextUID(Category.ALL_REGIONS.getContextUID())
+              .orElse(null));
+      assertEquals(
+          List.of(BodyPart.values()), AnatomicBuilder.getCategoryItems(Category.ALL_REGIONS));
+    }
+
+    @Test
+    void extension_is_found_by_its_creator_uid() {
+      assertTrue(AnatomicBuilder.getExtendedCategory(creatorUID).isEmpty());
+
+      AnatomicBuilder.registerCategory(extended, List.of(privateItem));
+      assertEquals(extended, AnatomicBuilder.getExtendedCategory(creatorUID).orElse(null));
+
+      AnatomicBuilder.unregisterCategory(extended);
+      assertTrue(AnatomicBuilder.getExtendedCategory(creatorUID).isEmpty());
+    }
+
+    @Test
+    void getExtendedCategory_returns_empty_for_blank_or_unknown_uid() {
+      assertTrue(AnatomicBuilder.getExtendedCategory(null).isEmpty());
+      assertTrue(AnatomicBuilder.getExtendedCategory("  ").isEmpty());
+      assertTrue(AnatomicBuilder.getExtendedCategory("1.2.840.3.5.99.404").isEmpty());
+    }
+
+    @Test
+    void extension_exposes_the_context_of_the_base_category() {
+      assertEquals(Category.ALL_REGIONS, extended.getBaseCategory());
+      assertEquals(Category.ALL_REGIONS.getContextUID(), extended.getContextUID());
+      assertEquals(Category.ALL_REGIONS.getIdentifier(), extended.getIdentifier());
+      assertEquals(creatorUID, extended.getExtensionCreatorUID());
+      assertEquals("Extended regions", extended.getTitle());
+      assertEquals("Extended regions", extended.toString());
+    }
+
+    @Test
+    void extensions_are_equal_by_base_category_and_creator_uid() {
+      assertEquals(extended, new ExtendedCategory(Category.ALL_REGIONS, creatorUID, "Other title"));
+      assertEquals(
+          extended.hashCode(),
+          new ExtendedCategory(Category.ALL_REGIONS, creatorUID, "Other title").hashCode());
+      assertNotEquals(extended, new ExtendedCategory(Category.COMMON, creatorUID, "Extended"));
+      assertNotEquals(
+          extended, new ExtendedCategory(Category.ALL_REGIONS, creatorUID + ".1", "Extended"));
+      assertNotEquals(
+          extended, new OtherCategory(Category.ALL_REGIONS.getContextUID(), "CID 4", "Extended"));
+    }
+
+    @Test
+    void creating_an_extension_with_null_arguments_is_rejected() {
+      assertThrows(
+          NullPointerException.class, () -> new ExtendedCategory(null, creatorUID, "Extended"));
+      assertThrows(
+          NullPointerException.class,
+          () -> new ExtendedCategory(Category.ALL_REGIONS, null, "Extended"));
+      assertThrows(
+          NullPointerException.class,
+          () -> new ExtendedCategory(Category.ALL_REGIONS, creatorUID, null));
+    }
+  }
+
+  private record PrivateItem(String codeValue, String codeMeaning, CodingScheme codingScheme)
+      implements AnatomicItem {
+
+    @Override
+    public String getCodeValue() {
+      return codeValue;
+    }
+
+    @Override
+    public String getCodeMeaning() {
+      return codeMeaning;
+    }
+
+    @Override
+    public CodingScheme getCodingScheme() {
+      return codingScheme;
+    }
+
+    @Override
+    public String getLegacyCode() {
+      return null;
+    }
+
+    @Override
+    public boolean isPaired() {
+      return false;
+    }
+
+    @Override
+    public boolean isContextGroupExtension() {
+      return true;
     }
   }
 

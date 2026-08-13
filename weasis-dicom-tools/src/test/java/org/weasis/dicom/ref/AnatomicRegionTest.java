@@ -19,6 +19,7 @@ import java.util.stream.Stream;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
@@ -36,6 +37,7 @@ import org.weasis.dicom.junit.DefaultLocale;
 import org.weasis.dicom.macro.Code;
 import org.weasis.dicom.macro.ItemCode;
 import org.weasis.dicom.ref.AnatomicBuilder.Category;
+import org.weasis.dicom.ref.AnatomicBuilder.ExtendedCategory;
 
 @DefaultLocale(language = "en", country = "US")
 @DisplayNameGeneration(ReplaceUnderscores.class)
@@ -497,6 +499,110 @@ class AnatomicRegionTest {
       assertEquals(original.getRegion().getCodeMeaning(), parsed.getRegion().getCodeMeaning());
       assertEquals(original.getRegion().isPaired(), parsed.getRegion().isPaired());
       assertEquals(original.getModifiers(), parsed.getModifiers());
+    }
+  }
+
+  @Nested
+  class Context_Group_Extension_Tests {
+
+    private static final String CREATOR_UID = "1.2.840.3.5.97.1";
+
+    private final ExtendedCategory extended =
+        new ExtendedCategory(Category.ALL_REGIONS, CREATOR_UID, "Extended regions");
+    private final AnatomicItem privateItem =
+        new PrivateItem("HUG-1", "Private region", CodingScheme.DCM);
+
+    @BeforeEach
+    void register() {
+      AnatomicBuilder.registerCategory(extended, List.of(BodyPart.ABDOMEN, privateItem));
+    }
+
+    @AfterEach
+    void unregister() {
+      AnatomicBuilder.unregisterCategory(extended);
+    }
+
+    @Test
+    void writes_the_extension_attributes_for_a_private_code() {
+      var dcm = new Attributes();
+      AnatomicRegion.write(dcm, new AnatomicRegion(extended, privateItem, null));
+
+      var code = new Code(dcm.getNestedDataset(Tag.AnatomicRegionSequence));
+      assertEquals(Category.ALL_REGIONS.getContextUID(), code.getContextUID());
+      assertEquals(Category.ALL_REGIONS.getIdentifier(), code.getContextIdentifier());
+      assertEquals("Y", code.getContextGroupExtensionFlag());
+      assertEquals(CREATOR_UID, code.getContextGroupExtensionCreatorUID());
+    }
+
+    @Test
+    void writes_no_extension_attributes_for_a_standard_code_of_the_extension() {
+      var dcm = new Attributes();
+      AnatomicRegion.write(dcm, new AnatomicRegion(extended, BodyPart.ABDOMEN, null));
+
+      var code = new Code(dcm.getNestedDataset(Tag.AnatomicRegionSequence));
+      assertEquals(Category.ALL_REGIONS.getContextUID(), code.getContextUID());
+      assertNull(code.getContextGroupExtensionFlag());
+      assertNull(code.getContextGroupExtensionCreatorUID());
+    }
+
+    @Test
+    void reads_back_the_extension_category_and_its_private_item() {
+      var original = new AnatomicRegion(extended, privateItem, Set.of(AnatomicModifier.LEFT));
+      var dcm = new Attributes();
+      AnatomicRegion.write(dcm, original);
+
+      var parsed = AnatomicRegion.read(dcm);
+      assertNotNull(parsed);
+      assertEquals(extended, parsed.getCategory());
+      assertEquals(privateItem, parsed.getRegion());
+      assertEquals(original.getModifiers(), parsed.getModifiers());
+    }
+
+    @Test
+    void reads_the_standard_category_when_the_extension_is_not_registered() {
+      var dcm = new Attributes();
+      AnatomicRegion.write(dcm, new AnatomicRegion(extended, privateItem, null));
+      AnatomicBuilder.unregisterCategory(extended);
+
+      var parsed = AnatomicRegion.read(dcm);
+      assertNotNull(parsed);
+      assertEquals(Category.ALL_REGIONS, parsed.getCategory());
+      assertInstanceOf(OtherPart.class, parsed.getRegion());
+      assertEquals(privateItem.getCodeValue(), parsed.getRegion().getCodeValue());
+    }
+  }
+
+  private record PrivateItem(String codeValue, String codeMeaning, CodingScheme codingScheme)
+      implements AnatomicItem {
+
+    @Override
+    public String getCodeValue() {
+      return codeValue;
+    }
+
+    @Override
+    public String getCodeMeaning() {
+      return codeMeaning;
+    }
+
+    @Override
+    public CodingScheme getCodingScheme() {
+      return codingScheme;
+    }
+
+    @Override
+    public String getLegacyCode() {
+      return null;
+    }
+
+    @Override
+    public boolean isPaired() {
+      return false;
+    }
+
+    @Override
+    public boolean isContextGroupExtension() {
+      return true;
     }
   }
 

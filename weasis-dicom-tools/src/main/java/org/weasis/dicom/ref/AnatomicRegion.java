@@ -22,6 +22,7 @@ import org.weasis.core.util.StringUtil;
 import org.weasis.dicom.macro.Code;
 import org.weasis.dicom.macro.ItemCode;
 import org.weasis.dicom.ref.AnatomicBuilder.CategoryBuilder;
+import org.weasis.dicom.ref.AnatomicBuilder.ExtendedCategory;
 import org.weasis.dicom.ref.AnatomicBuilder.OtherCategory;
 
 /**
@@ -103,7 +104,7 @@ public class AnatomicRegion {
     Code code = new Code(regAttributes);
 
     writeCode(code, anatomicItem);
-    writeRegionContext(code, region.getCategory());
+    writeRegionContext(code, region.getCategory(), anatomicItem);
     writeLegacyBodyPart(dcm, anatomicItem);
     writeModifiers(regAttributes, region.getModifiers());
 
@@ -122,9 +123,9 @@ public class AnatomicRegion {
     if (!StringUtil.hasText(codeValue)) {
       return Optional.empty();
     }
-    AnatomicItem item = findAnatomicItem(code, dcm, regionAttributes);
-
     CategoryBuilder category = findOrCreateCategory(code);
+    AnatomicItem item = findAnatomicItem(code, dcm, regionAttributes, category);
+
     AnatomicRegion region = new AnatomicRegion(category, item, null);
     addModifiers(regionAttributes, region);
 
@@ -144,11 +145,17 @@ public class AnatomicRegion {
 
   // Find anatomic item from known types or create OtherPart
   private static AnatomicItem findAnatomicItem(
-      Code code, Attributes dcm, Attributes regionAttributes) {
+      Code code, Attributes dcm, Attributes regionAttributes, CategoryBuilder category) {
     String codeValue = code.getExistingCodeValue();
 
+    // Private codes of an extended context group are only known by the extension itself
+    AnatomicItem item = findExtensionItem(category, code);
+    if (item != null) {
+      return item;
+    }
+
     // Try body parts first
-    AnatomicItem item = AnatomicBuilder.getBodyPartFromCode(codeValue);
+    item = AnatomicBuilder.getBodyPartFromCode(codeValue);
     if (item != null) {
       return item;
     }
@@ -163,8 +170,27 @@ public class AnatomicRegion {
     return new OtherPart(codeValue, code.getCodeMeaning(), code.getCodingScheme(), paired);
   }
 
+  // Look up an item among the codes of a registered extension of a standard context group
+  private static AnatomicItem findExtensionItem(CategoryBuilder category, Code code) {
+    if (!(category instanceof ExtendedCategory)) {
+      return null;
+    }
+    String codeValue = code.getExistingCodeValue();
+    CodingScheme scheme = code.getCodingScheme();
+    return AnatomicBuilder.getCategoryItems(category).stream()
+        .filter(i -> i.getCodingScheme() == scheme && i.getCodeValue().equals(codeValue))
+        .findFirst()
+        .orElse(null);
+  }
+
   // Find existing category or create new one
   private static CategoryBuilder findOrCreateCategory(Code code) {
+    ExtendedCategory extended =
+        AnatomicBuilder.getExtendedCategory(code.getContextGroupExtensionCreatorUID()).orElse(null);
+    if (extended != null) {
+      return extended;
+    }
+
     String contextUID = code.getContextUID();
     if (!StringUtil.hasText(contextUID)) {
       return null;
@@ -200,10 +226,16 @@ public class AnatomicRegion {
     }
   }
 
-  private static void writeRegionContext(Code code, CategoryBuilder category) {
-    if (category != null) {
-      code.setContextUID(category.getContextUID());
-      code.setContextIdentifier(category.getIdentifier());
+  private static void writeRegionContext(
+      Code code, CategoryBuilder category, AnatomicItem anatomicItem) {
+    if (category == null) {
+      return;
+    }
+    code.setContextUID(category.getContextUID());
+    code.setContextIdentifier(category.getIdentifier());
+    if (category instanceof ExtendedCategory extended && anatomicItem.isContextGroupExtension()) {
+      code.setContextGroupExtensionFlag("Y");
+      code.setContextGroupExtensionCreatorUID(extended.getExtensionCreatorUID());
     }
   }
 

@@ -320,9 +320,9 @@ public class HangingProtocol extends Module {
     for (; index < imageSets.size(); ++index) {
       HPImageSet otherImageSet = imageSets.get(index);
       otherImageSet.setImageSetNumber(index + 1);
-        for (HPDisplaySet hpDisplaySet : getDisplaySetsOfImageSet(otherImageSet)) {
-            hpDisplaySet.setImageSet(otherImageSet);
-        }
+      for (HPDisplaySet hpDisplaySet : getDisplaySetsOfImageSet(otherImageSet)) {
+        hpDisplaySet.setImageSet(otherImageSet);
+      }
     }
 
     return true;
@@ -393,14 +393,14 @@ public class HangingProtocol extends Module {
   }
 
   public String getDisplaySetPresentationGroupDescription(int pgNo) {
-      for (HPDisplaySet ds : displaySets) {
-          if (ds.getDisplaySetPresentationGroup() == pgNo) {
-              String desc = ds.getDisplaySetPresentationGroupDescription();
-              if (desc != null) {
-                  return desc;
-              }
-          }
+    for (HPDisplaySet ds : displaySets) {
+      if (ds.getDisplaySetPresentationGroup() == pgNo) {
+        String desc = ds.getDisplaySetPresentationGroupDescription();
+        if (desc != null) {
+          return desc;
+        }
       }
+    }
     return null;
   }
 

@@ -44,6 +44,7 @@ import org.dcm4che3.util.StringUtils;
 import org.dcm4che3.util.TagUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.weasis.core.util.FileUtil;
 import org.weasis.dicom.param.AttributeEditor;
 import org.weasis.dicom.param.AttributeEditorContext;
 import org.weasis.dicom.param.DicomNode;
@@ -103,6 +104,17 @@ public class StoreSCU implements AutoCloseable {
   private String tmpSuffix;
   private Path tmpDir;
   private Path tmpFile;
+
+  /**
+   * The temporary directory created by this instance, as opposed to one handed over through {@link
+   * #setTmpFileDirectory}. Only the former is removed on {@link #close()}: a caller-provided
+   * directory may hold anything and is not ours to delete.
+   */
+  private final Path ownedTmpDir;
+
+  /** Whether {@link #tmpFile} was created by {@link #scanFiles} rather than set by the caller. */
+  private boolean ownsTmpFile;
+
   private Association as;
   private long totalSize = 0;
   private int filesScanned;
@@ -133,7 +145,8 @@ public class StoreSCU implements AutoCloseable {
     this.state = new DicomState(progress);
     this.dicomEditors = dicomEditors;
     try {
-      this.tmpDir = Files.createTempDirectory(DEFAULT_TMP_PREFIX);
+      this.ownedTmpDir = Files.createTempDirectory(DEFAULT_TMP_PREFIX);
+      this.tmpDir = ownedTmpDir;
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -187,6 +200,7 @@ public class StoreSCU implements AutoCloseable {
 
   public void setTmpFile(Path tmpFile) {
     this.tmpFile = tmpFile;
+    this.ownsTmpFile = false;
   }
 
   public final void setPriority(int priority) {
@@ -230,6 +244,7 @@ public class StoreSCU implements AutoCloseable {
    */
   public void scanFiles(List<String> fnames, boolean printout) throws IOException {
     tmpFile = createTempFile();
+    ownsTmpFile = true;
 
     try (var writer = Files.newBufferedWriter(tmpFile, StandardCharsets.UTF_8)) {
       for (String fname : fnames) {
@@ -423,7 +438,8 @@ public class StoreSCU implements AutoCloseable {
 
     DataWriter dataWriter = null;
     Attributes data = null;
-    try (InputStream in = createInputStream(path, fmiEndPos, isNoChange)) {
+    InputStream in = createInputStream(path, fmiEndPos, isNoChange);
+    try (in) {
       if (path.getFileName().toString().endsWith(".xml")) {
         data = SAXReader.parse(in);
         isNoChange = false;
@@ -452,6 +468,13 @@ public class StoreSCU implements AutoCloseable {
           dataWriter,
           syntax.getSuitable(),
           rspHandlerFactory.createDimseRSPHandler(path));
+    } finally {
+      // Nothing should have been spooled - createInputStream keeps the bulk data in the source
+      // file - but the dataset is written to the association by the time cstore returns, so
+      // anything that did land in java.io.tmpdir is dead weight from here on.
+      if (in instanceof DicomInputStream dis) {
+        ServiceUtil.safeClose(dis);
+      }
     }
   }
 
@@ -464,16 +487,22 @@ public class StoreSCU implements AutoCloseable {
 
   private InputStream createInputStream(Path path, long fmiEndPos, boolean isNoChange)
       throws IOException {
-    InputStream in;
-    if (path.getFileName().toString().endsWith(".xml") || !isNoChange) {
-      in = new DicomInputStream(Files.newInputStream(path));
-      if (!path.getFileName().toString().endsWith(".xml")) {
-        ((DicomInputStream) in).setIncludeBulkData(IncludeBulkData.URI);
-      }
-    } else {
-      in = Files.newInputStream(path); // NOSONAR closed by caller in try-with-resources
-      in.skip(fmiEndPos);
+    if (path.getFileName().toString().endsWith(".xml")) {
+      return new DicomInputStream(Files.newInputStream(path));
     }
+    if (!isNoChange) {
+      // Opened from the file and not from a stream: IncludeBulkData.URI can only reference the bulk
+      // data in place when DicomInputStream knows where it came from. Handed a bare InputStream it
+      // has no URI to point at and falls back to spooling every bulk data element - the pixel data
+      // of every instance - into java.io.tmpdir, where nothing ever deletes it. That is a full
+      // write and re-read of the pixel data per object, and a copy of everything sent left on the
+      // disk until the partition fills.
+      var in = new DicomInputStream(path.toFile());
+      in.setIncludeBulkData(IncludeBulkData.URI);
+      return in;
+    }
+    InputStream in = Files.newInputStream(path); // NOSONAR closed by caller in try-with-resources
+    in.skip(fmiEndPos);
     return in;
   }
 
@@ -508,11 +537,21 @@ public class StoreSCU implements AutoCloseable {
 
   @Override
   public void close() throws IOException, InterruptedException {
-    if (as != null) {
-      if (as.isReadyForDataTransfer()) {
-        as.release();
+    try {
+      if (as != null) {
+        if (as.isReadyForDataTransfer()) {
+          as.release();
+        }
+        as.waitForSocketClose();
       }
-      as.waitForSocketClose();
+    } finally {
+      // The scan list and the directory holding it belong to this instance and die with it.
+      // Leaving them behind costs one storescu-* directory per association, which stays invisible
+      // until a sender opens thousands of them.
+      if (ownsTmpFile) {
+        FileUtil.delete(tmpFile);
+      }
+      FileUtil.recursiveDelete(ownedTmpDir);
     }
   }
 

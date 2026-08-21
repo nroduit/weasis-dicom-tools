@@ -1,5 +1,13 @@
 # Changelog
 
+## [v5.35.0](https://github.com/nroduit/weasis-dicom-tools/tree/v5.35.0) (2026-08-21)
+
+[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.34.3.3...v5.35.0)
+
+**Merged pull requests:**
+
+- build: bump the maven group across 2 directories with 7 updates [\#51](https://github.com/nroduit/weasis-dicom-tools/pull/51) ([dependabot[bot]](https://github.com/apps/dependabot))
+
 ## [v5.34.3.3](https://github.com/nroduit/weasis-dicom-tools/tree/v5.34.3.3) (2026-08-03)
 
 [Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.34.3.2...v5.34.3.3)

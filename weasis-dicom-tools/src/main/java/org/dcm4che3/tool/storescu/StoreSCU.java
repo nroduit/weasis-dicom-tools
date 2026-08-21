@@ -13,9 +13,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.security.GeneralSecurityException;
 import java.text.MessageFormat;
 import java.util.List;
@@ -76,6 +79,18 @@ import org.xml.sax.SAXException;
 public class StoreSCU implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(StoreSCU.class);
   private static final String DEFAULT_TMP_PREFIX = "storescu-";
+
+  /**
+   * Restricts the scan directory to its owner: it is created inside the shared system temp
+   * directory, which is world-writable on POSIX systems. Empty where POSIX permissions are not
+   * supported (Windows), whose per-user temp directory is already private.
+   */
+  private static final FileAttribute<?>[] OWNER_ONLY =
+      FileSystems.getDefault().supportedFileAttributeViews().contains("posix")
+          ? new FileAttribute<?>[] {
+            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"))
+          }
+          : new FileAttribute<?>[0];
 
   /** Factory interface for creating custom DICOM response handlers. */
   @FunctionalInterface
@@ -145,7 +160,7 @@ public class StoreSCU implements AutoCloseable {
     this.state = new DicomState(progress);
     this.dicomEditors = dicomEditors;
     try {
-      this.ownedTmpDir = Files.createTempDirectory(DEFAULT_TMP_PREFIX);
+      this.ownedTmpDir = Files.createTempDirectory(DEFAULT_TMP_PREFIX, OWNER_ONLY);
       this.tmpDir = ownedTmpDir;
     } catch (IOException e) {
       throw new RuntimeException(e);

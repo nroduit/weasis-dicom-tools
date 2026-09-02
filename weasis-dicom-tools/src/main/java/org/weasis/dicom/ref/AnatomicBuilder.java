@@ -9,18 +9,24 @@
  */
 package org.weasis.dicom.ref;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.weasis.core.util.StringUtil;
 
 /**
@@ -46,6 +52,7 @@ import org.weasis.core.util.StringUtil;
  * @see AnatomicModifier
  */
 public final class AnatomicBuilder {
+  private static final Logger LOGGER = LoggerFactory.getLogger(AnatomicBuilder.class);
 
   /**
    * Interface for anatomical category builders that provide context and identification information
@@ -296,6 +303,10 @@ public final class AnatomicBuilder {
   private static final AtomicReference<Map<CategoryBuilder, List<AnatomicItem>>>
       EXTENSION_CATEGORIES = new AtomicReference<>(Map.of());
 
+  // PS3.16 Table L-1 maps several Body Part Examined terms to one region; the extra terms are
+  // aliases for reading only, writing uses the legacy code of the body part.
+  private static final Map<String, BodyPart> LEGACY_CODE_ALIASES = Map.of("THORAX", BodyPart.CHEST);
+
   // Efficient lookup maps initialized once
   private static final Map<String, BodyPart> CODE_TO_BODY_PART = createBodyPartCodeMap();
   private static final Map<String, BodyPart> LEGACY_CODE_TO_BODY_PART =
@@ -440,14 +451,20 @@ public final class AnatomicBuilder {
   }
 
   private static Map<String, BodyPart> createBodyPartCodeMap() {
-    return Stream.of(BodyPart.values())
-        .collect(Collectors.toUnmodifiableMap(BodyPart::getCodeValue, Function.identity()));
+    Map<String, BodyPart> map =
+        Stream.of(BodyPart.values())
+            .collect(Collectors.toMap(BodyPart::getCodeValue, Function.identity()));
+    map.putAll(BodyPart.CODE_ALIASES);
+    return Map.copyOf(map);
   }
 
   private static Map<String, BodyPart> createBodyPartLegacyCodeMap() {
-    return Stream.of(BodyPart.values())
-        .filter(bp -> StringUtil.hasText(bp.getLegacyCode()))
-        .collect(Collectors.toUnmodifiableMap(BodyPart::getLegacyCode, Function.identity()));
+    Map<String, BodyPart> map =
+        Stream.of(BodyPart.values())
+            .filter(bp -> StringUtil.hasText(bp.getLegacyCode()))
+            .collect(Collectors.toMap(BodyPart::getLegacyCode, Function.identity()));
+    map.putAll(LEGACY_CODE_ALIASES);
+    return Map.copyOf(map);
   }
 
   private static Map<String, AnatomicModifier> createModifierCodeMap() {
@@ -515,6 +532,38 @@ public final class AnatomicBuilder {
    */
   public static BodyPart getBodyPartFromLegacyCode(String legacyCode) {
     return StringUtil.hasText(legacyCode) ? LEGACY_CODE_TO_BODY_PART.get(legacyCode.trim()) : null;
+  }
+
+  /** Designator of the retired SNOMED-RT identifiers (e.g. {@code T-28000}). */
+  public static final String RETIRED_SNOMED_RT = "SRT"; // NON-NLS
+
+  /**
+   * The body part of a retired SNOMED-RT identifier, from the "SNOMED-RT ID (Retired)" column of
+   * PS3.16 Table L-1; files coded before SNOMED CT concept ids still carry them.
+   *
+   * @return the body part, or null when the identifier is unknown
+   */
+  public static BodyPart getBodyPartFromRetiredSrtCode(String srtId) {
+    return StringUtil.hasText(srtId) ? RetiredSrt.MAP.get(srtId.trim()) : null;
+  }
+
+  // Loaded on first use: only files coded with SRT need it
+  private static final class RetiredSrt {
+    static final Map<String, BodyPart> MAP = load();
+
+    private static Map<String, BodyPart> load() {
+      Properties props = new Properties();
+      try (InputStream in = AnatomicBuilder.class.getResourceAsStream("bodyPartSrt.properties")) {
+        if (in != null) {
+          props.load(in);
+        }
+      } catch (IOException e) {
+        LOGGER.error("Cannot read the retired SNOMED-RT identifiers", e);
+      }
+      Map<String, BodyPart> map = new HashMap<>();
+      props.forEach((k, v) -> map.put(k.toString(), BodyPart.valueOf(v.toString())));
+      return Map.copyOf(map);
+    }
   }
 
   /**

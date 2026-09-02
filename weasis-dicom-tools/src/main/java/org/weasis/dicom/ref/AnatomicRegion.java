@@ -10,6 +10,7 @@
 package org.weasis.dicom.ref;
 
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -75,8 +76,9 @@ public class AnatomicRegion {
   }
 
   /**
-   * Reads an anatomical region from DICOM attributes. Supports both anatomical region sequence and
-   * legacy body part examined tag.
+   * Reads an anatomical region from DICOM attributes: the Anatomic Region Sequence first, else Body
+   * Part Examined through PS3.16 Table L-1; a Body Part Examined value matching no region is kept
+   * as a {@link BodyPartTerm}.
    *
    * @param dcm the DICOM attributes to read from
    * @return the parsed anatomical region, or null if no valid region data found
@@ -99,13 +101,17 @@ public class AnatomicRegion {
       return;
     }
 
-    Attributes regAttributes = new Attributes();
     AnatomicItem anatomicItem = region.getRegion();
+    writeLegacyBodyPart(dcm, anatomicItem);
+    if (anatomicItem instanceof BodyPartTerm) {
+      return;
+    }
+
+    Attributes regAttributes = new Attributes();
     Code code = new Code(regAttributes);
 
     writeCode(code, anatomicItem);
     writeRegionContext(code, region.getCategory(), anatomicItem);
-    writeLegacyBodyPart(dcm, anatomicItem);
     writeModifiers(regAttributes, region.getModifiers());
 
     dcm.newSequence(Tag.AnatomicRegionSequence, 1).add(regAttributes);
@@ -140,7 +146,13 @@ public class AnatomicRegion {
     }
 
     BodyPart item = AnatomicBuilder.getBodyPartFromLegacyCode(bodyPart);
-    return Optional.ofNullable(item).map(AnatomicRegion::new);
+    if (item == null) {
+      // Deviation: Body Part Examined is CS (upper case, PS3.5 6.2); lower-case values written by
+      // some modalities are matched too.
+      item = AnatomicBuilder.getBodyPartFromLegacyCode(bodyPart.toUpperCase(Locale.ROOT));
+    }
+    return Optional.of(
+        item == null ? new AnatomicRegion(new BodyPartTerm(bodyPart)) : new AnatomicRegion(item));
   }
 
   // Find anatomic item from known types or create OtherPart
@@ -152,6 +164,14 @@ public class AnatomicRegion {
     AnatomicItem item = findExtensionItem(category, code);
     if (item != null) {
       return item;
+    }
+
+    // Retired SNOMED-RT identifiers of PS3.16 Table L-1, from files coded before SNOMED CT ids
+    if (AnatomicBuilder.RETIRED_SNOMED_RT.equals(code.getCodingSchemeDesignator())) {
+      item = AnatomicBuilder.getBodyPartFromRetiredSrtCode(codeValue);
+      if (item != null) {
+        return item;
+      }
     }
 
     // Try body parts first
@@ -289,6 +309,16 @@ public class AnatomicRegion {
    */
   public AnatomicItem getRegion() {
     return region;
+  }
+
+  /** The groups of the region in the {@link RegionGroups#getDefault() table in use}. */
+  public Set<RegionGroup> getGroups() {
+    return RegionGroups.getDefault().groupsOf(region);
+  }
+
+  /** Whether the region lies in that group, see {@link RegionGroup#includes}. */
+  public boolean isIn(RegionGroup group) {
+    return getGroups().stream().anyMatch(group::includes);
   }
 
   /**

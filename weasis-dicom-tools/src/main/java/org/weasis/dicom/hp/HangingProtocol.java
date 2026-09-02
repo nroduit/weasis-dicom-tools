@@ -246,6 +246,16 @@ public class HangingProtocol extends Module {
     return Collections.unmodifiableList(definitions);
   }
 
+  /**
+   * Whether the protocol is intended for a study image: one of the items of the Hanging Protocol
+   * Definition Sequence applies to it (PS3.3 C.23.1.1.2).
+   *
+   * @see HPDefinition#appliesTo(Attributes)
+   */
+  public boolean appliesTo(Attributes image) {
+    return definitions.stream().anyMatch(d -> d.appliesTo(image));
+  }
+
   public void addHangingProtocolDefinition(HPDefinition def) {
     if (def == null) {
       throw new NullPointerException();

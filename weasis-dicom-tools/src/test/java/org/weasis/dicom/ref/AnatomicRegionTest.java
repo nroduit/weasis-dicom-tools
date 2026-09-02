@@ -353,6 +353,17 @@ class AnatomicRegionTest {
       assertFalse(region.getRegion().isPaired());
     }
 
+    @ParameterizedTest(name = "reads {0} as the chest region of PS3.16 Table L-1")
+    @ValueSource(strings = {"CHEST", "THORAX"})
+    void reads_chest_and_thorax_as_the_chest_region(String bodyPartExamined) {
+      var region = AnatomicRegion.read(createAttributesWithLegacyCode(bodyPartExamined));
+
+      assertNotNull(region);
+      assertEquals(BodyPart.CHEST, region.getRegion());
+      assertEquals("816094009", region.getRegion().getCodeValue());
+      assertEquals("CHEST", region.getRegion().getLegacyCode());
+    }
+
     private static Stream<Arguments> bodyPartsWithLegacyCodes() {
       return Stream.of(BodyPart.values())
           .filter(bp -> StringUtil.hasText(bp.getLegacyCode()))
@@ -662,10 +673,227 @@ class AnatomicRegionTest {
     }
 
     @Test
-    void handles_unknown_legacy_code_gracefully() {
-      var dcm = createAttributesWithLegacyCode("UNKNOWN-CODE");
+    void keeps_an_unknown_legacy_code_as_a_term_written_back_alone() {
+      var region = AnatomicRegion.read(createAttributesWithLegacyCode(" TETE "));
 
-      assertNull(AnatomicRegion.read(dcm));
+      assertNotNull(region);
+      assertEquals(new BodyPartTerm("TETE"), region.getRegion());
+      assertNull(region.getRegion().getCodeValue());
+      assertTrue(region.getGroups().isEmpty());
+
+      var out = new Attributes();
+      AnatomicRegion.write(out, region);
+      assertEquals("TETE", out.getString(Tag.BodyPartExamined));
+      assertNull(out.getSequence(Tag.AnatomicRegionSequence), "a term has no code to write");
+    }
+
+    @Test
+    void reads_a_retired_snomed_rt_code_as_its_body_part() {
+      var dcm = new Attributes();
+      var item = new Attributes();
+      item.setString(Tag.CodeValue, VR.SH, "T-28000");
+      item.setString(Tag.CodingSchemeDesignator, VR.SH, "SRT");
+      item.setString(Tag.CodeMeaning, VR.LO, "Lung");
+      dcm.newSequence(Tag.AnatomicRegionSequence, 1).add(item);
+
+      var region = AnatomicRegion.read(dcm);
+
+      assertEquals(BodyPart.LUNG, region.getRegion());
+      assertTrue(region.isIn(RegionGroup.CHEST));
+    }
+
+    @Test
+    void reads_every_term_of_table_l1_including_the_former_gaps() {
+      var upperLimb = AnatomicRegion.read(createAttributesWithLegacyCode("UPPERLIMB"));
+      var aorta = AnatomicRegion.read(createAttributesWithLegacyCode("DESCAORTA"));
+
+      assertAll(
+          () -> assertEquals(BodyPart.UPPER_LIMB, upperLimb.getRegion()),
+          () -> assertTrue(upperLimb.isIn(RegionGroup.UPPER_EXTREMITY)),
+          () -> assertEquals("281130003", aorta.getRegion().getCodeValue()),
+          () ->
+              assertEquals(
+                  BodyPart.URINARY_TRACT,
+                  AnatomicRegion.read(createAttributesWithLegacyCode("URINARYTRACT")).getRegion()),
+          () ->
+              assertEquals(
+                  BodyPart.STIFLE, AnatomicBuilder.getBodyPartFromRetiredSrtCode("T-15728")));
+    }
+
+    // Every code of CID 4031 (PS3.16, current edition) is a common body part
+    @Test
+    void every_common_anatomic_region_of_cid_4031_is_a_common_body_part() {
+      List<String> cid4031 =
+          List.of(
+              "102292000",
+              "110517009",
+              "110621006",
+              "110639002",
+              "110861005",
+              "113197003",
+              "113257007",
+              "1217253001",
+              "1217254007",
+              "1217256009",
+              "1217257000",
+              "122494005",
+              "122495006",
+              "122496007",
+              "1231522001",
+              "13648007",
+              "13881006",
+              "14742008",
+              "14975008",
+              "15776009",
+              "16953009",
+              "16982005",
+              "2095001",
+              "21306003",
+              "22356005",
+              "22943007",
+              "24136001",
+              "27949001",
+              "28231008",
+              "28273000",
+              "29707007",
+              "29836001",
+              "30021000",
+              "30315005",
+              "303270005",
+              "30608006",
+              "32849002",
+              "34402009",
+              "34516001",
+              "34707002",
+              "361078006",
+              "363654007",
+              "371195002",
+              "371398005",
+              "38266002",
+              "38848004",
+              "39723000",
+              "40983000",
+              "41216001",
+              "416152001",
+              "416319003",
+              "416550000",
+              "416775004",
+              "417437006",
+              "421060004",
+              "42575006",
+              "431491007",
+              "44567001",
+              "45048000",
+              "45289007",
+              "4596009",
+              "51299004",
+              "53120007",
+              "53505006",
+              "53620006",
+              "54019009",
+              "54735007",
+              "55024004",
+              "56459004",
+              "56873002",
+              "58742003",
+              "59066005",
+              "61685007",
+              "63337009",
+              "64234005",
+              "64688005",
+              "66019005",
+              "661005",
+              "67734004",
+              "68367000",
+              "69536005",
+              "69695003",
+              "69930009",
+              "70258002",
+              "706342009",
+              "70925003",
+              "71341001",
+              "71854001",
+              "72001000",
+              "72410000",
+              "72696002",
+              "737561001",
+              "74386004",
+              "74670003",
+              "7569003",
+              "76505004",
+              "76752008",
+              "774007",
+              "7844006",
+              "79601000",
+              "79741001",
+              "80144004",
+              "80891009",
+              "816092008",
+              "816094009",
+              "81745001",
+              "818981001",
+              "818982008",
+              "85050009",
+              "85562004",
+              "85856004",
+              "86598002",
+              "87342007",
+              "87953007",
+              "89546000",
+              "89837001",
+              "91397008",
+              "91609006",
+              "955009");
+
+      List<String> missing =
+          cid4031.stream()
+              .filter(
+                  c -> {
+                    BodyPart part = BodyPart.fromCode(c);
+                    return part == null || !part.isCommon();
+                  })
+              .toList();
+
+      assertEquals(List.of(), missing);
+      assertEquals(cid4031.size(), AnatomicBuilder.getCommonBodyParts().size());
+    }
+
+    @Test
+    void reads_the_former_code_of_the_descending_aorta() {
+      var dcm = new Attributes();
+      var item = new Attributes();
+      item.setString(Tag.CodeValue, VR.SH, "32672002");
+      item.setString(Tag.CodingSchemeDesignator, VR.SH, "SCT");
+      item.setString(Tag.CodeMeaning, VR.LO, "Descending aorta");
+      dcm.newSequence(Tag.AnatomicRegionSequence, 1).add(item);
+
+      assertAll(
+          () -> assertEquals(BodyPart.DESCENDING_AORTA, AnatomicRegion.read(dcm).getRegion()),
+          () -> assertEquals(BodyPart.DESCENDING_AORTA, BodyPart.fromCode("32672002")));
+    }
+
+    @Test
+    void reads_a_lower_case_legacy_code() {
+      var region = AnatomicRegion.read(createAttributesWithLegacyCode("chest"));
+
+      assertEquals(BodyPart.CHEST, region.getRegion());
+    }
+
+    @Test
+    void exposes_the_groups_of_the_region() {
+      var cap = new AnatomicRegion(BodyPart.CHEST_ABDOMEN_AND_PELVIS);
+      var wholeBody = new AnatomicRegion(BodyPart.ENTIRE_BODY);
+
+      assertAll(
+          () ->
+              assertEquals(
+                  Set.of(RegionGroup.CHEST, RegionGroup.ABDOMEN, RegionGroup.PELVIS),
+                  cap.getGroups()),
+          () -> assertTrue(cap.isIn(RegionGroup.ABDOMEN)),
+          () -> assertFalse(cap.isIn(RegionGroup.HEAD)),
+          () ->
+              assertTrue(
+                  wholeBody.isIn(RegionGroup.LOWER_EXTREMITY), "whole body lies in every group"));
     }
 
     @ParameterizedTest(name = "handles {0} laterality")

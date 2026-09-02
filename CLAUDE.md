@@ -44,7 +44,7 @@ Source under `weasis-dicom-tools/src/main/java`:
 - `org.weasis.dicom.tool` — DICOM toolset (worklist SCU, Modality Worklist SCP, listener, dicomizer, forward).
 - `org.weasis.dicom.hp` (+ `.enums`, `.filter`, `.plugins`, `.spi`) — Hanging Protocol parsing (DICOM HP IODs).
 - `org.weasis.dicom.macro` — DICOM macro helpers (`Code`, `ItemCode`, …) used by `ref/`.
-- `org.weasis.dicom.ref` — anatomic-region code dictionaries (`BodyPart`, `SurfacePart`, `AnatomicModifier`, `AnatomicBuilder`, `AnatomicRegion`). Backed by localized `.properties` resource bundles (en + fr).
+- `org.weasis.dicom.ref` — anatomic-region code dictionaries (`BodyPart`, `SurfacePart`, `AnatomicModifier`, `AnatomicBuilder`, `AnatomicRegion`), region groups (`RegionGroup`, `RegionGroups`, `regionGroups.json`) and the anatomy notation (`AnatomySelector`); concepts in `docs/Anatomic-Regions.md`. Backed by localized `.properties` resource bundles (en + fr).
 - `org.weasis.dicom.mf`, `.geom`, `.util` — manifest format, 3-D geometry helpers (`Vector3`, orientation), generic utilities.
 
 Generated resources at build time: `org.dcm4che` `uids.xml` and `dataelements.xml` are unpacked into `target/dict/` by `maven-dependency-plugin` and added as a resource root so they end up on the classpath.

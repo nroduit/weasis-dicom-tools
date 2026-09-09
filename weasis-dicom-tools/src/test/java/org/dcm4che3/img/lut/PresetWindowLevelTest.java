@@ -399,6 +399,24 @@ class PresetWindowLevelTest {
     }
 
     @Test
+    void auto_level_covers_the_full_range_exactly() {
+      var adapter = createRealDicomAdapter();
+
+      var autoLevel =
+          PresetWindowLevel.getPresetCollection(adapter, "CT", new TestWlPresentation()).stream()
+              .filter(PresetWindowLevel::isAutoLevel)
+              .findFirst()
+              .orElseThrow();
+
+      assertAll(
+          () ->
+              assertEquals(
+                  LutShape.Function.LINEAR_EXACT, autoLevel.getLutShape().getFunctionType()),
+          () -> assertEquals(4096.0, autoLevel.getWindow()),
+          () -> assertEquals(2048.0, autoLevel.getLevel()));
+    }
+
+    @Test
     void should_handle_different_image_types() {
       // Given
       var ctAdapter = createRealDicomAdapterWithModality("CT");

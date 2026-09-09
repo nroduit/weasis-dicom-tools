@@ -133,6 +133,40 @@ class ImageDescriptorTest {
       assertNull(descriptor.getPixelPresentation());
     }
 
+    @Test
+    void should_read_series_pixel_range() {
+      var attributes = new Attributes();
+      attributes.setInt(Tag.SmallestPixelValueInSeries, VR.US, 12);
+      attributes.setInt(Tag.LargestPixelValueInSeries, VR.US, 4000);
+
+      var range = new ImageDescriptor(attributes).getSeriesPixelRange().orElseThrow();
+
+      assertEquals(12.0, range.minVal);
+      assertEquals(4000.0, range.maxVal);
+    }
+
+    @Test
+    void should_read_series_pixel_range_as_signed_for_signed_pixels() {
+      var attributes = new Attributes();
+      attributes.setInt(Tag.PixelRepresentation, VR.US, 1);
+      // Implicit VR "US or SS" read as unsigned
+      attributes.setInt(Tag.SmallestPixelValueInSeries, VR.US, 0xF800);
+      attributes.setInt(Tag.LargestPixelValueInSeries, VR.US, 2047);
+
+      var range = new ImageDescriptor(attributes).getSeriesPixelRange().orElseThrow();
+
+      assertEquals(-2048.0, range.minVal);
+      assertEquals(2047.0, range.maxVal);
+    }
+
+    @Test
+    void should_ignore_incomplete_series_pixel_range() {
+      var attributes = new Attributes();
+      attributes.setInt(Tag.SmallestPixelValueInSeries, VR.US, 12);
+
+      assertTrue(new ImageDescriptor(attributes).getSeriesPixelRange().isEmpty());
+    }
+
     @ParameterizedTest
     @CsvSource({
       "8, 8, 7, 0, false, false",
@@ -297,6 +331,19 @@ class ImageDescriptorTest {
       var descriptor = new ImageDescriptor(attributes);
 
       assertTrue(descriptor.hasPaletteColorLookupTable());
+    }
+
+    @Test
+    void should_load_supplemental_palette_for_mixed_presentation() {
+      var attributes = LutTestDataBuilder.createCompletePaletteLutAttributes();
+      attributes.setString(Tag.PhotometricInterpretation, VR.CS, "MONOCHROME2");
+      attributes.setString(Tag.PixelPresentation, VR.CS, "MIXED");
+
+      var descriptor = new ImageDescriptor(attributes);
+
+      assertAll(
+          () -> assertNotNull(descriptor.getPaletteColorLookupTable()),
+          () -> assertTrue(descriptor.hasSupplementalPaletteColorLookupTable()));
     }
 
     @Test

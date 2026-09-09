@@ -391,10 +391,10 @@ public final class LookupTableUtils {
   }
 
   private static void setArrayValue(Object outLut, int index, int value) {
-    if (outLut instanceof byte[]) {
-      Array.set(outLut, index, (byte) value);
-    } else if (outLut instanceof short[]) {
-      Array.set(outLut, index, (short) value);
+    if (outLut instanceof byte[] bytes) {
+      bytes[index] = (byte) value;
+    } else if (outLut instanceof short[] shorts) {
+      shorts[index] = (short) value;
     }
   }
 

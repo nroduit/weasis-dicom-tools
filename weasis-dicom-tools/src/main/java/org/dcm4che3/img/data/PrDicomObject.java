@@ -227,6 +227,36 @@ public class PrDicomObject implements PresentationStateLut {
     this.prLut = lutData.lut().orElse(null);
     this.prLutExplanation = lutData.explanation().orElse(null);
     this.prLUTShapeMode = lutData.shapeMode().orElse(null);
+    this.paletteColorLut = buildPaletteColorLut(dcmPR, presentationStateType, blendingLayers);
+  }
+
+  // Pseudo-color states carry the palette at top level; blending states should too (IOD A.33.4)
+  // but some writers put it in the superimposed item, which is accepted as well.
+  private static LookupTableCV buildPaletteColorLut(
+      Attributes dcmPR, PresentationStateType type, List<BlendingLayer> layers) {
+    if (type == PresentationStateType.PSEUDO_COLOR_SOFTCOPY) {
+      return PaletteColorUtils.getPaletteColorLookupTable(dcmPR);
+    }
+    if (type != PresentationStateType.BLENDING_SOFTCOPY) {
+      return null;
+    }
+    LookupTableCV lut = PaletteColorUtils.getPaletteColorLookupTable(dcmPR);
+    if (lut != null) {
+      return lut;
+    }
+    return DicomObjectUtil.getSequence(dcmPR, Tag.BlendingSequence).stream()
+        .filter(item -> BlendingLayer.SUPERIMPOSED.equals(item.getString(Tag.BlendingPosition)))
+        .findFirst()
+        .map(PaletteColorUtils::getPaletteColorLookupTable)
+        .orElse(null);
+  }
+
+  /**
+   * The Palette Color LUT of a Pseudo-Color presentation state, applied to the P-Values after the
+   * VOI stage; empty for the other presentation state types.
+   */
+  public Optional<LookupTableCV> getPaletteColorLut() {
+    return Optional.ofNullable(paletteColorLut);
   }
 
   private PresentationStateType validateAndGetPresentationStateType() {
@@ -431,8 +461,16 @@ public class PrDicomObject implements PresentationStateLut {
     return !overlays.isEmpty();
   }
 
+  /**
+   * The referenced series: the top-level sequence, or for a Blending Softcopy state the series of
+   * the underlying layer, whose window is the state's VOI.
+   */
   public List<Attributes> getReferencedSeriesSequence() {
-    return DicomObjectUtil.getSequence(dcmPR, Tag.ReferencedSeriesSequence);
+    List<Attributes> topLevel = DicomObjectUtil.getSequence(dcmPR, Tag.ReferencedSeriesSequence);
+    if (topLevel.isEmpty()) {
+      return getUnderlyingLayer().map(BlendingLayer::referencedSeries).orElse(topLevel);
+    }
+    return topLevel;
   }
 
   public List<Attributes> getGraphicAnnotationSequence() {

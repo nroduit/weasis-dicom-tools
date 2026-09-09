@@ -23,7 +23,10 @@ import org.dcm4che3.img.DicomImageReadParam;
 import org.dcm4che3.img.stream.ImageDescriptor;
 import org.dcm4che3.img.util.DicomAttributeUtils;
 import org.dcm4che3.img.util.DicomUtils;
+import org.opencv.core.Core;
 import org.opencv.core.CvType;
+import org.opencv.core.Mat;
+import org.opencv.core.Scalar;
 import org.weasis.core.util.LangUtil;
 import org.weasis.opencv.data.ImageCV;
 import org.weasis.opencv.data.PlanarImage;
@@ -150,13 +153,56 @@ public record OverlayData(
     if (imageSource == null || currentImage == null || desc == null || params == null) {
       return currentImage;
     }
-    var context = buildOverlayContext(desc, params);
-
-    if (!context.hasOverlays() || !hasSameDimensions(imageSource, currentImage)) {
+    if (!hasSameDimensions(imageSource, currentImage)) {
       return currentImage;
     }
+    ImageCV mask = getOverlayMask(imageSource, desc, params, frameIndex);
+    if (mask == null) {
+      return currentImage;
+    }
+    try {
+      return applyOverlayMask(currentImage, mask, params);
+    } finally {
+      mask.release();
+    }
+  }
 
-    return applyOverlaysToImage(imageSource, currentImage, context, frameIndex);
+  /**
+   * Builds the mask of the overlays of a frame: embedded in the pixel data, stored in the image and
+   * brought by the presentation state. It does not depend on the rendering of the image, so a
+   * caller can keep it while only the window changes.
+   *
+   * @param imageSource the stored pixel values, read for the embedded overlays
+   * @return an 8-bit image, 255 where an overlay is set, or null when the frame has no overlay
+   */
+  public static ImageCV getOverlayMask(
+      PlanarImage imageSource, ImageDescriptor desc, DicomImageReadParam params, int frameIndex) {
+    var context = buildOverlayContext(desc, params);
+    if (!context.hasOverlays()) {
+      return null;
+    }
+    var dimensions = new ImageDimensions(imageSource.width(), imageSource.height());
+    byte[] overlayPixelData = createOverlayPixelData(imageSource, context, frameIndex, dimensions);
+    return createOverlayImage(overlayPixelData, dimensions);
+  }
+
+  /**
+   * Paints a mask from {@link #getOverlayMask} on a rendered image, in the overlay color of the
+   * parameters.
+   *
+   * @return a new image, or {@code currentImage} when the mask does not have its size
+   */
+  public static PlanarImage applyOverlayMask(
+      PlanarImage currentImage, ImageCV mask, DicomImageReadParam params) {
+    if (!hasSameDimensions(mask, currentImage)) {
+      return currentImage;
+    }
+    var overlayColor = params.getOverlayColor().orElse(Color.WHITE);
+    int bits = params.getOutputBits().orElse(8);
+    if (bits > 8 && currentImage.type() == CvType.CV_16UC1) {
+      return overlayWithinOutputRange(currentImage, mask, overlayColor, Math.min(bits, 16));
+    }
+    return ImageTransformer.overlay(currentImage.toMat(), mask, overlayColor);
   }
 
   private static OverlayContext buildOverlayContext(
@@ -176,16 +222,14 @@ public record OverlayData(
     return image1.width() == image2.width() && image1.height() == image2.height();
   }
 
-  private static ImageCV applyOverlaysToImage(
-      PlanarImage imageSource, PlanarImage currentImage, OverlayContext context, int frameIndex) {
-
-    var dimensions = new ImageDimensions(currentImage.width(), currentImage.height());
-    byte[] overlayPixelData = createOverlayPixelData(imageSource, context, frameIndex, dimensions);
-
-    var overlayImage = createOverlayImage(overlayPixelData, dimensions);
-    var overlayColor = context.params().getOverlayColor().orElse(Color.WHITE);
-
-    return ImageTransformer.overlay(currentImage.toMat(), overlayImage, overlayColor);
+  // The windowed output spans [0, 2^bits - 1], not the full 16-bit range the transformer assumes.
+  private static ImageCV overlayWithinOutputRange(
+      PlanarImage image, ImageCV mask, Color color, int bits) {
+    int component = Math.max(color.getRed(), Math.max(color.getGreen(), color.getBlue()));
+    var result = new ImageCV();
+    image.toMat().copyTo(result);
+    result.setTo(new Scalar(component * ((1 << bits) - 1) / 255.0), mask);
+    return result;
   }
 
   private static byte[] createOverlayPixelData(
@@ -198,7 +242,7 @@ public record OverlayData(
         .forEach(
             overlay -> {
               int mask = 1 << overlay.bitPosition();
-              applyEmbeddedOverlayMask(imageSource, mask, pixelData, dimensions);
+              applyEmbeddedOverlayMask(imageSource, mask, pixelData);
             });
 
     applyRegularOverlays(context.overlays(), pixelData, frameIndex, dimensions.width());
@@ -207,16 +251,40 @@ public record OverlayData(
   }
 
   private static void applyEmbeddedOverlayMask(
-      PlanarImage imageSource, int mask, byte[] pixelData, ImageDimensions dimensions) {
+      PlanarImage imageSource, int mask, byte[] pixelData) {
+    Mat stored = new Mat();
+    Mat selected = new Mat();
+    try {
+      // Embedded overlays belong to single-sample images: only the first channel carries the bit
+      Core.extractChannel(imageSource.toMat(), stored, 0);
+      if (stored.depth() >= CvType.CV_32F) {
+        stored.convertTo(stored, CvType.CV_32S);
+      }
+      try (ImageCV bit =
+          ImageTransformer.bitwiseAnd(stored, storedBitPattern(mask, stored.depth()))) {
+        Core.compare(bit, new Scalar(0), selected, Core.CMP_NE);
+      }
 
-    for (int row = 0; row < dimensions.height(); row++) {
-      for (int col = 0; col < dimensions.width(); col++) {
-        double[] pixel = imageSource.get(row, col);
-        if ((((int) pixel[0]) & mask) != 0) {
-          pixelData[row * dimensions.width() + col] = OVERLAY_PIXEL_VALUE;
+      byte[] set = new byte[pixelData.length];
+      selected.get(0, 0, set);
+      for (int i = 0; i < set.length; i++) {
+        if (set[i] != 0) {
+          pixelData[i] = OVERLAY_PIXEL_VALUE;
         }
       }
+    } finally {
+      stored.release();
+      selected.release();
     }
+  }
+
+  // A scalar is saturated to the Mat depth: the sign bit of a signed depth needs its negative value
+  private static int storedBitPattern(int mask, int depth) {
+    return switch (depth) {
+      case CvType.CV_8S -> (byte) mask;
+      case CvType.CV_16S -> (short) mask;
+      default -> mask;
+    };
   }
 
   private static void applyRegularOverlays(

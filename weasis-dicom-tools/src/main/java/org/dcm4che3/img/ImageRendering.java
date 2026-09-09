@@ -17,7 +17,12 @@ import org.dcm4che3.img.data.EmbeddedOverlay;
 import org.dcm4che3.img.data.OverlayData;
 import org.dcm4che3.img.lut.WindLevelParameters;
 import org.dcm4che3.img.stream.ImageDescriptor;
+import org.dcm4che3.img.util.PaletteColorUtils;
+import org.opencv.core.Core;
 import org.opencv.core.CvType;
+import org.opencv.core.Mat;
+import org.opencv.core.Scalar;
+import org.opencv.imgproc.Imgproc;
 import org.weasis.core.util.MathUtil;
 import org.weasis.opencv.data.ImageCV;
 import org.weasis.opencv.data.LookupTableCV;
@@ -131,11 +136,58 @@ public final class ImageRendering {
     var windLevelParams = new WindLevelParameters(adapter, params);
     int dataType = Objects.requireNonNull(imageSource).type();
 
-    return switch (getDataTypeCategory(dataType)) {
-      case INTEGER -> processIntegerDataForVoi(imageSource, adapter, windLevelParams);
-      case FLOATING_POINT -> processFloatingPointDataForVoi(imageSource, windLevelParams, dataType);
-      case UNSUPPORTED -> null;
-    };
+    PlanarImage gray =
+        switch (getDataTypeCategory(dataType)) {
+          case INTEGER -> processIntegerDataForVoi(imageSource, adapter, windLevelParams);
+          case FLOATING_POINT ->
+              processFloatingPointDataForVoi(imageSource, windLevelParams, dataType);
+          case UNSUPPORTED -> null;
+        };
+    ImageDescriptor desc = adapter.getImageDescriptor();
+    boolean supplemental =
+        params == null || params.getApplySupplementalPalette().orElse(Boolean.TRUE);
+    if (gray != null
+        && supplemental
+        && desc.hasSupplementalPaletteColorLookupTable()
+        && isIntegerDataType(dataType)) {
+      return applySupplementalPalette(
+          imageSource, gray, desc.getPaletteColorLookupTable(), windLevelParams.getOutputBits());
+    }
+    return gray;
+  }
+
+  /**
+   * Colors a rendered grayscale image with a Supplemental Palette Color LUT (PS3.3 C.8.16.2): the
+   * pixels whose stored value is at least the first value mapped by the palette take its color, the
+   * others keep their gray level from the grayscale pipeline.
+   *
+   * @param stored the stored pixel values
+   * @param gray the output of the grayscale pipeline for the same pixels
+   * @param grayBits the bit depth of {@code gray} when it is not 8-bit
+   * @return an 8-bit BGR image
+   */
+  public static ImageCV applySupplementalPalette(
+      PlanarImage stored, PlanarImage gray, LookupTableCV palette, int grayBits) {
+    Mat grayMat = gray.toMat();
+    Mat gray8 = grayMat;
+    if (grayMat.depth() != CvType.CV_8U) {
+      gray8 = new Mat();
+      grayMat.convertTo(gray8, CvType.CV_8U, 255.0 / ((1 << Math.max(grayBits, 1)) - 1));
+    }
+    ImageCV out = new ImageCV();
+    Imgproc.cvtColor(gray8, out, Imgproc.COLOR_GRAY2BGR);
+    if (gray8 != grayMat) {
+      gray8.release();
+    }
+    Mat mask = new Mat();
+    Core.compare(stored.toMat(), new Scalar(palette.getOffset()), mask, Core.CMP_GE);
+    PlanarImage colors = PaletteColorUtils.getRGBImageFromPaletteColorModel(stored, palette);
+    colors.toMat().copyTo(out, mask);
+    mask.release();
+    if (colors != stored) {
+      colors.release();
+    }
+    return out;
   }
 
   /**
@@ -203,6 +255,33 @@ public final class ImageRendering {
 
   private static ImageCV processIntegerDataForVoi(
       PlanarImage imageSource, DicomImageAdapter adapter, WindLevelParameters params) {
+    ImageCV storedValues = StoredValueRamp.of(imageSource.type());
+    if (storedValues == null) {
+      return applyLookupChain(imageSource, adapter, params);
+    }
+    // The chain is a function of the stored value alone: run on every possible value it gives the
+    // table of the whole transformation, which one native pass then applies to the image.
+    ImageCV table = applyLookupChain(storedValues, adapter, params);
+    if (table == storedValues) {
+      return imageSource.toImageCV(); // no lookup applies
+    }
+    if (table.channels() != 1) {
+      // A table that adds bands (color presentation LUT) cannot be applied by Core.LUT
+      table.release();
+      return applyLookupChain(imageSource, adapter, params);
+    }
+    try {
+      var result = new ImageCV();
+      Core.LUT(imageSource.toMat(), table, result);
+      return result;
+    } finally {
+      table.release();
+    }
+  }
+
+  // Reference implementation, one Java pass per lookup table; visible for the equivalence test
+  static ImageCV applyLookupChain(
+      PlanarImage imageSource, DicomImageAdapter adapter, WindLevelParameters params) {
     var modalityLookup = adapter.getModalityLookup(params, params.isInverseLut());
     var imageModalityTransformed = applyModalityTransformation(imageSource, modalityLookup);
 
@@ -265,6 +344,14 @@ public final class ImageRendering {
     double low = level - window / 2.0;
     double high = level + window / 2.0;
     double range = calculateRange(high, low, dataType);
+    int bits = DicomImageAdapter.voiOutputBits(params);
+    if (bits > 8) {
+      double maxOut = (1 << bits) - 1;
+      double slope = maxOut / range;
+      var result = new ImageCV();
+      ImageCV.toMat(imageSource).convertTo(result, CvType.CV_16U, slope, maxOut - slope * high);
+      return result;
+    }
     double slope = 255.0 / range;
     double yIntercept = 255.0 - slope * high;
 

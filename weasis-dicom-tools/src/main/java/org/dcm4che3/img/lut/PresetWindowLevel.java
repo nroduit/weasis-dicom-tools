@@ -236,7 +236,6 @@ public class PresetWindowLevel {
     private final String dicomKeyWord;
     private final WlPresentation wl;
     private final List<PresetWindowLevel> presetList;
-    private final ImageDescriptor desc;
     private final VoiLutModule vLut;
 
     PresetCollectionBuilder(DicomImageAdapter adapter, String type, WlPresentation wl) {
@@ -244,7 +243,7 @@ public class PresetWindowLevel {
       this.dicomKeyWord = " " + type;
       this.wl = wl;
       this.presetList = new ArrayList<>();
-      this.desc = adapter.getImageDescriptor();
+      ImageDescriptor desc = adapter.getImageDescriptor();
       this.vLut = desc.getVoiLutForFrame(adapter.getFrameIndex());
     }
 
@@ -320,12 +319,19 @@ public class PresetWindowLevel {
     }
 
     private void addAutoLevelPreset() {
+      // The window covers exactly the range of the image: LINEAR_EXACT (PS3.3 C.11.2.1.3.2) maps
+      // [c - w / 2, c + w / 2], where LINEAR would end one unit short and turn a range of a
+      // single value into a threshold.
+      LutShape shape = getLutShape(effectiveVoi());
+      if (shape.getFunctionType() == Function.LINEAR) {
+        shape = LutShape.LINEAR_EXACT;
+      }
       var autoLevel =
           new PresetWindowLevel(
               "Auto Level [Image]",
               adapter.getFullDynamicWidth(wl),
               adapter.getFullDynamicCenter(wl),
-              getDefaultLutShape());
+              shape);
       autoLevel.setKeyCode(AUTO_LEVEL_KEY);
       presetList.add(autoLevel);
     }

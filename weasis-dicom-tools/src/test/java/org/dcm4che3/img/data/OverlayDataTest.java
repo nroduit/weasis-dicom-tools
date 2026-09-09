@@ -14,6 +14,9 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.awt.Color;
 import java.util.List;
 import java.util.Optional;
+import java.util.Random;
+import java.util.function.IntPredicate;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
@@ -30,8 +33,10 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.Scalar;
 import org.weasis.opencv.data.ImageCV;
 import org.weasis.opencv.data.PlanarImage;
 import org.weasis.opencv.natives.NativeLibrary;
@@ -143,6 +148,43 @@ class OverlayDataTest {
       assertNotNull(result);
     }
 
+    @ParameterizedTest
+    @MethodSource("provideOutputBits")
+    void should_paint_overlay_at_the_top_of_the_windowed_output_range(
+        Integer outputBits, int expected) {
+      var sourceImage = imageFactory.createTestImage(9, 9);
+      var currentImage = new ImageCV(9, 9, CvType.CV_16UC1);
+      currentImage.setTo(new Scalar(1000));
+      var overlay = new OverlayData(0, 3, 3, 1, 1, new int[] {1, 1}, new byte[] {-1, -1});
+      var descriptor = createTestImageDescriptor(List.of(overlay));
+      var params = new TestDicomImageReadParam().withOverlayColor(Color.WHITE);
+      params.setOutputBits(outputBits);
+
+      var result = OverlayData.getOverlayImage(sourceImage, currentImage, descriptor, params, 0);
+
+      short[] pixels = new short[81];
+      result.toMat().get(0, 0, pixels);
+      assertAll(
+          () -> assertEquals(CvType.CV_16UC1, result.type()),
+          () -> assertTrue(contains(pixels, expected), "overlay pixels are painted"),
+          () ->
+              assertTrue(
+                  allMatch(pixels, v -> v == 1000 || v == expected),
+                  "only background or overlay values"));
+    }
+
+    static Stream<Arguments> provideOutputBits() {
+      return Stream.of(Arguments.of(12, 4095), Arguments.of(16, 65535), Arguments.of(null, 65535));
+    }
+
+    private static boolean contains(short[] pixels, int value) {
+      return !allMatch(pixels, v -> v != value);
+    }
+
+    private static boolean allMatch(short[] pixels, IntPredicate predicate) {
+      return IntStream.range(0, pixels.length).map(i -> pixels[i] & 0xFFFF).allMatch(predicate);
+    }
+
     @Test
     void should_apply_presentation_state_overlays() {
       var sourceImage = imageFactory.createTestImage(9, 9);
@@ -229,6 +271,128 @@ class OverlayDataTest {
           Arguments.of(Color.BLUE),
           Arguments.of(Color.WHITE),
           Arguments.of((Color) null));
+    }
+  }
+
+  @Nested
+  @DisplayName("Overlay mask kept across renderings")
+  class Overlay_mask_tests {
+    private final TestImageFactory imageFactory = new TestImageFactory();
+
+    @Test
+    void should_return_no_mask_without_overlay() {
+      var source = imageFactory.createTestImage(9, 9);
+      var descriptor = createTestImageDescriptor(List.of());
+
+      assertNull(OverlayData.getOverlayMask(source, descriptor, new DicomImageReadParam(), 0));
+      source.release();
+    }
+
+    @Test
+    void should_paint_one_mask_on_several_renderings_as_the_direct_call_does() {
+      var source = imageFactory.createTestImage(9, 9);
+      var overlay = new OverlayData(0, 3, 3, 1, 1, new int[] {2, 2}, new byte[] {-1, -1});
+      var descriptor = createTestImageDescriptor(List.of(overlay));
+      var params = new TestDicomImageReadParam().withOverlayColor(Color.WHITE);
+
+      ImageCV mask = OverlayData.getOverlayMask(source, descriptor, params, 0);
+      assertNotNull(mask);
+      for (int level : new int[] {10, 120}) {
+        var rendered = new ImageCV(9, 9, CvType.CV_8UC1, new Scalar(level));
+        var expected = OverlayData.getOverlayImage(source, rendered, descriptor, params, 0);
+        var actual = OverlayData.applyOverlayMask(rendered, mask, params);
+
+        assertEquals(0, Core.norm(expected.toMat(), actual.toMat(), Core.NORM_INF));
+        assertNotSame(rendered, actual);
+        rendered.release();
+      }
+      assertFalse(mask.isReleased(), "the caller owns the mask");
+      mask.release();
+      source.release();
+    }
+
+    @Test
+    void should_leave_a_rendering_of_another_size_untouched() {
+      var source = imageFactory.createTestImage(9, 9);
+      var overlay = new OverlayData(0, 3, 3, 1, 1, new int[] {1, 1}, new byte[] {-1, -1});
+      var descriptor = createTestImageDescriptor(List.of(overlay));
+      var params = new TestDicomImageReadParam().withOverlayColor(Color.WHITE);
+      ImageCV mask = OverlayData.getOverlayMask(source, descriptor, params, 0);
+      var rendered = imageFactory.createTestImage(5, 5);
+
+      assertSame(rendered, OverlayData.applyOverlayMask(rendered, mask, params));
+      mask.release();
+    }
+  }
+
+  @Nested
+  @DisplayName("Embedded overlay mask")
+  class Embedded_overlay_mask_tests {
+    private static final int WIDTH = 61; // odd size, so a row stride mistake cannot hide
+    private static final int HEIGHT = 47;
+
+    static Stream<Arguments> storedTypesAndBits() {
+      return Stream.of(
+          Arguments.of(CvType.CV_8UC1, 7, 7),
+          Arguments.of(CvType.CV_8SC1, 7, 7), // the sign bit
+          Arguments.of(CvType.CV_16UC1, 12, 12),
+          Arguments.of(CvType.CV_16UC1, 12, 15),
+          Arguments.of(CvType.CV_16SC1, 12, 13),
+          Arguments.of(CvType.CV_16SC1, 12, 15)); // the sign bit
+    }
+
+    @ParameterizedTest(name = "type {0}, {1} bits stored, overlay in bit {2}")
+    @MethodSource("storedTypesAndBits")
+    void should_mark_the_pixels_whose_overlay_bit_is_set(
+        int cvType, int bitsStored, int bitPosition) {
+      boolean eightBits = CvType.depth(cvType) <= CvType.CV_8S;
+      int[] stored = new int[WIDTH * HEIGHT];
+      var random = new Random(cvType * 31L + bitPosition);
+      for (int i = 0; i < stored.length; i++) {
+        stored[i] = random.nextInt(eightBits ? 1 << 8 : 1 << 16);
+      }
+      var source = new ImageCV(HEIGHT, WIDTH, cvType);
+      if (eightBits) {
+        byte[] data = new byte[stored.length];
+        for (int i = 0; i < data.length; i++) {
+          data[i] = (byte) stored[i];
+        }
+        source.put(0, 0, data);
+      } else {
+        short[] data = new short[stored.length];
+        for (int i = 0; i < data.length; i++) {
+          data[i] = (short) stored[i];
+        }
+        source.put(0, 0, data);
+      }
+
+      var dcm = new Attributes();
+      dcm.setInt(Tag.Rows, VR.US, HEIGHT);
+      dcm.setInt(Tag.Columns, VR.US, WIDTH);
+      dcm.setInt(Tag.SamplesPerPixel, VR.US, 1);
+      dcm.setString(Tag.PhotometricInterpretation, VR.CS, "MONOCHROME2");
+      dcm.setInt(Tag.BitsAllocated, VR.US, eightBits ? 8 : 16);
+      dcm.setInt(Tag.BitsStored, VR.US, bitsStored);
+      dcm.setInt(Tag.PixelRepresentation, VR.US, CvType.depth(cvType) % 2);
+      dcm.setInt(Tag.OverlayBitsAllocated, VR.US, eightBits ? 8 : 16);
+      dcm.setInt(Tag.OverlayBitPosition, VR.US, bitPosition);
+      var descriptor = new ImageDescriptor(dcm);
+      assertEquals(1, descriptor.getEmbeddedOverlay().size());
+
+      var current = new ImageCV(HEIGHT, WIDTH, CvType.CV_8UC1, new Scalar(0));
+      var params = new TestDicomImageReadParam().withOverlayColor(Color.WHITE);
+      var result = OverlayData.getOverlayImage(source, current, descriptor, params, 0);
+
+      byte[] rendered = new byte[stored.length];
+      result.toMat().get(0, 0, rendered);
+      int mask = 1 << bitPosition;
+      for (int i = 0; i < stored.length; i++) {
+        byte expected = (stored[i] & mask) != 0 ? (byte) 255 : 0;
+        assertEquals(expected, rendered[i], "pixel " + i + ", stored " + stored[i]);
+      }
+      source.release();
+      current.release();
+      result.release();
     }
   }
 

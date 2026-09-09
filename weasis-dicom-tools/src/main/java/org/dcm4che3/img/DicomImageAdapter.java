@@ -383,6 +383,13 @@ public class DicomImageAdapter {
         isPhotometricInterpretationInverse(wl.getPresentationState()));
   }
 
+  // A presentation LUT indexes the VOI output, so it keeps the 8-bit range it was built for.
+  static int voiOutputBits(WlParams wl) {
+    boolean presentationLut =
+        wl.getPresentationState() instanceof PrDicomObject pr && pr.getPrLut().isPresent();
+    return presentationLut ? 8 : wl.getOutputBits();
+  }
+
   // Static utility methods
   public static MinMaxLocResult getMinMaxValues(
       PlanarImage image, ImageDescriptor desc, int frameIndex) {

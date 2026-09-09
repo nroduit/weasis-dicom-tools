@@ -86,6 +86,7 @@ public final class ImageDescriptor {
   private final Integer pixelPaddingRangeLimit;
   private final ModalityLutModule modalityLUT;
   private final VoiLutModule voiLUT;
+  private final MinMaxLocResult seriesPixelRange;
 
   // Frame-specific data collections
   private final List<MinMaxLocResult> minMaxPixelValues;
@@ -151,6 +152,7 @@ public final class ImageDescriptor {
     this.pixelPaddingRangeLimit = lutData.pixelPaddingRangeLimit();
     this.modalityLUT = lutData.modalityLUT();
     this.voiLUT = lutData.voiLUT();
+    this.seriesPixelRange = readSeriesPixelRange(dcm, pixelRepresentation);
 
     // Initialize frame-specific collections
     this.minMaxPixelValues = createNullFilledList(frames);
@@ -220,6 +222,20 @@ public final class ImageDescriptor {
         DicomUtils.getIntegerFromDicomElement(dcm, Tag.PixelPaddingRangeLimit, null);
     return new LutDataContainer(
         paddingValue, paddingRangeLimit, new ModalityLutModule(dcm), new VoiLutModule(dcm));
+  }
+
+  // In implicit VR the VR of these attributes is "US or SS" (PS3.5 A.1), so a signed value may be
+  // read as unsigned; Pixel Representation resolves it.
+  private static MinMaxLocResult readSeriesPixelRange(Attributes dcm, int pixelRepresentation) {
+    Integer min = DicomUtils.getIntegerFromDicomElement(dcm, Tag.SmallestPixelValueInSeries, null);
+    Integer max = DicomUtils.getIntegerFromDicomElement(dcm, Tag.LargestPixelValueInSeries, null);
+    if (min == null || max == null) {
+      return null;
+    }
+    var range = new MinMaxLocResult();
+    range.minVal = pixelRepresentation == 1 ? (short) min.intValue() : min;
+    range.maxVal = pixelRepresentation == 1 ? (short) max.intValue() : max;
+    return range.minVal <= range.maxVal ? range : null;
   }
 
   private static <T> List<T> createNullFilledList(int size) {
@@ -297,9 +313,23 @@ public final class ImageDescriptor {
   /** Returns true if the image uses a palette color lookup table. */
   public boolean hasPaletteColorLookupTable() {
     return photometricInterpretation == PhotometricInterpretation.PALETTE_COLOR
-        || (photometricInterpretation.isMonochrome()
-            && pixelPresentation != null
-            && pixelPresentation.contains("COLOR"));
+        || hasSupplementalPixelPresentation();
+  }
+
+  /**
+   * Whether a Supplemental Palette Color LUT colors the upper range of a grayscale image: Pixel
+   * Presentation COLOR or MIXED (PS3.3 C.8.16.2). Stored values from the first value mapped of the
+   * palette upwards are colored by it, the lower ones go through the grayscale pipeline.
+   */
+  public boolean hasSupplementalPaletteColorLookupTable() {
+    return paletteColorLookupTable != null && hasSupplementalPixelPresentation();
+  }
+
+  // Pixel Presentation COLOR or MIXED on a grayscale image requires the Supplemental Palette
+  private boolean hasSupplementalPixelPresentation() {
+    return photometricInterpretation.isMonochrome()
+        && pixelPresentation != null
+        && (pixelPresentation.contains("COLOR") || pixelPresentation.contains("MIXED"));
   }
 
   /** Returns true if pixel data represents floating-point values. */
@@ -362,6 +392,13 @@ public final class ImageDescriptor {
   }
 
   // === Pixel Padding and LUT Modules ===
+
+  /**
+   * Smallest and Largest Pixel Value in Series (0028,0108 and 0028,0109), in stored pixel values.
+   */
+  public Optional<MinMaxLocResult> getSeriesPixelRange() {
+    return Optional.ofNullable(seriesPixelRange);
+  }
 
   public Optional<Integer> getPixelPaddingValue() {
     return Optional.ofNullable(pixelPaddingValue);

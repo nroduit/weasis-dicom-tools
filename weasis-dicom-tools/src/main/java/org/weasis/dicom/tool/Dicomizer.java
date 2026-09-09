@@ -44,6 +44,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.util.FileUtil;
 import org.weasis.core.util.MathUtil;
+import org.weasis.dicom.exif.ExifData;
+import org.weasis.dicom.exif.ExifToDicom;
 import org.weasis.opencv.data.ImageCV;
 import org.weasis.opencv.op.ImageIOHandler;
 
@@ -221,12 +223,14 @@ public final class Dicomizer {
   }
 
   /**
-   * Encapsulates a JPEG image into a DICOM file.
+   * Encapsulates a JPEG image into a DICOM file. The EXIF metadata of the JPEG is mapped to DICOM
+   * attributes (see {@link ExifToDicom}) without replacing the attributes already set.
    *
    * @param attrs the DICOM attributes to populate
    * @param jpgFile the path to the input JPEG file
    * @param dcmFile the path to the output DICOM file
-   * @param noAPPn if true, strips APPn segments from the JPEG data
+   * @param noAPPn if true, strips APPn segments (EXIF, XMP, ICC profile...) from the JPEG data and
+   *     does not map the identifying EXIF tags (serial numbers, owner, GPS) to DICOM attributes
    * @throws IOException if an I/O error occurs
    */
   public static void jpeg(Attributes attrs, Path jpgFile, Path dcmFile, boolean noAPPn)
@@ -234,10 +238,27 @@ public final class Dicomizer {
     if (!isValidInputFile(jpgFile) || !isValidOutputFile(dcmFile)) {
       return;
     }
+    addExifAttributes(attrs, jpgFile, !noAPPn);
     try (SeekableByteChannel channel = Files.newByteChannel(jpgFile)) {
       JPEGParser parser = new JPEGParser(channel);
       buildDicomUsingParser(
           parser, attrs, jpgFile, dcmFile, UID.VLPhotographicImageStorage, noAPPn);
+    }
+  }
+
+  /**
+   * Maps the EXIF metadata of a JPEG file to DICOM attributes. A missing or unreadable EXIF segment
+   * is not an error: the attributes are left unchanged.
+   *
+   * @param attrs the DICOM attributes to complete
+   * @param jpgFile the JPEG file
+   * @param includeIdentifying true to also map the identifying tags (serial numbers, owner, GPS)
+   */
+  public static void addExifAttributes(Attributes attrs, Path jpgFile, boolean includeIdentifying) {
+    try {
+      ExifToDicom.fill(ExifData.readJpeg(jpgFile), attrs, includeIdentifying);
+    } catch (IOException | RuntimeException e) {
+      LOGGER.warn("Cannot read the EXIF metadata of {}", jpgFile, e);
     }
   }
 

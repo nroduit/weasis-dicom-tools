@@ -378,7 +378,7 @@ public class DicomImageAdapter {
         wl.getLevel(),
         valueRange.minValue(),
         valueRange.maxValue(),
-        8,
+        voiOutputBits(wl),
         false,
         isPhotometricInterpretationInverse(wl.getPresentationState()));
   }

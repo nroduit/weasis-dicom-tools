@@ -596,4 +596,12 @@ class DicomImageReadParamTest {
           () -> assertEquals(new Rectangle(100, 100, 400, 400), param.getSourceRegion()));
     }
   }
+
+  @Test
+  void outputBitsIsUnsetByDefaultAndSettable() {
+    var params = new DicomImageReadParam();
+    assertTrue(params.getOutputBits().isEmpty());
+    params.setOutputBits(12);
+    assertEquals(12, params.getOutputBits().orElseThrow());
+  }
 }

@@ -11,6 +11,7 @@ package org.dcm4che3.img.data;
 
 import java.awt.Color;
 import java.awt.geom.Area;
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,6 +19,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.dcm4che3.data.Attributes;
@@ -26,7 +28,9 @@ import org.dcm4che3.img.lut.ModalityLutModule;
 import org.dcm4che3.img.lut.VoiLutModule;
 import org.dcm4che3.img.stream.ImageDescriptor;
 import org.dcm4che3.img.util.DicomObjectUtil;
+import org.dcm4che3.img.util.DicomUtils;
 import org.dcm4che3.img.util.LookupTableUtils;
+import org.dcm4che3.img.util.PaletteColorUtils;
 import org.dcm4che3.io.DicomInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,6 +62,8 @@ public class PrDicomObject implements PresentationStateLut {
   private final List<OverlayData> shutterOverlays;
   private final VoiLutModule voiLUT;
   private final LookupTableCV prLut;
+  private final LookupTableCV paletteColorLut;
+  private final List<BlendingLayer> blendingLayers;
   private final String prLutExplanation;
   private final String prLUTShapeMode;
   private final PresentationStateType presentationStateType;
@@ -206,7 +212,13 @@ public class PrDicomObject implements PresentationStateLut {
     this.presentationStateType = validateAndGetPresentationStateType();
 
     this.modalityLUT = desc == null ? new ModalityLutModule(dcmPR) : desc.getModalityLUT();
-    this.voiLUT = buildVoiLut(dcmPR);
+    boolean blending = presentationStateType == PresentationStateType.BLENDING_SOFTCOPY;
+    this.blendingLayers = blending ? buildBlendingLayers(dcmPR) : List.of();
+    // A blending state windows its underlying set through its own layer: that is the view's VOI.
+    this.voiLUT =
+        blending
+            ? layer(blendingLayers, false).map(BlendingLayer::voiLut).orElse(null)
+            : buildVoiLut(dcmPR);
     this.overlays = OverlayData.getPrOverlayData(dcmPR, -1);
     this.shutterOverlays =
         desc == null ? OverlayData.getOverlayData(dcmPR, 0xffff) : desc.getOverlayData();
@@ -279,6 +291,82 @@ public class PrDicomObject implements PresentationStateLut {
         DicomObjectUtil.getSequence(refSeriesSeq, Tag.ReferencedImageSequence);
     return DicomObjectUtil.isImageFrameApplicableToReferencedImageSequence(
         refImgSeq, childTag, sopInstanceUID, referenceNumber, true);
+  }
+
+  /**
+   * One item of the Blending Sequence of a Blending Softcopy presentation state: the image set it
+   * addresses and the grayscale transformation to apply to it before blending.
+   *
+   * @param position {@code UNDERLYING} or {@code SUPERIMPOSED}
+   * @param voiLut the layer's VOI LUT, or null when none is given
+   */
+  public record BlendingLayer(
+      String position,
+      String studyInstanceUid,
+      List<Attributes> referencedSeries,
+      VoiLutModule voiLut) {
+
+    public static final String SUPERIMPOSED = "SUPERIMPOSED"; // NON-NLS
+    public static final String UNDERLYING = "UNDERLYING"; // NON-NLS
+
+    public boolean isSuperimposed() {
+      return SUPERIMPOSED.equals(position);
+    }
+
+    public List<String> seriesInstanceUids() {
+      return referencedSeries.stream()
+          .map(ref -> ref.getString(Tag.SeriesInstanceUID))
+          .filter(StringUtil::hasText)
+          .toList();
+    }
+
+    public boolean references(String seriesInstanceUid) {
+      return seriesInstanceUid != null && seriesInstanceUids().contains(seriesInstanceUid);
+    }
+  }
+
+  private static List<BlendingLayer> buildBlendingLayers(Attributes dcmPR) {
+    return DicomObjectUtil.getSequence(dcmPR, Tag.BlendingSequence).stream()
+        .map(
+            item -> {
+              Attributes voi = item.getNestedDataset(Tag.SoftcopyVOILUTSequence);
+              return new BlendingLayer(
+                  item.getString(Tag.BlendingPosition),
+                  item.getString(Tag.StudyInstanceUID),
+                  DicomObjectUtil.getSequence(item, Tag.ReferencedSeriesSequence),
+                  voi == null ? null : new VoiLutModule(voi));
+            })
+        .toList();
+  }
+
+  private static Optional<BlendingLayer> layer(List<BlendingLayer> layers, boolean superimposed) {
+    return layers.stream().filter(l -> l.isSuperimposed() == superimposed).findFirst();
+  }
+
+  /** The two layers of a Blending Softcopy presentation state; empty for the other types. */
+  public List<BlendingLayer> getBlendingLayers() {
+    return blendingLayers;
+  }
+
+  public Optional<BlendingLayer> getUnderlyingLayer() {
+    return layer(blendingLayers, false);
+  }
+
+  public Optional<BlendingLayer> getSuperimposedLayer() {
+    return layer(blendingLayers, true);
+  }
+
+  /** Opacity of the superimposed set, 0 to 1; present on a Blending Softcopy presentation state. */
+  public OptionalDouble getRelativeOpacity() {
+    Double value = dcmPR.getDouble(Tag.RelativeOpacity, Double.NaN);
+    return Double.isNaN(value) ? OptionalDouble.empty() : OptionalDouble.of(value);
+  }
+
+  /**
+   * UID of a (well-known) palette the presentation state refers to instead of, or besides, data.
+   */
+  public Optional<String> getPaletteColorLutUid() {
+    return Optional.ofNullable(dcmPR.getString(Tag.PaletteColorLookupTableUID));
   }
 
   // === Public API Methods ===
@@ -394,7 +482,8 @@ public class PrDicomObject implements PresentationStateLut {
    * @throws IOException if file cannot be read or parsed
    */
   public static PrDicomObject getPresentationState(Path prPath) throws IOException {
-    try (var inputStream = Files.newInputStream(prPath);
+    try (var inputStream =
+            new BufferedInputStream(Files.newInputStream(prPath), DicomUtils.FILE_BUFFER_SIZE);
         var dis = new DicomInputStream(inputStream)) {
       return new PrDicomObject(dis.readDataset());
     }

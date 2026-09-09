@@ -164,14 +164,13 @@ public final class LookupTableUtils {
           isSigned);
     }
 
+    // The output spans exactly bitsStored bits; the array type (byte or short) is the container.
     private static int calculateMinOutValue(int bitsStored, boolean isSigned) {
-      int bitsAllocated = (bitsStored <= 8) ? 8 : 16;
-      return isSigned ? -(1 << (bitsAllocated - 1)) : 0;
+      return isSigned ? -(1 << (bitsStored - 1)) : 0;
     }
 
     private static int calculateMaxOutValue(int bitsStored, boolean isSigned) {
-      int bitsAllocated = (bitsStored <= 8) ? 8 : 16;
-      return isSigned ? (1 << (bitsAllocated - 1)) - 1 : (1 << bitsAllocated) - 1;
+      return isSigned ? (1 << (bitsStored - 1)) - 1 : (1 << bitsStored) - 1;
     }
   }
 
@@ -196,7 +195,8 @@ public final class LookupTableUtils {
       LutShape lutShape, LutConfiguration config, Object outLut, boolean inverse) {
     if (lutShape.getFunctionType() != null) {
       switch (lutShape.getFunctionType()) {
-        case LINEAR -> setLinearLut(config, outLut, inverse);
+        case LINEAR -> setLinearLut(config, outLut, inverse, false);
+        case LINEAR_EXACT -> setLinearLut(config, outLut, inverse, true);
         case SIGMOID -> setSigmoidLut(config, outLut, inverse, false);
         case SIGMOID_NORM -> setSigmoidLut(config, outLut, inverse, true);
         case LOG -> setLogarithmicLut(config, outLut, inverse);
@@ -213,9 +213,27 @@ public final class LookupTableUtils {
         : new LookupTableCV((short[]) outLut, config.minInValue(), !config.isSigned());
   }
 
-  private static void setLinearLut(LutConfiguration config, Object outLut, boolean inverse) {
-    double slope = (config.maxOutValue() - config.minOutValue()) / config.window();
-    double intercept = config.maxOutValue() - slope * (config.level() + (config.window() / 2.0));
+  /**
+   * DICOM LINEAR (PS3.3 C.11.2.1.2.1) maps [c - 0.5 - (w - 1) / 2, c - 0.5 + (w - 1) / 2];
+   * LINEAR_EXACT (C.11.2.1.3.2) maps [c - w / 2, c + w / 2]. A LINEAR window of width 1 is a
+   * threshold at c - 0.5.
+   */
+  private static void setLinearLut(
+      LutConfiguration config, Object outLut, boolean inverse, boolean exact) {
+    double center = exact ? config.level() : config.level() - 0.5;
+    double width = exact ? config.window() : config.window() - 1.0;
+    if (width <= 0) {
+      IntStream.range(0, Array.getLength(outLut))
+          .forEach(
+              i -> {
+                int value =
+                    i + config.minInValue() <= center ? config.minOutValue() : config.maxOutValue();
+                setLutValue(outLut, config.minOutValue(), config.maxOutValue(), inverse, i, value);
+              });
+      return;
+    }
+    double slope = (config.maxOutValue() - config.minOutValue()) / width;
+    double intercept = config.maxOutValue() - slope * (center + (width / 2.0));
 
     IntStream.range(0, Array.getLength(outLut))
         .forEach(

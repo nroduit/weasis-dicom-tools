@@ -327,7 +327,9 @@ public class DicomImageReader extends ImageReader {
 
   private PlanarImage applyPaletteColorLUT(PlanarImage image) {
     ImageDescriptor desc = getImageDescriptor();
-    if (desc.hasPaletteColorLookupTable()) {
+    // A Supplemental Palette keeps the stored values: the rendering colors their upper range only
+    if (desc.getPhotometricInterpretation() == PhotometricInterpretation.PALETTE_COLOR
+        && desc.getPaletteColorLookupTable() != null) {
       LookupTableCV paletteColorLUT = desc.getPaletteColorLookupTable();
       return PaletteColorUtils.getRGBImageFromPaletteColorModel(image, paletteColorLUT);
     }

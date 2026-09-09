@@ -55,6 +55,47 @@ class LookupTableUtilsTest {
   @Nested
   class Voi_lut_creation {
 
+    // Windows of the DICOM VOI LUT calibration presentation states (8-bit ramp from 25 to 75)
+    @Test
+    void should_map_dicom_linear_window_on_c_minus_half_and_w_minus_one() {
+      byte[] data =
+          LookupTableUtils.createVoiLut(LutShape.LINEAR, 51.0, 50.5, 0, 255, 8, false, false)
+              .getByteData(0);
+
+      assertAll(
+          () -> assertEquals(0, Byte.toUnsignedInt(data[25])),
+          () -> assertEquals(127, Byte.toUnsignedInt(data[50])),
+          () -> assertEquals(255, Byte.toUnsignedInt(data[75])));
+    }
+
+    @Test
+    void should_map_linear_exact_window_on_c_and_w() {
+      byte[] exact =
+          LookupTableUtils.createVoiLut(LutShape.LINEAR_EXACT, 50.0, 50.0, 0, 255, 8, false, false)
+              .getByteData(0);
+      byte[] linear =
+          LookupTableUtils.createVoiLut(LutShape.LINEAR, 50.0, 50.0, 0, 255, 8, false, false)
+              .getByteData(0);
+
+      assertAll(
+          () -> assertEquals(0, Byte.toUnsignedInt(exact[25])),
+          () -> assertEquals(127, Byte.toUnsignedInt(exact[50])),
+          () -> assertEquals(255, Byte.toUnsignedInt(exact[75])),
+          () -> assertEquals(255, Byte.toUnsignedInt(linear[74])),
+          () -> assertTrue(Byte.toUnsignedInt(linear[50]) > Byte.toUnsignedInt(exact[50])));
+    }
+
+    @Test
+    void should_threshold_dicom_linear_window_of_width_one() {
+      byte[] data =
+          LookupTableUtils.createVoiLut(LutShape.LINEAR, 1.0, 100.0, 0, 255, 8, false, false)
+              .getByteData(0);
+
+      assertAll(
+          () -> assertEquals(0, Byte.toUnsignedInt(data[99])),
+          () -> assertEquals(255, Byte.toUnsignedInt(data[100])));
+    }
+
     @Test
     void should_return_null_for_null_lut_shape() {
       var result = LookupTableUtils.createVoiLut(null, 100.0, 50.0, 0, 255, 8, false, false);
@@ -110,6 +151,8 @@ class LookupTableUtilsTest {
 
       short[] data = result.getShortData(0);
       assertEquals(STANDARD_12BIT_MAX + 1, data.length);
+      assertEquals(0, data[0], "below the window maps to the first index");
+      assertEquals(STANDARD_12BIT_MAX, data[STANDARD_12BIT_MAX], "output spans exactly 12 bits");
     }
 
     @Test

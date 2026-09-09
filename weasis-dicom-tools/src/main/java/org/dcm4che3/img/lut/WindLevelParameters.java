@@ -45,6 +45,8 @@ import org.weasis.opencv.op.lut.WlParams;
  * @see DicomImageReadParam
  */
 public final class WindLevelParameters implements WlParams {
+  private static final int DEFAULT_OUTPUT_BITS = 8;
+  private static final int MAX_OUTPUT_BITS = 16;
 
   private final double window;
   private final double level;
@@ -56,6 +58,7 @@ public final class WindLevelParameters implements WlParams {
   private final boolean allowWinLevelOnColorImage;
   private final LutShape lutShape;
   private final PrDicomObject dcmPR;
+  private final int outputBits;
 
   /**
    * Creates window/level parameters using default values from the DICOM image adapter.
@@ -98,6 +101,13 @@ public final class WindLevelParameters implements WlParams {
     this.allowWinLevelOnColorImage =
         extractBooleanParam(params, DicomImageReadParam::getApplyWindowLevelToColorImage, false);
     this.inverseLut = extractBooleanParam(params, DicomImageReadParam::getInverseLut, false);
+    this.outputBits =
+        params == null
+            ? DEFAULT_OUTPUT_BITS
+            : params
+                .getOutputBits()
+                .map(b -> Math.max(DEFAULT_OUTPUT_BITS, Math.min(MAX_OUTPUT_BITS, b)))
+                .orElse(DEFAULT_OUTPUT_BITS);
 
     // Extract window/level parameters
     this.window =
@@ -224,6 +234,11 @@ public final class WindLevelParameters implements WlParams {
   }
 
   @Override
+  public int getOutputBits() {
+    return outputBits;
+  }
+
+  @Override
   public boolean equals(Object obj) {
     return obj instanceof WindLevelParameters other
         && Double.compare(window, other.window) == 0
@@ -234,6 +249,7 @@ public final class WindLevelParameters implements WlParams {
         && inverseLut == other.inverseLut
         && fillOutsideLutRange == other.fillOutsideLutRange
         && allowWinLevelOnColorImage == other.allowWinLevelOnColorImage
+        && outputBits == other.outputBits
         && Objects.equals(lutShape, other.lutShape)
         && Objects.equals(dcmPR, other.dcmPR);
   }
@@ -249,6 +265,7 @@ public final class WindLevelParameters implements WlParams {
         inverseLut,
         fillOutsideLutRange,
         allowWinLevelOnColorImage,
+        outputBits,
         lutShape,
         dcmPR);
   }

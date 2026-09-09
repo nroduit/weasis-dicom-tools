@@ -60,6 +60,8 @@ public class DicomImageReadParam extends ImageReadParam {
   private Boolean fillOutsideLutRange;
   private Boolean applyWindowLevelToColorImage;
   private Boolean keepRgbForLossyJpeg;
+  private Integer outputBits;
+  private Boolean applySupplementalPalette;
 
   private Boolean releaseImageAfterProcessing;
 
@@ -231,6 +233,18 @@ public class DicomImageReadParam extends ImageReadParam {
     return Optional.ofNullable(inverseLut);
   }
 
+  public Optional<Integer> getOutputBits() {
+    return Optional.ofNullable(outputBits);
+  }
+
+  /**
+   * Bit depth of the windowed output, 8 by default. Above 8 the VOI stage yields a 16-bit index
+   * image over {@code [0, 2^bits - 1]}; ignored when a presentation LUT follows the VOI LUT.
+   */
+  public void setOutputBits(Integer outputBits) {
+    this.outputBits = outputBits;
+  }
+
   /**
    * Controls whether the LUT should be inverted (useful for different photometric interpretations).
    */
@@ -254,6 +268,18 @@ public class DicomImageReadParam extends ImageReadParam {
   /** Controls whether pixels outside the LUT range should be filled with boundary values. */
   public void setFillOutsideLutRange(Boolean fillOutsideLutRange) {
     this.fillOutsideLutRange = fillOutsideLutRange;
+  }
+
+  public Optional<Boolean> getApplySupplementalPalette() {
+    return Optional.ofNullable(applySupplementalPalette);
+  }
+
+  /**
+   * Whether the Supplemental Palette Color LUT of a grayscale image colors its upper range (true by
+   * default); false displays the whole range in grayscale, which PS3.3 C.8.16.2 also allows.
+   */
+  public void setApplySupplementalPalette(Boolean applySupplementalPalette) {
+    this.applySupplementalPalette = applySupplementalPalette;
   }
 
   public Optional<Boolean> getApplyWindowLevelToColorImage() {

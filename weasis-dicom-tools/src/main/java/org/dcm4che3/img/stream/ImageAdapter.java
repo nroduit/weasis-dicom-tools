@@ -9,6 +9,7 @@
  */
 package org.dcm4che3.img.stream;
 
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -167,7 +168,9 @@ public final class ImageAdapter {
   private static boolean writeMetadataOnlyFile(
       Attributes data, AdaptTransferSyntax syntax, Path outputPath) {
     adjustSyntaxForMetadataOnly(syntax);
-    try (var outputStream = Files.newOutputStream(outputPath);
+    try (var outputStream =
+            new BufferedOutputStream(
+                Files.newOutputStream(outputPath), DicomUtils.FILE_BUFFER_SIZE);
         var writer = new DicomOutputStream(outputStream, UID.ExplicitVRLittleEndian)) {
       writer.writeDataset(data.createFileMetaInformation(syntax.suitable), data);
       writer.finish();
@@ -201,7 +204,9 @@ public final class ImageAdapter {
       var dataSet = new Attributes(data);
       dataSet.remove(Tag.PixelData);
       String dstTsuid = syntax.suitable;
-      try (var outputStream = Files.newOutputStream(outputPath);
+      try (var outputStream =
+              new BufferedOutputStream(
+                  Files.newOutputStream(outputPath), DicomUtils.FILE_BUFFER_SIZE);
           var dos = new DicomOutputStream(outputStream, dstTsuid)) {
         dos.writeFileMetaInformation(dataSet.createFileMetaInformation(dstTsuid));
         writeImage(syntax, desc, imgData, dataSet, dstTsuid, dos);

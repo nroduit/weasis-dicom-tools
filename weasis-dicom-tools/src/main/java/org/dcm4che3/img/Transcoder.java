@@ -9,6 +9,7 @@
  */
 package org.dcm4che3.img;
 
+import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
@@ -20,6 +21,7 @@ import org.dcm4che3.data.Tag;
 import org.dcm4che3.img.op.MaskArea;
 import org.dcm4che3.img.stream.DicomFileInputStream;
 import org.dcm4che3.img.stream.ImageDescriptor;
+import org.dcm4che3.img.util.DicomUtils;
 import org.dcm4che3.img.util.Editable;
 import org.dcm4che3.io.DicomOutputStream;
 import org.opencv.core.CvType;
@@ -184,7 +186,8 @@ public final class Transcoder {
       throws IOException {
     var outPath = adaptFileExtension(FileUtil.getOutputPath(srcPath, dstPath), ".dcm");
 
-    try (var outputStream = Files.newOutputStream(outPath)) {
+    try (var outputStream =
+        new BufferedOutputStream(Files.newOutputStream(outPath), DicomUtils.FILE_BUFFER_SIZE)) {
       dcm2dcm(srcPath, outputStream, params);
     } catch (Exception e) {
       FileUtil.delete(outPath);

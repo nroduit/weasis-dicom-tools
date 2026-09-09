@@ -9,12 +9,14 @@
  */
 package org.dcm4che3.img.stream;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import org.dcm4che3.img.DicomMetaData;
+import org.dcm4che3.img.util.DicomUtils;
 import org.dcm4che3.io.DicomInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,7 +62,11 @@ public class DicomFileInputStream extends DicomInputStream implements ImageReade
    * @throws IllegalArgumentException if the path is null
    */
   public DicomFileInputStream(Path path, DicomMetaData metadata) throws IOException {
-    super(Files.newInputStream(Objects.requireNonNull(path, "Path cannot be null")));
+    // A large read-ahead keeps header parsing to a few requests on a network share
+    super(
+        new BufferedInputStream(
+            Files.newInputStream(Objects.requireNonNull(path, "Path cannot be null")),
+            DicomUtils.FILE_BUFFER_SIZE));
     this.path = path;
     this.metadata.set(metadata);
   }

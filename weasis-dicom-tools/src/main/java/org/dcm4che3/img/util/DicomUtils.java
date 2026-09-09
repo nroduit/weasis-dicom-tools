@@ -36,6 +36,10 @@ import org.weasis.core.util.StringUtil;
  * @author Nicolas Roduit
  */
 public final class DicomUtils {
+
+  /** Buffer size for DICOM file streams: large requests keep network shares to few round trips. */
+  public static final int FILE_BUFFER_SIZE = 64 * 1024;
+
   private static final Logger LOGGER = LoggerFactory.getLogger(DicomUtils.class);
 
   // Video transfer syntax UIDs

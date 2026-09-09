@@ -10,16 +10,8 @@
 package org.dcm4che3.img.lut;
 
 import java.awt.image.DataBuffer;
-import java.io.IOException;
-import java.io.InputStream;
 import java.lang.reflect.Array;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.*;
-import javax.xml.stream.XMLInputFactory;
-import javax.xml.stream.XMLStreamConstants;
-import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.XMLStreamReader;
 import org.dcm4che3.img.DicomImageAdapter;
 import org.dcm4che3.img.data.PrDicomObject;
 import org.dcm4che3.img.stream.ImageDescriptor;
@@ -43,19 +35,19 @@ import org.weasis.opencv.op.lut.WlPresentation;
 public class PresetWindowLevel {
   private static final Logger LOGGER = LoggerFactory.getLogger(PresetWindowLevel.class);
 
-  private static final Map<String, List<PresetWindowLevel>> PRESET_LIST_BY_MODALITY =
-      loadPresetsByModality();
-
   private static final int AUTO_LEVEL_KEY = 0x30;
   private static final int FIRST_PRESET_KEY = 0x31;
   private static final int SECOND_PRESET_KEY = 0x32;
-  private static final int MIN_BITS_FOR_MODALITY_PRESETS = 8;
+
+  private static volatile ModalityPresetProvider modalityPresetProvider;
 
   private final String name;
   private final double window;
   private final double level;
   private final LutShape shape;
   private int keyCode = 0;
+  private String id;
+  private boolean fallbackDefault;
 
   /**
    * Creates a new window/level preset.
@@ -107,6 +99,51 @@ public class PresetWindowLevel {
 
   public boolean isAutoLevel() {
     return keyCode == AUTO_LEVEL_KEY;
+  }
+
+  /** Stable identifier of a configured preset; null for presets built from the image. */
+  public String getId() {
+    return id;
+  }
+
+  public void setId(String id) {
+    this.id = id;
+  }
+
+  /**
+   * Whether this configured preset becomes the default, placed first, for an image that carries no
+   * window/level and no VOI LUT. Values carried by the image always stay the default.
+   */
+  public boolean isFallbackDefault() {
+    return fallbackDefault;
+  }
+
+  public void setFallbackDefault(boolean fallbackDefault) {
+    this.fallbackDefault = fallbackDefault;
+  }
+
+  /**
+   * Whether both presets are the same preset on different images: same id when both have one,
+   * otherwise same name. Unlike {@link #equals(Object)}, the values may differ.
+   */
+  public boolean isSamePreset(PresetWindowLevel other) {
+    if (other == null) {
+      return false;
+    }
+    if (id != null && other.id != null) {
+      return id.equals(other.id);
+    }
+    return name.equals(other.name);
+  }
+
+  /** Sets the source of the configured presets; null offers none. */
+  public static void setModalityPresetProvider(ModalityPresetProvider provider) {
+    modalityPresetProvider = provider;
+  }
+
+  public static ModalityPresetProvider getModalityPresetProvider() {
+    ModalityPresetProvider provider = modalityPresetProvider;
+    return provider == null ? (adapter, wl) -> List.of() : provider;
   }
 
   @Override
@@ -193,91 +230,6 @@ public class PresetWindowLevel {
     return new double[] {width, center};
   }
 
-  private static Map<String, List<PresetWindowLevel>> loadPresetsByModality() {
-    try (var stream = openPresetFile()) {
-      if (stream == null) return Collections.emptyMap();
-      var factory = createSecureXMLFactory();
-      var xmlReader = factory.createXMLStreamReader(stream);
-      var presets = new TreeMap<String, List<PresetWindowLevel>>();
-      parsePresetsXML(xmlReader, presets);
-      return presets;
-    } catch (Exception e) {
-      LOGGER.error("Cannot read presets file!", e);
-      return Collections.emptyMap();
-    }
-  }
-
-  private static InputStream openPresetFile() throws IOException {
-    var pathString = System.getProperty("dicom.presets.path");
-    if (!StringUtil.hasText(pathString)) {
-      return PresetWindowLevel.class.getResourceAsStream("presets.xml");
-    }
-
-    var path = Paths.get(pathString);
-    return Files.isReadable(path) ? Files.newInputStream(path) : null;
-  }
-
-  public static XMLInputFactory createSecureXMLFactory() {
-    var factory = XMLInputFactory.newInstance();
-    // Disable external entities for security
-    factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, Boolean.FALSE);
-    factory.setProperty(XMLInputFactory.SUPPORT_DTD, Boolean.FALSE);
-    return factory;
-  }
-
-  public static void parsePresetsXML(
-      XMLStreamReader xmler, Map<String, List<PresetWindowLevel>> presets)
-      throws XMLStreamException {
-    while (xmler.hasNext()) {
-      if (xmler.next() == XMLStreamConstants.START_ELEMENT
-          && "presets".equals(xmler.getName().getLocalPart())) {
-        while (xmler.hasNext()) {
-          readPresetListByModality(xmler, presets);
-        }
-      }
-    }
-  }
-
-  private static void readPresetListByModality(
-      XMLStreamReader xmler, Map<String, List<PresetWindowLevel>> presets)
-      throws XMLStreamException {
-    if (xmler.next() != XMLStreamConstants.START_ELEMENT) return;
-
-    var elementName = xmler.getName().getLocalPart();
-    if (!"preset".equals(elementName) || xmler.getAttributeCount() < 4) return;
-    try {
-      var preset = parsePresetFromXML(xmler);
-      var modality = xmler.getAttributeValue(null, "modality");
-      presets.computeIfAbsent(modality, k -> new ArrayList<>()).add(preset);
-
-    } catch (Exception e) {
-      var name = xmler.getAttributeValue(null, "name");
-      LOGGER.error("Preset {} cannot be read from xml file", name, e);
-    }
-  }
-
-  private static PresetWindowLevel parsePresetFromXML(XMLStreamReader xmler) {
-    var name = xmler.getAttributeValue(null, "name");
-    var window = Double.parseDouble(xmler.getAttributeValue(null, "window"));
-    var level = Double.parseDouble(xmler.getAttributeValue(null, "level"));
-    var shape = xmler.getAttributeValue(null, "shape");
-    var keyCode = getKeyTagAttribute(xmler);
-    var lutShape = LutShape.getLutShape(shape);
-
-    var preset =
-        new PresetWindowLevel(
-            name, window, level, Objects.requireNonNullElse(lutShape, LutShape.LINEAR));
-    if (keyCode != null) {
-      preset.setKeyCode(keyCode);
-    }
-    return preset;
-  }
-
-  private static Integer getKeyTagAttribute(XMLStreamReader xmler) {
-    var value = xmler.getAttributeValue(null, "key");
-    return value != null ? StringUtil.getInteger(value) : null;
-  }
-
   /** Helper class to build preset collections from DICOM data. */
   private static class PresetCollectionBuilder {
     private final DicomImageAdapter adapter;
@@ -299,28 +251,45 @@ public class PresetWindowLevel {
     List<PresetWindowLevel> buildPresets() {
       buildPresetsFromWindowLevel();
       buildPresetsFromLutData();
+      boolean carriedByImage = !presetList.isEmpty();
       addAutoLevelPreset();
-      addModalityPresets();
+      addModalityPresets(carriedByImage);
       return presetList;
     }
 
+    // The presentation state windows come first, each source with its own explanations and VOI
+    // LUT Function (PS3.3 C.11.2 for the image, C.11.8 for the presentation state).
     private void buildPresetsFromWindowLevel() {
-      var levelList = getWindowCenter();
-      var windowList = getWindowWidth();
-      var explanationList = getWindowCenterWidthExplanation();
-      var defaultLutShape = getDefaultLutShape();
+      int presetCounter = 1;
+      VoiLutModule prVoi = effectiveVoi();
+      if (prVoi != vLut) {
+        presetCounter = addWindowPresets(prVoi, presetCounter);
+      }
+      addWindowPresets(vLut, presetCounter);
+    }
 
-      if (levelList.isEmpty() || windowList.isEmpty()) return;
+    private VoiLutModule effectiveVoi() {
+      if (wl.getPresentationState() instanceof PrDicomObject pr) {
+        var prVoi = pr.getVoiLUT();
+        if (prVoi.isPresent()) {
+          return prVoi.get();
+        }
+      }
+      return vLut;
+    }
 
-      var defaultExplanation = "Default";
-      var presetCounter = 1;
-
-      for (int i = 0; i < levelList.size(); i++) {
-        var explanation =
-            getPresetExplanation(explanationList, i, defaultExplanation + " " + presetCounter);
+    private int addWindowPresets(VoiLutModule voi, int firstPresetNumber) {
+      var levelList = voi.getWindowCenter();
+      var windowList = voi.getWindowWidth();
+      var explanationList = voi.getWindowCenterWidthExplanation();
+      var lutShape = getLutShape(voi);
+      int presetCounter = firstPresetNumber;
+      int count = Math.min(levelList.size(), windowList.size());
+      for (int i = 0; i < count; i++) {
+        var explanation = getPresetExplanation(explanationList, i, "Default " + presetCounter);
         var preset =
             new PresetWindowLevel(
-                explanation + dicomKeyWord, windowList.get(i), levelList.get(i), defaultLutShape);
+                explanation + dicomKeyWord, windowList.get(i), levelList.get(i), lutShape);
 
         if (!presetList.contains(preset)) {
           setPresetKeyCode(preset, presetCounter - 1);
@@ -328,6 +297,7 @@ public class PresetWindowLevel {
           presetCounter++;
         }
       }
+      return presetCounter;
     }
 
     private void buildPresetsFromLutData() {
@@ -360,39 +330,28 @@ public class PresetWindowLevel {
       presetList.add(autoLevel);
     }
 
-    private void addModalityPresets() {
-      // Exclude Secondary Capture CT and low bit depth images
-      if (adapter.getBitsStored() > MIN_BITS_FOR_MODALITY_PRESETS) {
-        var modality = desc.getModality();
-        if (StringUtil.hasText(modality)) {
-          var modPresets = PRESET_LIST_BY_MODALITY.get(modality);
-          if (modPresets != null) {
-            presetList.addAll(modPresets);
-          }
-        }
+    private void addModalityPresets(boolean carriedByImage) {
+      List<PresetWindowLevel> modPresets;
+      try {
+        modPresets = getModalityPresetProvider().getPresets(adapter, wl);
+      } catch (RuntimeException e) {
+        LOGGER.error("Cannot get the configured presets", e);
+        return;
       }
-    }
-
-    private List<Double> getWindowCenter() {
-      var centers = new ArrayList<Double>();
-      if (wl.getPresentationState() instanceof PrDicomObject pr) {
-        pr.getVoiLUT().ifPresent(voiLutModule -> centers.addAll(voiLutModule.getWindowCenter()));
+      if (modPresets == null) {
+        return;
       }
-      centers.addAll(vLut.getWindowCenter());
-      return centers;
-    }
-
-    private List<Double> getWindowWidth() {
-      var widths = new ArrayList<Double>();
-      if (wl.getPresentationState() instanceof PrDicomObject pr) {
-        pr.getVoiLUT().ifPresent(voiLutModule -> widths.addAll(voiLutModule.getWindowWidth()));
+      PresetWindowLevel fallback =
+          carriedByImage
+              ? null
+              : modPresets.stream()
+                  .filter(PresetWindowLevel::isFallbackDefault)
+                  .findFirst()
+                  .orElse(null);
+      if (fallback != null) {
+        presetList.add(0, fallback);
       }
-      widths.addAll(vLut.getWindowWidth());
-      return widths;
-    }
-
-    private List<String> getWindowCenterWidthExplanation() {
-      return vLut.getWindowCenterWidthExplanation();
+      modPresets.stream().filter(p -> p != fallback).forEach(presetList::add);
     }
 
     private List<LookupTableCV> getVoiLutData() {
@@ -414,15 +373,23 @@ public class PresetWindowLevel {
       return explanations;
     }
 
-    private LutShape getDefaultLutShape() {
-      return vLut.getVoiLutFunction()
+    private LutShape getLutShape(VoiLutModule voi) {
+      return voi.getVoiLutFunction()
           .map(
               function ->
-                  switch (function.toUpperCase(Locale.ROOT)) {
+                  switch (function.trim().toUpperCase(Locale.ROOT)) {
                     case "SIGMOID" ->
                         new LutShape(Function.SIGMOID, Function.SIGMOID + dicomKeyWord);
+                    case "LINEAR_EXACT" ->
+                        new LutShape(Function.LINEAR_EXACT, Function.LINEAR_EXACT + dicomKeyWord);
                     case "LINEAR" -> new LutShape(Function.LINEAR, Function.LINEAR + dicomKeyWord);
-                    default -> LutShape.LINEAR;
+                    default -> {
+                      // Deviation: an undefined VOI LUT Function (PS3.3 C.11.2.1.3 only defines
+                      // LINEAR, LINEAR_EXACT and SIGMOID) falls back to LINEAR instead of
+                      // rejecting the window.
+                      LOGGER.warn("Unknown VOI LUT Function '{}', LINEAR is used", function);
+                      yield LutShape.LINEAR;
+                    }
                   })
           .orElse(LutShape.LINEAR);
     }

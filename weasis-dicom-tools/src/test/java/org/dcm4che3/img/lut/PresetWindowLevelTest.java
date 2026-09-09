@@ -11,16 +11,14 @@ package org.dcm4che3.img.lut;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
-import static org.weasis.opencv.op.lut.LutShape.SIGMOID;
 
 import java.awt.image.DataBuffer;
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 import org.dcm4che3.img.DicomImageAdapter;
+import org.dcm4che3.img.data.PrDicomObject;
 import org.dcm4che3.img.stream.ImageDescriptor;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -382,110 +380,6 @@ class PresetWindowLevelTest {
   }
 
   @Nested
-  class XML_configuration_loading {
-
-    @Test
-    void should_parse_preset_from_xml_correctly() throws Exception {
-      // Given
-      var xmlContent = createValidXmlContent();
-
-      // When
-      var presets = parsePresetsFromXml(xmlContent);
-
-      // Then
-      assertFalse(presets.isEmpty(), "Should parse presets from XML");
-      assertTrue(presets.containsKey("CT"), "Should contain CT presets");
-
-      var ctPresets = presets.get("CT");
-      assertEquals(2, ctPresets.size(), "Should have 2 CT presets");
-
-      var bonePreset =
-          ctPresets.stream().filter(p -> "Bone".equals(p.getName())).findFirst().orElse(null);
-
-      assertNotNull(bonePreset, "Should find Bone preset");
-      assertEquals(2000.0, bonePreset.getWindow(), 0.001, "Bone preset should have correct window");
-      assertEquals(400.0, bonePreset.getLevel(), 0.001, "Bone preset should have correct level");
-    }
-
-    @Test
-    void should_handle_multiple_modalities_in_xml() throws Exception {
-      // Given
-      var xmlContent =
-          """
-          <?xml version="1.0"?>
-          <presets>
-            <preset name="Bone" modality="CT" window="2000.0" level="400.0" shape="LINEAR"/>
-            <preset name="Lung" modality="CT" window="1600.0" level="-600.0" shape="LINEAR"/>
-            <preset name="Brain" modality="MR" window="348.0" level="-57.9" shape="SIGMOID" key="49"/>
-          </presets>
-          """;
-
-      // When
-      var presets = parsePresetsFromXml(xmlContent);
-
-      // Then
-      assertEquals(2, presets.size(), "Should have 2 modalities");
-      assertTrue(presets.containsKey("CT"), "Should contain CT");
-      assertTrue(presets.containsKey("MR"), "Should contain MR");
-      assertEquals(2, presets.get("CT").size(), "CT should have 2 presets");
-      List<PresetWindowLevel> presetsMR = presets.get("MR");
-      assertEquals(1, presetsMR.size(), "MR should have 1 preset");
-      assertEquals("Brain", presetsMR.get(0).getName(), "MR should have correct preset name");
-      assertEquals(348.0, presetsMR.get(0).getWindow(), 0.001, "MR should have correct window");
-      assertEquals(-57.9, presetsMR.get(0).getLevel(), 0.001, "MR should have correct level");
-      assertEquals(SIGMOID, presetsMR.get(0).getLutShape(), "MR should have correct shape");
-      assertEquals(49, presetsMR.get(0).getKeyCode(), "MR should have correct key code");
-    }
-
-    @ParameterizedTest
-    @ValueSource(
-        strings = {
-          "<?xml version=\"1.0\"?><presets><preset name=\"Invalid\" modality=\"CT\" window=\"invalid\" level=\"50.0\" shape=\"LINEAR\"/></presets>",
-          "<?xml version=\"1.0\"?><presets><preset name=\"Missing\" modality=\"CT\" level=\"50.0\" shape=\"LINEAR\"/></presets>",
-          "<?xml version=\"1.0\"?><presets><preset modality=\"CT\" window=\"100.0\" level=\"50.0\" shape=\"LINEAR\"/></presets>",
-          "<invalid-xml/>"
-        })
-    void should_handle_invalid_xml_gracefully(String invalidXmlContent) {
-      // When & Then - Should not throw exception
-      assertDoesNotThrow(
-          () -> parsePresetsFromXml(invalidXmlContent), "Should handle invalid XML gracefully");
-    }
-
-    @Test
-    void should_handle_empty_xml_document() throws Exception {
-      // Given
-      var emptyXml = "<?xml version=\"1.0\"?><presets></presets>";
-
-      // When
-      var presets = parsePresetsFromXml(emptyXml);
-
-      // Then
-      assertTrue(presets.isEmpty(), "Should handle empty XML document");
-    }
-
-    private String createValidXmlContent() {
-      return """
-          <?xml version="1.0"?>
-          <presets>
-            <preset name="Bone" modality="CT" window="2000.0" level="400.0" shape="LINEAR" key="49"/>
-            <preset name="Soft Tissue" modality="CT" window="400.0" level="50.0" shape="LINEAR" key="50"/>
-          </presets>
-          """;
-    }
-
-    private Map<String, List<PresetWindowLevel>> parsePresetsFromXml(String xmlContent)
-        throws Exception {
-      try (InputStream stream = new ByteArrayInputStream(xmlContent.getBytes())) {
-        var factory = PresetWindowLevel.createSecureXMLFactory();
-        var xmlReader = factory.createXMLStreamReader(stream);
-        var presets = new TreeMap<String, List<PresetWindowLevel>>();
-        PresetWindowLevel.parsePresetsXML(xmlReader, presets);
-        return presets;
-      }
-    }
-  }
-
-  @Nested
   class Integration_tests {
 
     @Test
@@ -542,6 +436,52 @@ class PresetWindowLevelTest {
       assertTrue(
           wlException.getMessage().contains("wl cannot be null"),
           "Should have appropriate error message for null wl");
+    }
+
+    @Test
+    void should_take_explanation_and_voi_lut_function_of_the_presentation_state() {
+      var adapter = createRealDicomAdapterWithModality("OT");
+      var prVoi = mock(VoiLutModule.class);
+      when(prVoi.getWindowCenter()).thenReturn(List.of(50.5));
+      when(prVoi.getWindowWidth()).thenReturn(List.of(51.0));
+      when(prVoi.getWindowCenterWidthExplanation()).thenReturn(List.of("NONE"));
+      when(prVoi.getLut()).thenReturn(List.of());
+      when(prVoi.getLutExplanation()).thenReturn(List.of());
+      when(prVoi.getVoiLutFunction()).thenReturn(Optional.of("LINEAR_EXACT"));
+      var pr = mock(PrDicomObject.class);
+      when(pr.getVoiLUT()).thenReturn(Optional.of(prVoi));
+      WlPresentation wl =
+          new WlPresentation() {
+            @Override
+            public boolean isPixelPadding() {
+              return false;
+            }
+
+            @Override
+            public PresentationStateLut getPresentationState() {
+              return pr;
+            }
+          };
+
+      var presets = PresetWindowLevel.getPresetCollection(adapter, "[Dicom]", wl);
+
+      var fromPr = presets.get(0);
+      var fromImage = presets.get(1);
+      assertAll(
+          () -> assertEquals("NONE [Dicom]", fromPr.getName()),
+          () ->
+              assertEquals(LutShape.Function.LINEAR_EXACT, fromPr.getLutShape().getFunctionType()),
+          () -> assertEquals(BONE_PRESET + " [Dicom]", fromImage.getName()),
+          () -> assertEquals(LutShape.Function.LINEAR, fromImage.getLutShape().getFunctionType()),
+          () ->
+              assertEquals(
+                  LutShape.Function.LINEAR_EXACT,
+                  presets.stream()
+                      .filter(PresetWindowLevel::isAutoLevel)
+                      .findFirst()
+                      .orElseThrow()
+                      .getLutShape()
+                      .getFunctionType()));
     }
 
     private DicomImageAdapter createRealDicomAdapterWithModality(String modality) {

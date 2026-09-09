@@ -441,7 +441,8 @@ class DicomImageAdapterTest {
       var adapter = new DicomImageAdapter(image, desc, 0);
       var wl = new WindLevelParameters(adapter);
 
-      // For uniform image with value 2048, min=2048, max=2049 (adjusted)
+      // For uniform image with value 2048, min=2048, max=2049 (adjusted); the auto level covers
+      // exactly that range with LINEAR_EXACT (PS3.3 C.11.2.1.3.2)
       assertAll(
           "Default window/level",
           () -> assertEquals(2048.5, adapter.getDefaultLevel(wl), 0.1),
@@ -449,7 +450,7 @@ class DicomImageAdapterTest {
     }
 
     @Test
-    void should_return_linear_as_default_lut_shape() {
+    void should_return_linear_exact_as_default_lut_shape() {
       var image = createTestImage(16, 16, CvType.CV_8UC1, 128);
       var spec = DicomImageSpec.basic(8, 8, false);
       var desc = createDescriptor(spec);
@@ -457,7 +458,7 @@ class DicomImageAdapterTest {
       var adapter = new DicomImageAdapter(image, desc, 0);
       var wl = new WindLevelParameters(adapter);
 
-      assertEquals(LutShape.LINEAR, adapter.getDefaultShape(wl));
+      assertEquals(LutShape.LINEAR_EXACT, adapter.getDefaultShape(wl));
     }
 
     @Test

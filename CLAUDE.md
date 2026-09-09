@@ -34,7 +34,7 @@ Two-module Maven build:
 Source under `weasis-dicom-tools/src/main/java`:
 
 - `org.dcm4che3.img` — DICOM image pipeline. `DicomImageReader` (ImageIO SPI registered via `META-INF/javax.imageio.spi.ImageReaderSpi`), `DicomImageReadParam` / `DicomTranscodeParam` / `ImageTranscodeParam`, `Transcoder` (dcm2dcm + dcm2image entry points), `DicomImageAdapter`, `DicomMetaData`, `DicomOutputData`, `ImageRendering`, `DicomImageUtils`, `DicomJpegWriteParam`.
-- `org.dcm4che3.img.lut` — DICOM Modality / VOI / Presentation LUT (`presets.xml` ships built-in W/L presets).
+- `org.dcm4che3.img.lut` — DICOM Modality / VOI / Presentation LUT; configured W/L presets come from a `ModalityPresetProvider` set by the host (none by default).
 - `org.dcm4che3.img.data`, `.op`, `.stream`, `.util` — DICOM pixel data records, mask area op, file input streams, date/time + dicom-element helpers.
 - `org.dcm4che3.imageio.codec` — codec adapters (jpeg/mp4/mpeg) that integrate dcm4che codecs with our image pipeline.
 - `org.dcm4che3.tool.{findscu,movescu,getscu,storescu,storescp}` — command-line entry points adapted from dcm4che. Plus `org.dcm4che3.tool.common` shared option parsing.

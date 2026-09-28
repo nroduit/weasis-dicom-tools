@@ -945,6 +945,9 @@ public class DicomImageReader extends ImageReader {
           UID.JPEG2000,
           UID.JPEG2000MCLossless,
           UID.JPEG2000MC,
+          UID.HTJ2KLossless,
+          UID.HTJ2KLosslessRPCL,
+          UID.HTJ2K,
           UID.JPEGXL,
           UID.JPEGXLLossless,
           UID.JPEGXLJPEGRecompression ->

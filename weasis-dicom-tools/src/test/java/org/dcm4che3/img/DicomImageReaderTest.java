@@ -230,6 +230,9 @@ class DicomImageReaderTest {
     assertTrue(DicomImageReader.isSupportedSyntax(UID.ImplicitVRLittleEndian));
     assertTrue(DicomImageReader.isSupportedSyntax(UID.JPEGBaseline8Bit));
     assertTrue(DicomImageReader.isSupportedSyntax(UID.JPEG2000Lossless));
+    assertTrue(DicomImageReader.isSupportedSyntax(UID.HTJ2KLossless));
+    assertTrue(DicomImageReader.isSupportedSyntax(UID.HTJ2KLosslessRPCL));
+    assertTrue(DicomImageReader.isSupportedSyntax(UID.HTJ2K));
     assertFalse(DicomImageReader.isSupportedSyntax("1.2.3.4.5.6.7.8.9"));
   }
 

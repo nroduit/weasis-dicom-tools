@@ -34,6 +34,22 @@ import org.weasis.opencv.op.ImageTransformer;
  */
 public final class PaletteColorUtils {
 
+  private static final int[] PALETTE_COLOR_LOOKUP_TABLE_TAGS = {
+    Tag.RedPaletteColorLookupTableDescriptor,
+    Tag.GreenPaletteColorLookupTableDescriptor,
+    Tag.BluePaletteColorLookupTableDescriptor,
+    Tag.AlphaPaletteColorLookupTableDescriptor,
+    Tag.PaletteColorLookupTableUID,
+    Tag.RedPaletteColorLookupTableData,
+    Tag.GreenPaletteColorLookupTableData,
+    Tag.BluePaletteColorLookupTableData,
+    Tag.AlphaPaletteColorLookupTableData,
+    Tag.SegmentedRedPaletteColorLookupTableData,
+    Tag.SegmentedGreenPaletteColorLookupTableData,
+    Tag.SegmentedBluePaletteColorLookupTableData,
+    Tag.SegmentedAlphaPaletteColorLookupTableData
+  };
+
   private PaletteColorUtils() {
     // Prevent instantiation
   }
@@ -77,6 +93,16 @@ public final class PaletteColorUtils {
     return hasZeroOffsets(source, lookup)
         ? performOptimizedTransform(source, lookup)
         : performGeneralLookup(source, lookup);
+  }
+
+  /** Removes the Palette Color Lookup Table Module attributes (PS3.3 C.7.6.3) from the dataset. */
+  public static void removePaletteColorLookupTable(Attributes ds) {
+    if (ds == null) {
+      return;
+    }
+    for (int tag : PALETTE_COLOR_LOOKUP_TABLE_TAGS) {
+      ds.remove(tag);
+    }
   }
 
   // Check if DICOM attributes contain all required palette descriptors

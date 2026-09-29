@@ -11,6 +11,7 @@ package org.dcm4che3.img;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
@@ -23,7 +24,9 @@ import org.dcm4che3.data.UID;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.image.PhotometricInterpretation;
 import org.dcm4che3.img.stream.ImageDescriptor;
+import org.dcm4che3.img.util.PaletteColorUtils;
 import org.dcm4che3.img.util.SupplierEx;
+import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.io.DicomOutputStream;
 import org.dcm4che3.util.UIDUtils;
 import org.junit.jupiter.api.BeforeAll;
@@ -421,6 +424,100 @@ class DicomOutputDataTest {
       assertEquals(
           PhotometricInterpretation.RGB.toString(), data.getString(Tag.PhotometricInterpretation));
       assertEquals(0, data.getInt(Tag.PlanarConfiguration, 0));
+    }
+  }
+
+  @Nested
+  class Palette_Color_Tests {
+
+    private static final int FRAMES = 2;
+    private static final int ROWS = 3;
+    private static final int COLUMNS = 4;
+
+    // 16-bit PALETTE COLOR source with a 4-entry, 8-bit palette mapping stored values 0 to 3
+    private Attributes createPaletteColorAttributes() {
+      var attrs = createBasicDicomAttributes();
+      attrs.setInt(Tag.Rows, VR.US, ROWS);
+      attrs.setInt(Tag.Columns, VR.US, COLUMNS);
+      attrs.setInt(Tag.NumberOfFrames, VR.IS, FRAMES);
+      attrs.setInt(Tag.BitsAllocated, VR.US, 16);
+      attrs.setInt(Tag.BitsStored, VR.US, 16);
+      attrs.setInt(Tag.HighBit, VR.US, 15);
+      attrs.setString(
+          Tag.PhotometricInterpretation, VR.CS, PhotometricInterpretation.PALETTE_COLOR.toString());
+      int[] descriptor = {4, 0, 8};
+      attrs.setInt(Tag.RedPaletteColorLookupTableDescriptor, VR.US, descriptor);
+      attrs.setInt(Tag.GreenPaletteColorLookupTableDescriptor, VR.US, descriptor);
+      attrs.setInt(Tag.BluePaletteColorLookupTableDescriptor, VR.US, descriptor);
+      attrs.setBytes(Tag.RedPaletteColorLookupTableData, VR.OW, new byte[] {(byte) 255, 0, 0, 0});
+      attrs.setBytes(Tag.GreenPaletteColorLookupTableData, VR.OW, new byte[] {0, (byte) 255, 0, 0});
+      attrs.setBytes(Tag.BluePaletteColorLookupTableData, VR.OW, new byte[] {0, 0, (byte) 255, 0});
+      return attrs;
+    }
+
+    // What DicomImageReader hands to DicomOutputData: the palette applied to the stored values
+    private PlanarImage decodeToRgb(ImageDescriptor desc, int storedValue) {
+      var stored = createTestImage(COLUMNS, ROWS, CvType.CV_16UC1, storedValue);
+      return PaletteColorUtils.getRGBImageFromPaletteColorModel(
+          stored, desc.getPaletteColorLookupTable());
+    }
+
+    @Test
+    void should_derive_bit_depth_from_decoded_image_and_drop_palette_tags() {
+      var attrs = createPaletteColorAttributes();
+      var desc = new ImageDescriptor(attrs);
+      var image = decodeToRgb(desc, 1);
+      assertEquals(CvType.CV_8UC3, image.type());
+
+      DicomOutputData.adaptTagsToRawImage(attrs, image, desc);
+
+      assertAll(
+          () -> assertEquals(3, attrs.getInt(Tag.SamplesPerPixel, 0)),
+          () -> assertEquals(8, attrs.getInt(Tag.BitsAllocated, 0)),
+          () -> assertEquals(8, attrs.getInt(Tag.BitsStored, 0)),
+          () -> assertEquals(7, attrs.getInt(Tag.HighBit, 0)),
+          () -> assertEquals(0, attrs.getInt(Tag.PlanarConfiguration, 0)),
+          () ->
+              assertEquals(
+                  PhotometricInterpretation.RGB.toString(),
+                  attrs.getString(Tag.PhotometricInterpretation)),
+          () -> assertFalse(attrs.contains(Tag.RedPaletteColorLookupTableDescriptor)),
+          () -> assertFalse(attrs.contains(Tag.GreenPaletteColorLookupTableDescriptor)),
+          () -> assertFalse(attrs.contains(Tag.BluePaletteColorLookupTableDescriptor)),
+          () -> assertFalse(attrs.contains(Tag.RedPaletteColorLookupTableData)),
+          () -> assertFalse(attrs.contains(Tag.GreenPaletteColorLookupTableData)),
+          () -> assertFalse(attrs.contains(Tag.BluePaletteColorLookupTableData)));
+    }
+
+    @Test
+    void should_write_pixel_data_length_matching_the_written_bytes() throws IOException {
+      var attrs = createPaletteColorAttributes();
+      var desc = new ImageDescriptor(attrs);
+      var frames =
+          List.of(
+              createImageSupplier(decodeToRgb(desc, 1)), createImageSupplier(decodeToRgb(desc, 2)));
+      var outputData = new DicomOutputData(frames, desc, UID.ExplicitVRLittleEndian);
+
+      var baos = new ByteArrayOutputStream();
+      try (var dos = new DicomOutputStream(baos, UID.ExplicitVRLittleEndian)) {
+        dos.writeFileMetaInformation(attrs.createFileMetaInformation(UID.ExplicitVRLittleEndian));
+        outputData.writeRawImageData(dos, attrs);
+      }
+
+      // Reading back fails on a truncated stream when the declared length exceeds the bytes written
+      try (var dis = new DicomInputStream(new ByteArrayInputStream(baos.toByteArray()))) {
+        var written = dis.readDataset();
+        var pixelData = (byte[]) written.getValue(Tag.PixelData);
+        assertAll(
+            () -> assertEquals(FRAMES * ROWS * COLUMNS * 3, pixelData.length),
+            () -> assertEquals(8, written.getInt(Tag.BitsAllocated, 0)),
+            () -> assertEquals(3, written.getInt(Tag.SamplesPerPixel, 0)),
+            () ->
+                assertEquals(
+                    PhotometricInterpretation.RGB.toString(),
+                    written.getString(Tag.PhotometricInterpretation)),
+            () -> assertFalse(written.contains(Tag.RedPaletteColorLookupTableDescriptor)));
+      }
     }
   }
 

@@ -25,6 +25,7 @@ import org.dcm4che3.image.PhotometricInterpretation;
 import org.dcm4che3.imageio.codec.TransferSyntaxType;
 import org.dcm4che3.img.stream.ImageDescriptor;
 import org.dcm4che3.img.util.DicomUtils;
+import org.dcm4che3.img.util.PaletteColorUtils;
 import org.dcm4che3.img.util.PixelDataUtils;
 import org.dcm4che3.img.util.SupplierEx;
 import org.dcm4che3.io.DicomOutputStream;
@@ -320,12 +321,16 @@ public class DicomOutputData {
 
   private static void updateRawImageAttributes(
       Attributes data, PlanarImage img, ImageAttributes attrs, ImageDescriptor desc) {
+    // The bytes written come from the decoded image, so its sample size is the only valid source
+    // for BitsAllocated (e.g. a 16-bit PALETTE COLOR source is decoded to 8-bit RGB).
+    int bitsAllocated = (int) img.elemSize1() * 8;
+    int bitsStored = Math.min(desc.getBitsStored(), bitsAllocated);
     data.setInt(Tag.Columns, VR.US, img.width());
     data.setInt(Tag.Rows, VR.US, img.height());
     data.setInt(Tag.SamplesPerPixel, VR.US, attrs.channels());
-    data.setInt(Tag.BitsAllocated, VR.US, desc.getBitsAllocated());
-    data.setInt(Tag.BitsStored, VR.US, desc.getBitsStored());
-    data.setInt(Tag.HighBit, VR.US, desc.getBitsStored() - 1);
+    data.setInt(Tag.BitsAllocated, VR.US, bitsAllocated);
+    data.setInt(Tag.BitsStored, VR.US, bitsStored);
+    data.setInt(Tag.HighBit, VR.US, bitsStored - 1);
     data.setInt(Tag.PixelRepresentation, VR.US, attrs.signed() ? 1 : 0);
 
     setPhotometricInterpretation(data, img, desc);
@@ -337,6 +342,8 @@ public class DicomOutputData {
     if (img.channels() > 1) {
       pmi = PhotometricInterpretation.RGB.toString();
       data.setInt(Tag.PlanarConfiguration, VR.US, 0);
+      // PS3.3 C.7.6.3: the Palette Color Lookup Table Module is only present with PALETTE COLOR
+      PaletteColorUtils.removePaletteColorLookupTable(data);
     }
     data.setString(Tag.PhotometricInterpretation, VR.CS, pmi);
   }

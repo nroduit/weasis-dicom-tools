@@ -1041,6 +1041,40 @@ class TranscoderTest {
       runRealDicomTranscodeTest(testCase);
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {UID.ExplicitVRLittleEndian, UID.JPEGLSLossless})
+    void palette_multiframe_is_written_as_a_consistent_RGB_object(String tsuid) throws Exception {
+      var inputFile = IN_DIR.resolve("palette-multiframe-jpeg-ls.dcm");
+      var outputDir = OUT_DIR.resolve("palette-rgb");
+      Files.createDirectories(outputDir);
+      var outputFile =
+          Transcoder.dcm2dcm(
+              inputFile,
+              outputDir.resolve(tsuid.hashCode() + ".dcm"),
+              new DicomTranscodeParam(tsuid));
+
+      var localReader = new DicomImageReader(new DicomImageReaderSpi());
+      try {
+        localReader.setInput(new DicomFileInputStream(outputFile));
+        var dcm = localReader.getStreamMetadata().getDicomObject();
+        var frames = localReader.getPlanarImages(null);
+        assertAll(
+            () -> assertEquals(10, frames.size()),
+            () -> assertEquals(3, dcm.getInt(Tag.SamplesPerPixel, 0)),
+            () -> assertEquals(8, dcm.getInt(Tag.BitsAllocated, 0)),
+            () -> assertEquals(8, dcm.getInt(Tag.BitsStored, 0)),
+            () -> assertEquals("RGB", dcm.getString(Tag.PhotometricInterpretation)),
+            () -> assertFalse(dcm.contains(Tag.RedPaletteColorLookupTableDescriptor)),
+            () -> assertFalse(dcm.contains(Tag.GreenPaletteColorLookupTableDescriptor)),
+            () -> assertFalse(dcm.contains(Tag.BluePaletteColorLookupTableDescriptor)),
+            () -> assertFalse(dcm.contains(Tag.RedPaletteColorLookupTableData)),
+            () -> assertFalse(dcm.contains(Tag.GreenPaletteColorLookupTableData)),
+            () -> assertFalse(dcm.contains(Tag.BluePaletteColorLookupTableData)));
+      } finally {
+        localReader.dispose();
+      }
+    }
+
     private void testMultipleTranscoding(String srcFileName, String... transferSyntaxList)
         throws Exception {
       var currentInput = srcFileName;

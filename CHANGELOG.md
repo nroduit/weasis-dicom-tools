@@ -1,5 +1,18 @@
 # Changelog
 
+## [v5.35.1](https://github.com/nroduit/weasis-dicom-tools/tree/v5.35.1) (2026-10-01)
+
+[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.35.0...v5.35.1)
+
+**Closed issues:**
+
+- DicomOutputData writes a wrong Pixel Data length for 16-bit PALETTE COLOR images stored in an uncompressed transfer syntax [\#56](https://github.com/nroduit/weasis-dicom-tools/issues/56)
+
+**Merged pull requests:**
+
+- build: bump the maven group across 1 directory with 12 updates [\#59](https://github.com/nroduit/weasis-dicom-tools/pull/59) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci: bump actions/setup-java from 5.7.0 to 6.0.0 in the actions group [\#53](https://github.com/nroduit/weasis-dicom-tools/pull/53) ([dependabot[bot]](https://github.com/apps/dependabot))
+
 ## [v5.35.0](https://github.com/nroduit/weasis-dicom-tools/tree/v5.35.0) (2026-08-21)
 
 [Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.34.3.3...v5.35.0)

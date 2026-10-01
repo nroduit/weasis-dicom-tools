@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.dicom.macro.ItemCode;
@@ -43,7 +44,7 @@ public final class RegionGroups {
   private static final String SCHEMA = "schema"; // NON-NLS
   private static final String GROUPS = "groups"; // NON-NLS
 
-  private static volatile RegionGroups defaultGroups;
+  private static final AtomicReference<RegionGroups> defaultGroups = new AtomicReference<>();
 
   private final Map<String, Set<RegionGroup>> byCode;
 
@@ -53,13 +54,13 @@ public final class RegionGroups {
 
   /** The table in use: the built-in one unless {@link #setDefault} installed another. */
   public static RegionGroups getDefault() {
-    RegionGroups groups = defaultGroups;
+    RegionGroups groups = defaultGroups.get();
     if (groups == null) {
       synchronized (RegionGroups.class) {
-        groups = defaultGroups;
+        groups = defaultGroups.get();
         if (groups == null) {
           groups = builtIn();
-          defaultGroups = groups;
+          defaultGroups.set(groups);
         }
       }
     }
@@ -68,7 +69,7 @@ public final class RegionGroups {
 
   /** Installs the table in use, e.g. the built-in one merged with a site document; null resets. */
   public static void setDefault(RegionGroups groups) {
-    defaultGroups = groups;
+    defaultGroups.set(groups);
   }
 
   /** The table bundled with the library. */

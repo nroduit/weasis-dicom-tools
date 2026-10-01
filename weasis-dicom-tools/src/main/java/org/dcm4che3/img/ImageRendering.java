@@ -344,7 +344,7 @@ public final class ImageRendering {
     double range = calculateRange(high, low, dataType);
     int bits = DicomImageAdapter.voiOutputBits(params);
     if (bits > 8) {
-      double maxOut = (1 << bits) - 1;
+      double maxOut = (1 << bits) - 1.0;
       double slope = maxOut / range;
       var result = new ImageCV();
       ImageCV.toMat(imageSource).convertTo(result, CvType.CV_16U, slope, maxOut - slope * high);

@@ -12,6 +12,7 @@ package org.dcm4che3.img.lut;
 import java.awt.image.DataBuffer;
 import java.lang.reflect.Array;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import org.dcm4che3.img.DicomImageAdapter;
 import org.dcm4che3.img.data.PrDicomObject;
 import org.dcm4che3.img.stream.ImageDescriptor;
@@ -39,7 +40,8 @@ public class PresetWindowLevel {
   private static final int FIRST_PRESET_KEY = 0x31;
   private static final int SECOND_PRESET_KEY = 0x32;
 
-  private static volatile ModalityPresetProvider modalityPresetProvider;
+  private static final AtomicReference<ModalityPresetProvider> modalityPresetProvider =
+      new AtomicReference<>();
 
   private final String name;
   private final double window;
@@ -138,11 +140,11 @@ public class PresetWindowLevel {
 
   /** Sets the source of the configured presets; null offers none. */
   public static void setModalityPresetProvider(ModalityPresetProvider provider) {
-    modalityPresetProvider = provider;
+    modalityPresetProvider.set(provider);
   }
 
   public static ModalityPresetProvider getModalityPresetProvider() {
-    ModalityPresetProvider provider = modalityPresetProvider;
+    ModalityPresetProvider provider = modalityPresetProvider.get();
     return provider == null ? (adapter, wl) -> List.of() : provider;
   }
 

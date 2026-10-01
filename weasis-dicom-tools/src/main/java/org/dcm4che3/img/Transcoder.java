@@ -270,6 +270,9 @@ public final class Transcoder {
       DicomImageReader reader, ImageTranscodeParam params, Format format, int frameIndex)
       throws IOException {
     var image = reader.getPlanarImage(frameIndex, params.getReadParam());
+    if (image == null) {
+      throw new IOException("Cannot read frame " + frameIndex);
+    }
     var preserveRaw = shouldPreserveRawImage(params, format, image.type());
 
     return preserveRaw

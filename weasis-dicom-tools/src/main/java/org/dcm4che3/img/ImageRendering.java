@@ -322,18 +322,16 @@ public final class ImageRendering {
     var presentationState = params.getPresentationState();
     Optional<LookupTableCV> presentationLut =
         presentationState == null ? Optional.empty() : presentationState.getPrLut();
+    var lutShape = params.getLutShape();
     LookupTableCV voiLookup = null;
-    if (presentationLut.isEmpty() || params.getLutShape().getLookup() != null) {
+    if (presentationLut.isEmpty() || (lutShape != null && lutShape.getLookup() != null)) {
       voiLookup = adapter.getVOILookup(params);
-    }
-    if (presentationLut.isEmpty()) {
-      return voiLookup.lookup(imageModalityTransformed);
     }
 
     var imageVoiTransformed =
         voiLookup == null ? imageModalityTransformed : voiLookup.lookup(imageModalityTransformed);
 
-    return presentationLut.get().lookup(imageVoiTransformed);
+    return presentationLut.map(lut -> lut.lookup(imageVoiTransformed)).orElse(imageVoiTransformed);
   }
 
   private static ImageCV processFloatingPointDataForVoi(

@@ -316,7 +316,8 @@ public class DicomJpegWriteParam {
 
   private static void validateSupportedSyntax(TransferSyntaxType type, String tsuid) {
     if (isUnsupportedSyntax(type) || !DicomOutputData.isSupportedSyntax(tsuid)) {
-      throw new IllegalStateException(tsuid + " is not supported for compression!");
+      throw new IllegalStateException( // NOSONAR intentional argument validation
+          tsuid + " is not supported for compression!");
     }
   }
 

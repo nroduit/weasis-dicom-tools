@@ -104,6 +104,19 @@ public final class MultipartBody implements Flow.Subscriber<ByteBuffer> {
     return boundary;
   }
 
+  /** Returns the total size of the part payloads, or -1 if any is unknown. */
+  public long getPayloadSize() {
+    long total = 0;
+    for (MultipartPart part : parts) {
+      long size = part.payload().size();
+      if (size < 0) {
+        return -1;
+      }
+      total += size;
+    }
+    return total;
+  }
+
   /** Returns an unmodifiable view of the parts. */
   public List<MultipartPart> getParts() {
     return Collections.unmodifiableList(parts);
@@ -134,17 +147,12 @@ public final class MultipartBody implements Flow.Subscriber<ByteBuffer> {
   }
 
   private InputStream createPartHeaderStream(MultipartPart part) {
-    if (closed.get()) {
-      return InputStream.nullInputStream();
-    }
     return new ByteArrayInputStream(part.generateHeader(boundary).getBytes(StandardCharsets.UTF_8));
   }
 
+  // Freezes the parts but keeps the body replayable, e.g. to resend it with renewed credentials.
   private InputStream createClosingStream() {
-    if (closed.getAndSet(true)) {
-      return InputStream.nullInputStream();
-    }
-
+    closed.set(true);
     return new ByteArrayInputStream(createClosingDelimiter().getBytes(StandardCharsets.UTF_8));
   }
 

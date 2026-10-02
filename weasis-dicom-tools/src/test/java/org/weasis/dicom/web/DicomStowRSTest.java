@@ -855,23 +855,7 @@ class DicomStowRSTest {
   }
 
   private DicomStowRS createDicomStowRSWithMockedHttpClient(DicomStowConfig config) {
-    DicomStowRS stowRS = spy(new DicomStowRS(config));
-
-    // Use reflection to inject the mocked HttpClient
-    try {
-      var httpClientField = DicomStowRS.class.getDeclaredField("httpClient");
-      httpClientField.setAccessible(true);
-      httpClientField.set(stowRS, mockHttpClient);
-    } catch (Exception e) {
-      // Fallback - create a partial mock that overrides sendRequest method
-      try {
-        doReturn(mockResponse).when(stowRS).sendRequest(any(HttpRequest.class));
-      } catch (Exception ex) {
-        throw new RuntimeException("Failed to setup mock", ex);
-      }
-    }
-
-    return stowRS;
+    return spy(new DicomStowRS(config, mockHttpClient));
   }
 
   private byte[] createTestDicomData() {

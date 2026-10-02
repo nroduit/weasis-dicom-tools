@@ -20,6 +20,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.SequenceInputStream;
@@ -31,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
@@ -292,6 +294,53 @@ class MultipartBodyTest {
         assertTrue(contentString.contains(new String(TEST_DATA, StandardCharsets.UTF_8)));
         assertTrue(contentString.contains("--" + TEST_BOUNDARY + "--"));
       }
+    }
+
+    @Test
+    void should_publish_the_same_body_when_resubscribed() {
+      multipartBody.addPart(TEST_MIME_TYPE, TEST_DATA, TEST_LOCATION);
+      HttpRequest.BodyPublisher publisher = multipartBody.createBodyPublisher();
+
+      String first = new String(publish(publisher), StandardCharsets.UTF_8);
+      String second = new String(publish(publisher), StandardCharsets.UTF_8);
+
+      assertEquals(first, second);
+      assertTrue(second.contains("Content-Type: " + TEST_MIME_TYPE));
+      assertTrue(second.endsWith("--" + TEST_BOUNDARY + "--"));
+      assertThrows(
+          IllegalStateException.class,
+          () -> multipartBody.addPart(TEST_MIME_TYPE, TEST_DATA, TEST_LOCATION));
+    }
+
+    private static byte[] publish(HttpRequest.BodyPublisher publisher) {
+      var out = new ByteArrayOutputStream();
+      var done = new CompletableFuture<Void>();
+      publisher.subscribe(
+          new Flow.Subscriber<>() {
+            @Override
+            public void onSubscribe(Flow.Subscription subscription) {
+              subscription.request(Long.MAX_VALUE);
+            }
+
+            @Override
+            public void onNext(ByteBuffer item) {
+              byte[] bytes = new byte[item.remaining()];
+              item.get(bytes);
+              out.writeBytes(bytes);
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
+              done.completeExceptionally(throwable);
+            }
+
+            @Override
+            public void onComplete() {
+              done.complete(null);
+            }
+          });
+      done.join();
+      return out.toByteArray();
     }
 
     @Test

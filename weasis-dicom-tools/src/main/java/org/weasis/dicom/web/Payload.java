@@ -38,6 +38,14 @@ public interface Payload {
   InputStream newInputStream();
 
   /**
+   * Whether {@link #newInputStream()} can be called again to resend the payload, e.g. after the
+   * server rejected expired credentials.
+   */
+  default boolean isReplayable() {
+    return true;
+  }
+
+  /**
    * Creates a payload from a byte array.
    *
    * @param data the byte data

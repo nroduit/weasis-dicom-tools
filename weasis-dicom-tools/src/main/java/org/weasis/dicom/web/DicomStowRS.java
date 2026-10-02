@@ -70,6 +70,19 @@ public class DicomStowRS implements AutoCloseable {
     this.config = Objects.requireNonNull(config, "Configuration cannot be null");
     this.executorService = createExecutorService();
     this.httpClient = createHttpClient();
+    HttpAuthorization.warnIfUnencrypted(config.getAuthorization(), config.getRequestUrl());
+  }
+
+  /**
+   * Creates a client sharing {@code httpClient}, e.g. to reuse its connection pool. The caller is
+   * responsible for its redirect policy: following redirects may replay the credentials to another
+   * origin.
+   */
+  public DicomStowRS(DicomStowConfig config, HttpClient httpClient) {
+    this.config = Objects.requireNonNull(config, "Configuration cannot be null");
+    this.executorService = null;
+    this.httpClient = Objects.requireNonNull(httpClient, "HTTP client cannot be null");
+    HttpAuthorization.warnIfUnencrypted(config.getAuthorization(), config.getRequestUrl());
   }
 
   /** Legacy constructor for backward compatibility. */
@@ -131,7 +144,7 @@ public class DicomStowRS implements AutoCloseable {
     multipartBody.addPart(config.getContentType().getType(), payload, null);
 
     HttpRequest request = buildHttpRequest(multipartBody);
-    HttpResponse<String> response = sendRequest(request);
+    HttpResponse<String> response = sendRequest(request, payload.isReplayable());
 
     logResponse(response);
   }
@@ -179,7 +192,7 @@ public class DicomStowRS implements AutoCloseable {
   private HttpClient createHttpClient() {
     return HttpClient.newBuilder()
         .executor(executorService)
-        .followRedirects(HttpClient.Redirect.NORMAL)
+        .followRedirects(HttpAuthorization.redirectPolicy(config.getAuthorization()))
         .version(config.getHttpVersion())
         .connectTimeout(config.getConnectTimeout())
         .build();
@@ -192,7 +205,9 @@ public class DicomStowRS implements AutoCloseable {
             .POST(multipartBody.createBodyPublisher())
             .header(CONTENT_TYPE, multipartBody.getContentTypeHeader())
             .header("Accept", MultipartConstants.DicomContentType.XML.getMimeType())
-            .header("User-Agent", config.getUserAgent());
+            .header("User-Agent", config.getUserAgent())
+            .expectContinue(config.useExpectContinue(multipartBody.getPayloadSize()));
+    config.getRequestTimeout().ifPresent(builder::timeout);
 
     // Add custom headers
     config.getHeaders().forEach(builder::header);
@@ -206,8 +221,15 @@ public class DicomStowRS implements AutoCloseable {
     return request;
   }
 
-  HttpResponse<String> sendRequest(HttpRequest request) throws Exception {
-    HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+  // The multipart publisher re-opens the payload streams, so a replayable request can be resent.
+  HttpResponse<String> sendRequest(HttpRequest request, boolean replayable) throws Exception {
+    HttpResponse<String> response =
+        HttpAuthorization.send(
+            httpClient,
+            config.getAuthorization(),
+            request,
+            HttpResponse.BodyHandlers.ofString(),
+            replayable);
 
     int statusCode = response.statusCode();
     if (statusCode >= 400) {
@@ -253,6 +275,11 @@ public class DicomStowRS implements AutoCloseable {
       @Override
       public long size() {
         return -1; // Unknown size for streams
+      }
+
+      @Override
+      public boolean isReplayable() {
+        return false;
       }
 
       @Override

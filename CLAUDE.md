@@ -40,7 +40,7 @@ Source under `weasis-dicom-tools/src/main/java`:
 - `org.dcm4che3.tool.{findscu,movescu,getscu,storescu,storescp}` — command-line entry points adapted from dcm4che. Plus `org.dcm4che3.tool.common` shared option parsing.
 - `org.weasis.dicom.op` — high-level DICOM SCU API: `Echo`, `CFind`, `CGet`, `CMove`, `CStore`, `CGetForward`. Each call returns a `DicomState` you can poll for progress / status / response identifiers.
 - `org.weasis.dicom.param` — connection parameters (`DicomNode`, `AdvancedParams`, `ConnectOptions`, `TlsOptions`, progress listeners, attribute editors).
-- `org.weasis.dicom.web` — STOW-RS (`DicomStowRS`), multipart helpers, WADO / QIDO clients.
+- `org.weasis.dicom.web` — STOW-RS (`DicomStowRS`), UPS-RS worklist client (`UpsRS`, REST port of dcm4che `upsscu`; OAuth2 via the host-supplied `AuthorizationProvider`), multipart helpers, WADO / QIDO clients.
 - `org.weasis.dicom.tool` — DICOM toolset (worklist SCU, Modality Worklist SCP, listener, dicomizer, forward).
 - `org.weasis.dicom.hp` (+ `.enums`, `.filter`, `.plugins`, `.spi`) — Hanging Protocol parsing (DICOM HP IODs).
 - `org.weasis.dicom.macro` — DICOM macro helpers (`Code`, `ItemCode`, …) used by `ref/`.

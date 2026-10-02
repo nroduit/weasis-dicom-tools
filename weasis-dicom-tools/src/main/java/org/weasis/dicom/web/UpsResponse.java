@@ -10,6 +10,7 @@
 package org.weasis.dicom.web;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -22,7 +23,7 @@ import java.util.Optional;
 public record UpsResponse(int statusCode, Optional<String> location, List<String> warnings) {
 
   public UpsResponse {
-    location = location == null ? Optional.empty() : location;
+    Objects.requireNonNull(location, "Location cannot be null");
     warnings = warnings == null ? List.of() : List.copyOf(warnings);
   }
 

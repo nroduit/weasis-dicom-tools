@@ -60,6 +60,15 @@ class UpsRSTest {
     return new UpsRS(UpsConfig.builder().baseUrl(baseUrl).authorization(auth).build());
   }
 
+  private UpsRS clientAs(String requesterAet, boolean requesterInPath) {
+    return new UpsRS(
+        UpsConfig.builder()
+            .baseUrl(baseUrl)
+            .requesterAet(requesterAet)
+            .requesterInPath(requesterInPath)
+            .build());
+  }
+
   private static Attributes workitem() {
     Attributes attrs = new Attributes();
     attrs.setString(Tag.ProcedureStepLabel, VR.LO, "Segmentation");
@@ -80,7 +89,9 @@ class UpsRSTest {
     void create_workitem_sets_mandatory_attributes_and_returns_location() throws Exception {
       server.enqueue(
           new CannedResponse(
-              201, Map.of("Content-Location", baseUrl + "/workitems/" + WORKITEM_UID), new byte[0]));
+              201,
+              Map.of("Content-Location", baseUrl + "/workitems/" + WORKITEM_UID),
+              new byte[0]));
 
       UpsResponse response = client().createWorkitem(workitem(), WORKITEM_UID);
 
@@ -109,14 +120,27 @@ class UpsRSTest {
     }
 
     @Test
-    void update_workitem_passes_transaction_uid() throws Exception {
+    void update_workitem_sends_the_transaction_uid_in_the_query_and_the_data_set()
+        throws Exception {
       client().updateWorkitem(WORKITEM_UID, TRANSACTION_UID, workitem());
 
       RecordedRequest request = requests.get(0);
       assertEquals("POST", request.method());
       assertEquals(
-          "/dicomweb/workitems/" + WORKITEM_UID + "?transaction=" + TRANSACTION_UID,
+          "/dicomweb/workitems/" + WORKITEM_UID + "?TransactionUid=" + TRANSACTION_UID,
           request.uri());
+      Attributes body = readBody(request);
+      assertEquals(TRANSACTION_UID, body.getString(Tag.TransactionUID));
+      assertEquals("Segmentation", body.getString(Tag.ProcedureStepLabel));
+    }
+
+    @Test
+    void update_of_a_scheduled_workitem_carries_no_transaction_uid() throws Exception {
+      client().updateWorkitem(WORKITEM_UID, null, workitem());
+
+      RecordedRequest request = requests.get(0);
+      assertEquals("/dicomweb/workitems/" + WORKITEM_UID, request.uri());
+      assertFalse(readBody(request).contains(Tag.TransactionUID));
     }
 
     @Test
@@ -132,13 +156,46 @@ class UpsRSTest {
     }
 
     @Test
+    void requester_is_a_query_parameter_by_default_and_a_path_segment_for_dcm4chee()
+        throws Exception {
+      clientAs("WEASIS", false)
+          .changeState(WORKITEM_UID, TRANSACTION_UID, ProcedureStepState.COMPLETED);
+      clientAs("WEASIS", false).requestCancellation(WORKITEM_UID, null);
+      clientAs("WEASIS", true)
+          .changeState(WORKITEM_UID, TRANSACTION_UID, ProcedureStepState.COMPLETED);
+      clientAs("WEASIS", true).requestCancellation(WORKITEM_UID, null);
+
+      String path = "/dicomweb/workitems/" + WORKITEM_UID;
+      assertEquals(path + "/state?requester=WEASIS", requests.get(0).uri());
+      assertEquals(path + "/cancelrequest?requester=WEASIS", requests.get(1).uri());
+      assertEquals(path + "/state/WEASIS", requests.get(2).uri());
+      assertEquals(path + "/cancelrequest/WEASIS", requests.get(3).uri());
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> UpsConfig.builder().baseUrl(baseUrl).requesterInPath(true).build());
+    }
+
+    @Test
+    void subscriber_defaults_to_the_requester_ae_title() throws Exception {
+      clientAs("WEASIS", false).subscribe(WORKITEM_UID, null, false);
+
+      assertEquals(
+          "/dicomweb/workitems/" + WORKITEM_UID + "/subscribers/WEASIS?deletionlock=false",
+          requests.get(0).uri());
+      assertThrows(
+          IllegalArgumentException.class, () -> client().subscribe(WORKITEM_UID, null, false));
+    }
+
+    @Test
     void request_cancellation_sends_reason_and_reports_warnings() throws Exception {
       server.enqueue(
           new CannedResponse(202, Map.of("Warning", "299 SCP: already canceled"), new byte[0]));
       Attributes reason =
           UpsRS.cancellationReason(
-              "Wrong patient", new Code("110514", "DCM", null, "Incorrect worklist entry"),
-              null, "Dr Who");
+              "Wrong patient",
+              new Code("110514", "DCM", null, "Incorrect worklist entry"),
+              null,
+              "Dr Who");
 
       UpsResponse response = client().requestCancellation(WORKITEM_UID, reason);
 
@@ -159,7 +216,10 @@ class UpsRSTest {
       List<Attributes> result =
           client()
               .searchWorkitems(
-                  new UpsQuery().match("ProcedureStepState", "SCHEDULED").includeAllFields().limit(10));
+                  new UpsQuery()
+                      .match("ProcedureStepState", "SCHEDULED")
+                      .includeAllFields()
+                      .limit(10));
 
       assertTrue(result.isEmpty());
       assertEquals(
@@ -212,7 +272,9 @@ class UpsRSTest {
       HttpException ex =
           assertThrows(
               HttpException.class,
-              () -> client().changeState(WORKITEM_UID, TRANSACTION_UID, ProcedureStepState.COMPLETED));
+              () ->
+                  client()
+                      .changeState(WORKITEM_UID, TRANSACTION_UID, ProcedureStepState.COMPLETED));
 
       assertEquals(409, ex.getStatusCode());
       assertEquals("Wrong state", ex.getResponseBody().orElseThrow());

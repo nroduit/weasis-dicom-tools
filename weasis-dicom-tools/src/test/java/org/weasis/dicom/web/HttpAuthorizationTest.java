@@ -102,11 +102,9 @@ class HttpAuthorizationTest {
   @Test
   void redirects_are_disabled_only_with_a_provider() {
     assertEquals(
-        HttpClient.Redirect.NEVER,
-        HttpAuthorization.redirectPolicy(new RotatingToken().provider));
+        HttpClient.Redirect.NEVER, HttpAuthorization.redirectPolicy(new RotatingToken().provider));
     assertEquals(
-        HttpClient.Redirect.NORMAL,
-        HttpAuthorization.redirectPolicy(AuthorizationProvider.NONE));
+        HttpClient.Redirect.NORMAL, HttpAuthorization.redirectPolicy(AuthorizationProvider.NONE));
   }
 
   @Nested
@@ -283,8 +281,7 @@ class HttpAuthorizationTest {
 
       try (DicomStowRS stow = stow(token.provider)) {
         assertThrows(
-            HttpException.class,
-            () -> stow.uploadDicom(dataset(), UID.ExplicitVRLittleEndian));
+            HttpException.class, () -> stow.uploadDicom(dataset(), UID.ExplicitVRLittleEndian));
       }
 
       assertEquals(1, server.requests().size());

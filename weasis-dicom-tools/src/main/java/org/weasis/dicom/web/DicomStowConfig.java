@@ -204,10 +204,10 @@ public final class DicomStowConfig {
 
     /**
      * Sends {@code Expect: 100-continue} (RFC 9110 §10.1.1) for payloads of at least {@code
-     * minBytes}, so the server can reject the credentials before a large upload, at the cost of
-     * one round trip. {@code 0} applies it to every upload, a negative value disables it. Defaults
-     * to 8 MiB with an {@link AuthorizationProvider}, disabled otherwise. Disable it for servers
-     * or proxies that do not answer {@code 100 Continue}.
+     * minBytes}, so the server can reject the credentials before a large upload, at the cost of one
+     * round trip. {@code 0} applies it to every upload, a negative value disables it. Defaults to 8
+     * MiB with an {@link AuthorizationProvider}, disabled otherwise. Disable it for servers or
+     * proxies that do not answer {@code 100 Continue}.
      */
     public Builder expectContinueThreshold(long minBytes) {
       this.expectContinueThreshold = minBytes < 0 ? EXPECT_CONTINUE_DISABLED : minBytes;

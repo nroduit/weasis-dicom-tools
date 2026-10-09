@@ -30,6 +30,8 @@ public final class UpsConfig {
   private final Duration requestTimeout;
   private final HttpClient.Version httpVersion;
   private final AuthorizationProvider authorization;
+  private final String requesterAet;
+  private final boolean requesterInPath;
 
   private UpsConfig(Builder builder) {
     this.baseUrl = normalizeUrl(builder.baseUrl);
@@ -39,6 +41,8 @@ public final class UpsConfig {
     this.requestTimeout = builder.requestTimeout;
     this.httpVersion = builder.httpVersion;
     this.authorization = builder.authorization;
+    this.requesterAet = builder.requesterAet;
+    this.requesterInPath = builder.requesterInPath;
   }
 
   /** Returns the DICOMweb service root, without trailing {@code /workitems}. */
@@ -70,6 +74,16 @@ public final class UpsConfig {
     return authorization;
   }
 
+  /** The AE Title identifying this user agent, or {@code null} when it has none. */
+  public String getRequesterAet() {
+    return requesterAet;
+  }
+
+  /** Whether the requester AE Title is sent as a path segment rather than a query parameter. */
+  public boolean isRequesterInPath() {
+    return requesterInPath;
+  }
+
   public static Builder builder() {
     return new Builder();
   }
@@ -93,6 +107,8 @@ public final class UpsConfig {
     private Duration requestTimeout = DEFAULT_REQUEST_TIMEOUT;
     private HttpClient.Version httpVersion = HttpClient.Version.HTTP_1_1;
     private AuthorizationProvider authorization = AuthorizationProvider.NONE;
+    private String requesterAet;
+    private boolean requesterInPath;
 
     private Builder() {}
 
@@ -142,9 +158,32 @@ public final class UpsConfig {
       return this;
     }
 
+    /**
+     * Sets the AE Title of this user agent: the {@code requester} of the Change Workitem State and
+     * Request Cancellation transactions (PS3.18 §11.7, §11.8) and the default subscriber of the
+     * subscription transactions.
+     */
+    public Builder requesterAet(String requesterAet) {
+      this.requesterAet = requesterAet == null || requesterAet.isBlank() ? null : requesterAet;
+      return this;
+    }
+
+    /**
+     * Sends the requester as the path segment {@code /state/{aet}} and {@code /cancelrequest/{aet}}
+     * instead of the standard {@code ?requester={aet}} query parameter. Required by dcm4chee-arc,
+     * which predates the parameter; needs {@link #requesterAet}.
+     */
+    public Builder requesterInPath(boolean requesterInPath) {
+      this.requesterInPath = requesterInPath;
+      return this;
+    }
+
     public UpsConfig build() {
       Objects.requireNonNull(baseUrl, "Base URL is required");
       HttpAuthorization.checkNoConflict(authorization, headers);
+      if (requesterInPath && requesterAet == null) {
+        throw new IllegalArgumentException("The requester path form needs a requester AE Title");
+      }
       return new UpsConfig(this);
     }
   }

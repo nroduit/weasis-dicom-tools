@@ -64,8 +64,7 @@ final class HttpAuthorization {
       throws IOException, InterruptedException {
     String credentials = auth.authorization();
     HttpResponse<T> response = client.send(withCredentials(request, credentials), handler);
-    if (credentials != null
-        && isRejected(credentials, response.statusCode(), response.headers())) {
+    if (credentials != null && isRejected(credentials, response.statusCode(), response.headers())) {
       if (!replayable) {
         auth.invalidate(credentials);
         return response;
@@ -91,7 +90,9 @@ final class HttpAuthorization {
    * static {@code Authorization} header keeps the legacy behavior.
    */
   static HttpClient.Redirect redirectPolicy(AuthorizationProvider auth) {
-    return auth != AuthorizationProvider.NONE ? HttpClient.Redirect.NEVER : HttpClient.Redirect.NORMAL;
+    return auth != AuthorizationProvider.NONE
+        ? HttpClient.Redirect.NEVER
+        : HttpClient.Redirect.NORMAL;
   }
 
   static void checkNoConflict(AuthorizationProvider auth, Map<String, String> headers) {
@@ -110,9 +111,9 @@ final class HttpAuthorization {
   }
 
   /**
-   * A 401 is worth a retry only if credentials were sent and the challenge does not report an
-   * error that renewed credentials cannot fix (RFC 6750 §3.1: only {@code invalid_token}, or no
-   * error code, means the token itself was refused).
+   * A 401 is worth a retry only if credentials were sent and the challenge does not report an error
+   * that renewed credentials cannot fix (RFC 6750 §3.1: only {@code invalid_token}, or no error
+   * code, means the token itself was refused).
    */
   static boolean isRejected(String credentials, int status, HttpHeaders headers) {
     if (credentials == null || status != HttpURLConnection.HTTP_UNAUTHORIZED) {

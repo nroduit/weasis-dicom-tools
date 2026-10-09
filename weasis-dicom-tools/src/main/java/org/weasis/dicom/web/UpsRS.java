@@ -49,7 +49,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Authentication is delegated to the {@link AuthorizationProvider} of the {@link UpsConfig}, so
  * the host application keeps control of the OAuth2 tokens. On HTTP 401 the provider is invalidated
- * and the request is replayed once.
+ * and the request is replayed once. The requester AE Title of the configuration identifies this
+ * user agent to the origin server; {@link UpsWorkitem} builds the data set of a new workitem.
  */
 public class UpsRS {
 
@@ -111,15 +112,20 @@ public class UpsRS {
   }
 
   /**
-   * Updates a workitem (PS3.18 §11.6).
+   * Updates a workitem (PS3.18 §11.6). The Transaction UID travels both in the data set, as the
+   * N-SET semantics require (PS3.4 §CC.2.6.2), and as the {@code TransactionUid} query parameter.
    *
    * @param transactionUid required once the workitem is IN PROGRESS, {@code null} when SCHEDULED
    */
   public UpsResponse updateWorkitem(String workitemUid, String transactionUid, Attributes changes)
       throws IOException, InterruptedException {
-    Objects.requireNonNull(changes, "Changes cannot be null");
-    String query = transactionUid == null ? "" : "?transaction=" + encode(transactionUid);
-    return execute(request(workitemPath(workitemUid) + query).POST(jsonBody(changes)));
+    Attributes data = new Attributes(Objects.requireNonNull(changes, "Changes cannot be null"));
+    String query = "";
+    if (transactionUid != null) {
+      data.setString(Tag.TransactionUID, VR.UI, transactionUid);
+      query = "?TransactionUid=" + encode(transactionUid);
+    }
+    return execute(request(workitemPath(workitemUid) + query).POST(jsonBody(data)));
   }
 
   /** Changes the state of a workitem (PS3.18 §11.7). */
@@ -132,7 +138,7 @@ public class UpsRS {
         VR.UI,
         Objects.requireNonNull(transactionUid, "Transaction UID cannot be null"));
     data.setString(Tag.ProcedureStepState, VR.CS, Objects.requireNonNull(state).code());
-    return execute(request(workitemPath(workitemUid) + "/state").PUT(jsonBody(data)));
+    return execute(request(requester(workitemPath(workitemUid) + "/state")).PUT(jsonBody(data)));
   }
 
   /**
@@ -142,7 +148,7 @@ public class UpsRS {
    */
   public UpsResponse requestCancellation(String workitemUid, Attributes reason)
       throws IOException, InterruptedException {
-    HttpRequest.Builder builder = request(workitemPath(workitemUid) + "/cancelrequest");
+    HttpRequest.Builder builder = request(requester(workitemPath(workitemUid) + "/cancelrequest"));
     builder.POST(reason == null ? HttpRequest.BodyPublishers.noBody() : jsonBody(reason));
     return execute(builder);
   }
@@ -159,6 +165,7 @@ public class UpsRS {
    * Subscribes to a workitem, or to the Global Worklist when {@code workitemUid} is {@code null}
    * (PS3.18 §11.10).
    *
+   * @param aeTitle the subscriber, or {@code null} for the requester AE Title of the configuration
    * @param deletionLock whether the SCP keeps the workitems until the subscriber is notified
    */
   public UpsResponse subscribe(String workitemUid, String aeTitle, boolean deletionLock)
@@ -222,7 +229,8 @@ public class UpsRS {
       attrs.setString(Tag.ReasonForCancellation, VR.LT, reason);
     }
     if (reasonCode != null) {
-      attrs.newSequence(Tag.ProcedureStepDiscontinuationReasonCodeSequence, 1)
+      attrs
+          .newSequence(Tag.ProcedureStepDiscontinuationReasonCodeSequence, 1)
           .add(reasonCode.toItem());
     }
     if (contactUri != null) {
@@ -280,16 +288,27 @@ public class UpsRS {
     return WORKITEMS + "/" + encode(Objects.requireNonNull(workitemUid, "Workitem UID is null"));
   }
 
-  private static String subscriberPath(String workitemUid, String aeTitle) {
+  private String subscriberPath(String workitemUid, String aeTitle) {
     return workitemPath(workitemUid) + "/subscribers/" + encodeAet(aeTitle);
   }
 
-  private static String encodeAet(String aeTitle) {
-    Objects.requireNonNull(aeTitle, "AE Title cannot be null");
-    if (aeTitle.isBlank()) {
-      throw new IllegalArgumentException("AE Title cannot be blank");
+  /** The requester of a state change or a cancellation request, as the configuration sends it. */
+  private String requester(String path) {
+    String aet = config.getRequesterAet();
+    if (aet == null) {
+      return path;
     }
-    return encode(aeTitle);
+    return config.isRequesterInPath()
+        ? path + "/" + encode(aet)
+        : path + "?requester=" + encode(aet);
+  }
+
+  private String encodeAet(String aeTitle) {
+    String aet = aeTitle == null ? config.getRequesterAet() : aeTitle;
+    if (aet == null || aet.isBlank()) {
+      throw new IllegalArgumentException("An AE Title is required");
+    }
+    return encode(aet);
   }
 
   private static URI toWebSocketUri(String url) {
@@ -318,7 +337,10 @@ public class UpsRS {
     List<String> warnings = response.headers().allValues("Warning");
     warnings.forEach(w -> LOGGER.warn("UPS-RS {}: {}", response.request().uri(), w));
     Optional<String> location =
-        response.headers().firstValue("Content-Location").or(() -> response.headers().firstValue("Location"));
+        response
+            .headers()
+            .firstValue("Content-Location")
+            .or(() -> response.headers().firstValue("Location"));
     return new UpsResponse(response.statusCode(), location, warnings);
   }
 
@@ -326,7 +348,10 @@ public class UpsRS {
     HttpRequest request = builder.build();
     HttpResponse<byte[]> response =
         HttpAuthorization.send(
-            httpClient, config.getAuthorization(), request, HttpResponse.BodyHandlers.ofByteArray());
+            httpClient,
+            config.getAuthorization(),
+            request,
+            HttpResponse.BodyHandlers.ofByteArray());
     LOGGER.debug("UPS-RS {} {} -> {}", request.method(), request.uri(), response.statusCode());
     if (response.statusCode() >= HttpURLConnection.HTTP_BAD_REQUEST) {
       throw new HttpException(

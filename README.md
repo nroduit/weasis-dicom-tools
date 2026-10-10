@@ -67,6 +67,22 @@ Used in production by [Weasis](https://github.com/nroduit/Weasis),
 - Supports multiframe and multi-fragment input (multiframe outputs are indexed).
 - Applies a Presentation State (W/L, LUTs, overlay) with configurable overlay color.
 
+### Waveform pipeline
+
+`WaveformTranscoder.dcm2dcm`
+([WaveformTranscoder.java](weasis-dicom-tools/src/main/java/org/weasis/dicom/waveform/WaveformTranscoder.java)):
+
+- Transcodes the Waveform Data of ECG / EEG / EMG objects between the native transfer syntaxes and
+  the ITU-T T.261 ones of DICOM Supplement 253 (lossless or lossy), in both directions and from
+  lossless to lossy, configured via `WaveformTranscodeParam`.
+- Streams every multiplex group through the OpenCV codec: the samples are never held in memory as
+  a whole. The T.261 Waveform Data is written with one Item per frame sequence and a filled Basic
+  Offset Table, so readers can locate any frame sequence without decoding.
+- `WaveformReaders.open` gives a `WaveformReader` (weasis-core-img) on a Waveform Sequence Item
+  parsed by dcm4che: memory-mapped for native data, decoded per frame sequence for T.261.
+- The supplement is under public comment: `T261TransferSyntax` holds its placeholder UIDs, which
+  can be replaced through system properties once assigned.
+
 Image I/O is also exposed as a standard `ImageReader` via `DicomImageReader` (registered through
 `META-INF/javax.imageio.spi.ImageReaderSpi`).
 

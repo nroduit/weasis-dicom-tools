@@ -281,6 +281,19 @@ class WaveformTranscoderTest {
   }
 
   @Test
+  void native_to_implicit_vr_file_keeps_the_waveform_data() throws IOException {
+    short[] samples = ecgSamples();
+    Path copy =
+        WaveformTranscoder.dcm2dcm(
+            writeNativeFile(samples),
+            dir.resolve("ecg-ivrle.dcm"),
+            new WaveformTranscodeParam(UID.ImplicitVRLittleEndian));
+    assertEquals(UID.ImplicitVRLittleEndian, transferSyntax(copy));
+    Attributes group = read(copy, IncludeBulkData.YES).getSequence(Tag.WaveformSequence).get(0);
+    assertArrayEquals(littleEndian(samples), (byte[]) group.getValue(Tag.WaveformData));
+  }
+
+  @Test
   void native_to_native_keeps_the_waveform_data_untouched() throws IOException {
     short[] samples = ecgSamples();
     Attributes dcm = read(writeNativeFile(samples), IncludeBulkData.URI);

@@ -19,6 +19,7 @@ import java.util.List;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Sequence;
 import org.dcm4che3.data.Tag;
+import org.dcm4che3.data.UID;
 import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.io.DicomInputStream.IncludeBulkData;
 import org.dcm4che3.io.DicomOutputStream;
@@ -68,7 +69,11 @@ public final class WaveformTranscoder {
       try {
         String dstTsuid = params.getOutputTsuid();
         Attributes fmi = params.isOutputFmi() ? dataset.createFileMetaInformation(dstTsuid) : null;
-        try (DicomOutputStream dos = new DicomOutputStream(outputStream, dstTsuid)) {
+        // The File Meta Information is always Explicit VR Little Endian; writeDataset switches
+        // to the data set transfer syntax of the FMI afterwards.
+        try (DicomOutputStream dos =
+            new DicomOutputStream(
+                outputStream, fmi != null ? UID.ExplicitVRLittleEndian : dstTsuid)) {
           dos.writeDataset(fmi, dataset);
         }
       } finally {

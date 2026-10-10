@@ -20,6 +20,13 @@ import java.util.Objects;
  * weasis.dicom.t261.lossless.uid} / {@code weasis.dicom.t261.lossy.uid} or with {@link
  * #setUIDs(String, String)} once the final UIDs are published, without any other change in the
  * callers.
+ *
+ * <p>TODO once a dcm4che release carries the Sup 253 transfer syntaxes (branch {@code
+ * waveform-t261}: {@code UID.T261Lossless}, {@code UID.T261Lossy}, {@code TransferSyntaxType.T261}
+ * with {@code isWaveformDataEncapsulated()}): bump {@code dcm4che.version}, make {@link #lossless()}
+ * and {@link #lossy()} return the dictionary constants, drop the placeholders, the system properties
+ * and {@link #setUIDs(String, String)}, and let {@code WaveformReaders} / {@code
+ * WaveformTranscoder} rely on {@code TransferSyntaxType} for the encapsulation test.
  */
 public final class T261TransferSyntax {
 

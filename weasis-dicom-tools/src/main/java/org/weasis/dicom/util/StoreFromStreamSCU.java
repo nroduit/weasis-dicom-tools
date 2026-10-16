@@ -177,7 +177,9 @@ public class StoreFromStreamSCU {
   }
 
   private void logStatusIfNeeded(int status, Attributes cmd) {
-    if (lastStatusCode == status || nbStatusLog >= MAX_STATUS_LOG_ENTRIES) {
+    if (status == Status.Success
+        || lastStatusCode == status
+        || nbStatusLog >= MAX_STATUS_LOG_ENTRIES) {
       return;
     }
 

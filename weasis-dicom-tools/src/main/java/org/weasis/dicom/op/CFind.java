@@ -22,6 +22,7 @@ import org.dcm4che3.tool.findscu.FindSCU;
 import org.dcm4che3.tool.findscu.FindSCU.InformationModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.weasis.core.util.StreamUtil;
 import org.weasis.core.util.StringUtil;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.DeviceOpService;
@@ -128,15 +129,22 @@ public final class CFind {
     validateNodes(callingNode, calledNode);
     var options = Objects.requireNonNullElse(params, new AdvancedParams());
 
-    try (var findSCU = new FindSCU()) {
+    var findSCU = new FindSCU();
+    var service = new DeviceOpService(findSCU.getDevice());
+    try {
       configureFindSCU(findSCU, options, callingNode, calledNode, level);
       addQueryKeys(findSCU, keys);
       findSCU.setCancelAfter(cancelAfter);
       findSCU.setPriority(options.getPriority());
 
+      service.start();
       return executeQuery(findSCU);
     } catch (Exception e) {
       return handleException(e, "DICOM Find failed");
+    } finally {
+      // Release the association before shutting down the executors it runs on
+      StreamUtil.safeClose(findSCU);
+      service.stop();
     }
   }
 
@@ -182,8 +190,6 @@ public final class CFind {
 
   private static DicomState executeQuery(FindSCU findSCU) throws Exception {
     try {
-      var service = new DeviceOpService(findSCU.getDevice());
-      service.start();
       var startTime = System.currentTimeMillis();
       findSCU.open();
       var connectTime = System.currentTimeMillis();

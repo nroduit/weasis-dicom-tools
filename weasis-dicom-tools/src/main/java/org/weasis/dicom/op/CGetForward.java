@@ -555,17 +555,25 @@ public class CGetForward implements AutoCloseable {
     validateProcessParameters(callingNode, calledNode, destinationNode);
     var options = Objects.requireNonNullElse(getParams, new AdvancedParams());
 
-    try (var forward =
-        new CGetForward(forwardParams, callingNode, destinationNode, progress, cstoreParams)) {
+    try {
+      var forward =
+          new CGetForward(forwardParams, callingNode, destinationNode, progress, cstoreParams);
+      var service = new DeviceOpService(forward.getDevice());
+      try {
+        setupForward(forward, options, callingNode, calledNode, queryRetrieveLevel, queryUID);
 
-      setupForward(forward, options, callingNode, calledNode, queryRetrieveLevel, queryUID);
+        service.start();
+        forward.getStreamSCUService().start();
+        forward.open();
+        forward.retrieve();
 
-      forward.getStreamSCUService().start();
-      forward.open();
-      forward.retrieve();
-
-      return forward.getState();
-
+        return forward.getState();
+      } finally {
+        // Release both associations before shutting down the executors they run on
+        StreamUtil.safeClose(forward);
+        service.stop();
+        forward.getStreamSCUService().stop();
+      }
     } catch (Exception e) {
       LOGGER.error("DICOM C-GET forward operation failed", e);
       return new DicomState(

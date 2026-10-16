@@ -98,8 +98,9 @@ class HangingProtocolFlowTest {
       code.setCodeValue("123");
       code.setCodingSchemeDesignator("SCT");
       hp.setHangingProtocolUserIdentificationCodeSequence(code);
-      // Exercises the setter path (the getter reads a different tag and would be null).
-      assertNotNull(hp.getAttributes().getSequence(Tag.AbstractPriorCodeSequence));
+      assertNotNull(
+          hp.getAttributes().getSequence(Tag.HangingProtocolUserIdentificationCodeSequence));
+      assertEquals("123", hp.getHangingProtocolUserIdentificationCode().getCodeValue());
     }
   }
 

@@ -27,6 +27,8 @@ public class HPImageSet extends Module {
   protected HPImageSet(List<HPSelector> selectors, Attributes attributes) {
     super(attributes);
     this.selectors = selectors;
+    // a set read from a dataset is built on its time-based item, which carries the number
+    this.imageSetNumber = attributes.getInt(Tag.ImageSetNumber, 0);
     addSTimeBasedImageSetsSequence(attributes.getSequence(Tag.TimeBasedImageSetsSequence));
   }
 

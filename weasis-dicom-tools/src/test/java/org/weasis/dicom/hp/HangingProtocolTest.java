@@ -13,7 +13,10 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Arrays;
 import java.util.List;
+import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Sequence;
+import org.dcm4che3.data.Tag;
+import org.dcm4che3.data.VR;
 import org.junit.jupiter.api.Test;
 import org.weasis.dicom.hp.enums.ImageBoxLayoutType;
 import org.weasis.dicom.hp.enums.RelativeTimeUnits;
@@ -202,5 +205,51 @@ public class HangingProtocolTest {
       assertEquals(1, ds.getImageBoxes().size());
       assertEquals(ImageBoxLayoutType.TILED, ds.getImageBoxes().get(0).getImageBoxLayoutType());
     }
+  }
+
+  @Test
+  public void testUserIdentificationCodeRoundTrip() {
+    HangingProtocol hp = new HangingProtocol();
+    Code user = new Code();
+    user.setCodeValue("USER-1");
+    user.setCodingSchemeDesignator("99WEASIS");
+    user.setCodeMeaning("Reader one");
+    hp.setHangingProtocolUserIdentificationCodeSequence(user);
+
+    Code read = hp.getHangingProtocolUserIdentificationCode();
+    assertNotNull(read);
+    assertEquals("USER-1", read.getCodeValue());
+    assertEquals("Reader one", read.getCodeMeaning());
+    assertNull(hp.getAttributes().getNestedDataset(Tag.AbstractPriorCodeSequence));
+  }
+
+  @Test
+  void imageSetsReadFromADatasetKeepTheirNumbers() {
+    HangingProtocol hp = new HangingProtocol();
+    for (int i = 1; i <= 2; i++) {
+      HPImageSet set = hp.addNewImageSet(null);
+      set.addImageSetSelector(
+          HPSelectorFactory.createAttributeValueSelector(
+              "MATCH", null, Tag.Modality, 1, VR.CS, new String[] {"CT"}));
+      HPTimeBasedImageSet item = new HPTimeBasedImageSet();
+      item.setImageSetNumber(i);
+      item.setRelativeTime(new RelativeTime(0, 0, RelativeTimeUnits.DAYS));
+      set.addTimeBasedImageSet(item);
+    }
+    Attributes dataset = new Attributes(hp.getAttributes());
+    Sequence sets = dataset.ensureSequence(Tag.ImageSetsSequence, 2);
+    for (HPImageSet set : hp.getImageSets()) {
+      Attributes item = new Attributes();
+      Sequence selectors = item.ensureSequence(Tag.ImageSetSelectorSequence, 1);
+      set.getImageSetSelectors().forEach(sel -> selectors.add(new Attributes(sel.getAttributes())));
+      Sequence timeBased = item.ensureSequence(Tag.TimeBasedImageSetsSequence, 1);
+      set.getTimeBasedImageSetsSequence().forEach(tb -> timeBased.add(new Attributes(tb)));
+      sets.add(item);
+    }
+
+    HangingProtocol read = new HangingProtocol(dataset);
+
+    assertEquals(
+        List.of(1, 2), read.getImageSets().stream().map(HPImageSet::getImageSetNumber).toList());
   }
 }

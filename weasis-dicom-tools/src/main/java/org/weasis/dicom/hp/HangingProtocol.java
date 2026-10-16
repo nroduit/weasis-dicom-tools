@@ -207,7 +207,9 @@ public class HangingProtocol extends Module {
 
   @Generated
   public void setHangingProtocolUserIdentificationCodeSequence(Code user) {
-    dcmItems.ensureSequence(Tag.AbstractPriorCodeSequence, 1).add(user.getAttributes());
+    dcmItems
+        .ensureSequence(Tag.HangingProtocolUserIdentificationCodeSequence, 1)
+        .add(user.getAttributes());
   }
 
   @Generated

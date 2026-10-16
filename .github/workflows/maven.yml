@@ -64,7 +64,7 @@ jobs:
             weasis-dicom-tools/target/site/jacoco/jacoco.xml weasis-dicom-tools/target/sonar-libs \
             $([ -d pr-context ] && echo pr-context)
       - name: Upload Sonar analysis input
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: sonar-input
           path: sonar-input.tgz

@@ -385,6 +385,33 @@ class FindSCUTest {
       verify(mockAssociation).waitForOutstandingRSP();
       verify(mockAssociation).release();
     }
+
+    @Test
+    void rejected_query_options_are_empty_before_open() {
+      findSCU.setInformationModel(
+          InformationModel.StudyRoot, new String[] {UID.ImplicitVRLittleEndian}, fuzzy());
+
+      assertTrue(findSCU.getRejectedQueryOptions().isEmpty());
+    }
+
+    @Test
+    void rejected_query_options_are_the_requested_ones_not_accepted() throws Exception {
+      String cuid = UID.StudyRootQueryRetrieveInformationModelFind;
+      findSCU.setInformationModel(
+          InformationModel.StudyRoot, new String[] {UID.ImplicitVRLittleEndian}, fuzzy());
+      when(mockAssociation.getRequestedQueryOptionsFor(cuid))
+          .thenReturn(EnumSet.of(QueryOption.DATETIME, QueryOption.FUZZY));
+      when(mockAssociation.getQueryOptionsFor(cuid)).thenReturn(EnumSet.of(QueryOption.DATETIME));
+      var associationField = FindSCU.class.getDeclaredField("as");
+      associationField.setAccessible(true);
+      associationField.set(findSCU, mockAssociation);
+
+      assertEquals(EnumSet.of(QueryOption.FUZZY), findSCU.getRejectedQueryOptions());
+    }
+
+    private static EnumSet<QueryOption> fuzzy() {
+      return EnumSet.of(QueryOption.DATETIME, QueryOption.FUZZY);
+    }
   }
 
   @Nested

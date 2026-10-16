@@ -187,6 +187,11 @@ public final class CFind {
       var startTime = System.currentTimeMillis();
       findSCU.open();
       var connectTime = System.currentTimeMillis();
+      var rejected = findSCU.getRejectedQueryOptions();
+      if (!rejected.isEmpty()) {
+        LOGGER.warn("Query options not accepted by the SCP: {}", rejected);
+        findSCU.getState().setRejectedQueryOptions(rejected);
+      }
       findSCU.query();
       ServiceUtil.forceGettingAttributes(findSCU.getState(), findSCU);
       var queryTime = System.currentTimeMillis();

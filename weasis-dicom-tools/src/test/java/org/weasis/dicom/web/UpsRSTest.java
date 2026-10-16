@@ -228,6 +228,22 @@ class UpsRSTest {
     }
 
     @Test
+    void search_reports_warning_of_literal_matching() throws Exception {
+      String warning =
+          "299 pacs \"The fuzzymatching parameter is not supported. Only literal matching has"
+              + " been performed.\"";
+      server.enqueue(CannedResponse.of(204, "Warning", warning));
+
+      SearchResponse response =
+          client().search(new UpsQuery().match("PatientName", "Doe^Jon").fuzzyMatching(true));
+
+      assertTrue(response.matches().isEmpty());
+      assertEquals(List.of(warning), response.warnings());
+      assertEquals(
+          "/dicomweb/workitems?PatientName=Doe%5EJon&fuzzymatching=true", requests.get(0).uri());
+    }
+
+    @Test
     void subscribe_to_global_worklist_when_no_workitem() throws Exception {
       client().subscribe(null, "WEASIS", true);
 

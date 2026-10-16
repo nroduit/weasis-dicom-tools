@@ -14,9 +14,11 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
 import org.dcm4che3.data.Attributes;
+import org.dcm4che3.net.QueryOption;
 import org.dcm4che3.net.Status;
 import org.weasis.core.util.StringUtil;
 
@@ -41,6 +43,7 @@ public class DicomState {
   private LocalDateTime startTransferDateTime;
   private LocalDateTime endTransferDateTime;
   private long bytesSize = -1;
+  private volatile EnumSet<QueryOption> rejectedQueryOptions = EnumSet.noneOf(QueryOption.class);
 
   /** Creates a new DicomState with pending status. */
   public DicomState() {
@@ -132,6 +135,15 @@ public class DicomState {
 
   public void setErrorMessage(String errorMessage) {
     this.errorMessage = errorMessage;
+  }
+
+  /** Returns the requested query options the SCP did not accept (PS3.4 C.5.1.1). */
+  public EnumSet<QueryOption> getRejectedQueryOptions() {
+    return EnumSet.copyOf(rejectedQueryOptions);
+  }
+
+  public void setRejectedQueryOptions(EnumSet<QueryOption> rejectedQueryOptions) {
+    this.rejectedQueryOptions = EnumSet.copyOf(rejectedQueryOptions);
   }
 
   public long getBytesSize() {

@@ -10,7 +10,7 @@
 package org.weasis.dicom.web;
 
 import static org.weasis.dicom.web.MultipartConstants.CONTENT_TYPE;
-import static org.weasis.dicom.web.UpsQuery.encode;
+import static org.weasis.dicom.web.SearchQuery.encode;
 
 import jakarta.json.Json;
 import jakarta.json.stream.JsonGenerator;
@@ -155,10 +155,18 @@ public class UpsRS {
 
   /** Searches workitems (PS3.18 §11.9). Returns an empty list on HTTP 204. */
   public List<Attributes> searchWorkitems(UpsQuery query) throws IOException, InterruptedException {
+    return search(query).matches();
+  }
+
+  /**
+   * Searches workitems (PS3.18 §11.9), with the {@code Warning} headers that report how the origin
+   * server handled the query, e.g. a fuzzy matching downgraded to literal matching.
+   */
+  public SearchResponse search(UpsQuery query) throws IOException, InterruptedException {
     String queryString = query == null ? "" : query.toQueryString();
     String path = queryString.isEmpty() ? WORKITEMS : WORKITEMS + "?" + queryString;
     HttpResponse<byte[]> response = send(request(path).GET());
-    return readDatasets(response.body());
+    return new SearchResponse(readDatasets(response.body()), warnings(response));
   }
 
   /**
@@ -334,14 +342,19 @@ public class UpsRS {
   private UpsResponse execute(HttpRequest.Builder builder)
       throws IOException, InterruptedException {
     HttpResponse<byte[]> response = send(builder);
-    List<String> warnings = response.headers().allValues("Warning");
-    warnings.forEach(w -> LOGGER.warn("UPS-RS {}: {}", response.request().uri(), w));
+    List<String> warnings = warnings(response);
     Optional<String> location =
         response
             .headers()
             .firstValue("Content-Location")
             .or(() -> response.headers().firstValue("Location"));
     return new UpsResponse(response.statusCode(), location, warnings);
+  }
+
+  private static List<String> warnings(HttpResponse<?> response) {
+    List<String> warnings = response.headers().allValues("Warning");
+    warnings.forEach(w -> LOGGER.warn("UPS-RS {}: {}", response.request().uri(), w));
+    return warnings;
   }
 
   HttpResponse<byte[]> send(HttpRequest.Builder builder) throws IOException, InterruptedException {

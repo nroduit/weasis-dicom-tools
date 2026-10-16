@@ -10,9 +10,13 @@
 package org.weasis.dicom.op;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTimeout;
 
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -171,6 +175,25 @@ class DeviceExecutorLeakTest {
       assertEquals(Status.Success, state.getStatus(), state.getMessage());
     }
     assertEquals(before, awaitThreadCount("echo-scu-", before));
+  }
+
+  @Test
+  void repeated_cstore_does_not_leak_executor_threads() throws Exception {
+    var files = List.of(Path.of(getClass().getResource("/dicom/mr.dcm").toURI()).toString());
+    int before = countThreads("storescu-");
+    RECEIVED_INSTANCES.set(0);
+    // Stopping the executors before releasing the association made each call wait for the
+    // 30 s executor shutdown timeout
+    assertTimeout(
+        Duration.ofSeconds(20),
+        () -> {
+          for (int i = 0; i < ITERATIONS; i++) {
+            var state = CStore.process(CALLING_NODE, destNode, files);
+            assertEquals(Status.Success, state.getStatus(), state.getMessage());
+          }
+        });
+    assertEquals(ITERATIONS, RECEIVED_INSTANCES.get());
+    assertEquals(before, awaitThreadCount("storescu-", before));
   }
 
   /** Executor threads may still be exiting right after shutdown; give them a short grace period. */

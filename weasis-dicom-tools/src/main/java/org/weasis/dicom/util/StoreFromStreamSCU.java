@@ -12,9 +12,8 @@ package org.weasis.dicom.util;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.dcm4che3.data.Attributes;
@@ -67,8 +66,10 @@ public class StoreFromStreamSCU {
   private final DicomState state;
   private final AdvancedParams options;
   private final AtomicBoolean countdown = new AtomicBoolean(false);
-  private final ScheduledExecutorService closeAssociationExecutor =
-      Executors.newSingleThreadScheduledExecutor();
+  // Nothing shuts this executor down: its thread must end by itself once no close is pending,
+  // otherwise every discarded instance leaves one idle thread behind.
+  private final ScheduledThreadPoolExecutor closeAssociationExecutor =
+      createCloseAssociationExecutor();
   private final RSPHandlerFactory rspHandlerFactory = this::createResponseHandler;
   private Attributes attrs;
   private boolean relExtNeg;
@@ -123,6 +124,15 @@ public class StoreFromStreamSCU {
 
     configureAssociation(callingNode, calledNode);
     setAttributes(new Attributes());
+  }
+
+  private static ScheduledThreadPoolExecutor createCloseAssociationExecutor() {
+    var executor =
+        new ScheduledThreadPoolExecutor(1, ServiceUtil.getThreadFactory("storescu-close"));
+    executor.setRemoveOnCancelPolicy(true);
+    executor.setKeepAliveTime(CLOSE_DELAY_SECONDS, TimeUnit.SECONDS);
+    executor.allowCoreThreadTimeOut(true);
+    return executor;
   }
 
   private void configureAssociation(DicomNode callingNode, DicomNode calledNode)

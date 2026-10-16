@@ -25,6 +25,7 @@ import org.dcm4che3.tool.storescu.StoreSCU;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.util.FileUtil;
+import org.weasis.core.util.StreamUtil;
 import org.weasis.core.util.StringUtil;
 import org.weasis.dicom.param.AdvancedParams;
 import org.weasis.dicom.param.CstoreParams;
@@ -223,6 +224,8 @@ public final class CStore {
     try {
       return executeTransfer(storeSCU);
     } finally {
+      // Release the association before shutting down the executors it runs on
+      StreamUtil.safeClose(storeSCU);
       service.stop();
     }
   }

@@ -383,7 +383,8 @@ class DicomObjectUtilTest {
       var result = DicomObjectUtil.getShutterShape(dcm);
 
       assertNotNull(result);
-      var expectedRect = new Rectangle2D.Double(10, 20, 90, 60);
+      // 1-based edges to 0-based pixel centres
+      var expectedRect = new Rectangle2D.Double(9, 19, 90, 60);
       assertTrue(new Area(expectedRect).equals(result));
     }
 
@@ -394,8 +395,8 @@ class DicomObjectUtilTest {
       var result = DicomObjectUtil.getShutterShape(dcm);
 
       assertNotNull(result);
-      // Expected ellipse: center at (60, 50) with radius 25
-      var expectedEllipse = new Ellipse2D.Double(35, 25, 50, 50);
+      // Expected ellipse: 0-based center at (59, 49) with radius 25
+      var expectedEllipse = new Ellipse2D.Double(34, 24, 50, 50);
       assertTrue(new Area(expectedEllipse).equals(result));
     }
 
@@ -408,10 +409,10 @@ class DicomObjectUtilTest {
       assertNotNull(result);
 
       var expectedPolygon = new Polygon();
-      expectedPolygon.addPoint(20, 10); // col1, row1
-      expectedPolygon.addPoint(20, 30); // col2, row2
-      expectedPolygon.addPoint(40, 30); // col3, row3
-      expectedPolygon.addPoint(40, 10); // col4, row4
+      expectedPolygon.addPoint(19, 9); // col1 - 1, row1 - 1
+      expectedPolygon.addPoint(19, 29); // col2 - 1, row2 - 1
+      expectedPolygon.addPoint(39, 29); // col3 - 1, row3 - 1
+      expectedPolygon.addPoint(39, 9); // col4 - 1, row4 - 1
 
       assertTrue(new Area(expectedPolygon).equals(result));
     }
@@ -436,8 +437,8 @@ class DicomObjectUtilTest {
       assertNotNull(result);
 
       // Result should be intersection of rectangle and circle
-      var rect = new Rectangle2D.Double(0, 0, 100, 100);
-      var circle = new Ellipse2D.Double(20, 20, 60, 60);
+      var rect = new Rectangle2D.Double(-1, -1, 100, 100);
+      var circle = new Ellipse2D.Double(19, 19, 60, 60);
       var expected = new Area(rect);
       expected.intersect(new Area(circle));
 

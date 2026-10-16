@@ -171,6 +171,10 @@ public final class DicomObjectUtil {
    * <p>Supports rectangular, circular, and polygonal shutter shapes as defined in DICOM standard.
    * Multiple shapes are combined using intersection to create the final shutter area.
    *
+   * <p>DICOM gives the shutter in pixel rows and columns from 1\1, the edges included. The shape is
+   * 0-based with pixel centres on whole numbers, so a pixel is visible when its centre is in the
+   * shape, boundary included: a rectangle from 1 to Columns keeps the whole image.
+   *
    * @param dcm the DICOM attributes containing shutter information
    * @return the combined shutter shape as an Area, or {@code null} if no valid shutter found
    * @see <a
@@ -211,7 +215,7 @@ public final class DicomObjectUtil {
     int right = dcm.getInt(Tag.ShutterRightVerticalEdge, 0);
     int bottom = dcm.getInt(Tag.ShutterLowerHorizontalEdge, 0);
     Rectangle2D rect = new Rectangle2D.Double();
-    rect.setFrameFromDiagonal(left, top, right, bottom);
+    rect.setFrameFromDiagonal(left - 1, top - 1, right - 1, bottom - 1);
     if (rect.isEmpty()) {
       LOGGER.warn(
           "Shutter rectangle has an empty area: left={}, top={}, right={}, bottom={}",
@@ -235,9 +239,9 @@ public final class DicomObjectUtil {
       LOGGER.warn("Invalid radius for circular shutter: {}", radius);
       return null;
     }
-    // DICOM uses row,column ordering instead of x,y
-    double centerX = center[1];
-    double centerY = center[0];
+    // DICOM uses row,column ordering instead of x,y, from 1\1
+    double centerX = center[1] - 1.0;
+    double centerY = center[0] - 1.0;
 
     Ellipse2D ellipse =
         new Ellipse2D.Double(centerX - radius, centerY - radius, 2 * radius, 2 * radius);
@@ -255,8 +259,8 @@ public final class DicomObjectUtil {
     }
     Polygon polygon = new Polygon();
     for (int i = 0; i < points.length / 2; i++) {
-      // DICOM uses row,column ordering instead of x,y
-      polygon.addPoint(points[i * 2 + 1], points[i * 2]);
+      // DICOM uses row,column ordering instead of x,y, from 1\1
+      polygon.addPoint(points[i * 2 + 1] - 1, points[i * 2] - 1);
     }
     if (!isPolygonValid(polygon)) {
       LOGGER.warn("Shutter polygon has zero area or is invalid");

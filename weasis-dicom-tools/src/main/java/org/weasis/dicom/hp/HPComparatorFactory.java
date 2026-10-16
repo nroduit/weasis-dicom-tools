@@ -71,11 +71,11 @@ public class HPComparatorFactory {
       return comparator;
     }
 
-    if (comparator.getSelectorSequencePointer() != 0) {
+    if (isPointerSet(comparator.getSelectorSequencePointer())) {
       throw new IllegalArgumentException("Sequence Pointer already added");
     }
 
-    if (comparator.getFunctionalGroupPointer() != 0) {
+    if (isPointerSet(comparator.getFunctionalGroupPointer())) {
       throw new IllegalArgumentException("Functional Group Pointer already added");
     }
 
@@ -94,7 +94,7 @@ public class HPComparatorFactory {
       return comparator;
     }
 
-    if (comparator.getFunctionalGroupPointer() != 0) {
+    if (isPointerSet(comparator.getFunctionalGroupPointer())) {
       throw new IllegalArgumentException("Functional Group Pointer already added");
     }
 
@@ -105,20 +105,22 @@ public class HPComparatorFactory {
     return new FctGrp(tag, privCreator, comparator);
   }
 
-  @Generated
+  private static boolean isPointerSet(Integer tag) {
+    return tag != null && tag != 0;
+  }
+
   private static HPComparator addSequencePointer(HPComparator cmp) {
-    int tag = cmp.getSelectorSequencePointer();
-    if (tag != 0) {
+    Integer tag = cmp.getSelectorSequencePointer();
+    if (isPointerSet(tag)) {
       String privCreator = cmp.getSelectorSequencePointerPrivateCreator();
       cmp = new Seq(privCreator, tag, cmp);
     }
     return cmp;
   }
 
-  @Generated
   private static HPComparator addFunctionalGroupPointer(HPComparator cmp) {
-    int tag = cmp.getFunctionalGroupPointer();
-    if (tag != 0) {
+    Integer tag = cmp.getFunctionalGroupPointer();
+    if (isPointerSet(tag)) {
       String privCreator = cmp.getFunctionalGroupPrivateCreator();
       cmp = new FctGrp(tag, privCreator, cmp);
     }

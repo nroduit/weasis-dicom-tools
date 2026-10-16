@@ -12,6 +12,8 @@ package org.weasis.dicom.hp;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -268,8 +270,6 @@ class HPSelectorAndComparatorInternalsTest {
 
     @Test
     void comparator_with_sequence_pointer_zero_returns_same_instance() {
-      // Build the comparator through the Attributes path so the Selector* pointers are
-      // populated (the create-by-args path leaves them null and breaks the wrapper).
       HPComparator base = createComparatorWithPointers(0, 0);
       HPComparator wrapped = HPComparatorFactory.addSequencePointer(null, 0, base);
       assertEquals(base, wrapped);
@@ -280,6 +280,36 @@ class HPSelectorAndComparatorInternalsTest {
       HPComparator base = createComparatorWithPointers(0, 0);
       HPComparator wrapped = HPComparatorFactory.addFunctionalGroupPointer(null, 0, base);
       assertEquals(base, wrapped);
+    }
+
+    @Test
+    void comparator_without_pointer_attributes_is_not_wrapped() {
+      Attributes sortOp = new Attributes();
+      sortOp.setInt(Tag.SelectorAttribute, VR.AT, Tag.PixelSpacing);
+      sortOp.setString(Tag.SelectorAttributeVR, VR.CS, "FD");
+      sortOp.setInt(Tag.SelectorValueNumber, VR.US, 1);
+      sortOp.setString(Tag.SortingDirection, VR.CS, "INCREASING");
+      HPComparator cmp = HPComparatorFactory.createHPComparator(sortOp);
+      assertNull(cmp.getSelectorSequencePointer());
+      assertNull(cmp.getFunctionalGroupPointer());
+    }
+
+    @Test
+    void pointers_can_be_added_to_comparator_created_by_args() {
+      HPComparator base =
+          HPComparatorFactory.createSortByAttribute(
+              null, Tag.PixelSpacing, 1, SortingDirection.INCREASING);
+      HPComparator wrapped =
+          HPComparatorFactory.addSequencePointer(null, Tag.SharedFunctionalGroupsSequence, base);
+      assertNotSame(base, wrapped);
+      assertEquals(Tag.SharedFunctionalGroupsSequence, base.getSelectorSequencePointer());
+
+      HPComparator fgBase =
+          HPComparatorFactory.createSortByAttribute(
+              null, Tag.PixelSpacing, 1, SortingDirection.INCREASING);
+      assertNotSame(
+          fgBase,
+          HPComparatorFactory.addFunctionalGroupPointer(null, Tag.PixelMeasuresSequence, fgBase));
     }
   }
 

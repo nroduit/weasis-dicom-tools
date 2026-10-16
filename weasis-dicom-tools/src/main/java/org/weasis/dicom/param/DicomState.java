@@ -43,7 +43,7 @@ public class DicomState {
   private LocalDateTime startTransferDateTime;
   private LocalDateTime endTransferDateTime;
   private long bytesSize = -1;
-  private volatile EnumSet<QueryOption> rejectedQueryOptions = EnumSet.noneOf(QueryOption.class);
+  private final EnumSet<QueryOption> rejectedQueryOptions = EnumSet.noneOf(QueryOption.class);
 
   /** Creates a new DicomState with pending status. */
   public DicomState() {
@@ -138,12 +138,13 @@ public class DicomState {
   }
 
   /** Returns the requested query options the SCP did not accept (PS3.4 C.5.1.1). */
-  public EnumSet<QueryOption> getRejectedQueryOptions() {
+  public synchronized EnumSet<QueryOption> getRejectedQueryOptions() {
     return EnumSet.copyOf(rejectedQueryOptions);
   }
 
-  public void setRejectedQueryOptions(EnumSet<QueryOption> rejectedQueryOptions) {
-    this.rejectedQueryOptions = EnumSet.copyOf(rejectedQueryOptions);
+  public synchronized void setRejectedQueryOptions(EnumSet<QueryOption> rejectedQueryOptions) {
+    this.rejectedQueryOptions.clear();
+    this.rejectedQueryOptions.addAll(rejectedQueryOptions);
   }
 
   public long getBytesSize() {

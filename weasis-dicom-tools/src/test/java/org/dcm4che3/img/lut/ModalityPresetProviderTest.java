@@ -14,7 +14,11 @@ import static org.mockito.Mockito.*;
 
 import java.util.List;
 import java.util.Optional;
+import org.dcm4che3.data.Attributes;
+import org.dcm4che3.data.Tag;
+import org.dcm4che3.data.VR;
 import org.dcm4che3.img.DicomImageAdapter;
+import org.dcm4che3.img.data.PrDicomObject;
 import org.dcm4che3.img.stream.ImageDescriptor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -116,6 +120,40 @@ class ModalityPresetProviderTest {
     assertSame(brain, withWindow.get(3));
   }
 
+  @Test
+  void presentation_state_without_window_for_the_image_puts_the_full_range_first() {
+    var dcm = new Attributes();
+    dcm.setString(Tag.SOPClassUID, VR.UI, "1.2.840.10008.5.1.4.1.1.11.1");
+    var ref = new Attributes();
+    ref.setString(Tag.ReferencedSOPInstanceUID, VR.UI, "1.2.3.2.1"); // another image
+    var item = new Attributes();
+    item.newSequence(Tag.ReferencedImageSequence, 1).add(ref);
+    item.setDouble(Tag.WindowCenter, VR.DS, 50.5);
+    item.setDouble(Tag.WindowWidth, VR.DS, 51.0);
+    dcm.newSequence(Tag.SoftcopyVOILUTSequence, 1).add(item);
+    var pr = new PrDicomObject(dcm);
+    WlPresentation withPr =
+        new WlPresentation() {
+          @Override
+          public boolean isPixelPadding() {
+            return false;
+          }
+
+          @Override
+          public PresentationStateLut getPresentationState() {
+            return pr;
+          }
+        };
+
+    var presets =
+        PresetWindowLevel.getPresetCollection(
+            adapter("OT", 8, List.of(0.0), List.of(128.0)), "[DICOM]", withPr);
+
+    assertTrue(presets.get(0).isAutoLevel());
+    assertEquals(128.0, presets.get(1).getWindow(), "the image window comes next");
+    assertTrue(presets.stream().noneMatch(p -> p.getWindow() == 51.0));
+  }
+
   private static DicomImageAdapter adapter(String modality, int bitsStored) {
     return adapter(modality, bitsStored, List.of(), List.of());
   }
@@ -138,6 +176,7 @@ class ModalityPresetProviderTest {
     when(adapter.getFullDynamicWidth(any())).thenReturn(4096.0);
     when(adapter.getFullDynamicCenter(any())).thenReturn(2048.0);
     when(descriptor.getModality()).thenReturn(modality);
+    when(descriptor.getSopInstanceUID()).thenReturn("1.2.3.3.1");
     when(descriptor.getVoiLutForFrame(anyInt())).thenReturn(voiLut);
     return adapter;
   }

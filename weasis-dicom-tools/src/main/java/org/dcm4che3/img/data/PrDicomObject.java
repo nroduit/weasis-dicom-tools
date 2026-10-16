@@ -61,6 +61,7 @@ public class PrDicomObject implements PresentationStateLut {
   private final List<OverlayData> overlays;
   private final List<OverlayData> shutterOverlays;
   private final VoiLutModule voiLUT;
+  private final List<VoiItem> voiItems;
   private final LookupTableCV prLut;
   private final LookupTableCV paletteColorLut;
   private final List<BlendingLayer> blendingLayers;
@@ -219,6 +220,7 @@ public class PrDicomObject implements PresentationStateLut {
         blending
             ? layer(blendingLayers, false).map(BlendingLayer::voiLut).orElse(null)
             : buildVoiLut(dcmPR);
+    this.voiItems = blending ? List.of() : buildVoiItems(dcmPR);
     this.overlays = OverlayData.getPrOverlayData(dcmPR, -1);
     this.shutterOverlays =
         desc == null ? OverlayData.getOverlayData(dcmPR, 0xffff) : desc.getOverlayData();
@@ -300,6 +302,27 @@ public class PrDicomObject implements PresentationStateLut {
   private static VoiLutModule buildVoiLut(Attributes dcmPR) {
     Attributes seqDcm = dcmPR.getNestedDataset(Tag.SoftcopyVOILUTSequence);
     return seqDcm == null ? null : new VoiLutModule(seqDcm);
+  }
+
+  /** One item of the Softcopy VOI LUT Sequence and the images it applies to. */
+  private record VoiItem(List<Attributes> referencedImages, VoiLutModule voiLut) {
+
+    // Without Referenced Image Sequence, the item applies to all the images of the state
+    boolean appliesTo(String sopInstanceUID, int frame) {
+      return referencedImages.isEmpty()
+          || DicomObjectUtil.isImageFrameApplicableToReferencedImageSequence(
+              referencedImages, Tag.ReferencedFrameNumber, sopInstanceUID, frame, true);
+    }
+  }
+
+  private static List<VoiItem> buildVoiItems(Attributes dcmPR) {
+    return DicomObjectUtil.getSequence(dcmPR, Tag.SoftcopyVOILUTSequence).stream()
+        .map(
+            item ->
+                new VoiItem(
+                    DicomObjectUtil.getSequence(item, Tag.ReferencedImageSequence),
+                    new VoiLutModule(item)))
+        .toList();
   }
 
   private boolean isApplicableByReference(
@@ -441,8 +464,35 @@ public class PrDicomObject implements PresentationStateLut {
     return modalityLUT;
   }
 
+  /**
+   * The VOI LUT of the first item of the Softcopy VOI LUT Sequence, whatever image it references,
+   * or the one of the underlying layer of a blending state.
+   *
+   * @see #getVoiLUT(String, int)
+   */
   public Optional<VoiLutModule> getVoiLUT() {
     return Optional.ofNullable(voiLUT);
+  }
+
+  /**
+   * The VOI LUT this presentation state applies to a frame: the first item of the Softcopy VOI LUT
+   * Sequence that references the frame or has no Referenced Image Sequence (PS3.3 C.11.8). It is
+   * empty when no item applies, as when the state has none: the VOI of the state then leaves the
+   * image alone.
+   *
+   * @param sopInstanceUID the SOP Instance UID of the image, null when unknown (the first item then
+   *     applies, see {@link #getVoiLUT()})
+   * @param frame the frame number, from 1
+   */
+  public Optional<VoiLutModule> getVoiLUT(String sopInstanceUID, int frame) {
+    if (presentationStateType == PresentationStateType.BLENDING_SOFTCOPY
+        || !StringUtil.hasText(sopInstanceUID)) {
+      return getVoiLUT();
+    }
+    return voiItems.stream()
+        .filter(item -> item.appliesTo(sopInstanceUID, frame))
+        .map(VoiItem::voiLut)
+        .findFirst();
   }
 
   public List<OverlayData> getOverlays() {

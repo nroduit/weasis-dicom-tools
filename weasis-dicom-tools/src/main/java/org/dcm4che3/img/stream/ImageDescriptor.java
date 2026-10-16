@@ -71,6 +71,7 @@ public final class ImageDescriptor {
 
   // DICOM metadata
   private final String sopClassUID;
+  private final String sopInstanceUID;
   private final String seriesInstanceUID;
   private final String modality;
   private final String stationName;
@@ -135,6 +136,7 @@ public final class ImageDescriptor {
     // Initialize DICOM metadata
     var metadata = createDicomMetadata(dcm);
     this.sopClassUID = metadata.sopClassUID();
+    this.sopInstanceUID = metadata.sopInstanceUID();
     this.seriesInstanceUID = metadata.seriesInstanceUID();
     this.modality = metadata.modality();
     this.stationName = metadata.stationName();
@@ -202,6 +204,7 @@ public final class ImageDescriptor {
   private DicomMetadata createDicomMetadata(Attributes dcm) {
     return new DicomMetadata(
         dcm.getString(Tag.SOPClassUID),
+        dcm.getString(Tag.SOPInstanceUID),
         dcm.getString(Tag.SeriesInstanceUID),
         dcm.getString(Tag.Modality),
         dcm.getString(Tag.StationName),
@@ -353,6 +356,10 @@ public final class ImageDescriptor {
 
   public String getSopClassUID() {
     return sopClassUID;
+  }
+
+  public String getSopInstanceUID() {
+    return sopInstanceUID;
   }
 
   public String getSeriesInstanceUID() {
@@ -527,6 +534,7 @@ public final class ImageDescriptor {
 
   private record DicomMetadata(
       String sopClassUID,
+      String sopInstanceUID,
       String seriesInstanceUID,
       String modality,
       String stationName,

@@ -253,7 +253,15 @@ public class PresetWindowLevel {
       buildPresetsFromWindowLevel();
       buildPresetsFromLutData();
       boolean carriedByImage = !presetList.isEmpty();
-      addAutoLevelPreset();
+      PresetWindowLevel autoLevel = addAutoLevelPreset();
+      if (wl.getPresentationState() instanceof PrDicomObject && prVoi().isEmpty()) {
+        // The VOI LUT of a presentation state replaces the one of the image, and none applying to
+        // the frame leaves the values as they are: the full range comes first, the image windows
+        // stay available after it.
+        presetList.remove(autoLevel);
+        presetList.add(0, autoLevel);
+        carriedByImage = true;
+      }
       addModalityPresets(carriedByImage);
       return presetList;
     }
@@ -270,13 +278,16 @@ public class PresetWindowLevel {
     }
 
     private VoiLutModule effectiveVoi() {
+      return prVoi().orElse(vLut);
+    }
+
+    // The presentation state may window each image or frame differently, or leave some alone
+    private Optional<VoiLutModule> prVoi() {
       if (wl.getPresentationState() instanceof PrDicomObject pr) {
-        var prVoi = pr.getVoiLUT();
-        if (prVoi.isPresent()) {
-          return prVoi.get();
-        }
+        ImageDescriptor desc = adapter.getImageDescriptor();
+        return pr.getVoiLUT(desc.getSopInstanceUID(), adapter.getFrameIndex() + 1);
       }
-      return vLut;
+      return Optional.empty();
     }
 
     private int addWindowPresets(VoiLutModule voi, int firstPresetNumber) {
@@ -320,7 +331,7 @@ public class PresetWindowLevel {
       }
     }
 
-    private void addAutoLevelPreset() {
+    private PresetWindowLevel addAutoLevelPreset() {
       // The window covers exactly the range of the image: LINEAR_EXACT (PS3.3 C.11.2.1.3.2) maps
       // [c - w / 2, c + w / 2], where LINEAR would end one unit short and turn a range of a
       // single value into a threshold.
@@ -336,6 +347,7 @@ public class PresetWindowLevel {
               shape);
       autoLevel.setKeyCode(AUTO_LEVEL_KEY);
       presetList.add(autoLevel);
+      return autoLevel;
     }
 
     private void addModalityPresets(boolean carriedByImage) {
@@ -364,19 +376,14 @@ public class PresetWindowLevel {
 
     private List<LookupTableCV> getVoiLutData() {
       var luts = new ArrayList<LookupTableCV>();
-      if (wl.getPresentationState() instanceof PrDicomObject pr) {
-        pr.getVoiLUT().ifPresent(voiLutModule -> luts.addAll(voiLutModule.getLut()));
-      }
+      prVoi().ifPresent(voiLutModule -> luts.addAll(voiLutModule.getLut()));
       luts.addAll(vLut.getLut());
       return luts;
     }
 
     private List<String> getVoiLUTExplanation() {
       var explanations = new ArrayList<String>();
-      if (wl.getPresentationState() instanceof PrDicomObject pr) {
-        pr.getVoiLUT()
-            .ifPresent(voiLutModule -> explanations.addAll(voiLutModule.getLutExplanation()));
-      }
+      prVoi().ifPresent(voiLutModule -> explanations.addAll(voiLutModule.getLutExplanation()));
       explanations.addAll(vLut.getLutExplanation());
       return explanations;
     }

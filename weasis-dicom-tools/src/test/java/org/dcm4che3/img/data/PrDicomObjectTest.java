@@ -15,12 +15,14 @@ import java.awt.Color;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.Optional;
 import java.util.stream.Stream;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.img.data.PrDicomObject.PresentationGroup;
 import org.dcm4che3.img.data.PrDicomObject.PresentationStateType;
+import org.dcm4che3.img.lut.VoiLutModule;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Nested;
@@ -235,6 +237,34 @@ class PrDicomObjectTest {
       var prObject = new PrDicomObject(dcm);
 
       assertTrue(prObject.getVoiLUT().isPresent(), "VOI LUT should be present");
+    }
+
+    @Test
+    void should_pick_the_voi_lut_item_that_references_the_frame() {
+      var dcm = createBasicAttributes(VALID_GRAYSCALE_UID);
+      var voiSeq = dcm.newSequence(Tag.SoftcopyVOILUTSequence, 2);
+      voiSeq.add(voiItem(50.5, 51.0, "1.2.3.2.1", 1));
+      voiSeq.add(voiItem(40.0, 400.0, null, 0));
+
+      var prObject = new PrDicomObject(dcm);
+
+      assertAll(
+          () -> assertEquals(51.0, windowOf(prObject.getVoiLUT("1.2.3.2.1", 1))),
+          () -> assertEquals(400.0, windowOf(prObject.getVoiLUT("1.2.3.2.1", 2))),
+          () -> assertEquals(400.0, windowOf(prObject.getVoiLUT("1.2.3.3.1", 1))),
+          () -> assertEquals(51.0, windowOf(prObject.getVoiLUT(null, 1)), "unknown: first item"));
+    }
+
+    @Test
+    void should_apply_no_voi_lut_to_an_image_that_no_item_references() {
+      var dcm = createBasicAttributes(VALID_GRAYSCALE_UID);
+      dcm.newSequence(Tag.SoftcopyVOILUTSequence, 1).add(voiItem(50.5, 51.0, "1.2.3.2.1", 1));
+
+      var prObject = new PrDicomObject(dcm);
+
+      assertAll(
+          () -> assertFalse(prObject.getVoiLUT("1.2.3.3.1", 1).isPresent()),
+          () -> assertTrue(prObject.getVoiLUT("1.2.3.2.1", 1).isPresent()));
     }
 
     @Test
@@ -515,6 +545,24 @@ class PrDicomObjectTest {
     voiItem.setDouble(Tag.WindowCenter, VR.DS, windowCenter);
     voiItem.setDouble(Tag.WindowWidth, VR.DS, windowWidth);
     voiSeq.add(voiItem);
+  }
+
+  private static Attributes voiItem(
+      double windowCenter, double windowWidth, String sopInstanceUid, int frame) {
+    var item = new Attributes();
+    if (sopInstanceUid != null) {
+      var ref = new Attributes();
+      ref.setString(Tag.ReferencedSOPInstanceUID, VR.UI, sopInstanceUid);
+      ref.setInt(Tag.ReferencedFrameNumber, VR.IS, frame);
+      item.newSequence(Tag.ReferencedImageSequence, 1).add(ref);
+    }
+    item.setDouble(Tag.WindowCenter, VR.DS, windowCenter);
+    item.setDouble(Tag.WindowWidth, VR.DS, windowWidth);
+    return item;
+  }
+
+  private static double windowOf(Optional<VoiLutModule> voi) {
+    return voi.orElseThrow().getWindowWidth().get(0);
   }
 
   private static void addModalityLutParameters(

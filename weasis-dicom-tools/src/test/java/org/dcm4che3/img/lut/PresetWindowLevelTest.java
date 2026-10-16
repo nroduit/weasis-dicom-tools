@@ -467,7 +467,7 @@ class PresetWindowLevelTest {
       when(prVoi.getLutExplanation()).thenReturn(List.of());
       when(prVoi.getVoiLutFunction()).thenReturn(Optional.of("LINEAR_EXACT"));
       var pr = mock(PrDicomObject.class);
-      when(pr.getVoiLUT()).thenReturn(Optional.of(prVoi));
+      when(pr.getVoiLUT(any(), anyInt())).thenReturn(Optional.of(prVoi));
       WlPresentation wl =
           new WlPresentation() {
             @Override

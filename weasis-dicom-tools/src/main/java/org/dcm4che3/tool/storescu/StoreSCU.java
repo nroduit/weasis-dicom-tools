@@ -517,7 +517,7 @@ public class StoreSCU implements AutoCloseable {
       return in;
     }
     InputStream in = Files.newInputStream(path); // NOSONAR closed by caller in try-with-resources
-    in.skip(fmiEndPos);
+    in.skipNBytes(fmiEndPos);
     return in;
   }
 

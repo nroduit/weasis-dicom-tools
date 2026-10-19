@@ -18,6 +18,7 @@ import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
@@ -36,6 +37,7 @@ import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.weasis.dicom.param.AdvancedParams;
@@ -306,6 +308,69 @@ class StoreFromStreamSCUTest {
               eq(mockDataWriter),
               eq(TEST_TSUID),
               any(DimseRSPHandler.class));
+    }
+  }
+
+  @Nested
+  class Async_Store_Operation_Tests {
+
+    @BeforeEach
+    void setUp() throws IOException {
+      storeFromStreamSCU =
+          new StoreFromStreamSCU(advancedParams, callingNode, calledNode, dicomProgress);
+    }
+
+    @Test
+    void should_throw_exception_when_association_is_null() {
+      assertThrows(
+          IllegalStateException.class,
+          () ->
+              storeFromStreamSCU.cstoreAsync(TEST_CUID, TEST_IUID, 0, mockDataWriter, TEST_TSUID));
+    }
+
+    @Test
+    void should_complete_with_the_response_of_the_request() throws Exception {
+      CompletableFuture<Attributes> response = cstoreAsync();
+      DimseRSPHandler handler = capturedHandler();
+      Attributes cmd = new Attributes();
+      cmd.setInt(Tag.Status, VR.US, Status.OutOfResources);
+
+      assertFalse(response.isDone());
+      handler.onDimseRSP(mockAssociation, cmd, new Attributes());
+
+      assertEquals(Status.OutOfResources, response.get().getInt(Tag.Status, -1));
+      assertEquals(Status.OutOfResources, storeFromStreamSCU.getState().getStatus());
+      assertEquals(cmd, dicomProgress.getAttributes());
+    }
+
+    @Test
+    void should_fail_when_association_closes_before_the_response() throws Exception {
+      CompletableFuture<Attributes> response = cstoreAsync();
+      DimseRSPHandler handler = capturedHandler();
+
+      handler.onClose(mockAssociation);
+
+      var e = assertThrows(ExecutionException.class, response::get);
+      assertInstanceOf(IOException.class, e.getCause());
+    }
+
+    private CompletableFuture<Attributes> cstoreAsync() throws Exception {
+      setPrivateAssociation(mockAssociation);
+      when(mockAssociation.nextMessageID()).thenReturn(1);
+      return storeFromStreamSCU.cstoreAsync(TEST_CUID, TEST_IUID, 0, mockDataWriter, TEST_TSUID);
+    }
+
+    private DimseRSPHandler capturedHandler() throws Exception {
+      ArgumentCaptor<DimseRSPHandler> captor = ArgumentCaptor.forClass(DimseRSPHandler.class);
+      verify(mockAssociation)
+          .cstore(
+              eq(TEST_CUID),
+              eq(TEST_IUID),
+              eq(0),
+              eq(mockDataWriter),
+              eq(TEST_TSUID),
+              captor.capture());
+      return captor.getValue();
     }
   }
 

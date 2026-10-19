@@ -11,6 +11,7 @@ package org.weasis.dicom.util;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -148,12 +149,32 @@ public class StoreFromStreamSCU {
   }
 
   private DimseRSPHandler createResponseHandler() {
+    return createResponseHandler(null);
+  }
+
+  /**
+   * Creates the C-STORE-RSP handler. When {@code response} is not null, it is completed with the
+   * response command of this one request, or exceptionally if the association closes first.
+   */
+  private DimseRSPHandler createResponseHandler(CompletableFuture<Attributes> response) {
     return new DimseRSPHandler(as.nextMessageID()) {
       @Override
       public void onDimseRSP(Association as, Attributes cmd, Attributes data) {
         super.onDimseRSP(as, cmd, data);
         handleCStoreResponse(cmd);
         updateProgress(cmd);
+        if (response != null) {
+          response.complete(cmd);
+        }
+      }
+
+      @Override
+      public void onClose(Association as) {
+        super.onClose(as);
+        if (response != null) {
+          response.completeExceptionally(
+              new IOException("Association closed before receiving the C-STORE-RSP"));
+        }
       }
     };
   }
@@ -239,6 +260,28 @@ public class StoreFromStreamSCU {
       throw new IllegalStateException("Association is null!");
     }
     as.cstore(cuid, iuid, priority, dataWriter, tsuid, rspHandlerFactory.createDimseRSPHandler());
+  }
+
+  /**
+   * Sends a C-STORE request like {@link #cstore(String, String, int, DataWriter, String)}, and
+   * returns the response of this request. The state and the progress are updated as with {@link
+   * #cstore(String, String, int, DataWriter, String)}; unlike {@link #getState()}, the returned
+   * future belongs to this request only, so it stays reliable when several transfers share the
+   * association.
+   *
+   * @return a future completed with the C-STORE-RSP command (read its {@link Tag#Status}), or
+   *     completed exceptionally with an {@link IOException} if the association is closed before the
+   *     response is received
+   */
+  public CompletableFuture<Attributes> cstoreAsync(
+      String cuid, String iuid, int priority, DataWriter dataWriter, String tsuid)
+      throws IOException, InterruptedException {
+    if (as == null) {
+      throw new IllegalStateException("Association is null!");
+    }
+    CompletableFuture<Attributes> response = new CompletableFuture<>();
+    as.cstore(cuid, iuid, priority, dataWriter, tsuid, createResponseHandler(response));
+    return response;
   }
 
   public DicomNode getCallingNode() {

@@ -292,6 +292,9 @@ public class DicomState {
       int status = state.getStatus();
       if (Status.isPending(status) || status == INVALID_STATUS_FLAG) {
         state.setStatus(Status.UnableToProcess);
+      } else if (status == Status.Success) {
+        // The status is the one of the last response: earlier operations may have failed
+        state.setStatus(Status.OneOrMoreFailures);
       }
     }
   }

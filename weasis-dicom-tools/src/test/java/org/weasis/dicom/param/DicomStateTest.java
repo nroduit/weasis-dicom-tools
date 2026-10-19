@@ -383,6 +383,21 @@ class DicomStateTest {
     }
 
     @Test
+    void buildMessage_reports_failure_when_only_the_last_operation_succeeded() {
+      when(mockProgress.getNumberOfFailedSuboperations()).thenReturn(1);
+      when(mockProgress.getNumberOfCompletedSuboperations()).thenReturn(4);
+      when(mockProgress.getNumberOfWarningSuboperations()).thenReturn(0);
+      when(mockProgress.getNumberOfRemainingSuboperations()).thenReturn(0);
+
+      var state = new DicomState(Status.Success, null, mockProgress);
+
+      var result = DicomState.buildMessage(state, "Stored", null);
+
+      assertTrue(result.getMessage().contains("1/5 operations has failed"));
+      assertEquals(Status.OneOrMoreFailures, result.getStatus());
+    }
+
+    @Test
     void buildMessage_handles_progress_with_remaining_operations() {
       when(mockProgress.getNumberOfFailedSuboperations()).thenReturn(0);
       when(mockProgress.getNumberOfRemainingSuboperations()).thenReturn(3);

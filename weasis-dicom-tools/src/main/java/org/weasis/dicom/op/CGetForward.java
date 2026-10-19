@@ -15,6 +15,10 @@ import java.security.GeneralSecurityException;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.ElementDictionary;
 import org.dcm4che3.data.Tag;
@@ -45,6 +49,7 @@ import org.dcm4che3.net.service.DicomServiceRegistry;
 import org.dcm4che3.tool.common.CLIUtils;
 import org.dcm4che3.tool.getscu.GetSCU;
 import org.dcm4che3.util.StringUtils;
+import org.dcm4che3.util.TagUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.util.StreamUtil;
@@ -69,6 +74,49 @@ import org.weasis.dicom.util.StoreFromStreamSCU;
 public class CGetForward implements AutoCloseable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(CGetForward.class);
+
+  // How long a forwarded object waits for the response of the final destination
+  static final long DESTINATION_RSP_TIMEOUT_MS = 60_000;
+
+  /** The final destination did not store the object; carries the status for the source. */
+  static final class DestinationRefusedException extends DicomServiceException {
+    @Serial private static final long serialVersionUID = 4290567021474434745L;
+
+    DestinationRefusedException(int status, String message) {
+      super(status, message);
+    }
+  }
+
+  /**
+   * Waits for the C-STORE-RSP of the final destination and returns its status when the object was
+   * stored, i.e. Success or a warning (Bxxx).
+   *
+   * @throws DestinationRefusedException if the destination refused the object, with its status
+   * @throws IOException if no response was received within the timeout or the association closed
+   */
+  static int destinationStatus(CompletableFuture<Attributes> response, long timeoutMs)
+      throws IOException, InterruptedException {
+    Attributes cmd;
+    try {
+      cmd = response.get(timeoutMs, TimeUnit.MILLISECONDS);
+    } catch (TimeoutException e) {
+      throw new IOException(
+          "No C-STORE response from the final destination in " + timeoutMs + " ms");
+    } catch (ExecutionException e) {
+      throw e.getCause() instanceof IOException io
+          ? io
+          : new IOException("C-STORE to the final destination failed", e.getCause());
+    }
+    int status = cmd.getInt(Tag.Status, -1);
+    if (status == Status.Success || (status & 0xF000) == 0xB000) {
+      return status;
+    }
+    throw new DestinationRefusedException(
+        status,
+        "Final destination refused the object with status "
+            + TagUtils.shortToHexString(status)
+            + "H");
+  }
 
   public enum InformationModel {
     PatientRoot(UID.PatientRootQueryRetrieveInformationModelGet, "STUDY"),
@@ -151,8 +199,13 @@ public class CGetForward implements AutoCloseable {
             ensureStreamSCUReady(cuid, tsuid);
             var dataWriter = createDataWriter(as, data, fmi);
 
-            streamSCU.cstore(cuid, iuid, priority, dataWriter, tsuid);
+            var response = streamSCU.cstoreAsync(cuid, iuid, priority, dataWriter, tsuid);
+            // Answer the source with the destination's outcome: a warning is passed on, a
+            // failure is thrown (the response handler of the destination already counted it)
+            rsp.setInt(Tag.Status, VR.US, destinationStatus(response, DESTINATION_RSP_TIMEOUT_MS));
 
+          } catch (DestinationRefusedException e) {
+            throw e;
           } catch (AbortException e) {
             notifyProgressionFailure(rq);
             throw e;

@@ -15,6 +15,7 @@ import static org.mockito.Mockito.*;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
@@ -69,6 +70,55 @@ class CGetForwardTest {
     calledNode = new DicomNode(CALLED_AET, TEST_HOSTNAME, CALLED_PORT);
     destinationNode = new DicomNode(DESTINATION_AET, TEST_HOSTNAME, DEST_PORT);
     progress = new DicomProgress();
+  }
+
+  @Nested
+  class Destination_status_tests {
+
+    @Test
+    void returns_success_of_the_destination() throws Exception {
+      assertEquals(
+          Status.Success, CGetForward.destinationStatus(responseWith(Status.Success), 1000));
+    }
+
+    @Test
+    void returns_warning_of_the_destination() throws Exception {
+      assertEquals(
+          Status.CoercionOfDataElements,
+          CGetForward.destinationStatus(responseWith(Status.CoercionOfDataElements), 1000));
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {Status.OutOfResources, Status.ProcessingFailure, Status.CannotUnderstand})
+    void throws_the_failure_status_of_the_destination(int status) {
+      var e =
+          assertThrows(
+              CGetForward.DestinationRefusedException.class,
+              () -> CGetForward.destinationStatus(responseWith(status), 1000));
+
+      assertEquals(status, e.getStatus());
+    }
+
+    @Test
+    void throws_io_exception_without_response() {
+      assertThrows(
+          IOException.class, () -> CGetForward.destinationStatus(new CompletableFuture<>(), 10));
+    }
+
+    @Test
+    void throws_io_exception_when_association_closed() {
+      var response = CompletableFuture.<Attributes>failedFuture(new IOException("closed"));
+
+      var e = assertThrows(IOException.class, () -> CGetForward.destinationStatus(response, 1000));
+
+      assertEquals("closed", e.getMessage());
+    }
+
+    private CompletableFuture<Attributes> responseWith(int status) {
+      var cmd = new Attributes();
+      cmd.setInt(Tag.Status, VR.US, status);
+      return CompletableFuture.completedFuture(cmd);
+    }
   }
 
   @Nested

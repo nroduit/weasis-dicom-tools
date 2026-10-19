@@ -284,6 +284,59 @@ class DicomStowRSTest {
       assertTrue(exception.getMessage().contains("404"));
     }
 
+    @Test
+    void should_throw_http_exception_when_accepted_response_lists_failed_instances()
+        throws Exception {
+      setupErrorHttpResponse(
+          202,
+          stowResponse(
+              "<DicomAttribute tag=\"00081198\" vr=\"SQ\"><Item number=\"1\">"
+                  + "<DicomAttribute tag=\"00081155\" vr=\"UI\"><Value number=\"1\">1.2.3</Value>"
+                  + "</DicomAttribute><DicomAttribute tag=\"00081197\" vr=\"US\">"
+                  + "<Value number=\"1\">272</Value></DicomAttribute></Item></DicomAttribute>"));
+      dicomStowRS = createDicomStowRSWithMockedHttpClient();
+
+      HttpException exception =
+          assertThrows(
+              HttpException.class,
+              () -> dicomStowRS.uploadPayload(Payload.ofBytes(createTestDicomData())));
+
+      assertEquals(202, exception.getStatusCode());
+      assertTrue(exception.getMessage().contains("1.2.3 (failure reason 272)"));
+    }
+
+    @Test
+    void should_accept_accepted_response_with_warnings_only() throws Exception {
+      setupErrorHttpResponse(
+          202,
+          stowResponse(
+              "<DicomAttribute tag=\"00081199\" vr=\"SQ\"><Item number=\"1\">"
+                  + "<DicomAttribute tag=\"00081196\" vr=\"US\"><Value number=\"1\">45056</Value>"
+                  + "</DicomAttribute></Item></DicomAttribute>"));
+      dicomStowRS = createDicomStowRSWithMockedHttpClient();
+
+      assertDoesNotThrow(() -> dicomStowRS.uploadPayload(Payload.ofBytes(createTestDicomData())));
+    }
+
+    @Test
+    void should_throw_http_exception_for_redirection_not_followed() throws Exception {
+      setupErrorHttpResponse(302, "");
+      dicomStowRS = createDicomStowRSWithMockedHttpClient();
+
+      HttpException exception =
+          assertThrows(
+              HttpException.class,
+              () -> dicomStowRS.uploadPayload(Payload.ofBytes(createTestDicomData())));
+
+      assertEquals(302, exception.getStatusCode());
+    }
+
+    private static String stowResponse(String attributes) {
+      return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><NativeDicomModel>"
+          + attributes
+          + "</NativeDicomModel>";
+    }
+
     @ParameterizedTest
     @ValueSource(ints = {400, 401, 403, 404, 500, 502, 503})
     void should_throw_http_exception_for_various_error_codes(int statusCode) throws Exception {
@@ -499,7 +552,7 @@ class DicomStowRSTest {
       assertDoesNotThrow(() -> dicomStowRS.uploadDicom(testFile));
 
       verify(mockHttpClient).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
-      verify(mockResponse).statusCode();
+      verify(mockResponse, atLeastOnce()).statusCode();
       verify(mockResponse).body();
     }
 

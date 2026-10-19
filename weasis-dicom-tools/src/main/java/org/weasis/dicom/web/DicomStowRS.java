@@ -21,6 +21,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -30,7 +31,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 import org.dcm4che3.data.Attributes;
+import org.dcm4che3.data.Sequence;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.img.DicomImageReadParam;
 import org.dcm4che3.img.DicomImageReader;
@@ -41,6 +44,7 @@ import org.dcm4che3.img.stream.BytesWithImageDescriptor;
 import org.dcm4che3.img.stream.ImageAdapter.AdaptTransferSyntax;
 import org.dcm4che3.img.util.Editable;
 import org.dcm4che3.io.DicomOutputStream;
+import org.dcm4che3.io.SAXReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.util.annotations.Generated;
@@ -147,6 +151,54 @@ public class DicomStowRS implements AutoCloseable {
     HttpResponse<String> response = sendRequest(request, payload.isReplayable());
 
     logResponse(response);
+    checkStoreResponse(response);
+  }
+
+  /**
+   * Rejects a response that does not confirm the storage. A redirection that was not followed
+   * stored nothing, and a 202 Accepted carrying a Failed SOP Sequence means that some instances
+   * were not stored (PS3.18 10.5.3); a 202 with warnings only is accepted.
+   *
+   * @throws HttpException carrying the response status code
+   */
+  static void checkStoreResponse(HttpResponse<String> response) throws HttpException {
+    int statusCode = response.statusCode();
+    if (statusCode >= 300) {
+      throw HttpException.fromResponse("STOW-RS request not completed", response);
+    }
+    if (statusCode == 202) {
+      String failures = failedInstances(response.body());
+      if (failures != null) {
+        throw new HttpException(
+            "STOW-RS failed to store: " + failures, statusCode, response.body(), null);
+      }
+    }
+  }
+
+  /** Returns the failed instances listed in a STOW-RS XML response, or null if there is none. */
+  static String failedInstances(String body) {
+    if (body == null || body.isBlank()) {
+      return null;
+    }
+    Attributes attributes;
+    try {
+      attributes = SAXReader.parse(new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)));
+    } catch (Exception e) {
+      LOGGER.warn("Cannot read the STOW-RS response, the failed instances are unknown", e);
+      return null;
+    }
+    Sequence failed = attributes.getSequence(Tag.FailedSOPSequence);
+    if (failed == null || failed.isEmpty()) {
+      return null;
+    }
+    return failed.stream()
+        .map(
+            item ->
+                item.getString(Tag.ReferencedSOPInstanceUID, "unknown SOP Instance UID")
+                    + " (failure reason "
+                    + item.getInt(Tag.FailureReason, -1)
+                    + ")")
+        .collect(Collectors.joining(", "));
   }
 
   @Override

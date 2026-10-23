@@ -12,6 +12,7 @@ package org.weasis.dicom.op;
 import java.io.IOException;
 import java.io.Serial;
 import java.security.GeneralSecurityException;
+import java.text.MessageFormat;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Properties;
@@ -457,6 +458,9 @@ public class CGetForward implements AutoCloseable {
   private void retrieve(Attributes keys) throws IOException, InterruptedException {
     var rspHandler = createResponseHandler();
     as.cget(model.cuid, priority, keys, null, rspHandler);
+    // cget only dispatches the request: wait for the final C-GET-RSP so the state is
+    // complete when the caller reads it
+    as.waitForOutstandingRSP();
   }
 
   private DimseRSPHandler createResponseHandler() {
@@ -464,6 +468,13 @@ public class CGetForward implements AutoCloseable {
       @Override
       public void onDimseRSP(Association as, Attributes cmd, Attributes data) {
         super.onDimseRSP(as, cmd, data);
+        int status = cmd.getInt(Tag.Status, -1);
+        if (!Status.isPending(status)) {
+          // The final C-GET-RSP is the outcome of the retrieve (e.g. B000 when a
+          // sub-operation failed); without it the state keeps the status of the last
+          // forwarded C-STORE-RSP, Success when only the last instance was stored
+          streamSCU.getState().setStatus(status);
+        }
         var progress = streamSCU.getState().getProgress();
         if (progress != null) {
           if (streamSCU.getNumberOfSuboperations() == 0) {
@@ -621,10 +632,13 @@ public class CGetForward implements AutoCloseable {
 
         forward.getDeviceService().start();
         forward.getStreamSCUService().start();
+        long startTime = System.currentTimeMillis();
         forward.open();
+        long connectTime = System.currentTimeMillis();
         forward.retrieve();
+        long endTime = System.currentTimeMillis();
 
-        return forward.getState();
+        return buildState(forward, callingNode, calledNode, startTime, connectTime, endTime);
       } finally {
         // Release both associations before shutting down the executors they run on
         StreamUtil.safeClose(forward);
@@ -641,6 +655,30 @@ public class CGetForward implements AutoCloseable {
           "DICOM Get failed" + StringUtil.COLON_AND_SPACE + e.getMessage(),
           null);
     }
+  }
+
+  /**
+   * Builds the final state of a forward. The message reports the failed sub-operations, and a
+   * Success with failed sub-operations (a C-GET SCP that ignores the refusals of the final
+   * destination) becomes One or more failures (B000).
+   */
+  private static DicomState buildState(
+      CGetForward forward,
+      DicomNode callingNode,
+      DicomNode calledNode,
+      long startTime,
+      long connectTime,
+      long endTime) {
+    var timeMsg =
+        MessageFormat.format(
+            "DICOM C-GET forward connected in {2}ms from {0} to {1}. Forwarded files in {3}ms.",
+            callingNode.getAet(),
+            calledNode.getAet(),
+            connectTime - startTime,
+            endTime - connectTime);
+    var state = DicomState.buildMessage(forward.getState(), timeMsg, null);
+    state.addProcessTime(startTime, connectTime, endTime);
+    return state;
   }
 
   private static void validateProcessParameters(

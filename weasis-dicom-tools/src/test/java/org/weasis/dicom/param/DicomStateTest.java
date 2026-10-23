@@ -118,6 +118,20 @@ class DicomStateTest {
 
       assertEquals(newStatus, state.getStatus());
     }
+
+    @Test
+    void setStatus_is_not_shadowed_by_the_status_of_the_last_response() {
+      var progress = new DicomProgress();
+      var lastResponse = new Attributes();
+      lastResponse.setInt(Tag.Status, VR.US, Status.Success);
+      progress.setAttributes(lastResponse);
+      var state = new DicomState(progress);
+
+      state.setStatus(Status.OneOrMoreFailures);
+
+      assertEquals(Status.OneOrMoreFailures, state.getStatus());
+      assertEquals(Status.OneOrMoreFailures, progress.getStatus());
+    }
   }
 
   @Nested
@@ -390,6 +404,24 @@ class DicomStateTest {
       when(mockProgress.getNumberOfRemainingSuboperations()).thenReturn(0);
 
       var state = new DicomState(Status.Success, null, mockProgress);
+
+      var result = DicomState.buildMessage(state, "Stored", null);
+
+      assertTrue(result.getMessage().contains("1/5 operations has failed"));
+      assertEquals(Status.OneOrMoreFailures, result.getStatus());
+    }
+
+    @Test
+    void buildMessage_reports_failure_when_the_last_response_was_a_success() {
+      // Real progress: the status read back is the one of the last response attributes
+      var progress = new DicomProgress();
+      var lastResponse = new Attributes();
+      lastResponse.setInt(Tag.Status, VR.US, Status.Success);
+      lastResponse.setInt(Tag.NumberOfCompletedSuboperations, VR.US, 4);
+      lastResponse.setInt(Tag.NumberOfFailedSuboperations, VR.US, 1);
+      lastResponse.setInt(Tag.NumberOfRemainingSuboperations, VR.US, 0);
+      progress.setAttributes(lastResponse);
+      var state = new DicomState(progress);
 
       var result = DicomState.buildMessage(state, "Stored", null);
 

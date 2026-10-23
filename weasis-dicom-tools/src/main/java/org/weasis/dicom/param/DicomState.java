@@ -18,6 +18,8 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
 import org.dcm4che3.data.Attributes;
+import org.dcm4che3.data.Tag;
+import org.dcm4che3.data.VR;
 import org.dcm4che3.net.QueryOption;
 import org.dcm4che3.net.Status;
 import org.weasis.core.util.StringUtil;
@@ -78,9 +80,19 @@ public class DicomState {
     return status;
   }
 
-  /** Sets the DICOM status. */
+  /**
+   * Sets the DICOM status. {@link #getStatus()} reads the status of the progress attributes when
+   * there are some (the last response received), so they are updated too; otherwise a final status
+   * set after the last response, e.g. by {@link #buildMessage}, would be shadowed by it.
+   */
   public void setStatus(int status) {
     this.status = status;
+    if (progress != null) {
+      Attributes attributes = progress.getAttributes();
+      if (attributes != null) {
+        attributes.setInt(Tag.Status, VR.US, status);
+      }
+    }
   }
 
   public synchronized String getMessage() {

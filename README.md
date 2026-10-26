@@ -78,9 +78,9 @@ Image I/O is also exposed as a standard `ImageReader` via `DicomImageReader` (re
 
 ## Getting started
 
-The artifact version tracks the underlying dcm4che release with a trailing `.1` qualifier
-(`${dcm4che.version}.1`, e.g. `5.34.3.1`). Releases are published to a GitHub-hosted Maven
-repository:
+The artifact version tracks the underlying dcm4che release (`${dcm4che.version}`, e.g.
+`5.35.2`), with a fourth number for a further release on the same dcm4che version (e.g.
+`5.34.3.1`). Releases are published to a GitHub-hosted Maven repository:
 
 ```xml
 <repositories>
@@ -98,7 +98,7 @@ repository:
 <dependency>
   <groupId>org.weasis</groupId>
   <artifactId>weasis-dicom-tools</artifactId>
-  <version>5.34.3.1</version>
+  <version>5.35.2</version>
 </dependency>
 ```
 

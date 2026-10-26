@@ -16,6 +16,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.SequenceInputStream;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
@@ -374,8 +375,8 @@ public class DicomStowRS implements AutoCloseable {
 
           return new SequenceInputStream(Collections.enumeration(streams));
         } catch (IOException e) {
-          LOGGER.error("Failed to create stream payload", e);
-          return InputStream.nullInputStream();
+          // Failing the upload, an empty part would be sent as if it were the instance
+          throw new UncheckedIOException("Failed to create stream payload", e);
         }
       }
     };
@@ -405,8 +406,7 @@ public class DicomStowRS implements AutoCloseable {
 
           return new ByteArrayInputStream(output.toByteArray());
         } catch (IOException e) {
-          LOGGER.error("Failed to create metadata payload", e);
-          return InputStream.nullInputStream();
+          throw new UncheckedIOException("Failed to create metadata payload", e);
         }
       }
     };
@@ -445,8 +445,7 @@ public class DicomStowRS implements AutoCloseable {
       try {
         return createCompressedStream();
       } catch (IOException e) {
-        LOGGER.error("Failed to create compressed image stream", e);
-        return InputStream.nullInputStream();
+        throw new UncheckedIOException("Failed to create compressed image stream", e);
       }
     }
 

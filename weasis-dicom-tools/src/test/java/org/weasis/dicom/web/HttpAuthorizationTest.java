@@ -17,6 +17,8 @@ import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
@@ -208,6 +210,27 @@ class HttpAuthorizationTest {
           DicomStowConfig.builder().requestUrl("https://pacs").expectContinueThreshold(0).build();
       assertTrue(always.useExpectContinue(-1));
       assertTrue(always.useExpectContinue(1));
+    }
+
+    @Test
+    void payload_that_cannot_be_read_fails_the_upload() {
+      Payload unreadable =
+          new Payload() {
+            @Override
+            public long size() {
+              return -1;
+            }
+
+            @Override
+            public InputStream newInputStream() {
+              throw new UncheckedIOException(new IOException("cannot read the instance"));
+            }
+          };
+
+      try (DicomStowRS stow = stow(AuthorizationProvider.NONE)) {
+        IOException e = assertThrows(IOException.class, () -> stow.uploadPayload(unreadable));
+        assertTrue(e.getMessage().contains("cannot read the instance"), e.getMessage());
+      }
     }
 
     @Test

@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A Java 17 DICOM toolkit built on top of [dcm4che3](https://github.com/dcm4che/dcm4che) (currently 5.34.2) and [weasis-core-img](https://github.com/nroduit/weasis-core-img) (currently 4.13.0, our OpenCV wrapping). It exposes a DICOM network API (C-Echo / C-Find / C-Get / C-Move / C-Store, STOW-RS, Modality Worklist), DICOM file utilities (transcoder, image I/O via a `DicomImageReader` ImageIO SPI, masking / de-identification, presentation states, LUTs), DICOM hanging protocol parsing, and anatomic-region code mapping. Consumed downstream by Weasis, Karnak, and weasis-pacs-connector.
+A Java 17 DICOM toolkit built on top of [dcm4che3](https://github.com/dcm4che/dcm4che) (currently 5.35.2) and [weasis-core-img](https://github.com/nroduit/weasis-core-img) (currently 5.0.0.1, our OpenCV wrapping). It exposes a DICOM network API (C-Echo / C-Find / C-Get / C-Move / C-Store, STOW-RS, Modality Worklist), DICOM file utilities (transcoder, image I/O via a `DicomImageReader` ImageIO SPI, masking / de-identification, presentation states, LUTs), DICOM hanging protocol parsing, and anatomic-region code mapping. Consumed downstream by Weasis, Karnak, and weasis-pacs-connector.
 
-Artifact version tracks the underlying dcm4che release: `${dcm4che.version}` (e.g. `5.34.2`), with optional `sha1` / `changelist` qualifiers driven by `flatten-maven-plugin`.
+Artifact version tracks the underlying dcm4che release: `${dcm4che.version}` (e.g. `5.35.2`), with optional `sha1` / `changelist` qualifiers driven by `flatten-maven-plugin`.
 
 ## Build & test
 

@@ -17,7 +17,7 @@ evidence under the framework that applies to them.
 ## 1. Scope
 
 `weasis-dicom-tools` is a Java 17 DICOM toolkit built on top of
-[dcm4che3](https://github.com/dcm4che/dcm4che) (5.34.2) and the OpenCV
+[dcm4che3](https://github.com/dcm4che/dcm4che) (5.35.2) and the OpenCV
 wrapping in [weasis-core-img](https://github.com/nroduit/weasis-core-img).
 It exposes:
 

@@ -366,7 +366,8 @@ public class UpsRS {
             request,
             HttpResponse.BodyHandlers.ofByteArray());
     LOGGER.debug("UPS-RS {} {} -> {}", request.method(), request.uri(), response.statusCode());
-    if (response.statusCode() >= HttpURLConnection.HTTP_BAD_REQUEST) {
+    // A redirection that was not followed did nothing on the server
+    if (response.statusCode() >= HttpURLConnection.HTTP_MULT_CHOICE) {
       throw new HttpException(
           "UPS-RS %s %s failed".formatted(request.method(), request.uri()),
           response.statusCode(),

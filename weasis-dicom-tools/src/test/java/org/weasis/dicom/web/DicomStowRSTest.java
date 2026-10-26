@@ -52,6 +52,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.weasis.dicom.param.AttributeEditorContext;
 import org.weasis.opencv.data.PlanarImage;
 import org.weasis.opencv.op.ImageTransformer;
+import org.xml.sax.SAXParseException;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayNameGeneration(ReplaceUnderscores.class)
@@ -303,6 +304,26 @@ class DicomStowRSTest {
 
       assertEquals(202, exception.getStatusCode());
       assertTrue(exception.getMessage().contains("1.2.3 (failure reason 272)"));
+    }
+
+    @Test
+    void should_not_resolve_external_entities_of_the_response() throws Exception {
+      Path secret = Files.createTempFile("stow-xxe", ".txt");
+      try {
+        Files.writeString(secret, "1.2.3");
+        String body =
+            "<?xml version=\"1.0\"?><!DOCTYPE NativeDicomModel [<!ENTITY xxe SYSTEM \""
+                + secret.toUri()
+                + "\">]><NativeDicomModel><DicomAttribute tag=\"00081198\" vr=\"SQ\">"
+                + "<Item number=\"1\"><DicomAttribute tag=\"00081155\" vr=\"UI\">"
+                + "<Value number=\"1\">&xxe;</Value></DicomAttribute></Item></DicomAttribute>"
+                + "</NativeDicomModel>";
+
+        assertThrows(SAXParseException.class, () -> DicomStowRS.parseXml(body));
+        assertNull(DicomStowRS.failedInstances(body));
+      } finally {
+        Files.deleteIfExists(secret);
+      }
     }
 
     @Test

@@ -32,6 +32,9 @@ import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
+import javax.xml.XMLConstants;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.parsers.SAXParserFactory;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Sequence;
 import org.dcm4che3.data.Tag;
@@ -43,12 +46,13 @@ import org.dcm4che3.img.Transcoder;
 import org.dcm4che3.img.stream.BytesWithImageDescriptor;
 import org.dcm4che3.img.stream.ImageAdapter.AdaptTransferSyntax;
 import org.dcm4che3.img.util.Editable;
+import org.dcm4che3.io.ContentHandlerAdapter;
 import org.dcm4che3.io.DicomOutputStream;
-import org.dcm4che3.io.SAXReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.weasis.core.util.annotations.Generated;
 import org.weasis.opencv.data.PlanarImage;
+import org.xml.sax.SAXException;
 
 /**
  * DICOM Store Over Web (STOW-RS) client implementation. Provides methods for uploading DICOM data
@@ -113,7 +117,7 @@ public class DicomStowRS implements AutoCloseable {
   }
 
   /** Uploads a DICOM file from the specified path. */
-  public void uploadDicom(Path path) throws Exception {
+  public void uploadDicom(Path path) throws IOException, InterruptedException {
     Objects.requireNonNull(path, "Path cannot be null");
     if (!Files.exists(path)) {
       throw new IllegalArgumentException("File does not exist: " + path);
@@ -123,7 +127,8 @@ public class DicomStowRS implements AutoCloseable {
   }
 
   /** Uploads DICOM data from an input stream with file meta information. */
-  public void uploadDicom(InputStream inputStream, Attributes fileMetaInfo) throws Exception {
+  public void uploadDicom(InputStream inputStream, Attributes fileMetaInfo)
+      throws IOException, InterruptedException {
     Objects.requireNonNull(inputStream, "Input stream cannot be null");
     Objects.requireNonNull(fileMetaInfo, "File meta information cannot be null");
 
@@ -132,7 +137,8 @@ public class DicomStowRS implements AutoCloseable {
   }
 
   /** Uploads DICOM metadata as a new dataset. */
-  public void uploadDicom(Attributes metadata, String transferSyntaxUid) throws Exception {
+  public void uploadDicom(Attributes metadata, String transferSyntaxUid)
+      throws IOException, InterruptedException {
     Objects.requireNonNull(metadata, "Metadata cannot be null");
     Objects.requireNonNull(transferSyntaxUid, "Transfer syntax UID cannot be null");
 
@@ -141,7 +147,7 @@ public class DicomStowRS implements AutoCloseable {
   }
 
   /** Uploads a prepared payload. */
-  public void uploadPayload(Payload payload) throws Exception {
+  public void uploadPayload(Payload payload) throws IOException, InterruptedException {
     Objects.requireNonNull(payload, "Payload cannot be null");
 
     var multipartBody = new MultipartBody(config.getContentType(), DEFAULT_BOUNDARY);
@@ -175,6 +181,25 @@ public class DicomStowRS implements AutoCloseable {
     }
   }
 
+  /**
+   * Parses a DICOM Native XML response. The body comes from the server, so DTDs are refused: they
+   * would let it make the parser read local files or reach other hosts (XXE).
+   */
+  static Attributes parseXml(String body)
+      throws ParserConfigurationException, SAXException, IOException {
+    SAXParserFactory factory = SAXParserFactory.newInstance();
+    factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+    factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+    factory.setXIncludeAware(false);
+    Attributes attributes = new Attributes();
+    factory
+        .newSAXParser()
+        .parse(
+            new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)),
+            new ContentHandlerAdapter(attributes));
+    return attributes;
+  }
+
   /** Returns the failed instances listed in a STOW-RS XML response, or null if there is none. */
   static String failedInstances(String body) {
     if (body == null || body.isBlank()) {
@@ -182,7 +207,7 @@ public class DicomStowRS implements AutoCloseable {
     }
     Attributes attributes;
     try {
-      attributes = SAXReader.parse(new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)));
+      attributes = parseXml(body);
     } catch (Exception e) {
       LOGGER.warn("Cannot read the STOW-RS response, the failed instances are unknown", e);
       return null;
@@ -202,7 +227,7 @@ public class DicomStowRS implements AutoCloseable {
   }
 
   @Override
-  public void close() throws Exception {
+  public void close() {
     if (executorService != null && !executorService.isShutdown()) {
       executorService.shutdown();
     }
@@ -226,8 +251,7 @@ public class DicomStowRS implements AutoCloseable {
       Attributes data,
       AdaptTransferSyntax syntax,
       BytesWithImageDescriptor desc,
-      Editable<PlanarImage> editable)
-      throws IOException {
+      Editable<PlanarImage> editable) {
     return new CompressedImagePayload(data, syntax, desc, editable);
   }
 
@@ -250,7 +274,7 @@ public class DicomStowRS implements AutoCloseable {
         .build();
   }
 
-  private HttpRequest buildHttpRequest(MultipartBody multipartBody) throws Exception {
+  private HttpRequest buildHttpRequest(MultipartBody multipartBody) {
     HttpRequest.Builder builder =
         HttpRequest.newBuilder()
             .uri(URI.create(config.getRequestUrl()))
@@ -274,7 +298,8 @@ public class DicomStowRS implements AutoCloseable {
   }
 
   // The multipart publisher re-opens the payload streams, so a replayable request can be resent.
-  HttpResponse<String> sendRequest(HttpRequest request, boolean replayable) throws Exception {
+  HttpResponse<String> sendRequest(HttpRequest request, boolean replayable)
+      throws IOException, InterruptedException {
     HttpResponse<String> response =
         HttpAuthorization.send(
             httpClient,
@@ -364,6 +389,11 @@ public class DicomStowRS implements AutoCloseable {
       }
 
       @Override
+      public boolean isReplayable() {
+        return true;
+      }
+
+      @Override
       public InputStream newInputStream() {
         try {
           Attributes fileMetaInfo = metadata.createFileMetaInformation(transferSyntaxUid);
@@ -403,6 +433,11 @@ public class DicomStowRS implements AutoCloseable {
     @Override
     public long size() {
       return -1; // Compressed size is unknown
+    }
+
+    @Override
+    public boolean isReplayable() {
+      return true; // Transcodes again from the source attributes
     }
 
     @Override

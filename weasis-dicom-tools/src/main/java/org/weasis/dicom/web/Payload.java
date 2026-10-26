@@ -39,10 +39,12 @@ public interface Payload {
 
   /**
    * Whether {@link #newInputStream()} can be called again to resend the payload, e.g. after the
-   * server rejected expired credentials.
+   * server rejected expired credentials. False by default, as a payload wrapping a stream that can
+   * be read only once would be resent truncated; override it when each call returns the whole
+   * payload again.
    */
   default boolean isReplayable() {
-    return true;
+    return false;
   }
 
   /**
@@ -94,6 +96,11 @@ public interface Payload {
     public InputStream newInputStream() {
       return new ByteArrayInputStream(data);
     }
+
+    @Override
+    public boolean isReplayable() {
+      return true;
+    }
   }
 
   /** Payload implementation for files. */
@@ -120,6 +127,11 @@ public interface Payload {
         throw new UncheckedIOException(e);
       }
     }
+
+    @Override
+    public boolean isReplayable() {
+      return true;
+    }
   }
 
   /** Empty payload implementation. */
@@ -134,6 +146,11 @@ public interface Payload {
     @Override
     public InputStream newInputStream() {
       return InputStream.nullInputStream();
+    }
+
+    @Override
+    public boolean isReplayable() {
+      return true;
     }
   }
 }

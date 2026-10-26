@@ -454,6 +454,15 @@ class MultipartBodyTest {
 
       assertEquals(1, multipartBody.getParts().size());
       assertEquals(-1, multipartBody.getParts().get(0).payload().size());
+      // An unknown implementation may wrap a stream that can be read only once
+      assertFalse(unknownSizePayload.isReplayable());
+    }
+
+    @Test
+    void built_in_payloads_are_replayable() {
+      assertTrue(Payload.ofBytes(TEST_DATA).isReplayable());
+      assertTrue(new Payload.FilePayload(Path.of("any.dcm")).isReplayable());
+      assertTrue(Payload.EmptyPayload.INSTANCE.isReplayable());
     }
   }
 

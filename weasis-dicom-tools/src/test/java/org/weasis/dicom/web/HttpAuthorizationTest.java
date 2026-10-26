@@ -49,6 +49,7 @@ import org.weasis.dicom.web.RecordingHttpServer.RecordedRequest;
 class HttpAuthorizationTest {
 
   private static final String WWW_AUTHENTICATE = "WWW-Authenticate";
+  private static final long EXPECT_CONTINUE_THRESHOLD = 8L * 1024 * 1024;
 
   private static HttpHeaders challenge(String value) {
     return HttpHeaders.of(Map.of(WWW_AUTHENTICATE, List.of(value)), (k, v) -> true);
@@ -151,7 +152,7 @@ class HttpAuthorizationTest {
     }
 
     private DicomStowRS stow(AuthorizationProvider auth) {
-      return stow(auth, DicomStowConfig.DEFAULT_EXPECT_CONTINUE_THRESHOLD);
+      return stow(auth, EXPECT_CONTINUE_THRESHOLD);
     }
 
     private DicomStowRS stow(AuthorizationProvider auth, long expectContinueThreshold) {
@@ -175,13 +176,22 @@ class HttpAuthorizationTest {
     }
 
     @Test
-    void expect_continue_applies_to_large_known_payloads_with_a_provider() {
-      DicomStowConfig withProvider =
+    void expect_continue_is_opt_in_and_applies_to_large_known_payloads() {
+      DicomStowConfig byDefault =
           DicomStowConfig.builder()
               .requestUrl("https://pacs")
               .authorization(new RotatingToken().provider)
               .build();
-      long threshold = DicomStowConfig.DEFAULT_EXPECT_CONTINUE_THRESHOLD;
+      assertEquals(-1, byDefault.getExpectContinueThreshold());
+      assertFalse(byDefault.useExpectContinue(Long.MAX_VALUE));
+
+      long threshold = EXPECT_CONTINUE_THRESHOLD;
+      DicomStowConfig withProvider =
+          DicomStowConfig.builder()
+              .requestUrl("https://pacs")
+              .authorization(new RotatingToken().provider)
+              .expectContinueThreshold(threshold)
+              .build();
       assertTrue(withProvider.useExpectContinue(threshold));
       assertFalse(withProvider.useExpectContinue(threshold - 1));
       assertFalse(withProvider.useExpectContinue(-1));

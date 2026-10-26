@@ -24,8 +24,6 @@ public final class DicomStowConfig {
   private static final String DEFAULT_USER_AGENT = "Weasis STOW-RS Client";
   private static final int DEFAULT_THREAD_POOL_SIZE = 5;
   private static final Duration DEFAULT_CONNECT_TIMEOUT = Duration.ofSeconds(10);
-  // Below this size the extra round trip of 100-continue costs more than an occasional re-upload.
-  static final long DEFAULT_EXPECT_CONTINUE_THRESHOLD = 8L * 1024 * 1024;
   static final long EXPECT_CONTINUE_DISABLED = -1;
   // DICOMweb servers vary in HTTP/2 support, and STOW uses multipart/related streaming
   // which is best-tested over chunked HTTP/1.1.
@@ -52,14 +50,7 @@ public final class DicomStowConfig {
     this.httpVersion = builder.httpVersion;
     this.authorization = builder.authorization;
     this.requestTimeout = builder.requestTimeout;
-    if (builder.expectContinueThreshold != null) {
-      this.expectContinueThreshold = builder.expectContinueThreshold;
-    } else {
-      this.expectContinueThreshold =
-          authorization != AuthorizationProvider.NONE
-              ? DEFAULT_EXPECT_CONTINUE_THRESHOLD
-              : EXPECT_CONTINUE_DISABLED;
-    }
+    this.expectContinueThreshold = builder.expectContinueThreshold;
   }
 
   public String getRequestUrl() {
@@ -143,7 +134,7 @@ public final class DicomStowConfig {
     private Duration connectTimeout = DEFAULT_CONNECT_TIMEOUT;
     private HttpClient.Version httpVersion = DEFAULT_HTTP_VERSION;
     private AuthorizationProvider authorization = AuthorizationProvider.NONE;
-    private Long expectContinueThreshold;
+    private long expectContinueThreshold = EXPECT_CONTINUE_DISABLED;
     private Duration requestTimeout;
 
     private Builder() {}
@@ -205,9 +196,10 @@ public final class DicomStowConfig {
     /**
      * Sends {@code Expect: 100-continue} (RFC 9110 §10.1.1) for payloads of at least {@code
      * minBytes}, so the server can reject the credentials before a large upload, at the cost of one
-     * round trip. {@code 0} applies it to every upload, a negative value disables it. Defaults to 8
-     * MiB with an {@link AuthorizationProvider}, disabled otherwise. Disable it for servers or
-     * proxies that do not answer {@code 100 Continue}.
+     * round trip. {@code 0} applies it to every upload, a negative value disables it. Disabled by
+     * default: the client holds the body until the server answers, so a server or proxy that
+     * ignores {@code Expect} would stall the upload; enable it only for servers known to answer
+     * {@code 100 Continue}, and bound the wait with {@link #requestTimeout(Duration)}.
      */
     public Builder expectContinueThreshold(long minBytes) {
       this.expectContinueThreshold = minBytes < 0 ? EXPECT_CONTINUE_DISABLED : minBytes;

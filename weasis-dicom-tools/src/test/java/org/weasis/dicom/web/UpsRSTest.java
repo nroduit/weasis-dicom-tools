@@ -295,6 +295,20 @@ class UpsRSTest {
       assertEquals(409, ex.getStatusCode());
       assertEquals("Wrong state", ex.getResponseBody().orElseThrow());
     }
+
+    @Test
+    void redirection_not_followed_is_reported_as_http_exception() {
+      server.enqueue(
+          new CannedResponse(
+              301, Map.of("Location", "https://elsewhere/dicomweb/workitems/9.9.9"), new byte[0]));
+      UpsRS ups = client(AuthorizationProvider.bearer(() -> "token", () -> {}));
+
+      HttpException ex =
+          assertThrows(HttpException.class, () -> ups.createWorkitem(workitem(), WORKITEM_UID));
+
+      assertEquals(301, ex.getStatusCode());
+      assertEquals(1, requests.size());
+    }
   }
 
   @Nested

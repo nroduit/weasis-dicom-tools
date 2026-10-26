@@ -215,7 +215,7 @@ public final class DicomObjectUtil {
     int right = dcm.getInt(Tag.ShutterRightVerticalEdge, 0);
     int bottom = dcm.getInt(Tag.ShutterLowerHorizontalEdge, 0);
     Rectangle2D rect = new Rectangle2D.Double();
-    rect.setFrameFromDiagonal(left - 1, top - 1, right - 1, bottom - 1);
+    rect.setFrameFromDiagonal(left - 1.0, top - 1.0, right - 1.0, bottom - 1.0);
     if (rect.isEmpty()) {
       LOGGER.warn(
           "Shutter rectangle has an empty area: left={}, top={}, right={}, bottom={}",

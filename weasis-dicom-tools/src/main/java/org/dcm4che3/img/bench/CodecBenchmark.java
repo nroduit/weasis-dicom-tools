@@ -682,7 +682,7 @@ public class CodecBenchmark {
   /** Output stream that discards data but counts bytes and keeps a running SHA-256. */
   private static final class CountingDigestStream extends OutputStream {
     long count;
-    final MessageDigest md;
+    final MessageDigest md; // NOSONAR one stream per run, written by a single thread
 
     CountingDigestStream() throws NoSuchAlgorithmException {
       md = MessageDigest.getInstance("SHA-256");

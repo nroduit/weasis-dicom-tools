@@ -1,5 +1,21 @@
 # Changelog
 
+## [v5.35.2](https://github.com/nroduit/weasis-dicom-tools/tree/v5.35.2) (2026-10-26)
+
+[Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.35.1...v5.35.2)
+
+**Closed issues:**
+
+- CFind.process\(\) leaks executor threads due to missing DeviceOpService.stop\(\) [\#64](https://github.com/nroduit/weasis-dicom-tools/issues/64)
+
+**Merged pull requests:**
+
+- ci: bump actions/setup-java from 6.0.1 to 6.1.0 in the actions group [\#65](https://github.com/nroduit/weasis-dicom-tools/pull/65) ([dependabot[bot]](https://github.com/apps/dependabot))
+- build: bump the maven group across 2 directories with 1 update [\#63](https://github.com/nroduit/weasis-dicom-tools/pull/63) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci: bump the actions group with 2 updates [\#62](https://github.com/nroduit/weasis-dicom-tools/pull/62) ([dependabot[bot]](https://github.com/apps/dependabot))
+- build: bump the maven group across 2 directories with 1 update [\#61](https://github.com/nroduit/weasis-dicom-tools/pull/61) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci: bump actions/setup-java from 6.0.0 to 6.0.1 in the actions group [\#60](https://github.com/nroduit/weasis-dicom-tools/pull/60) ([dependabot[bot]](https://github.com/apps/dependabot))
+
 ## [v5.35.1](https://github.com/nroduit/weasis-dicom-tools/tree/v5.35.1) (2026-10-01)
 
 [Full Changelog](https://github.com/nroduit/weasis-dicom-tools/compare/v5.35.0...v5.35.1)

@@ -15,7 +15,7 @@
     <sha1/>
 
     <dcm4che.version>5.35.2</dcm4che.version>
-    <weasis.core.img.version>5.0.0.1</weasis.core.img.version>
+    <weasis.core.img.version>5.1.0</weasis.core.img.version>
 
     <!-- Shared by both modules (weasis-dicom-tools + benchmark). -->
     <java-version>17</java-version>

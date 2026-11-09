@@ -4,7 +4,7 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
     commit-message:
       prefix: ci
     groups:
@@ -18,7 +18,7 @@ updates:
       - /
       - /weasis-dicom-tools
     schedule:
-      interval: weekly
+      interval: monthly
     open-pull-requests-limit: 10
     commit-message:
       prefix: build

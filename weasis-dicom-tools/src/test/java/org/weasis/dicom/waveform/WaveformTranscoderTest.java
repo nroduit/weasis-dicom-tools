@@ -14,12 +14,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Random;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.BulkData;
@@ -145,6 +148,24 @@ class WaveformTranscoderTest {
     WaveformTranscodeParam param = new WaveformTranscodeParam(T261TransferSyntax.lossless());
     param.setIntraPeriod(INTRA_PERIOD);
     return param;
+  }
+
+      /** The spool files are created in the shared temp directory: only their owner may read them. */
+  @Test
+  void the_spool_files_are_readable_by_their_owner_only() throws IOException {
+    assumeTrue(FileSystems.getDefault().supportedFileAttributeViews().contains("posix"));
+    Path file = writeNativeFile(ecgSamples());
+    Attributes group = read(file, IncludeBulkData.URI).getSequence(Tag.WaveformSequence).get(0);
+    WaveformDescriptor desc = WaveformDescriptor.of(group);
+    try (WaveformReader reader = WaveformReaders.open(group, UID.ExplicitVRLittleEndian);
+        EncodedWaveform t261 =
+            EncodedWaveform.encodeT261(reader, losslessParam().t261Parameters(desc));
+        EncodedWaveform raw = EncodedWaveform.decodeNative(reader, desc)) {
+      assertEquals(
+          PosixFilePermissions.fromString("rw-------"), Files.getPosixFilePermissions(t261.file()));
+      assertEquals(
+          PosixFilePermissions.fromString("rw-------"), Files.getPosixFilePermissions(raw.file()));
+    }
   }
 
   @Test

@@ -15,8 +15,11 @@ import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.List;
 import org.dcm4che3.data.Attributes;
@@ -44,6 +47,18 @@ import org.weasis.opencv.waveform.WaveformReader;
  */
 public final class EncodedWaveform implements AutoCloseable {
 
+  /**
+   * Restricts the spool file to its owner: it is created in the shared system temp directory,
+   * which is world-writable on POSIX systems. Empty where POSIX permissions are not supported
+   * (Windows), whose per-user temp directory is already private.
+   */
+  private static final FileAttribute<?>[] OWNER_ONLY =
+      FileSystems.getDefault().supportedFileAttributeViews().contains("posix")
+          ? new FileAttribute<?>[] {
+            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------"))
+          }
+          : new FileAttribute<?>[0];
+
   private final Path file;
   private final VR vr;
   private final Object value;
@@ -64,7 +79,7 @@ public final class EncodedWaveform implements AutoCloseable {
    */
   public static EncodedWaveform encodeT261(WaveformReader source, T261Parameters parameters)
       throws IOException {
-    Path file = Files.createTempFile("t261-", ".bws");
+    Path file = Files.createTempFile("t261-", ".bws", OWNER_ONLY);
     try {
       List<Long> lengths = new ArrayList<>();
       try (OutputStream out = new BufferedOutputStream(Files.newOutputStream(file), 1 << 16)) {
@@ -109,7 +124,7 @@ public final class EncodedWaveform implements AutoCloseable {
               + " channels, the Item declares "
               + desc.channels());
     }
-    Path file = Files.createTempFile("waveform-", ".raw");
+    Path file = Files.createTempFile("waveform-", ".raw", OWNER_ONLY);
     try {
       int bytesPerSample = desc.interpretation().bytesPerSample();
       long written = 0;
